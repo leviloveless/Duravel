@@ -50,6 +50,8 @@ export const GenerationInputSchema = z.object({
   /** Optional overrides for the engine's experience-derived starting volume. */
   startMileage: z.number().positive().max(200).optional(),
   startCardioMinutes: z.number().positive().max(2000).optional(),
+  /** Program start date (ISO yyyy-mm-dd). Defaults to today when omitted. */
+  startDate: z.string().optional(),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;

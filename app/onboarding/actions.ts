@@ -99,6 +99,7 @@ export async function submitOnboarding(
     races: races.length > 0 ? races : undefined,
     startMileage: num(formData, "startMileage"),
     startCardioMinutes: num(formData, "startCardioMinutes"),
+    startDate: str(formData, "startDate"),
   };
 
   const parsed = GenerationInputSchema.safeParse(candidate);
@@ -115,7 +116,7 @@ export async function submitOnboarding(
   }
 
   // --- Deterministic periodization engine (Milestone 3) ---
-  const start = todayISO();
+  const start = input.startDate ?? todayISO();
   const engineInput = toEngineInput(input, start);
   const skeleton = buildSkeleton(engineInput);
 

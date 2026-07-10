@@ -64,6 +64,7 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
   const [programType, setProgramType] = useState<ProgramType>("goal_event");
   const [races, setRaces] = useState<Race[]>([{ date: "", priority: "A" }]);
   const [duration, setDuration] = useState(12);
+  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const showRaces = programType === "goal_event" || programType === "fixed_duration";
   const showDuration = programType !== "goal_event";
@@ -249,10 +250,23 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
 
       {/* Step 3 — Schedule & goal */}
       <fieldset className={`flex flex-col gap-6 ${step === 2 ? "" : "hidden"}`}>
-        <label className="flex flex-col gap-1 text-sm">
-          Program name <span className="text-xs text-zinc-400">(optional)</span>
-          <input name="programName" placeholder="e.g. Spring HYROX build" className={inputClass} />
-        </label>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Program name <span className="text-xs text-zinc-400">(optional)</span>
+            <input name="programName" placeholder="e.g. Spring HYROX build" className={inputClass} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Start date
+            <input
+              name="startDate"
+              type="date"
+              min={today}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </div>
 
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">Training days (pick at least 3)</legend>

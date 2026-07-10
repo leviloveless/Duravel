@@ -100,6 +100,82 @@ export function raceLabel(priority: "A" | "B" | "C"): string {
   return `Race day — ${priority} race`;
 }
 
+// --- Session length estimate (Tasks additions #1, #2) ---
+
+export interface SessionTiming {
+  warmup: number;
+  work: number;
+  cooldown: number;
+  total: number;
+}
+
+/** Warmup/cooldown minutes by run type (quality runs need a longer warmup). */
+const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]> = {
+  easy: [5, 5],
+  long: [5, 5],
+  fartlek: [8, 5],
+  tempo: [12, 8],
+  threshold: [12, 8],
+  interval: [15, 10],
+  hybrid_run: [8, 5],
+};
+
+/** Hybrid work-time bounds (spec addition: 25–60 min of work). */
+export const HYBRID_MIN_WORK = 25;
+export const HYBRID_MAX_WORK = 60;
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/**
+ * Estimated session length, split into warmup / work / cooldown / total.
+ * Deterministic (no AI) so every session — including already-generated ones —
+ * gets a consistent estimate. A race session returns zeros (event day).
+ */
+export function sessionTiming(session: Session): SessionTiming {
+  if (session.kind === "run") {
+    const [warmup, cooldown] = RUN_WARMUP_COOLDOWN[session.runType];
+    const work = Math.max(1, Math.round(session.durationMin));
+    return { warmup, work, cooldown, total: warmup + work + cooldown };
+  }
+  if (session.kind === "lift") {
+    // ~2.5 min per working set (lift + rest); fall back to a sensible default.
+    const sets = session.movements.reduce((n, m) => n + m.sets, 0);
+    const work = sets > 0 ? Math.round(sets * 2.5) : 40;
+    const warmup = 10;
+    const cooldown = 5;
+    return { warmup, work, cooldown, total: warmup + work + cooldown };
+  }
+  if (session.kind === "hybrid") {
+    // Keep hybrid work time within the 25–60 min band.
+    const work = clamp(Math.round(session.elements.length * 5), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
+    const warmup = 10;
+    const cooldown = 5;
+    return { warmup, work, cooldown, total: warmup + work + cooldown };
+  }
+  return { warmup: 0, work: 0, cooldown: 0, total: 0 };
+}
+
+/** Short workout-type label for the weekly table. */
+export function sessionTypeLabel(session: Session): string {
+  if (session.kind === "run") return RUN_TYPE_LABEL[session.runType];
+  if (session.kind === "lift") return `${LIFT_TYPE_LABEL[session.liftType]} lift`;
+  if (session.kind === "hybrid") return "Hybrid (HYROX)";
+  return `${session.priority} race`;
+}
+
+/** Pace column value, or "—" when pace doesn't apply. */
+export function sessionPace(session: Session): string {
+  return session.kind === "run" ? `${session.paceMinMile}/mi` : "—";
+}
+
+/** HR-zone column value, or "—" when zone doesn't apply. */
+export function sessionZone(session: Session): string {
+  if (session.kind === "run" || session.kind === "hybrid") return `Zone ${session.goalZone}`;
+  return "—";
+}
+
 // --- Weekly summary (spec §7) ---
 
 export interface ZoneEntry {
@@ -209,6 +285,14 @@ export function weekRangeLabel(startISO: string, weekNumber: number): string {
 /** "Jul 13" for a single training day. */
 export function dayDateLabel(startISO: string, weekNumber: number, dayKey: string): string {
   return fmt(dayDate(startISO, weekNumber, dayKey));
+}
+
+/** "Jul 6 – Sep 1" spanning a mesocycle (weeks startWeek…endWeek). */
+export function phaseDateRangeLabel(startISO: string, startWeek: number, endWeek: number): string {
+  const s = weekStartDate(startISO, startWeek);
+  const e = new Date(weekStartDate(startISO, endWeek));
+  e.setDate(e.getDate() + 6);
+  return `${fmt(s)} – ${fmt(e)}`;
 }
 
 /** Tailwind colour set per phase, used by the timeline + week headers. */

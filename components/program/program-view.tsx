@@ -4,7 +4,6 @@ import PhaseTimeline from "./phase-timeline";
 import WeekNav from "./week-nav";
 import WeekCard from "./week-card";
 import WeekSummaryTable from "./week-summary-table";
-import { PHASE_COLORS, phaseBands } from "./format";
 import RegenerateButton from "@/app/program/[id]/regenerate-button";
 
 export interface ProgramMeta {
@@ -21,28 +20,7 @@ const PROGRAM_TYPE_LABEL: Record<string, string> = {
   general_fitness: "General fitness",
 };
 
-/** Mesocycle legend: which weeks belong to each phase (Tasks addition #2). */
-function MesocycleLegend({ weeks }: { weeks: ProgramData["weeks"] }) {
-  const bands = phaseBands(weeks);
-  return (
-    <div className="flex flex-wrap gap-2">
-      {bands.map((b, i) => (
-        <span
-          key={i}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${PHASE_COLORS[b.phase].chip}`}
-        >
-          <span className={`h-2 w-2 rounded-full ${PHASE_COLORS[b.phase].band}`} />
-          <span className="font-medium">{b.label}</span>
-          <span className="opacity-80">
-            {b.startWeek === b.endWeek ? `week ${b.startWeek}` : `weeks ${b.startWeek}–${b.endWeek}`} ({b.weeks} wk{b.weeks > 1 ? "s" : ""})
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/** Full program view: header + timeline + mesocycle legend + sticky week nav,
+/** Full program view: header + timeline (weeks + phase dates) + sticky week nav,
  *  a scrolling column of week cards, and a sticky weekly-summary sidebar. */
 export default function ProgramView({ program, meta }: { program: ProgramData; meta: ProgramMeta }) {
   return (
@@ -63,8 +41,7 @@ export default function ProgramView({ program, meta }: { program: ProgramData; m
             </Link>
           </div>
         </div>
-        <PhaseTimeline weeks={program.weeks} />
-        <MesocycleLegend weeks={program.weeks} />
+        <PhaseTimeline weeks={program.weeks} startDate={meta.startDate} />
       </header>
 
       <WeekNav weeks={program.weeks} />
@@ -76,10 +53,8 @@ export default function ProgramView({ program, meta }: { program: ProgramData; m
             <WeekCard key={w.weekNumber} week={w} startDate={meta.startDate} />
           ))}
         </div>
-        <aside className="hidden w-72 shrink-0 lg:block print:hidden">
-          <div className="sticky top-4">
-            <WeekSummaryTable weeks={program.weeks} />
-          </div>
+        <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:block lg:w-72 lg:self-start print:hidden">
+          <WeekSummaryTable weeks={program.weeks} />
         </aside>
       </div>
     </div>
