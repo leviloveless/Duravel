@@ -43,7 +43,10 @@ squat, hip_hinge, lunge, horizontal_press, vertical_press, horizontal_pull, vert
 For each movement give: pattern, number of sets, and rep range. If a 5-rep-max benchmark was provided, you may suggest a starting weight (~75–80% of 5RM) for that lift.`;
 
 /** Hybrid (HYROX-specific) rules (spec §5c, Q18). */
-export const HYBRID_GUIDANCE = `Hybrid sessions simulate the HYROX format: threshold-pace runs interleaved with non-running cardio/strength stations. Compose each hybrid session from the station library for its mesocycle plus threshold runs. Prescribe each element as reps / distance / calories / time, and give the run pace. Assign a goal HR zone (typically Zone 4). Each hybrid session should total between 25 and 60 minutes of WORK time (excluding warmup/cooldown) — size the number of elements and their prescriptions to land in that range. Keep a small, repeatable set of hybrid workouts within a mesocycle; rotate/replace them between mesocycles rather than inventing a unique one every week.`;
+export const HYBRID_GUIDANCE = `Hybrid sessions simulate the HYROX format: threshold-pace runs interleaved with non-running cardio/strength stations ("events").
+Structure EVERY hybrid session as exactly 4 runs and 4 events, alternating run → event → run → event … Each run is 1000m at threshold pace (give the pace). So the "elements" array for a hybrid should contain 8 entries: 4 run elements each prescribed as "1000m @ <pace> (threshold)" and 4 event elements from the station library, interleaved.
+Rotate the events across the week's hybrid sessions: when a week has two hybrid sessions, choose the 4 events for each so that, together, all of the week's HYROX stations are covered at least once (don't repeat the same 4 events in both sessions).
+Prescribe each event as reps / distance / calories. Assign a goal HR zone (typically Zone 4). Each hybrid session should total between 25 and 60 minutes of WORK time (excluding warmup/cooldown). Keep the set of hybrid workouts repeatable within a mesocycle and rotate/replace them between mesocycles.`;
 
 /** Rotating hybrid station library, biased by mesocycle (spec §5c, Q24). */
 export const HYBRID_LIBRARY: Record<"base" | "build" | "peak" | "taper", string[]> = {

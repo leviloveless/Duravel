@@ -19,7 +19,7 @@ export default async function ProgramPage({
 
   const { data: program } = await supabase
     .from("programs")
-    .select("id, name, status, duration_weeks, program_type, start_date, program_data")
+    .select("id, name, status, duration_weeks, program_type, start_date, program_data, input_snapshot")
     .eq("id", id)
     .single();
 
@@ -36,6 +36,11 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
 
+  // Max HR (220 − age) from the profile captured at generation time, for the
+  // per-session HR zone ranges. Falls back to a 30-year-old default.
+  const snapshotAge = (program.input_snapshot as { profile?: { age?: number } } | null)?.profile?.age;
+  const maxHR = 220 - (typeof snapshotAge === "number" ? snapshotAge : 30);
+
   if (program.status === "ready" && data) {
     return (
       <main className="mx-auto max-w-6xl px-6 py-10">
@@ -47,6 +52,7 @@ export default async function ProgramPage({
             durationWeeks: program.duration_weeks,
             programType: program.program_type,
             startDate: program.start_date,
+            maxHR,
           }}
         />
       </main>

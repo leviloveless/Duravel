@@ -9,7 +9,7 @@
  *
  * Volume math:
  *   - rebound  → hold the volume from the prior increase week
- *   - increase → add the lesser of (1.5 mi, 7.5%) to mileage and the lesser of
+ *   - increase → add the lesser of (1.5 mi, 7.5%) to mileage and the greater of
  *                (15 min, 10%) to cardio, over the current held level
  *   - deload   → −40% mileage & cardio (the held level is NOT reduced, so the
  *                next rebound resumes from the pre-deload peak)
@@ -20,10 +20,9 @@
 import type { MicroWeekType, TrainingClassName } from "./types";
 import {
   DELOAD_FACTOR,
-  INCREASE_CARDIO_CAP,
-  INCREASE_CARDIO_PCT,
   INCREASE_MILEAGE_CAP,
   INCREASE_MILEAGE_PCT,
+  increaseCardioStep,
   increaseStep,
 } from "./volume";
 
@@ -72,7 +71,7 @@ export function sequenceMicrocycles(
 
     if (label === "increase") {
       heldMileage += increaseStep(heldMileage, INCREASE_MILEAGE_PCT, INCREASE_MILEAGE_CAP);
-      heldCardio += increaseStep(heldCardio, INCREASE_CARDIO_PCT, INCREASE_CARDIO_CAP);
+      heldCardio += increaseCardioStep(heldCardio);
       mileage.push(round1(heldMileage));
       cardioMinutes.push(Math.round(heldCardio));
     } else if (label === "deload") {

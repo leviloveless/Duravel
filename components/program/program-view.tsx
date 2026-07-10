@@ -12,6 +12,7 @@ export interface ProgramMeta {
   durationWeeks: number;
   programType: string;
   startDate: string;
+  maxHR: number;
 }
 
 const PROGRAM_TYPE_LABEL: Record<string, string> = {
@@ -50,7 +51,7 @@ export default function ProgramView({ program, meta }: { program: ProgramData; m
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           {program.weeks.map((w) => (
-            <WeekCard key={w.weekNumber} week={w} startDate={meta.startDate} />
+            <WeekCard key={w.weekNumber} week={w} startDate={meta.startDate} maxHR={meta.maxHR} />
           ))}
         </div>
         <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:block lg:w-72 lg:self-start print:hidden">

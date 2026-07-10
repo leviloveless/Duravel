@@ -26,24 +26,29 @@ export const AVG_MIN_PER_MILE = 9;
 /**
  * Microcycle volume math (spec §4b, refined).
  *
- * An increase week adds the LESSER of an absolute step or a percentage of the
- * current held volume — so early/low-volume weeks grow by the percentage while
- * higher-volume weeks are capped to a safe absolute bump:
- *   mileage: +min(1.5 miles, 7.5%)   cardio: +min(15 minutes, 10%)
+ * On an increase week:
+ *   - mileage grows by the LESSER of +1.5 miles or +7.5% (a safe absolute cap).
+ *   - cardio grows by the GREATER of +15 minutes or +10% (spec update — cardio
+ *     should ramp aggressively, never less than 15 min per increase week).
  */
 export const INCREASE_MILEAGE_PCT = 0.075; //  +7.5% of current mileage
 export const INCREASE_MILEAGE_CAP = 1.5; //    …but no more than +1.5 miles/week
 export const INCREASE_CARDIO_PCT = 0.1; //     +10% of current cardio minutes
-export const INCREASE_CARDIO_CAP = 15; //      …but no more than +15 minutes/week
+export const INCREASE_CARDIO_MIN_STEP = 15; // …but at least +15 minutes/week
 export const DELOAD_FACTOR = 0.6; //           −40% mileage & cardio on a deload week
 
-// Kept for backward-compatible imports; the capped rule above is authoritative.
+// Kept for backward-compatible imports; the rules above are authoritative.
 export const INCREASE_MILEAGE_FACTOR = 1.075;
 export const INCREASE_CARDIO_FACTOR = 1.1;
 
-/** Increase step = min(absolute cap, percentage of current). */
+/** Mileage increase step = min(absolute cap, percentage of current). */
 export function increaseStep(current: number, pct: number, cap: number): number {
   return Math.min(cap, current * pct);
+}
+
+/** Cardio increase step = max(absolute floor, percentage of current). */
+export function increaseCardioStep(current: number): number {
+  return Math.max(INCREASE_CARDIO_MIN_STEP, current * INCREASE_CARDIO_PCT);
 }
 
 /**

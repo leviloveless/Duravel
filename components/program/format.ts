@@ -176,6 +176,93 @@ export function sessionZone(session: Session): string {
   return "—";
 }
 
+// --- HR zone ↔ bpm ranges (Tasks addition #4) ---
+// Zone bands as % of max HR: Z1 <60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 90–100.
+
+/** The bpm range for a zone given the user's max HR (220 − age). */
+export function zoneHrRange(zone: number, maxHR: number): string {
+  const bpm = (p: number) => Math.round(p * maxHR);
+  switch (zone) {
+    case 1:
+      return `<${bpm(0.6)} bpm`;
+    case 2:
+      return `${bpm(0.6)}–${bpm(0.7)} bpm`;
+    case 3:
+      return `${bpm(0.7)}–${bpm(0.8)} bpm`;
+    case 4:
+      return `${bpm(0.8)}–${bpm(0.9)} bpm`;
+    case 5:
+      return `${bpm(0.9)}–${bpm(1.0)} bpm`;
+    default:
+      return "";
+  }
+}
+
+/** Zone column with the user's applicable HR numbers, or "—" when N/A. */
+export function sessionZoneLabel(session: Session, maxHR: number): string {
+  if (session.kind === "run" || session.kind === "hybrid") {
+    return `Zone ${session.goalZone} · ${zoneHrRange(session.goalZone, maxHR)}`;
+  }
+  return "—";
+}
+
+// --- Weekly totals derived from the actual sessions (Tasks additions #2,#3,#6) ---
+//
+// The engine's targets guide generation, but the numbers shown must MATCH the
+// sessions in the week: cardio = warmup+work+cooldown of every run/hybrid
+// session (weightlifting excluded); mileage = every run's distance plus the
+// runs inside hybrid sessions.
+
+const METERS_PER_MILE = 1609.34;
+const DEFAULT_HYBRID_RUN_MILES = 1000 / METERS_PER_MILE; // 1000 m per hybrid run
+
+/** Parse a distance ("1000m", "1 km", "0.6 mi") to miles, or null. */
+function parseDistanceMiles(text: string): number | null {
+  const t = text.toLowerCase();
+  let m = t.match(/(\d+(?:\.\d+)?)\s*(?:miles|mile|mi)\b/);
+  if (m) return parseFloat(m[1]);
+  m = t.match(/(\d+(?:\.\d+)?)\s*km\b/);
+  if (m) return parseFloat(m[1]) * 0.621371;
+  m = t.match(/(\d+(?:\.\d+)?)\s*(?:meters|metres|meter|metre|m)\b/);
+  if (m) return parseFloat(m[1]) / METERS_PER_MILE;
+  return null;
+}
+
+/** Running miles contained in a hybrid session's run elements. */
+function hybridRunMiles(hybrid: HybridSession): number {
+  let miles = 0;
+  for (const el of hybrid.elements) {
+    const isRun = /run/i.test(el.exercise) || /run/i.test(el.prescription);
+    if (!isRun) continue;
+    miles += parseDistanceMiles(el.prescription) ?? DEFAULT_HYBRID_RUN_MILES;
+  }
+  return miles;
+}
+
+/** Total weekly cardio minutes = warmup+work+cooldown of run + hybrid sessions
+ *  (weightlifting excluded, per spec). */
+export function weekCardioMinutes(week: ProgramWeek): number {
+  let total = 0;
+  for (const day of week.days) {
+    for (const s of day.sessions) {
+      if (s.kind === "run" || s.kind === "hybrid") total += sessionTiming(s).total;
+    }
+  }
+  return total;
+}
+
+/** Total weekly running mileage = every run's distance + hybrid run distances. */
+export function weekMileage(week: ProgramWeek): number {
+  let miles = 0;
+  for (const day of week.days) {
+    for (const s of day.sessions) {
+      if (s.kind === "run") miles += s.distanceMiles;
+      else if (s.kind === "hybrid") miles += hybridRunMiles(s);
+    }
+  }
+  return Math.round(miles * 10) / 10;
+}
+
 // --- Weekly summary (spec §7) ---
 
 export interface ZoneEntry {

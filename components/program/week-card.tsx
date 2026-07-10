@@ -10,7 +10,9 @@ import {
   sessionPace,
   sessionTiming,
   sessionTypeLabel,
-  sessionZone,
+  sessionZoneLabel,
+  weekCardioMinutes,
+  weekMileage,
   weekRangeLabel,
   zoneEntries,
 } from "./format";
@@ -73,7 +75,7 @@ const TYPE_DOT: Record<Session["kind"], string> = {
 };
 
 /** One week: summary header + a Monday→Sunday table of that week's sessions. */
-export default function WeekCard({ week, startDate }: { week: ProgramWeek; startDate: string }) {
+export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek; startDate: string; maxHR: number }) {
   const colors = PHASE_COLORS[week.phase];
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
 
@@ -99,11 +101,11 @@ export default function WeekCard({ week, startDate }: { week: ProgramWeek; start
           <div className="flex gap-6 text-sm">
             <span>
               <span className="block text-xs text-zinc-500">Cardio time</span>
-              <span className="font-medium">{week.summary.totalCardioMinutes} min</span>
+              <span className="font-medium">{weekCardioMinutes(week)} min</span>
             </span>
             <span>
               <span className="block text-xs text-zinc-500">Running mileage</span>
-              <span className="font-medium">{week.summary.totalMileage} mi</span>
+              <span className="font-medium">{weekMileage(week)} mi</span>
             </span>
           </div>
           <ZoneBars week={week} />
@@ -169,7 +171,7 @@ export default function WeekCard({ week, startDate }: { week: ProgramWeek; start
                       </div>
                     </td>
                     <td className="px-3 py-3 align-top text-zinc-600">{sessionPace(s)}</td>
-                    <td className="px-3 py-3 align-top text-zinc-600">{sessionZone(s)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{sessionZoneLabel(s, maxHR)}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.warmup}m`}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.work}m`}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.cooldown}m`}</td>

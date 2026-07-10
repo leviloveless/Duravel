@@ -142,10 +142,10 @@ describe("microcycle volume math (NHT)", () => {
     expect(seq.mileage[3]).toBeGreaterThan(seq.mileage[0]);
   });
 
-  it("cardio rises on increase weeks, capped at +15 min (min of 15 or 10%)", () => {
+  it("cardio rises on increase weeks by the greater of +15 min or +10%", () => {
     expect(seq.cardioMinutes[1]).toBeGreaterThan(seq.cardioMinutes[0]);
-    // 10% of 200 = 20, capped to +15 → 215
-    expect(seq.cardioMinutes[1]).toBe(215);
+    // max(15, 10% of 200 = 20) = 20 → 220
+    expect(seq.cardioMinutes[1]).toBe(220);
   });
 });
 
