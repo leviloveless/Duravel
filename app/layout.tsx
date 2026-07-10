@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import NavBar from "@/components/nav-bar";
 
 export const metadata: Metadata = {
   title: "HyroxAI",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <NavBar />
+        <div className="flex-1">{children}</div>
+      </body>
     </html>
   );
 }

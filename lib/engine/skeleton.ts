@@ -94,12 +94,30 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
     });
   }
 
+  // After a B race, open the following week with a full rest day then two
+  // easy days (48–72h recovery) before resuming normal training.
+  applyPostBRaceRecovery(weeks, input.races);
+
   return {
     durationWeeks: D,
     trainingClass: input.trainingClass,
     allocation: alloc,
     weeks,
   };
+}
+
+/** B-race post-race recovery: rest day + two easy days at the start of the
+ *  week following each B race (spec addition — B post-race protocol). */
+function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): void {
+  for (const race of races) {
+    if (race.priority !== "B") continue;
+    const nextWeek = weeks[race.weekNumber]; // weekNumber is 1-based → index = the next week
+    if (!nextWeek) continue;
+    const d = nextWeek.days;
+    if (d[0]) d[0].sessions = [{ kind: "rest" }];
+    if (d[1]) d[1].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
+    if (d[2]) d[2].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
+  }
 }
 
 function round1(n: number): number {

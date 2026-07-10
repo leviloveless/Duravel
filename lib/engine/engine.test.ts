@@ -173,12 +173,12 @@ describe("A race taper (2 weeks, -30%/-30%)", () => {
   };
   const res = applyTapers(base, [{ weekNumber: 20, priority: "A" }]);
 
-  it("week 19 is -30% and labeled taper", () => {
-    expect(res.mileage[18]).toBeCloseTo(flat * 0.7, 1);
+  it("week 19 is ~80% of peak and labeled taper", () => {
+    expect(res.mileage[18]).toBeCloseTo(flat * 0.8, 1);
     expect(res.microLabels[18]).toBe("taper");
   });
-  it("week 20 is a further -30% (~51% cumulative) and labeled race", () => {
-    expect(res.mileage[19]).toBeCloseTo(flat * 0.49, 1);
+  it("week 20 (race week) is ~60% of peak (within 50–70%) and labeled race", () => {
+    expect(res.mileage[19]).toBeCloseTo(flat * 0.6, 1);
     expect(res.microLabels[19]).toBe("race");
     expect(res.raceWeeks.get(20)?.priority).toBe("A");
   });
@@ -253,6 +253,20 @@ describe("C race trains through (no taper, no volume cut)", () => {
   });
 });
 
+describe("B race post-race recovery", () => {
+  it("opens the week after a mid-program B race with rest + two easy days", () => {
+    const D = 12;
+    // B race mid-program so there is a following week to recover into.
+    const skeleton = buildSkeleton(
+      makeInput({ durationWeeks: D, races: [{ weekNumber: 6, priority: "B" }] }),
+    );
+    const recovery = skeleton.weeks[6]; // week 7 = the week after the B race
+    expect(recovery.days[0].sessions.every((s) => s.kind === "rest")).toBe(true);
+    expect(recovery.days[1].sessions.some((s) => s.kind === "run")).toBe(true);
+    expect(recovery.days[2].sessions.some((s) => s.kind === "run")).toBe(true);
+  });
+});
+
 // ============================================================
 // Full skeleton integration
 // ============================================================
@@ -280,7 +294,7 @@ describe("buildSkeleton — structural integrity", () => {
           const a = skeleton.allocation;
           expect(a.base + a.build + a.peak + a.taper).toBe(D);
 
-          for (const w of skeleton.weeks) {
+          skeleton.weeks.forEach((w, i) => {
             // zone targets present, sum to 100
             const z = w.zoneTargets;
             expect(z.z1 + z.z2 + z.z3 + z.z4 + z.z5).toBe(100);
@@ -291,8 +305,10 @@ describe("buildSkeleton — structural integrity", () => {
             expect(w.targetCardioMinutes).toBeGreaterThanOrEqual(0);
 
             // full training weeks carry exactly 3 lift sessions; race weeks
-            // (incl. a C race that trains through) replace a day with the race
-            if (w.microWeek !== "race" && w.microWeek !== "taper" && w.microWeek !== "deload" && !w.raceDay) {
+            // (incl. a C race that trains through) replace a day with the race,
+            // and the week after a B race opens with recovery days
+            const afterBRace = i > 0 && skeleton.weeks[i - 1].raceDay?.priority === "B";
+            if (w.microWeek !== "race" && w.microWeek !== "taper" && w.microWeek !== "deload" && !w.raceDay && !afterBRace) {
               const lifts = countKind(w, "lift");
               expect(lifts).toBe(3);
               // run count within the spec's 3–8 band
@@ -300,7 +316,7 @@ describe("buildSkeleton — structural integrity", () => {
               expect(runs).toBeGreaterThanOrEqual(3);
               expect(runs).toBeLessThanOrEqual(8);
             }
-          }
+          });
 
           // race weeks carry a race session + raceDay marker
           for (const race of races) {

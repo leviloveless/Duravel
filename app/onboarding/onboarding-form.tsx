@@ -380,9 +380,9 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
             ["tenKTime", "10K time (mm:ss)", "text"],
             ["ski2kTime", "2000m ski erg (mm:ss)", "text"],
             ["row2kTime", "2000m row erg (mm:ss)", "text"],
-            ["fiveRmSquat", "5-rep max squat", "number"],
-            ["fiveRmBench", "5-rep max bench", "number"],
-            ["fiveRmDeadlift", "5-rep max deadlift", "number"],
+            ["fiveRmSquat", "5-rep max squat (lbs)", "number"],
+            ["fiveRmBench", "5-rep max bench (lbs)", "number"],
+            ["fiveRmDeadlift", "5-rep max deadlift (lbs)", "number"],
             ["bike20MinCals", "Assault bike cals / 20 min", "number"],
           ].map(([name, label, type]) => (
             <label key={name} className="flex flex-col gap-1">

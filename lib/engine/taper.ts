@@ -15,7 +15,7 @@
  */
 
 import type { EngineRace, MicroWeekType, RacePriorityName } from "./types";
-import { A_TAPER_WEEK_FACTOR, B_TAPER_FACTOR } from "./volume";
+import { A_TAPER_RACEWEEK_FACTOR, A_TAPER_WEEK1_FACTOR, B_TAPER_FACTOR } from "./volume";
 import { taperWeeksForPriority } from "./mesocycles";
 
 export interface TaperableWeeks {
@@ -72,8 +72,9 @@ export function applyTapers(
     const preCardio = preIdx >= 0 ? baseCardio[preIdx] : baseCardio[0];
 
     if (race.priority === "A" && len === 2) {
-      setWeek(mileage, cardioMinutes, microLabels, startIdx, preMileage * A_TAPER_WEEK_FACTOR, preCardio * A_TAPER_WEEK_FACTOR, "taper");
-      setWeek(mileage, cardioMinutes, microLabels, raceIdx, preMileage * A_TAPER_WEEK_FACTOR * A_TAPER_WEEK_FACTOR, preCardio * A_TAPER_WEEK_FACTOR * A_TAPER_WEEK_FACTOR, "race");
+      // Both weeks measured from peak (not compounded): ~80% then ~60%.
+      setWeek(mileage, cardioMinutes, microLabels, startIdx, preMileage * A_TAPER_WEEK1_FACTOR, preCardio * A_TAPER_WEEK1_FACTOR, "taper");
+      setWeek(mileage, cardioMinutes, microLabels, raceIdx, preMileage * A_TAPER_RACEWEEK_FACTOR, preCardio * A_TAPER_RACEWEEK_FACTOR, "race");
     } else {
       // Only a B race reaches here: A is handled above and C trains through
       // (returned early), so the single race week is cut by the B factor.

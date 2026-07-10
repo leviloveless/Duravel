@@ -57,17 +57,20 @@ export const PEAK_VOLUME_FACTOR = 0.9;
 /**
  * Taper volume reductions, working backward from a race (spec §6, refined per
  * the A/B/C race taper philosophy).
- *   A race: two taper weeks — ~70% of peak, then ~49% on race week (maximum
- *           freshness; keep intensity, drop duration/frequency, cut heavy
- *           lifting in race week, add short openers).
+ *   A race: two taper weeks — ~80% of peak, then ~60% on race week (i.e. volume
+ *           lands in the 50–70% range by the final days). Interval intensity /
+ *           pacing stays at race-day targets; only reps/duration drop. Heavy
+ *           lifting is cut in the race week and short openers are added.
  *   B race: the race week is cut ~40% (a mini-taper that keeps training rhythm;
- *           hard efforts stay in, reps/time at high zones drop).
+ *           hard efforts stay in, reps/time at high zones drop). The following
+ *           week opens with a full rest day, then two easy days.
  *   C race: NO formal taper — train right through and treat the race itself as a
  *           high-quality hard workout. Volume is unchanged (factor 1.0).
  */
-export const A_TAPER_WEEK_FACTOR = 0.7; // −30% each of the two A-race taper weeks
-export const B_TAPER_FACTOR = 0.6; //     −40% single B-race taper week
-export const C_TAPER_FACTOR = 1.0; //     train through — no volume reduction
+export const A_TAPER_WEEK1_FACTOR = 0.8; //     first A-race taper week ≈ 80% of peak
+export const A_TAPER_RACEWEEK_FACTOR = 0.6; //  A-race week ≈ 60% of peak (within 50–70%)
+export const B_TAPER_FACTOR = 0.6; //           −40% single B-race taper week
+export const C_TAPER_FACTOR = 1.0; //           train through — no volume reduction
 
 /**
  * Per-phase target zone distribution (percentages, sum to 100). Base is
