@@ -20,7 +20,7 @@ export default async function NavBar() {
           HyroxAI
         </Link>
         <div className="flex items-center gap-1 text-sm">
-          {user ? (
+          {user && (
             <>
               <Link href="/dashboard" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 Dashboard
@@ -40,14 +40,15 @@ export default async function NavBar() {
                 </button>
               </form>
             </>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
-            >
-              Log in
-            </Link>
           )}
+          {/* Always-visible Log in button (per request) — takes the user to /login
+              regardless of auth state. */}
+          <Link
+            href="/login"
+            className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
+          >
+            Log in
+          </Link>
         </div>
       </nav>
     </header>
