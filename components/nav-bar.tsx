@@ -1,10 +1,18 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { signOut } from "@/app/login/actions";
 
 /**
  * Global top navigation bar (Tasks addition #6). Lets the user move between the
- * main pages from anywhere. Auth-gated pages redirect to /login when signed out.
+ * main pages from anywhere. Auth-aware: signed-in users see the app links plus a
+ * Sign out button; signed-out users see a single Log in button.
  */
-export default function NavBar() {
+export default async function NavBar() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <header className="border-b border-zinc-200 bg-white/90 backdrop-blur print:hidden">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
@@ -12,15 +20,34 @@ export default function NavBar() {
           HyroxAI
         </Link>
         <div className="flex items-center gap-1 text-sm">
-          <Link href="/dashboard" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-            Dashboard
-          </Link>
-          <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-            New program
-          </Link>
-          <Link href="/profile" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-            Profile
-          </Link>
+          {user ? (
+            <>
+              <Link href="/dashboard" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Dashboard
+              </Link>
+              <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                New program
+              </Link>
+              <Link href="/profile" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Profile
+              </Link>
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
+            >
+              Log in
+            </Link>
+          )}
         </div>
       </nav>
     </header>
