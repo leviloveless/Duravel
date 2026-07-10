@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, type KeyboardEvent } from "react";
+import { startTransition, useActionState, useRef, useState, type KeyboardEvent } from "react";
 import { submitOnboarding, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 
@@ -148,7 +148,10 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
     // (guards against a double-click on "Next" carrying through to "Generate").
     if (Date.now() - enteredLastStepAt.current < 300) return;
     if (!formRef.current) return;
-    formAction(new FormData(formRef.current));
+    const formData = new FormData(formRef.current);
+    // The dispatch from useActionState must run inside a transition when
+    // invoked manually (rather than via a form action prop).
+    startTransition(() => formAction(formData));
   }
 
   return (
