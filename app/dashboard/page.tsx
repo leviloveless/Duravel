@@ -26,18 +26,15 @@ export default async function DashboardPage() {
         </form>
       </div>
 
-      {!profile && (
-        <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          You haven&apos;t saved a profile yet.{" "}
-          <Link href="/profile" className="underline">
-            Set it up
-          </Link>{" "}
-          before generating a program.
-        </p>
-      )}
+      <Link
+        href="/onboarding"
+        className="self-start rounded-full bg-black px-6 py-3 text-white transition-colors hover:bg-zinc-800"
+      >
+        {profile ? "Build a new program" : "Build your program"}
+      </Link>
 
       <p className="text-zinc-600">
-        Program list + &ldquo;New program&rdquo; — Milestone 6.
+        Your program list renders here — Milestone 6.
       </p>
 
       {profile && (

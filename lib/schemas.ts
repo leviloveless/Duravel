@@ -113,3 +113,82 @@ export const SessionSchema = z.discriminatedUnion("kind", [
 ]);
 
 export type Session = z.infer<typeof SessionSchema>;
+
+// --- Assembled program shape (persisted to programs.program_data) ---
+
+export const ZoneDistributionSchema = z.object({
+  z1: z.number(),
+  z2: z.number(),
+  z3: z.number(),
+  z4: z.number(),
+  z5: z.number(),
+});
+
+/** Weekly summary block (spec §7). Recomputed from the engine's numeric
+ *  targets during assembly — never taken from AI output. */
+export const WeekSummarySchema = z.object({
+  totalCardioMinutes: z.number(),
+  totalMileage: z.number(),
+  zoneDistribution: ZoneDistributionSchema,
+});
+
+export const DaySchema = z.object({
+  day: TrainingDay,
+  /** Empty array = rest day. */
+  sessions: z.array(SessionSchema),
+});
+
+export const ProgramWeekSchema = z.object({
+  weekNumber: z.number().int(),
+  phase: Phase,
+  microWeek: MicroWeek,
+  summary: WeekSummarySchema,
+  days: z.array(DaySchema),
+  raceDay: z.object({ priority: RacePriority, date: z.string().optional() }).optional(),
+});
+
+export const ProgramDataSchema = z.object({
+  generatedAt: z.string(),
+  weeks: z.array(ProgramWeekSchema),
+});
+
+export type ZoneDistributionData = z.infer<typeof ZoneDistributionSchema>;
+export type WeekSummary = z.infer<typeof WeekSummarySchema>;
+export type ProgramDay = z.infer<typeof DaySchema>;
+export type ProgramWeek = z.infer<typeof ProgramWeekSchema>;
+export type ProgramData = z.infer<typeof ProgramDataSchema>;
+
+// --- AI chunk response (what one Haiku call returns for a mesocycle) ---
+//
+// The AI fills concrete session *content* only; the engine owns structure,
+// volume, and zones. Each returned day's sessions must line up with the
+// engine's slot kinds for that day (validated during assembly).
+
+export const AiDaySchema = z.object({
+  day: TrainingDay,
+  sessions: z.array(SessionSchema),
+});
+
+export const AiWeekSchema = z.object({
+  weekNumber: z.number().int(),
+  days: z.array(AiDaySchema),
+});
+
+export const AiChunkSchema = z.object({
+  weeks: z.array(AiWeekSchema),
+});
+
+export type AiDay = z.infer<typeof AiDaySchema>;
+export type AiWeek = z.infer<typeof AiWeekSchema>;
+export type AiChunk = z.infer<typeof AiChunkSchema>;
+
+/** The 7 non-negotiable lifting movement patterns (spec §5b). */
+export const REQUIRED_MOVEMENT_PATTERNS = [
+  "squat",
+  "hip_hinge",
+  "lunge",
+  "horizontal_press",
+  "vertical_press",
+  "horizontal_pull",
+  "vertical_pull",
+] as const;
