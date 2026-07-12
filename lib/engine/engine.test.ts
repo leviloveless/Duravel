@@ -142,20 +142,21 @@ describe("microcycle volume math (NHT)", () => {
     expect(seq.mileage[3]).toBeGreaterThan(seq.mileage[0]);
   });
 
-  it("cardio rises on increase weeks by the greater of +15 min or +10%", () => {
+  it("cardio rises on increase weeks by the greater of +20 min or +10%", () => {
     expect(seq.cardioMinutes[1]).toBeGreaterThan(seq.cardioMinutes[0]);
-    // max(15, 10% of 200 = 20) = 20 → 220
+    // max(20, 10% of 200 = 20) = 20 → 220 (Tasks #6)
     expect(seq.cardioMinutes[1]).toBe(220);
   });
 });
 
 describe("microcycle volume math (HT — two increase weeks)", () => {
   const seq = sequenceMicrocycles(8, "highly_trained", 30, 300);
-  it("compounds two capped increases before deloading", () => {
+  it("compounds two increases (greater of +1.5 mi or +7.5%) before deloading", () => {
     expect(seq.labels.slice(0, 4)).toEqual(["rebound", "increase", "increase", "deload"]);
-    // 30 → +min(1.5, 7.5%=2.25)=1.5 → 31.5 → +1.5 → 33.0
-    expect(seq.mileage[2]).toBeCloseTo(33.0, 1);
-    expect(seq.mileage[3]).toBeCloseTo(33.0 * DELOAD_FACTOR, 1);
+    // 30 → +max(1.5, 2.25)=2.25 → 32.25 → +max(1.5, 2.419)=2.419 → 34.669 (Tasks #5)
+    expect(seq.mileage[2]).toBeCloseTo(34.7, 1);
+    // deload = 60% of the held pre-deload peak (Tasks #4)
+    expect(seq.mileage[3]).toBeCloseTo(34.66875 * DELOAD_FACTOR, 1);
   });
 });
 

@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     .from("generation_events")
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id)
+    .neq("kind", "adapt") // weekly adaptations have their own separate limit
     .gte("created_at", since);
   if (!countError && (count ?? 0) >= DAILY_GENERATION_LIMIT) {
     return NextResponse.json(
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   // Keep the id so we can stamp token usage onto this same row afterward.
   const { data: event } = await supabase
     .from("generation_events")
-    .insert({ user_id: user.id, program_id: programId })
+    .insert({ user_id: user.id, program_id: programId, kind: force ? "recalculate" : "create" })
     .select("id")
     .single();
 

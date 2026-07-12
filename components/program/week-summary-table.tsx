@@ -1,5 +1,5 @@
 import type { ProgramData } from "@/lib/schemas";
-import { weekCardioMinutes, weekMileage, zoneEntries } from "./format";
+import { zoneEntries } from "./format";
 
 /**
  * Compact per-week summary table (Tasks addition #5): total cardio time, total
@@ -32,8 +32,8 @@ export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"
                   </a>
                   {w.raceDay && <span className="ml-1 text-red-600" title={`${w.raceDay.priority} race`}>●</span>}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums">{weekCardioMinutes(w)}m</td>
-                <td className="px-2 py-2 text-right tabular-nums">{weekMileage(w)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalCardioMinutes}m</td>
+                <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalMileage}</td>
                 <td className="px-3 py-2">
                   <div className="flex h-2 w-24 overflow-hidden rounded-full" title="Zone distribution">
                     {zoneEntries(w.summary.zoneDistribution).map((e) => (

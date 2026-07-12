@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useRef, useState, type KeyboardEvent } from "react";
-import { submitOnboarding, type OnboardingState } from "./actions";
+import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 
 const initialState: OnboardingState = { error: null };
@@ -43,15 +43,57 @@ const DAYS = [
   { key: "sun", label: "Sun" },
 ] as const;
 
+/** Standard %-of-max-HR bands, used as the default when custom zones are off. */
+const DEFAULT_ZONE_PCTS = [
+  { low: 0, high: 60 },
+  { low: 60, high: 70 },
+  { low: 70, high: 80 },
+  { low: 80, high: 90 },
+  { low: 90, high: 100 },
+] as const;
+
+const ZONE_META = [
+  { label: "Zone 1", desc: "Recovery / very easy" },
+  { label: "Zone 2", desc: "Easy aerobic / base" },
+  { label: "Zone 3", desc: "Moderate / tempo" },
+  { label: "Zone 4", desc: "Threshold" },
+  { label: "Zone 5", desc: "Max / VO2" },
+] as const;
+
 const STEPS = ["About you", "Experience", "Schedule & goal", "Benchmarks"] as const;
 
 type ProgramType = "goal_event" | "fixed_duration" | "general_fitness";
 type Race = { date: string; priority: "A" | "B" | "C" };
 
+/** Pre-fill values for edit mode (new-additions #1), derived from a program's
+ *  stored input snapshot. */
+export type EditInitial = {
+  programType: ProgramType;
+  races: Race[];
+  durationWeeks: number;
+  startDate: string;
+  programName: string;
+  startMileage?: number;
+  startCardioMinutes?: number;
+  benchmarks?: Record<string, string | number | undefined>;
+};
+
 const inputClass = "rounded-md border border-zinc-300 px-3 py-2 focus:border-black focus:outline-none";
 
-export default function OnboardingForm({ profile }: { profile: ProfileRow | null }) {
-  const [state, formAction, pending] = useActionState(submitOnboarding, initialState);
+export default function OnboardingForm({
+  profile,
+  mode = "create",
+  programId,
+  initial,
+}: {
+  profile: ProfileRow | null;
+  mode?: "create" | "edit";
+  programId?: string;
+  initial?: EditInitial;
+}) {
+  const isEdit = mode === "edit" && !!programId;
+  const action = isEdit ? updateProgramInputs.bind(null, programId!) : submitOnboarding;
+  const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   // Timestamp of when the user reached the final step — used to ignore an
   // accidental click that lands on "Generate" right after advancing.
@@ -61,17 +103,45 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
   const [stepError, setStepError] = useState<string | null>(null);
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
-  const [programType, setProgramType] = useState<ProgramType>("goal_event");
-  const [races, setRaces] = useState<Race[]>([{ date: "", priority: "A" }]);
-  const [duration, setDuration] = useState(12);
-  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  // Custom HR zones (new-additions #3) — off by default; standard bands preset.
+  const [customZones, setCustomZones] = useState<boolean>(!!profile?.hr_zones);
+  const [zones, setZones] = useState<{ low: number; high: number }[]>(() => {
+    const hz = profile?.hr_zones;
+    if (hz) return [hz.z1, hz.z2, hz.z3, hz.z4, hz.z5].map((b) => ({ low: b.low, high: b.high }));
+    return DEFAULT_ZONE_PCTS.map((b) => ({ low: b.low, high: b.high }));
+  });
+  // Day-placement preferences (new-additions #4).
+  const [longRunDay, setLongRunDay] = useState<string>(profile?.day_preferences?.longRunDay ?? "");
+  const [restDays, setRestDays] = useState<string[]>(profile?.day_preferences?.restDays ?? []);
+  const [programType, setProgramType] = useState<ProgramType>(initial?.programType ?? "goal_event");
+  const [races, setRaces] = useState<Race[]>(
+    initial && initial.races.length > 0 ? initial.races : [{ date: "", priority: "A" }],
+  );
+  const [duration, setDuration] = useState(initial?.durationWeeks ?? 12);
+  const [startDate, setStartDate] = useState<string>(initial?.startDate ?? new Date().toISOString().slice(0, 10));
 
   const showRaces = programType === "goal_event" || programType === "fixed_duration";
   const showDuration = programType !== "goal_event";
   const today = new Date().toISOString().slice(0, 10);
+  // In edit mode the program may have started in the past, so don't force
+  // future-only dates (which would block keeping the original start / races).
+  const minDate = isEdit ? undefined : today;
 
   function toggleDay(key: string) {
+    const turningOff = days.includes(key);
     setDays((d) => (d.includes(key) ? d.filter((x) => x !== key) : [...d, key]));
+    // Drop any day-preference that points at a day that's no longer selected.
+    if (turningOff) {
+      setRestDays((r) => r.filter((x) => x !== key));
+      setLongRunDay((cur) => (cur === key ? "" : cur));
+    }
+  }
+
+  function updateZone(i: number, patch: Partial<{ low: number; high: number }>) {
+    setZones((zs) => zs.map((z, idx) => (idx === i ? { ...z, ...patch } : z)));
+  }
+  function toggleRestDay(key: string) {
+    setRestDays((r) => (r.includes(key) ? r.filter((x) => x !== key) : [...r, key]));
   }
 
   function updateRace(i: number, patch: Partial<Race>) {
@@ -205,7 +275,72 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
             </select>
           </label>
         </div>
-        <p className="text-xs text-zinc-500">Age sets your max heart rate (220 − age), used for training zones.</p>
+        <label className="flex flex-col gap-1 text-sm">
+          Max heart rate <span className="text-xs text-zinc-400">(optional)</span>
+          <input
+            name="maxHr"
+            type="number"
+            min={100}
+            max={230}
+            defaultValue={profile?.max_hr ?? ""}
+            placeholder={profile?.age ? `Default ${220 - profile.age}` : "Default 220 − age"}
+            className={inputClass}
+          />
+        </label>
+        <p className="text-xs text-zinc-500">
+          Leave blank to use 220 − age. Set a custom value if you know your tested max HR.
+        </p>
+
+        {/* Custom HR zones (new-additions #3) */}
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={customZones} onChange={(e) => setCustomZones(e.target.checked)} />
+            <span className="font-medium">Set custom heart-rate zones</span>
+          </label>
+          <p className="text-xs text-zinc-500">
+            By default, zones use standard %-of-max bands (Z1 &lt;60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 90–100).
+            Enable this to set your own low/high % for each zone.
+          </p>
+          {/* Serialized flag the server action reads to know custom zones are on. */}
+          <input type="hidden" name="hrZonesEnabled" value={customZones ? "on" : ""} />
+          {customZones && (
+            <div className="flex flex-col gap-2 rounded-md border border-zinc-200 p-3">
+              {ZONE_META.map((z, i) => (
+                <div key={z.label} className="flex items-center gap-3">
+                  <span className="w-32 shrink-0">
+                    <span className="font-medium">{z.label}</span>
+                    <span className="block text-xs text-zinc-500">{z.desc}</span>
+                  </span>
+                  <label className="flex items-center gap-1 text-xs text-zinc-500">
+                    low %
+                    <input
+                      name={`zone_${i + 1}_low`}
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={zones[i].low}
+                      onChange={(e) => updateZone(i, { low: Number(e.target.value) })}
+                      className="w-16 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-xs text-zinc-500">
+                    high %
+                    <input
+                      name={`zone_${i + 1}_high`}
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={zones[i].high}
+                      onChange={(e) => updateZone(i, { high: Number(e.target.value) })}
+                      className="w-16 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
+                    />
+                  </label>
+                </div>
+              ))}
+              <p className="text-xs text-zinc-500">Each zone&apos;s high % must be greater than its low %.</p>
+            </div>
+          )}
+        </fieldset>
       </fieldset>
 
       {/* Step 2 — Experience */}
@@ -253,14 +388,14 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
         <div className="flex flex-col gap-4 sm:flex-row">
           <label className="flex flex-1 flex-col gap-1 text-sm">
             Program name <span className="text-xs text-zinc-400">(optional)</span>
-            <input name="programName" placeholder="e.g. Spring HYROX build" className={inputClass} />
+            <input name="programName" defaultValue={initial?.programName ?? ""} placeholder="e.g. Spring HYROX build" className={inputClass} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Start date
             <input
               name="startDate"
               type="date"
-              min={today}
+              min={minDate}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className={inputClass}
@@ -285,6 +420,50 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
             })}
           </div>
           <span className="text-xs text-zinc-500">{days.length} selected</span>
+        </fieldset>
+
+        {/* Day-placement preferences (new-additions #4) */}
+        <fieldset className="flex flex-col gap-3 text-sm">
+          <legend className="mb-1 font-medium">
+            Day preferences <span className="text-xs font-normal text-zinc-400">(optional)</span>
+          </legend>
+          {days.length === 0 ? (
+            <p className="text-xs text-zinc-500">Pick your training days above to set day preferences.</p>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1">
+                Preferred long-run day
+                <select name="longRunDay" value={longRunDay} onChange={(e) => setLongRunDay(e.target.value)} className={inputClass}>
+                  <option value="">No preference</option>
+                  {DAYS.filter((d) => days.includes(d.key)).map((d) => (
+                    <option key={d.key} value={d.key}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-col gap-1">
+                <span>Preferred rest day(s)</span>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.filter((d) => days.includes(d.key)).map((d) => {
+                    const on = restDays.includes(d.key);
+                    return (
+                      <label
+                        key={d.key}
+                        className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
+                      >
+                        <input type="checkbox" name={`restday_${d.key}`} checked={on} onChange={() => toggleRestDay(d.key)} className="sr-only" />
+                        {d.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <span className="text-xs text-zinc-500">
+                  Rest days are kept clear when your schedule leaves room. A long-run-day preference wins if the two conflict.
+                </span>
+              </div>
+            </>
+          )}
         </fieldset>
 
         <label className="flex flex-col gap-1 text-sm">
@@ -322,7 +501,7 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
               <div key={i} className="flex items-end gap-2">
                 <label className="flex flex-1 flex-col gap-1">
                   Date
-                  <input type="date" min={today} value={r.date} onChange={(e) => updateRace(i, { date: e.target.value })} className={inputClass} />
+                  <input type="date" min={minDate} value={r.date} onChange={(e) => updateRace(i, { date: e.target.value })} className={inputClass} />
                 </label>
                 <label className="flex flex-col gap-1">
                   Priority
@@ -374,11 +553,11 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
           <div className="flex gap-4">
             <label className="flex flex-1 flex-col gap-1">
               Starting weekly mileage
-              <input name="startMileage" type="number" min={0} step="0.1" placeholder="e.g. 22" className={inputClass} />
+              <input name="startMileage" type="number" min={0} step="0.1" defaultValue={initial?.startMileage ?? ""} placeholder="e.g. 22" className={inputClass} />
             </label>
             <label className="flex flex-1 flex-col gap-1">
               Starting weekly cardio (min)
-              <input name="startCardioMinutes" type="number" min={0} step="1" placeholder="e.g. 200" className={inputClass} />
+              <input name="startCardioMinutes" type="number" min={0} step="1" defaultValue={initial?.startCardioMinutes ?? ""} placeholder="e.g. 200" className={inputClass} />
             </label>
           </div>
         </fieldset>
@@ -405,6 +584,7 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
                 name={name}
                 type={type === "number" ? "number" : "text"}
                 step={type === "number" ? "1" : undefined}
+                defaultValue={initial?.benchmarks?.[name] ?? ""}
                 className={inputClass}
               />
             </label>
@@ -430,7 +610,13 @@ export default function OnboardingForm({ profile }: { profile: ProfileRow | null
           </button>
         ) : (
           <button type="button" onClick={handleGenerate} disabled={pending} className="rounded-full bg-black px-6 py-2.5 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50">
-            {pending ? "Building your program…" : "Generate program"}
+            {pending
+              ? isEdit
+                ? "Recalculating…"
+                : "Building your program…"
+              : isEdit
+                ? "Save & recalculate"
+                : "Generate program"}
           </button>
         )}
       </div>

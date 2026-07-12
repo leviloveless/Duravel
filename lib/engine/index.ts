@@ -6,6 +6,19 @@ export { applyTapers } from "./taper";
 export { assignDays, planWeek, buildRunSlots } from "./slots";
 export { buildSkeleton, toEngineInput } from "./skeleton";
 export {
+  computeWeekSignals,
+  decideAdaptation,
+  applyDecisionToWeek,
+  clampToBounds,
+  adherenceStreak,
+  type WeekSignals,
+  type AdaptDecision,
+  type AdaptContext,
+  type AdaptRuleCode,
+  type RevisedTargets,
+} from "./adapt";
+export { ADAPT } from "./adapt-config";
+export {
   PHASE_ZONE_TARGETS,
   STARTING_MILEAGE,
   INCREASE_MILEAGE_FACTOR,

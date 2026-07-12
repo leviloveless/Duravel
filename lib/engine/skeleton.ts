@@ -89,7 +89,10 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
       targetMileage: tapered.mileage[i],
       targetCardioMinutes: tapered.cardioMinutes[i],
       zoneTargets: { ...PHASE_ZONE_TARGETS[phase] },
-      days: assignDays(input.trainingDays, phase, microWeek, input.runningExp, input.hybridExp, race),
+      days: assignDays(input.trainingDays, phase, microWeek, input.runningExp, input.hybridExp, race, {
+        longRunDay: input.longRunDay,
+        restDays: input.restDays,
+      }),
       raceDay: race ? { priority: race.priority, date: race.date } : undefined,
     });
   }
@@ -178,6 +181,8 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     races,
     startMileage: input.startMileage,
     startCardioMinutes: input.startCardioMinutes,
+    longRunDay: input.profile.dayPreferences?.longRunDay,
+    restDays: input.profile.dayPreferences?.restDays,
   };
 }
 

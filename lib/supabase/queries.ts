@@ -13,6 +13,12 @@ export type ProfileRow = {
   training_class: "non_highly_trained" | "highly_trained";
   training_days: string[];
   benchmarks: Record<string, unknown> | null;
+  /** Optional custom max HR (bpm); null → use 220 − age (new-additions #2). */
+  max_hr: number | null;
+  /** Optional custom HR zone bands as % of max HR (new-additions #3). */
+  hr_zones: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }> | null;
+  /** Optional day-placement preferences (new-additions #4). */
+  day_preferences: { longRunDay?: string; restDays?: string[] } | null;
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +44,54 @@ export type ProgramSummaryRow = {
   start_date: string;
   created_at: string;
 };
+
+/** Row shape from `workout_logs` (Phase 2 — supabase/migrations/0005). */
+export type WorkoutLogRow = {
+  id: string;
+  program_id: string;
+  week_number: number;
+  day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+  session_index: number;
+  status: "completed" | "partial" | "skipped";
+  rpe: number | null;
+  actuals: { durationMin?: number; distanceMiles?: number; avgHr?: number } | null;
+  note: string | null;
+  logged_at: string;
+  updated_at: string;
+};
+
+export async function getProgramLogs(programId: string): Promise<WorkoutLogRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("workout_logs")
+    .select("id, program_id, week_number, day, session_index, status, rpe, actuals, note, logged_at, updated_at")
+    .eq("program_id", programId)
+    .order("week_number", { ascending: true });
+  return (data as WorkoutLogRow[] | null) ?? [];
+}
+
+/** Row shape from `adaptations` (Phase 2 — supabase/migrations/0006). */
+export type AdaptationRow = {
+  id: string;
+  program_id: string;
+  week_number: number;
+  target_week: number;
+  decision: "applied" | "dismissed";
+  rule_applied: string;
+  signals: Record<string, unknown> | null;
+  revised_targets: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export async function getProgramAdaptations(programId: string): Promise<AdaptationRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("adaptations")
+    .select("id, program_id, week_number, target_week, decision, rule_applied, signals, revised_targets, created_at")
+    .eq("program_id", programId)
+    .order("week_number", { ascending: true });
+  return (data as AdaptationRow[] | null) ?? [];
+}
 
 export async function getUserPrograms(): Promise<ProgramSummaryRow[]> {
   const supabase = await createClient();

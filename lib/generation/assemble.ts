@@ -72,10 +72,56 @@ function daySessions(
   return aiDay.sessions;
 }
 
+/**
+ * Priority rank of an assembled session within its day (new-additions #5).
+ * Mirrors the engine's slot ranking so the final program orders the priority
+ * workout first on any day that doubles up, independent of AI output order.
+ */
+function sessionPriority(session: Session): number {
+  switch (session.kind) {
+    case "race":
+      return 100;
+    case "hybrid":
+      return 90;
+    case "run":
+      switch (session.runType) {
+        case "long":
+          return 80;
+        case "interval":
+          return 78;
+        case "threshold":
+          return 76;
+        case "tempo":
+          return 74;
+        case "fartlek":
+          return 60;
+        case "hybrid_run":
+          return 58;
+        case "easy":
+          return 30;
+        default:
+          return 40;
+      }
+    case "lift":
+      return 50;
+    default:
+      return 40;
+  }
+}
+
+/** Stable sort a day's sessions, highest priority first. */
+function orderSessionsByPriority(sessions: Session[]): Session[] {
+  if (sessions.length < 2) return sessions;
+  return sessions
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => sessionPriority(b.s) - sessionPriority(a.s) || a.i - b.i)
+    .map((x) => x.s);
+}
+
 function buildWeek(skel: WeekSkeleton, aiWeek: AiWeek | undefined, issues: string[]): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
-    sessions: daySessions(d, aiWeek, issues, skel.weekNumber),
+    sessions: orderSessionsByPriority(daySessions(d, aiWeek, issues, skel.weekNumber)),
   }));
 
   return {

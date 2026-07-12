@@ -46,9 +46,11 @@ export function buildSystemPrompt(): string {
 
 function profileBlock(input: GenerationInput): string {
   const p = input.profile;
+  const maxHr = p.maxHr ?? 220 - p.age;
+  const maxHrNote = p.maxHr ? `custom max HR ${p.maxHr}` : `max HR ≈ ${maxHr}`;
   const lines = [
     `First name: ${p.firstName}`,
-    `Age: ${p.age} (max HR ≈ ${220 - p.age})`,
+    `Age: ${p.age} (${maxHrNote})`,
     `Body weight: ${p.bodyWeight} ${p.weightUnit}`,
     `Experience — running: ${p.runningExp}, hybrid: ${p.hybridExp}, lifting: ${p.liftingExp}`,
     `Training classification: ${p.trainingClass}`,
@@ -103,20 +105,41 @@ function weekBlock(week: WeekSkeleton): string {
 /**
  * Build the user prompt for one mesocycle chunk.
  * `phase` labels the chunk; `weeks` are the engine skeleton weeks in it.
+ *
+ * `adaptationContext` (Phase 2) carries last week's log digest + any
+ * constraints when re-filling a single adapted week. It gives the AI context
+ * to react to (e.g. a note about a sore knee) strictly WITHIN the volume the
+ * engine prescribed — the AI never gains authority over volume.
  */
-export function buildUserPrompt(input: GenerationInput, phase: PhaseName, weeks: WeekSkeleton[]): string {
+export function buildUserPrompt(
+  input: GenerationInput,
+  phase: PhaseName,
+  weeks: WeekSkeleton[],
+  adaptationContext?: string,
+): string {
   const library = HYBRID_LIBRARY[phase].join(", ");
-  return [
+  const parts = [
     "ATHLETE PROFILE",
     profileBlock(input),
     "",
     `MESOCYCLE: ${phase.toUpperCase()}`,
     PHASE_CHARACTER[phase],
     `Hybrid station library for this mesocycle: ${library}.`,
+  ];
+  if (adaptationContext) {
+    parts.push(
+      "",
+      "ADAPTATION CONTEXT (this is a re-fill of one upcoming week after reviewing the athlete's logged performance)",
+      adaptationContext,
+      "The weekly volume targets below already reflect the adjustment — do NOT change volume further. Respect any session constraints listed above. You may swap exercise selection in response to the athlete's notes, within the same session kinds and zones.",
+    );
+  }
+  parts.push(
     "",
     "WEEKS TO FILL",
     weeks.map(weekBlock).join("\n\n"),
     "",
     "Return the JSON object described in the system prompt, with one entry in \"weeks\" for each week above.",
-  ].join("\n");
+  );
+  return parts.join("\n");
 }

@@ -24,29 +24,35 @@ export const STARTING_MILEAGE: Record<ExperienceLevel, number> = {
 export const AVG_MIN_PER_MILE = 9;
 
 /**
- * Microcycle volume math (spec §4b, refined).
+ * Microcycle volume math (spec §4b, refined per Tasks #5/#6).
  *
  * On an increase week:
- *   - mileage grows by the LESSER of +1.5 miles or +7.5% (a safe absolute cap).
- *   - cardio grows by the GREATER of +15 minutes or +10% (spec update — cardio
- *     should ramp aggressively, never less than 15 min per increase week).
+ *   - mileage grows by the GREATER of +1.5 miles or +7.5% of the prior week
+ *     (Tasks #5). So a small-mileage runner always gets at least +1.5 mi, while
+ *     a higher-mileage runner scales up at 7.5%.
+ *       e.g. 10 mi → +max(1.5, 0.75) = +1.5 → 11.5 mi
+ *            25 mi → +max(1.5, 1.875) = +1.875 → 26.875 mi
+ *   - cardio grows by the GREATER of +20 minutes or +10% of the prior week
+ *     (Tasks #6).
+ *       e.g. 100 min → +max(20, 10) = +20 → 120 min
+ *            250 min → +max(20, 25) = +25 → 275 min
  */
-export const INCREASE_MILEAGE_PCT = 0.075; //  +7.5% of current mileage
-export const INCREASE_MILEAGE_CAP = 1.5; //    …but no more than +1.5 miles/week
-export const INCREASE_CARDIO_PCT = 0.1; //     +10% of current cardio minutes
-export const INCREASE_CARDIO_MIN_STEP = 15; // …but at least +15 minutes/week
-export const DELOAD_FACTOR = 0.6; //           −40% mileage & cardio on a deload week
+export const INCREASE_MILEAGE_PCT = 0.075; //      +7.5% of current mileage…
+export const INCREASE_MILEAGE_MIN_STEP = 1.5; //   …but at least +1.5 miles/week
+export const INCREASE_CARDIO_PCT = 0.1; //         +10% of current cardio minutes…
+export const INCREASE_CARDIO_MIN_STEP = 20; //     …but at least +20 minutes/week
+export const DELOAD_FACTOR = 0.6; //               deload week = 60% of the prior week (−40%)
 
 // Kept for backward-compatible imports; the rules above are authoritative.
 export const INCREASE_MILEAGE_FACTOR = 1.075;
 export const INCREASE_CARDIO_FACTOR = 1.1;
 
-/** Mileage increase step = min(absolute cap, percentage of current). */
-export function increaseStep(current: number, pct: number, cap: number): number {
-  return Math.min(cap, current * pct);
+/** Mileage increase step = max(absolute floor, percentage of current) (Tasks #5). */
+export function increaseStep(current: number, pct: number, minStep: number): number {
+  return Math.max(minStep, current * pct);
 }
 
-/** Cardio increase step = max(absolute floor, percentage of current). */
+/** Cardio increase step = max(absolute floor, percentage of current) (Tasks #6). */
 export function increaseCardioStep(current: number): number {
   return Math.max(INCREASE_CARDIO_MIN_STEP, current * INCREASE_CARDIO_PCT);
 }

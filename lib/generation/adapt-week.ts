@@ -1,0 +1,313 @@
+/**
+ * Weekly adaptation orchestrator (Phase 2 — phase2-spec.md §4d, §6).
+ *
+ * preview: deterministic and free — signals + rule decision for the review
+ * screen. apply: re-runs the decision, refills ONE week via the existing
+ * Haiku path (same pipeline as v1, smallest possible chunk), splices it into
+ * program_data + the stored skeleton, and writes the adaptations audit row
+ * with a snapshot of the replaced week.
+ *
+ * The AI never decides volume: it receives the engine's revised targets and a
+ * digest of last week's logs (so it can react to notes within those targets).
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  GenerationInputSchema,
+  type GenerationInput,
+  type ProgramData,
+  type ProgramWeek,
+  type WorkoutLog,
+} from "@/lib/schemas";
+import type { ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
+import {
+  applyDecisionToWeek,
+  computeWeekSignals,
+  decideAdaptation,
+  type AdaptContext,
+  type AdaptDecision,
+  type AdaptRuleCode,
+  type WeekSignals,
+} from "@/lib/engine/adapt";
+import { generateChunk } from "@/lib/ai/generate-week";
+import { assembleProgram } from "./assemble";
+import type { GenerationUsage } from "./generate-program";
+
+// Haiku list rates, matching generate-program.ts.
+const INPUT_COST_PER_TOKEN = 1 / 1_000_000;
+const OUTPUT_COST_PER_TOKEN = 5 / 1_000_000;
+
+export interface AdaptPreview {
+  weekNumber: number;
+  targetWeek: number;
+  signals: WeekSignals;
+  decision: AdaptDecision;
+  /** Original targets of the week that would be revised (null = final week). */
+  nextOriginal: { targetMileage: number; targetCardioMinutes: number } | null;
+}
+
+export interface AdaptError {
+  error: string;
+  status: number;
+}
+
+interface LoadedProgram {
+  input: GenerationInput;
+  programData: ProgramData;
+  skeleton: ProgramSkeleton;
+  reviewedWeek: ProgramWeek;
+  nextWeekSkeleton: WeekSkeleton | null;
+  logs: WorkoutLog[];
+  prevSignals: WeekSignals | null;
+  lastRule: AdaptRuleCode | null;
+}
+
+/** Map a workout_logs DB row to the client/engine WorkoutLog shape. */
+export function toWorkoutLog(row: {
+  week_number: number;
+  day: string;
+  session_index: number;
+  status: string;
+  rpe: number | null;
+  actuals: Record<string, number> | null;
+  note: string | null;
+}): WorkoutLog {
+  return {
+    weekNumber: row.week_number,
+    day: row.day as WorkoutLog["day"],
+    sessionIndex: row.session_index,
+    status: row.status as WorkoutLog["status"],
+    rpe: row.rpe,
+    actuals: row.actuals ?? null,
+    note: row.note,
+  };
+}
+
+async function loadForAdaptation(
+  supabase: SupabaseClient,
+  programId: string,
+  weekNumber: number,
+): Promise<LoadedProgram | AdaptError> {
+  const { data: row, error } = await supabase
+    .from("programs")
+    .select("id, status, input_snapshot, program_data, skeleton")
+    .eq("id", programId)
+    .single();
+  if (error || !row) return { error: "Program not found", status: 404 };
+  if (row.status !== "ready") return { error: "Program is not ready", status: 409 };
+
+  const parsedInput = GenerationInputSchema.safeParse(row.input_snapshot);
+  if (!parsedInput.success) return { error: "Stored input snapshot is invalid", status: 500 };
+
+  const programData = row.program_data as ProgramData | null;
+  const skeleton = row.skeleton as ProgramSkeleton | null;
+  if (!programData || !skeleton) return { error: "Program has no generated data", status: 409 };
+
+  const reviewedWeek = programData.weeks.find((w) => w.weekNumber === weekNumber);
+  if (!reviewedWeek) return { error: `Week ${weekNumber} not found in program`, status: 400 };
+  const nextWeekSkeleton = skeleton.weeks.find((w) => w.weekNumber === weekNumber + 1) ?? null;
+
+  // Logs for the reviewed week + the one before (compliance/strain trends).
+  const { data: logRows } = await supabase
+    .from("workout_logs")
+    .select("week_number, day, session_index, status, rpe, actuals, note")
+    .eq("program_id", programId)
+    .in("week_number", weekNumber > 1 ? [weekNumber - 1, weekNumber] : [weekNumber]);
+  const logs = (logRows ?? []).map(toWorkoutLog);
+
+  let prevSignals: WeekSignals | null = null;
+  const prevWeek = programData.weeks.find((w) => w.weekNumber === weekNumber - 1);
+  if (prevWeek) {
+    const prevLogs = logs.filter((l) => l.weekNumber === weekNumber - 1);
+    if (prevLogs.length > 0) prevSignals = computeWeekSignals(prevWeek, prevLogs);
+  }
+
+  // Most recent applied rule (the earned bump can't fire twice in a row).
+  const { data: lastAdaptation } = await supabase
+    .from("adaptations")
+    .select("rule_applied")
+    .eq("program_id", programId)
+    .eq("decision", "applied")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    input: parsedInput.data,
+    programData,
+    skeleton,
+    reviewedWeek,
+    nextWeekSkeleton,
+    logs: logs.filter((l) => l.weekNumber === weekNumber),
+    prevSignals,
+    lastRule: (lastAdaptation?.rule_applied as AdaptRuleCode | undefined) ?? null,
+  };
+}
+
+function decide(loaded: LoadedProgram, weekNumber: number): { signals: WeekSignals; decision: AdaptDecision } {
+  const signals = computeWeekSignals(loaded.reviewedWeek, loaded.logs);
+  const reviewedSkeleton = loaded.skeleton.weeks.find((w) => w.weekNumber === weekNumber);
+  const ctx: AdaptContext = {
+    reviewedTargets: {
+      targetMileage: reviewedSkeleton?.targetMileage ?? loaded.reviewedWeek.summary.totalMileage,
+      targetCardioMinutes:
+        reviewedSkeleton?.targetCardioMinutes ?? loaded.reviewedWeek.summary.totalCardioMinutes,
+    },
+    nextWeek: loaded.nextWeekSkeleton,
+    prevCompliance: loaded.prevSignals?.compliance ?? null,
+    prevStrain: loaded.prevSignals?.strain ?? null,
+    lastRule: loaded.lastRule,
+  };
+  return { signals, decision: decideAdaptation(signals, ctx) };
+}
+
+/** Deterministic preview for the review screen. No AI, no writes. */
+export async function previewAdaptation(
+  supabase: SupabaseClient,
+  programId: string,
+  weekNumber: number,
+): Promise<AdaptPreview | AdaptError> {
+  const loaded = await loadForAdaptation(supabase, programId, weekNumber);
+  if ("error" in loaded) return loaded;
+  const { signals, decision } = decide(loaded, weekNumber);
+  return {
+    weekNumber,
+    targetWeek: weekNumber + 1,
+    signals,
+    decision,
+    nextOriginal: loaded.nextWeekSkeleton
+      ? {
+          targetMileage: loaded.nextWeekSkeleton.targetMileage,
+          targetCardioMinutes: loaded.nextWeekSkeleton.targetCardioMinutes,
+        }
+      : null,
+  };
+}
+
+/** Per-session log digest fed to the refill prompt (notes verbatim). */
+export function buildAdaptationContext(
+  reviewedWeek: ProgramWeek,
+  logs: WorkoutLog[],
+  signals: WeekSignals,
+  decision: AdaptDecision,
+): string {
+  const byKey = new Map(logs.map((l) => [`${l.day}:${l.sessionIndex}`, l]));
+  const lines: string[] = [
+    `Last week (week ${reviewedWeek.weekNumber}): ${Math.round(signals.compliance * 100)}% of sessions completed` +
+      (signals.strain !== null ? `, average effort RPE ${signals.strain}` : "") +
+      ".",
+    `Adjustment applied: ${decision.rule} — ${decision.reason}`,
+  ];
+  for (const day of reviewedWeek.days) {
+    day.sessions.forEach((s, i) => {
+      if (s.kind === "race") return;
+      const log = byKey.get(`${day.day}:${i}`);
+      const label =
+        s.kind === "run" ? `${s.runType} run` : s.kind === "lift" ? `${s.liftType} lift` : "hybrid";
+      const status = log?.status ?? "not logged";
+      const rpe = log?.rpe != null ? `, RPE ${log.rpe}` : "";
+      const note = log?.note ? ` — note: "${log.note}"` : "";
+      lines.push(`  ${day.day} ${label}: ${status}${rpe}${note}`);
+    });
+  }
+  if (decision.constraints.longRunMaxMiles !== undefined) {
+    lines.push(
+      `CONSTRAINT: cap this week's long run at ${decision.constraints.longRunMaxMiles} miles (the athlete missed last week's long run — no progression on it).`,
+    );
+  }
+  return lines.join("\n");
+}
+
+export interface ApplyResult {
+  rule: AdaptRuleCode;
+  reason: string;
+  targetWeek: number;
+  refilled: boolean;
+  usage?: GenerationUsage;
+}
+
+/**
+ * Apply the adaptation: decide → refill the target week (when targets moved)
+ * → splice into program_data + stored skeleton → write the audit row.
+ * The caller has already authorized the user and enforced the rate limit.
+ */
+export async function applyAdaptation(
+  supabase: SupabaseClient,
+  userId: string,
+  programId: string,
+  weekNumber: number,
+): Promise<ApplyResult | AdaptError> {
+  const loaded = await loadForAdaptation(supabase, programId, weekNumber);
+  if ("error" in loaded) return loaded;
+  const { signals, decision } = decide(loaded, weekNumber);
+
+  const targetWeek = weekNumber + 1;
+  let refilled = false;
+  let usage: GenerationUsage | undefined;
+
+  // Refill when the rule changed targets OR added a session constraint.
+  const needsRefill =
+    decision.revisedTargets !== null || decision.constraints.longRunMaxMiles !== undefined;
+
+  if (needsRefill && loaded.nextWeekSkeleton) {
+    const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
+    const context = buildAdaptationContext(loaded.reviewedWeek, loaded.logs, signals, decision);
+
+    const result = await generateChunk(loaded.input, revisedWeek.phase, [revisedWeek], context);
+    usage = {
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      costUsd:
+        Math.round(
+          (result.usage.inputTokens * INPUT_COST_PER_TOKEN +
+            result.usage.outputTokens * OUTPUT_COST_PER_TOKEN) *
+            1e6,
+        ) / 1e6,
+    };
+    console.log(
+      `[adapt] program=${programId} week=${targetWeek} rule=${decision.rule} in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd.toFixed(4)}`,
+    );
+
+    // Assemble just this week through the same summary/pattern guarantees.
+    const miniSkeleton: ProgramSkeleton = { ...loaded.skeleton, weeks: [revisedWeek] };
+    const { program: miniProgram } = assembleProgram(miniSkeleton, [result.chunk]);
+    const newWeek = miniProgram.weeks[0];
+    if (!newWeek) return { error: "Refill produced no week", status: 502 };
+    // Keep the race-day marker if the original target week had one (it shouldn't — rule 1 —
+    // but never lose a race on a data edge case).
+    newWeek.raceDay = loaded.nextWeekSkeleton.raceDay
+      ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
+      : undefined;
+
+    const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? newWeek : w));
+    const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
+      w.weekNumber === targetWeek ? revisedWeek : w,
+    );
+
+    const { error: persistError } = await supabase
+      .from("programs")
+      .update({
+        program_data: { ...loaded.programData, weeks },
+        skeleton: { ...loaded.skeleton, weeks: skeletonWeeks },
+      })
+      .eq("id", programId);
+    if (persistError) return { error: `Failed to persist adapted week: ${persistError.message}`, status: 500 };
+    refilled = true;
+  }
+
+  const previousWeek = loaded.programData.weeks.find((w) => w.weekNumber === targetWeek) ?? null;
+  const { error: auditError } = await supabase.from("adaptations").insert({
+    user_id: userId,
+    program_id: programId,
+    week_number: weekNumber,
+    target_week: targetWeek,
+    decision: "applied",
+    rule_applied: decision.rule,
+    signals,
+    previous_week: refilled ? previousWeek : null,
+    revised_targets: decision.revisedTargets,
+  });
+  if (auditError) return { error: `Failed to record adaptation: ${auditError.message}`, status: 500 };
+
+  return { rule: decision.rule, reason: decision.reason, targetWeek, refilled, usage };
+}

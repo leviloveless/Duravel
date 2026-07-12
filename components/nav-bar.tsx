@@ -5,7 +5,8 @@ import { signOut } from "@/app/login/actions";
 /**
  * Global top navigation bar (Tasks addition #6). Lets the user move between the
  * main pages from anywhere. Auth-aware: signed-in users see the app links plus a
- * Sign out button; signed-out users see a single Log in button.
+ * Sign out button; signed-out users see a single Log in button. The Log in
+ * button is hidden entirely once a user is authenticated (new-additions #1).
  */
 export default async function NavBar() {
   const supabase = await createClient();
@@ -41,14 +42,16 @@ export default async function NavBar() {
               </form>
             </>
           )}
-          {/* Always-visible Log in button (per request) — takes the user to /login
-              regardless of auth state. */}
-          <Link
-            href="/login"
-            className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
-          >
-            Log in
-          </Link>
+          {/* Log in button — shown only when signed out; it disappears once the
+              user is authenticated (new-additions #1). */}
+          {!user && (
+            <Link
+              href="/login"
+              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
+            >
+              Log in
+            </Link>
+          )}
         </div>
       </nav>
     </header>

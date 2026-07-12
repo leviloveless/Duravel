@@ -176,32 +176,38 @@ export function sessionZone(session: Session): string {
   return "—";
 }
 
-// --- HR zone ↔ bpm ranges (Tasks addition #4) ---
-// Zone bands as % of max HR: Z1 <60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 90–100.
+// --- HR zone ↔ bpm ranges (Tasks addition #4; custom bands new-additions #3) ---
+// Zone bands are fractions of max HR. Standard defaults: Z1 <60, Z2 60–70,
+// Z3 70–80, Z4 80–90, Z5 90–100. Users can override each band's low/high %
+// (new-additions #3); the overrides are threaded in as `ZoneBands`.
 
-/** The bpm range for a zone given the user's max HR (220 − age). */
-export function zoneHrRange(zone: number, maxHR: number): string {
+/** One zone's [low, high] bounds as fractions (0–1) of max HR. */
+export type ZoneBand = { low: number; high: number };
+export type ZoneBands = Record<1 | 2 | 3 | 4 | 5, ZoneBand>;
+
+/** Standard %-of-max-HR bands used when the athlete hasn't set custom zones. */
+export const DEFAULT_ZONE_BANDS: ZoneBands = {
+  1: { low: 0, high: 0.6 },
+  2: { low: 0.6, high: 0.7 },
+  3: { low: 0.7, high: 0.8 },
+  4: { low: 0.8, high: 0.9 },
+  5: { low: 0.9, high: 1.0 },
+};
+
+/** The bpm range for a zone given the user's max HR and (optional) custom bands. */
+export function zoneHrRange(zone: number, maxHR: number, bands: ZoneBands = DEFAULT_ZONE_BANDS): string {
+  const band = bands[zone as 1 | 2 | 3 | 4 | 5];
+  if (!band) return "";
   const bpm = (p: number) => Math.round(p * maxHR);
-  switch (zone) {
-    case 1:
-      return `<${bpm(0.6)} bpm`;
-    case 2:
-      return `${bpm(0.6)}–${bpm(0.7)} bpm`;
-    case 3:
-      return `${bpm(0.7)}–${bpm(0.8)} bpm`;
-    case 4:
-      return `${bpm(0.8)}–${bpm(0.9)} bpm`;
-    case 5:
-      return `${bpm(0.9)}–${bpm(1.0)} bpm`;
-    default:
-      return "";
-  }
+  if (band.low <= 0) return `<${bpm(band.high)} bpm`;
+  if (band.high >= 1) return `${bpm(band.low)}+ bpm`;
+  return `${bpm(band.low)}–${bpm(band.high)} bpm`;
 }
 
 /** Zone column with the user's applicable HR numbers, or "—" when N/A. */
-export function sessionZoneLabel(session: Session, maxHR: number): string {
+export function sessionZoneLabel(session: Session, maxHR: number, bands: ZoneBands = DEFAULT_ZONE_BANDS): string {
   if (session.kind === "run" || session.kind === "hybrid") {
-    return `Zone ${session.goalZone} · ${zoneHrRange(session.goalZone, maxHR)}`;
+    return `Zone ${session.goalZone} · ${zoneHrRange(session.goalZone, maxHR, bands)}`;
   }
   return "—";
 }

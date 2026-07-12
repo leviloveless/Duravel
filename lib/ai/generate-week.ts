@@ -70,9 +70,10 @@ export async function generateChunk(
   input: GenerationInput,
   phase: PhaseName,
   weeks: WeekSkeleton[],
+  adaptationContext?: string,
 ): Promise<ChunkResult> {
   const system = buildSystemPrompt();
-  const user = buildUserPrompt(input, phase, weeks);
+  const user = buildUserPrompt(input, phase, weeks, adaptationContext);
   const anthropic = getClient();
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: user }];
@@ -95,6 +96,24 @@ export async function generateChunk(
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("");
+
+    // A truncated reply can't parse; surface it clearly rather than as an opaque
+    // JSON error. With week-batched chunks this shouldn't happen, but if it does
+    // the fix is fewer weeks per call (see MAX_WEEKS_PER_CALL) or a higher cap.
+    if (response.stop_reason === "max_tokens") {
+      const truncErr = new Error(
+        `model response truncated at max_tokens=${MAX_TOKENS} (${weeks.length} weeks in this call) — reduce weeks per call`,
+      );
+      if (attempt === 1) {
+        throw new Error(`Session generation failed for ${phase} mesocycle after retry: ${truncErr.message}`);
+      }
+      messages.push({ role: "assistant", content: text });
+      messages.push({
+        role: "user",
+        content: `Your previous reply was cut off before the JSON was complete. Reply again with ONLY the complete JSON object for the requested weeks, and keep each session concise so it fits.`,
+      });
+      continue;
+    }
 
     try {
       return { chunk: parseChunk(text), usage };

@@ -24,6 +24,36 @@ export const BenchmarksSchema = z.object({
   bike20MinCals: z.number().optional(),
 });
 
+/**
+ * One heart-rate zone's bounds as a percentage of max HR (new-additions #3).
+ * `low`/`high` are whole percentages (e.g. 60, 70); high must exceed low.
+ */
+export const HrZoneBandSchema = z
+  .object({
+    low: z.number().min(0).max(100),
+    high: z.number().min(0).max(100),
+  })
+  .refine((b) => b.high > b.low, { message: "Zone high % must be greater than low %" });
+
+/** Custom bands for all five zones (Z1…Z5). Optional — omit to use defaults. */
+export const HrZonesSchema = z.object({
+  z1: HrZoneBandSchema,
+  z2: HrZoneBandSchema,
+  z3: HrZoneBandSchema,
+  z4: HrZoneBandSchema,
+  z5: HrZoneBandSchema,
+});
+
+/**
+ * Preferences for how session types land on the week (new-additions #4).
+ * Both optional: `longRunDay` pins the weekly long run to a day; `restDays`
+ * are days the athlete would rather keep as full rest when the schedule allows.
+ */
+export const DayPreferencesSchema = z.object({
+  longRunDay: TrainingDay.optional(),
+  restDays: z.array(TrainingDay).optional(),
+});
+
 export const ProfileSchema = z.object({
   firstName: z.string().min(1),
   age: z.number().int().min(13).max(100),
@@ -35,6 +65,12 @@ export const ProfileSchema = z.object({
   trainingClass: TrainingClass,
   trainingDays: z.array(TrainingDay).min(3),
   benchmarks: BenchmarksSchema.optional(),
+  /** Optional custom max HR (bpm). When omitted, the app uses 220 − age. */
+  maxHr: z.number().int().min(100).max(230).optional(),
+  /** Optional custom HR zone bands (% of max HR). When omitted, standard bands. */
+  hrZones: HrZonesSchema.optional(),
+  /** Optional day-placement preferences (long-run day, preferred rest days). */
+  dayPreferences: DayPreferencesSchema.optional(),
 });
 
 export const RaceSchema = z.object({
@@ -55,6 +91,9 @@ export const GenerationInputSchema = z.object({
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
+export type HrZoneBand = z.infer<typeof HrZoneBandSchema>;
+export type HrZones = z.infer<typeof HrZonesSchema>;
+export type DayPreferences = z.infer<typeof DayPreferencesSchema>;
 export type Race = z.infer<typeof RaceSchema>;
 export type GenerationInput = z.infer<typeof GenerationInputSchema>;
 
@@ -186,6 +225,47 @@ export const AiChunkSchema = z.object({
 export type AiDay = z.infer<typeof AiDaySchema>;
 export type AiWeek = z.infer<typeof AiWeekSchema>;
 export type AiChunk = z.infer<typeof AiChunkSchema>;
+
+// --- Workout logs (Phase 2 — phase2-spec.md §3a) ---
+
+export const LogStatus = z.enum(["completed", "partial", "skipped"]);
+
+export const LogActualsSchema = z.object({
+  durationMin: z.number().positive().max(600).optional(),
+  distanceMiles: z.number().positive().max(100).optional(),
+  avgHr: z.number().int().min(40).max(230).optional(),
+});
+
+/** Body of POST /api/logs — one logged session, upserted by position. */
+export const WorkoutLogInputSchema = z
+  .object({
+    programId: z.string().min(1),
+    weekNumber: z.number().int().min(1).max(24),
+    day: TrainingDay,
+    sessionIndex: z.number().int().min(0).max(9),
+    status: LogStatus,
+    rpe: z.number().int().min(1).max(10).optional(),
+    actuals: LogActualsSchema.optional(),
+    note: z.string().max(280).optional(),
+  })
+  .refine((v) => v.status === "skipped" || v.rpe !== undefined, {
+    message: "RPE is required unless the session was skipped",
+    path: ["rpe"],
+  });
+
+export type LogActuals = z.infer<typeof LogActualsSchema>;
+export type WorkoutLogInput = z.infer<typeof WorkoutLogInputSchema>;
+
+/** Client-side shape of one stored log (subset of the DB row). */
+export interface WorkoutLog {
+  weekNumber: number;
+  day: z.infer<typeof TrainingDay>;
+  sessionIndex: number;
+  status: z.infer<typeof LogStatus>;
+  rpe: number | null;
+  actuals: LogActuals | null;
+  note: string | null;
+}
 
 /** The 7 non-negotiable lifting movement patterns (spec §5b). */
 export const REQUIRED_MOVEMENT_PATTERNS = [

@@ -42,6 +42,14 @@ export interface GenerateResult {
 const INPUT_COST_PER_TOKEN = 1 / 1_000_000; // $1 / 1M input tokens
 const OUTPUT_COST_PER_TOKEN = 5 / 1_000_000; // $5 / 1M output tokens
 
+/**
+ * Max weeks of session content to request in a single Haiku call. A whole
+ * mesocycle (e.g. a 9-week base) can exceed the model's max_tokens and get
+ * truncated mid-JSON, so large mesocycles are split into batches this size.
+ * ~3 weeks keeps each response comfortably under the 8k-token output ceiling.
+ */
+export const MAX_WEEKS_PER_CALL = 3;
+
 /** Split the skeleton weeks into contiguous same-phase mesocycle chunks. */
 export function chunkByMesocycle(skeleton: ProgramSkeleton): { phase: PhaseName; weeks: WeekSkeleton[] }[] {
   const chunks: { phase: PhaseName; weeks: WeekSkeleton[] }[] = [];
@@ -51,6 +59,26 @@ export function chunkByMesocycle(skeleton: ProgramSkeleton): { phase: PhaseName;
     else chunks.push({ phase: week.phase, weeks: [week] });
   }
   return chunks;
+}
+
+/**
+ * Build the per-call generation plan: mesocycle chunks, each further split into
+ * batches of at most MAX_WEEKS_PER_CALL weeks so no single model response is
+ * large enough to hit the token ceiling and truncate. Every batch keeps its
+ * phase label; assembly re-keys the returned weeks by weekNumber, so a phase
+ * spanning several batches merges back together cleanly.
+ */
+export function planChunks(
+  skeleton: ProgramSkeleton,
+  maxWeeksPerCall: number = MAX_WEEKS_PER_CALL,
+): { phase: PhaseName; weeks: WeekSkeleton[] }[] {
+  const batches: { phase: PhaseName; weeks: WeekSkeleton[] }[] = [];
+  for (const meso of chunkByMesocycle(skeleton)) {
+    for (let i = 0; i < meso.weeks.length; i += maxWeeksPerCall) {
+      batches.push({ phase: meso.phase, weeks: meso.weeks.slice(i, i + maxWeeksPerCall) });
+    }
+  }
+  return batches;
 }
 
 /**
@@ -80,8 +108,10 @@ export async function generateProgram(
     // reflects the current engine rules and any starting-volume overrides.
     const skeleton = buildSkeleton(toEngineInput(input, row.start_date ?? undefined));
 
-    // Fan out one Haiku call per mesocycle (independent given the skeleton).
-    const chunkPlan = chunkByMesocycle(skeleton);
+    // Fan out Haiku calls, one per batch (≤ MAX_WEEKS_PER_CALL weeks) so no
+    // response is large enough to truncate. Batches are independent given the
+    // skeleton and merge back by weekNumber during assembly.
+    const chunkPlan = planChunks(skeleton);
     const results = await Promise.all(
       chunkPlan.map((c) => generateChunk(input, c.phase, c.weeks)),
     );

@@ -1,4 +1,6 @@
-import type { ProgramWeek, Session } from "@/lib/schemas";
+import type { ProgramWeek, Session, WorkoutLog } from "@/lib/schemas";
+import { computeWeekSignals } from "@/lib/engine/adapt";
+import LogSession from "./log-session";
 import {
   DAY_LABEL,
   MICRO_LABEL,
@@ -11,10 +13,9 @@ import {
   sessionTiming,
   sessionTypeLabel,
   sessionZoneLabel,
-  weekCardioMinutes,
-  weekMileage,
   weekRangeLabel,
   zoneEntries,
+  type ZoneBands,
 } from "./format";
 
 const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -74,8 +75,32 @@ const TYPE_DOT: Record<Session["kind"], string> = {
   race: "bg-red-500",
 };
 
+/** Extra props for Phase 2 logging (all optional so the print view stays clean). */
+export interface WeekLogging {
+  programId: string;
+  logs: WorkoutLog[];
+  frozen: boolean;
+  adapted: boolean;
+}
+
+function logFor(logging: WeekLogging | undefined, day: string, sessionIndex: number): WorkoutLog | null {
+  return logging?.logs.find((l) => l.day === day && l.sessionIndex === sessionIndex) ?? null;
+}
+
 /** Mobile layout: one stacked block per day (no horizontal scroll). */
-function MobileDayList({ week, startDate, maxHR }: { week: ProgramWeek; startDate: string; maxHR: number }) {
+function MobileDayList({
+  week,
+  startDate,
+  maxHR,
+  zoneBands,
+  logging,
+}: {
+  week: ProgramWeek;
+  startDate: string;
+  maxHR: number;
+  zoneBands?: ZoneBands;
+  logging?: WeekLogging;
+}) {
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   return (
     <ul className="flex flex-col divide-y divide-zinc-100 md:hidden">
@@ -99,14 +124,27 @@ function MobileDayList({ week, startDate, maxHR }: { week: ProgramWeek; startDat
                       <span className={`h-2 w-2 shrink-0 rounded-full ${TYPE_DOT[s.kind]}`} />
                       {sessionTypeLabel(s)}
                     </span>
-                    {!isRace && <span className="shrink-0 text-xs tabular-nums text-zinc-500">{t.total}m total</span>}
+                    <span className="flex shrink-0 items-center gap-2">
+                      {!isRace && <span className="text-xs tabular-nums text-zinc-500">{t.total}m total</span>}
+                      {logging && (
+                        <LogSession
+                          programId={logging.programId}
+                          weekNumber={week.weekNumber}
+                          day={dayKey}
+                          sessionIndex={si}
+                          isRace={isRace}
+                          existing={logFor(logging, dayKey, si)}
+                          frozen={logging.frozen}
+                        />
+                      )}
+                    </span>
                   </div>
                   <div className="mt-0.5 text-xs">
                     <SessionDetail session={s} />
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
                     {sessionPace(s) !== "—" && <span>Pace {sessionPace(s)}</span>}
-                    {sessionZoneLabel(s, maxHR) !== "—" && <span>{sessionZoneLabel(s, maxHR)}</span>}
+                    {sessionZoneLabel(s, maxHR, zoneBands) !== "—" && <span>{sessionZoneLabel(s, maxHR, zoneBands)}</span>}
                     {!isRace && (
                       <span className="tabular-nums">
                         {t.warmup}/{t.work}/{t.cooldown} warmup·work·cooldown
@@ -124,9 +162,23 @@ function MobileDayList({ week, startDate, maxHR }: { week: ProgramWeek; startDat
 }
 
 /** One week: summary header + a Monday→Sunday table of that week's sessions. */
-export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek; startDate: string; maxHR: number }) {
+export default function WeekCard({
+  week,
+  startDate,
+  maxHR,
+  zoneBands,
+  logging,
+}: {
+  week: ProgramWeek;
+  startDate: string;
+  maxHR: number;
+  zoneBands?: ZoneBands;
+  logging?: WeekLogging;
+}) {
   const colors = PHASE_COLORS[week.phase];
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
+  const hasLogs = (logging?.logs.length ?? 0) > 0;
+  const actuals = hasLogs && logging ? computeWeekSignals(week, logging.logs) : null;
 
   return (
     <section id={`week-${week.weekNumber}`} className={`scroll-mt-20 rounded-xl border ${colors.border} bg-white`}>
@@ -144,25 +196,45 @@ export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek
               {week.raceDay.priority} race
             </span>
           )}
+          {logging?.adapted && (
+            <span
+              className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800"
+              title="This week was adjusted from your logged performance"
+            >
+              Adapted
+            </span>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
           <div className="flex gap-6 text-sm">
             <span>
               <span className="block text-xs text-zinc-500">Cardio time</span>
-              <span className="font-medium">{weekCardioMinutes(week)} min</span>
+              <span className="font-medium">{week.summary.totalCardioMinutes} min</span>
+              {actuals && (
+                <span className="block text-xs text-emerald-700">Actual: {actuals.actualCardioMinutes} min</span>
+              )}
             </span>
             <span>
               <span className="block text-xs text-zinc-500">Running mileage</span>
-              <span className="font-medium">{weekMileage(week)} mi</span>
+              <span className="font-medium">{week.summary.totalMileage} mi</span>
+              {actuals && (
+                <span className="block text-xs text-emerald-700">Actual: {actuals.actualMileage} mi</span>
+              )}
             </span>
+            {actuals && (
+              <span>
+                <span className="block text-xs text-zinc-500">Sessions done</span>
+                <span className="font-medium">{Math.round(actuals.compliance * 100)}%</span>
+              </span>
+            )}
           </div>
           <ZoneBars week={week} />
         </div>
       </div>
 
       {/* Mobile: stacked per-day list (no horizontal scroll) */}
-      <MobileDayList week={week} startDate={startDate} maxHR={maxHR} />
+      <MobileDayList week={week} startDate={startDate} maxHR={maxHR} zoneBands={zoneBands} logging={logging} />
 
       {/* Desktop: Mon→Sun session table */}
       <div className="hidden overflow-x-auto md:block">
@@ -177,6 +249,7 @@ export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek
               <th className="px-2 py-2 text-right font-medium">Work</th>
               <th className="px-2 py-2 text-right font-medium">Cooldown</th>
               <th className="px-3 py-2 text-right font-medium">Total</th>
+              {logging && <th className="px-3 py-2 text-right font-medium print:hidden">Log</th>}
             </tr>
           </thead>
           <tbody>
@@ -198,6 +271,7 @@ export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek
                     <td className="px-2 py-3 text-right text-zinc-400">—</td>
                     <td className="px-2 py-3 text-right text-zinc-400">—</td>
                     <td className="px-3 py-3 text-right text-zinc-400">—</td>
+                    {logging && <td className="px-3 py-3 text-right text-zinc-400 print:hidden">—</td>}
                   </tr>
                 );
               }
@@ -223,11 +297,24 @@ export default function WeekCard({ week, startDate, maxHR }: { week: ProgramWeek
                       </div>
                     </td>
                     <td className="px-3 py-3 align-top text-zinc-600">{sessionPace(s)}</td>
-                    <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{sessionZoneLabel(s, maxHR)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 align-top text-zinc-600">{sessionZoneLabel(s, maxHR, zoneBands)}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.warmup}m`}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.work}m`}</td>
                     <td className="px-2 py-3 text-right align-top tabular-nums text-zinc-600">{isRace ? "—" : `${t.cooldown}m`}</td>
                     <td className="px-3 py-3 text-right align-top font-medium tabular-nums">{isRace ? "—" : `${t.total}m`}</td>
+                    {logging && (
+                      <td className="px-3 py-3 text-right align-top print:hidden">
+                        <LogSession
+                          programId={logging.programId}
+                          weekNumber={week.weekNumber}
+                          day={dayKey}
+                          sessionIndex={si}
+                          isRace={isRace}
+                          existing={logFor(logging, dayKey, si)}
+                          frozen={logging.frozen}
+                        />
+                      </td>
+                    )}
                   </tr>
                 );
               });

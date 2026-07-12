@@ -1,9 +1,36 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ProgramData } from "@/lib/schemas";
-import ProgramView from "@/components/program/program-view";
+import type { ProgramData, WorkoutLog } from "@/lib/schemas";
+import { getProgramAdaptations, getProgramLogs } from "@/lib/supabase/queries";
+import { weekStartDate, type ZoneBands } from "@/components/program/format";
+import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
 import GenerateTrigger from "./generate-trigger";
+
+/** Snapshot profile fields we read for HR personalization (new-additions #2, #3). */
+type SnapshotProfile = {
+  age?: number;
+  maxHr?: number;
+  hrZones?: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }>;
+};
+
+/** Convert stored %-of-max zone bands (0–100) into ZoneBands fractions (0–1). */
+function toZoneBands(hrZones: SnapshotProfile["hrZones"]): ZoneBands | undefined {
+  if (!hrZones) return undefined;
+  const z = (k: "z1" | "z2" | "z3" | "z4" | "z5") => ({
+    low: hrZones[k].low / 100,
+    high: hrZones[k].high / 100,
+  });
+  return { 1: z("z1"), 2: z("z2"), 3: z("z3"), 4: z("z4"), 5: z("z5") };
+}
+
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/** Number of program weeks that have fully ended as of now. */
+function elapsedWeeks(startDate: string): number {
+  const wk1 = weekStartDate(startDate, 1);
+  return Math.max(0, Math.floor((Date.now() - wk1.getTime()) / MS_PER_WEEK));
+}
 
 export default async function ProgramPage({
   params,
@@ -36,12 +63,80 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
 
-  // Max HR (220 − age) from the profile captured at generation time, for the
-  // per-session HR zone ranges. Falls back to a 30-year-old default.
-  const snapshotAge = (program.input_snapshot as { profile?: { age?: number } } | null)?.profile?.age;
-  const maxHR = 220 - (typeof snapshotAge === "number" ? snapshotAge : 30);
+  // Max HR for the per-session HR zone ranges: a custom override if the athlete
+  // set one (new-additions #2), otherwise 220 − age. Falls back to a 30-year-old
+  // default when no age is present. Custom zone bands, if set, override the
+  // standard %-of-max bands (new-additions #3).
+  const snapshotProfile = (program.input_snapshot as { profile?: SnapshotProfile } | null)?.profile;
+  const maxHR =
+    typeof snapshotProfile?.maxHr === "number"
+      ? snapshotProfile.maxHr
+      : 220 - (typeof snapshotProfile?.age === "number" ? snapshotProfile.age : 30);
+  const zoneBands = toZoneBands(snapshotProfile?.hrZones);
 
   if (program.status === "ready" && data) {
+    // Phase 2: logs + adaptation state for the review banner, badges and actuals.
+    const [logRows, adaptations] = await Promise.all([
+      getProgramLogs(program.id),
+      getProgramAdaptations(program.id),
+    ]);
+    const logs: WorkoutLog[] = logRows.map((r) => ({
+      weekNumber: r.week_number,
+      day: r.day,
+      sessionIndex: r.session_index,
+      status: r.status,
+      rpe: r.rpe,
+      actuals: r.actuals,
+      note: r.note,
+    }));
+
+    // The review candidate: the most recent unreviewed week that still has a
+    // week after it to adapt, and that is EITHER fully logged (every planned
+    // session has a log — new-additions #7) OR has fully elapsed on the
+    // calendar. Fully-logging a week lets the user recalculate the next week
+    // right away, without waiting for the calendar.
+    const reviewed = new Set(adaptations.map((a) => a.week_number));
+    const elapsed = elapsedWeeks(program.start_date);
+    const maxReviewable = program.duration_weeks - 1; // must have a following week
+
+    const loggedByWeek = new Map<number, Set<string>>();
+    for (const l of logs) {
+      const set = loggedByWeek.get(l.weekNumber) ?? new Set<string>();
+      set.add(`${l.day}:${l.sessionIndex}`);
+      loggedByWeek.set(l.weekNumber, set);
+    }
+    const isFullyLogged = (w: number): boolean => {
+      const wk = data.weeks.find((x) => x.weekNumber === w);
+      if (!wk) return false;
+      const planned: string[] = [];
+      for (const d of wk.days) {
+        d.sessions.forEach((s, i) => {
+          if (s.kind !== "race") planned.push(`${d.day}:${i}`);
+        });
+      }
+      if (planned.length === 0) return false; // race/rest-only week: nothing to review
+      const logged = loggedByWeek.get(w) ?? new Set<string>();
+      return planned.every((k) => logged.has(k));
+    };
+
+    let reviewWeek: number | null = null;
+    for (let w = maxReviewable; w >= 1; w--) {
+      if (reviewed.has(w)) continue;
+      if (w <= elapsed || isFullyLogged(w)) {
+        reviewWeek = w;
+        break;
+      }
+    }
+
+    const activity: ProgramActivity = {
+      logs,
+      frozenWeeks: adaptations.filter((a) => a.decision === "applied").map((a) => a.week_number),
+      adaptedWeeks: adaptations
+        .filter((a) => a.decision === "applied" && a.rule_applied !== "none")
+        .map((a) => a.target_week),
+      reviewWeek,
+    };
+
     return (
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <ProgramView
@@ -53,7 +148,9 @@ export default async function ProgramPage({
             programType: program.program_type,
             startDate: program.start_date,
             maxHR,
+            zoneBands,
           }}
+          activity={activity}
         />
       </main>
     );
