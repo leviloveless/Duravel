@@ -604,7 +604,7 @@ export default function OnboardingForm({
             </label>
             <label className="flex flex-1 flex-col gap-1">
               Starting weekly cardio (min)
-              <input name="startCardioMinutes" type="number" min={0} step="1" defaultValue={initial?.startCardioMinutes ?? ""} placeholder="e.g. 200" className={inputClass} />
+              <input name="startCardioMinutes" type="number" min={0} step="1" defaultValue={initial?.startCardioMinutes ?? ""} placeholder="e.g. 350" className={inputClass} />
             </label>
           </div>
         </fieldset>

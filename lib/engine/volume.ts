@@ -20,8 +20,19 @@ export const STARTING_MILEAGE: Record<ExperienceLevel, number> = {
   advanced: 35,
 };
 
-/** Rough average easy-running pace used to seed a starting cardio-minute baseline. */
-export const AVG_MIN_PER_MILE = 9;
+/**
+ * Minutes of weekly cardio TIME seeded per mile of running when the athlete
+ * doesn't override "starting weekly cardio."
+ *
+ * This is total cardio time per running mile, not a run pace: it must exceed the
+ * time it actually takes to run a mile at easy pace (162% of 5K pace ≈ 12–15
+ * min/mi for most athletes) so there's headroom for the non-running Zone 1–2
+ * cross-training block the reconciler adds. 18 leaves a healthy cross-training
+ * margin for typical/faster athletes; very slow runners may see little or no
+ * non-running block (the reconciler handles that gracefully), and any athlete
+ * can override this in onboarding.
+ */
+export const AVG_MIN_PER_MILE = 18;
 
 /**
  * Microcycle volume math (spec §4b, refined per Tasks #5/#6).
