@@ -8,20 +8,29 @@
  * (see toEngineInput in skeleton.ts), not the core math's.
  */
 
+import type { z } from "zod";
+import {
+  ExperienceLevel as ExperienceLevelEnum,
+  TrainingClass as TrainingClassEnum,
+  ProgramType as ProgramTypeEnum,
+  TrainingDay as TrainingDayEnum,
+  Phase as PhaseEnum,
+  MicroWeek as MicroWeekEnum,
+  RacePriority as RacePriorityEnum,
+  RunType as RunTypeEnum,
+} from "@/lib/schemas";
 import type { NeedsAnalysis } from "./needs";
 
-export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
-export type TrainingClassName = "non_highly_trained" | "highly_trained";
-export type ProgramTypeName = "goal_event" | "fixed_duration" | "general_fitness";
-export type TrainingDayName =
-  | "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-
-export type PhaseName = "base" | "build" | "peak" | "taper";
-export type MicroWeekType = "rebound" | "increase" | "deload" | "taper" | "race";
-export type RacePriorityName = "A" | "B" | "C";
-
-export type RunType =
-  | "easy" | "fartlek" | "progression" | "long" | "tempo" | "threshold" | "interval" | "hybrid_run";
+// Engine string-union types are DERIVED from the canonical Zod enums (roadmap
+// #2.5) so the schema and the engine can never drift out of sync.
+export type ExperienceLevel = z.infer<typeof ExperienceLevelEnum>;
+export type TrainingClassName = z.infer<typeof TrainingClassEnum>;
+export type ProgramTypeName = z.infer<typeof ProgramTypeEnum>;
+export type TrainingDayName = z.infer<typeof TrainingDayEnum>;
+export type PhaseName = z.infer<typeof PhaseEnum>;
+export type MicroWeekType = z.infer<typeof MicroWeekEnum>;
+export type RacePriorityName = z.infer<typeof RacePriorityEnum>;
+export type RunType = z.infer<typeof RunTypeEnum>;
 
 // --- Engine input ---
 
@@ -97,6 +106,9 @@ export interface RaceSlot {
   priority: RacePriorityName;
 }
 export type SessionSlot = RunSlot | LiftSlot | HybridSlot | RestSlot | RaceSlot;
+
+/** A predicate over engine session slots (used by slot placement + sequencing). */
+export type SlotPredicate = (slot: SessionSlot) => boolean;
 
 export interface DaySlot {
   day: TrainingDayName;

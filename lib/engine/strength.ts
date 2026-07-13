@@ -23,19 +23,17 @@
  * and periodized rather than guessed.
  */
 
+import type { z } from "zod";
+import { MovementPattern, StrengthEmphasis as StrengthEmphasisEnum } from "@/lib/schemas";
 import type { MicroWeekType, PhaseName } from "./types";
+import { clamp, round5, EPLEY_5RM_TO_1RM } from "./math";
 
-export type LiftPattern =
-  | "squat"
-  | "hip_hinge"
-  | "lunge"
-  | "horizontal_press"
-  | "vertical_press"
-  | "horizontal_pull"
-  | "vertical_pull";
+// Derived from the canonical Zod enums (roadmap #2.5) — kills the LiftPattern /
+// MovementPattern and StrengthEmphasis twins that were maintained by hand.
+export type LiftPattern = z.infer<typeof MovementPattern>;
+export type StrengthEmphasis = z.infer<typeof StrengthEmphasisEnum>;
 
 export type LiftType = "upper" | "lower" | "full";
-export type StrengthEmphasis = "max_strength" | "strength" | "endurance";
 
 export interface MovementScheme {
   sets: number;
@@ -105,10 +103,6 @@ function baseScheme(emphasis: StrengthEmphasis, phase: PhaseName): SchemeBase {
   return STRENGTH[phase];
 }
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
-}
-
 /**
  * The prescription for one movement given its pattern, the session's lift type,
  * and the week's phase + microcycle position.
@@ -131,8 +125,6 @@ export function movementScheme(
 
 // --- suggested working weight from a 5RM benchmark ---------------------------
 
-const EPLEY_5RM_TO_1RM = 1 + 5 / 30; // ≈1.1667
-
 /** Which 5RM benchmark (if any) maps to a movement pattern. */
 export function benchmarkForPattern(
   pattern: LiftPattern,
@@ -143,10 +135,6 @@ export function benchmarkForPattern(
   if (pattern === "hip_hinge") return benchmarks.fiveRmDeadlift;
   if (pattern === "horizontal_press") return benchmarks.fiveRmBench;
   return undefined;
-}
-
-function round5(n: number): number {
-  return Math.round(n / 5) * 5;
 }
 
 /**

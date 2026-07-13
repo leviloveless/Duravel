@@ -32,6 +32,7 @@
  */
 
 import { parseTimeToSeconds } from "./paces";
+import { clamp, EPLEY_5RM_TO_1RM, FIVE_K_MILES, TEN_K_MILES } from "./math";
 
 export type NeedsDomain = "run_engine" | "erg_engine" | "strength";
 export type RunEmphasis = "aerobic" | "threshold" | "none";
@@ -114,10 +115,6 @@ const LIMITER_GAP = 10;
 
 // --- scoring primitives -----------------------------------------------------
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
-}
-
 /** Score a metric where LOWER is better (race/erg times). best→100, worst→0. */
 function scoreLowerBetter(value: number, best: number, worst: number): number {
   return clamp((100 * (worst - value)) / (worst - best), 0, 100);
@@ -140,13 +137,7 @@ function weightedMean(entries: Array<{ score: number | null; weight: number }>):
   return wsum > 0 ? sum / wsum : null;
 }
 
-const EPLEY_5RM_TO_1RM = 1 + 5 / 30; // ≈1.1667
-
 // --- domain scorers ---------------------------------------------------------
-
-/** 5K distance in miles (5000 m) for pace conversion. */
-const FIVE_K_MILES = 5000 / 1609.34;
-const TEN_K_MILES = 10000 / 1609.34;
 
 /**
  * Sex-specific scoring anchors (Review #10). The absolute anchors were male-ish,

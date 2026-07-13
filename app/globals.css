@@ -12,12 +12,9 @@
   --font-mono: ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Ship light-only (roadmap #2.8): the app's components hardcode light colors,
+   so honoring prefers-color-scheme here produced a broken half-dark UI. Real
+   dark mode would need dark: variants across the component/token layer. */
 
 body {
   background: var(--background);

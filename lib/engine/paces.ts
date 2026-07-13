@@ -22,13 +22,8 @@
  */
 
 import type { RunType } from "./types";
-
-export const METERS_PER_MILE = 1609.34;
-export const MILE_M = METERS_PER_MILE;
-export const FIVE_K_M = 5000;
-export const TEN_K_M = 10000;
-/** 5K distance in miles (kept for backward-compatible imports). */
-export const FIVE_K_MILES = FIVE_K_M / METERS_PER_MILE; // ≈ 3.10686
+import { METERS_PER_MILE, MILE_M, FIVE_K_M, TEN_K_M, FIVE_K_MILES } from "./math";
+export { METERS_PER_MILE, MILE_M, FIVE_K_M, TEN_K_M, FIVE_K_MILES };
 
 /**
  * Daniels training intensities as fractions of VDOT (see calibration in #2):

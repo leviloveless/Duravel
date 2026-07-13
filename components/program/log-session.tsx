@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { WorkoutLog } from "@/lib/schemas";
+import { usePostAction } from "@/lib/hooks/use-post-action";
+import { Button } from "@/components/ui/button";
 
 /**
  * Quick session logger (Phase 2, Milestone 8 — phase2-spec.md §3a).
@@ -31,7 +32,7 @@ const STATUS_META: Record<WorkoutLog["status"], { label: string; badge: string; 
 };
 
 export default function LogSession(props: LogSessionProps) {
-  const router = useRouter();
+  const { run, pending, error } = usePostAction("/api/logs");
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<WorkoutLog["status"] | null>(props.existing?.status ?? null);
   const [rpe, setRpe] = useState<number | null>(props.existing?.rpe ?? null);
@@ -40,10 +41,10 @@ export default function LogSession(props: LogSessionProps) {
   const [avgHr, setAvgHr] = useState<string>(String(props.existing?.actuals?.avgHr ?? ""));
   const [note, setNote] = useState<string>(props.existing?.note ?? "");
   const [showActuals, setShowActuals] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [override, setOverride] = useState<WorkoutLog | null>(null);
 
-  const existing = props.existing;
+  const existing = override ?? props.existing;
   const needsRpe = status !== null && status !== "skipped";
 
   // Accessible dialog behaviour (roadmap #1.2): focus the panel on open, trap
@@ -93,42 +94,44 @@ export default function LogSession(props: LogSessionProps) {
   async function save() {
     if (!status) return;
     if (needsRpe && rpe === null) {
-      setError("Pick an RPE (1–10) — how hard did it feel?");
+      setFormError("Pick an RPE (1–10) — how hard did it feel?");
       return;
     }
-    setSaving(true);
-    setError(null);
-    const actuals: Record<string, number> = {};
+    setFormError(null);
+    const actuals: NonNullable<WorkoutLog["actuals"]> = {};
     if (durationMin && !Number.isNaN(Number(durationMin))) actuals.durationMin = Number(durationMin);
     if (distanceMiles && !Number.isNaN(Number(distanceMiles))) actuals.distanceMiles = Number(distanceMiles);
     if (avgHr && !Number.isNaN(Number(avgHr))) actuals.avgHr = Number(avgHr);
-    try {
-      const res = await fetch("/api/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programId: props.programId,
-          weekNumber: props.weekNumber,
-          day: props.day,
-          sessionIndex: props.sessionIndex,
-          status,
-          rpe: status === "skipped" ? undefined : (rpe ?? undefined),
-          actuals: Object.keys(actuals).length ? actuals : undefined,
-          note: note.trim() || undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data?.error ?? "Couldn't save the log.");
-        setSaving(false);
-        return;
-      }
-      setSaving(false);
-      setOpen(false);
-      router.refresh();
-    } catch (e) {
-      setError((e as Error).message);
-      setSaving(false);
+    const hasActuals = Object.keys(actuals).length > 0;
+
+    // Optimistic (roadmap #2.2): reflect the new log on the badge and close the
+    // modal immediately; revert + reopen with the error if the request fails.
+    const optimistic: WorkoutLog = {
+      weekNumber: props.weekNumber,
+      day: props.day,
+      sessionIndex: props.sessionIndex,
+      status,
+      rpe: status === "skipped" ? null : rpe,
+      actuals: hasActuals ? actuals : null,
+      note: note.trim() || null,
+    };
+    const prev = override;
+    setOverride(optimistic);
+    setOpen(false);
+
+    const r = await run({
+      programId: props.programId,
+      weekNumber: props.weekNumber,
+      day: props.day,
+      sessionIndex: props.sessionIndex,
+      status,
+      rpe: status === "skipped" ? undefined : (rpe ?? undefined),
+      actuals: hasActuals ? actuals : undefined,
+      note: note.trim() || undefined,
+    });
+    if (!r?.ok) {
+      setOverride(prev);
+      setOpen(true);
     }
   }
 
@@ -270,24 +273,17 @@ export default function LogSession(props: LogSessionProps) {
             className="mt-3 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm text-zinc-800 placeholder:text-zinc-400"
           />
 
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {(formError ?? error) && (
+            <p className="mt-2 text-xs text-red-600">{formError ?? error}</p>
+          )}
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving || !status}
-              className="rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
+            </Button>
+            <Button variant="primary" size="sm" onClick={save} disabled={pending || !status} className="px-5">
+              {pending ? "Saving…" : "Save"}
+            </Button>
           </div>
         </div>
       </div>

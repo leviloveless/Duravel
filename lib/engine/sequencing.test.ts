@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applySequencingGuards } from "./slots";
+import { applySequencingGuards } from "./sequencing";
 import type { DaySlot, TrainingDayName } from "./types";
 
 const D: TrainingDayName[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];

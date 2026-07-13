@@ -24,6 +24,7 @@ import { applyTapers } from "./taper";
 import { assignDays } from "./slots";
 import { PEAK_VOLUME_FACTOR, PHASE_ZONE_TARGETS, startingCardioMinutes, startingMileage } from "./volume";
 import { analyzeNeeds } from "./needs";
+import { clamp, round1 } from "./math";
 
 /**
  * Build the full deterministic program skeleton from a normalized EngineInput.
@@ -157,10 +158,6 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
   }
 }
 
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
-
 // --- Adapter: GenerationInput (spec section 2 shape) -> EngineInput (week-space) ---
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -222,8 +219,4 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     hybridDays: input.profile.dayPreferences?.hybridDays,
     needs: analyzeNeeds(input.profile),
   };
-}
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
 }

@@ -14,6 +14,7 @@
  */
 
 import { ADAPT } from "./adapt-config";
+import { clamp } from "./math";
 
 export interface ReadinessCheckin {
   weekNumber: number;
@@ -42,9 +43,6 @@ export interface Readiness {
 const HOOPER_MIN = 4; // 4 items × 1
 const HOOPER_MAX = 28; // 4 items × 7
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
-}
 function mean(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }

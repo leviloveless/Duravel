@@ -15,9 +15,8 @@
 import { computePaces, parseTimeToSeconds, type RaceInput } from "./paces";
 import type { Division, StationId } from "./stations";
 import { STATIONS, RACE_STATION_ORDER } from "./stations";
+import { clamp, METERS_PER_MILE } from "./math";
 export { RACE_STATION_ORDER };
-
-const METERS_PER_MILE = 1609.34;
 
 /** Reference station times (seconds) for a mid-pack finisher. */
 const REF_STATION_SEC: Record<StationId, number> = {
@@ -78,10 +77,6 @@ export interface PacingInput {
 function ergThousandFrom2k(twoKTime?: string): number | null {
   const s = twoKTime ? parseTimeToSeconds(twoKTime) : null;
   return s && s > 0 ? (s / 2) * 1.03 : null;
-}
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
 }
 
 /** Build the pacing plan. */

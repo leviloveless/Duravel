@@ -28,6 +28,7 @@ import {
   increaseCardioStep,
   increaseStep,
 } from "./volume";
+import { round1 } from "./math";
 
 const PATTERNS: Record<TrainingClassName, MicroWeekType[]> = {
   non_highly_trained: ["rebound", "increase", "deload"],
@@ -101,8 +102,4 @@ export function sequenceMicrocycles(
     heldMileage: heldMileageArr,
     heldCardio: heldCardioArr,
   };
-}
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
 }

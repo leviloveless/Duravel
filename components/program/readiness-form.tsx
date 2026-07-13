@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { ReadinessCheckinRow } from "@/lib/supabase/queries";
+import { usePostAction } from "@/lib/hooks/use-post-action";
+import { Button } from "@/components/ui/button";
 
 const ITEMS: { key: "sleep" | "fatigue" | "stress" | "soreness"; label: string; low: string; high: string }[] = [
   { key: "sleep", label: "Sleep", low: "great", high: "terrible" },
@@ -20,7 +21,7 @@ export default function ReadinessForm({
   weekNumber: number;
   existing?: ReadinessCheckinRow | null;
 }) {
-  const router = useRouter();
+  const { run, pending, error } = usePostAction("/api/readiness");
   const [vals, setVals] = useState({
     sleep: existing?.sleep ?? 4,
     fatigue: existing?.fatigue ?? 4,
@@ -29,33 +30,14 @@ export default function ReadinessForm({
   });
   const [restingHr, setRestingHr] = useState(String(existing?.resting_hr ?? ""));
   const [hrv, setHrv] = useState(String(existing?.hrv ?? ""));
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function save() {
-    setSaving(true);
-    setError(null);
-    try {
-      const body: Record<string, unknown> = { programId, weekNumber, ...vals };
-      if (restingHr.trim()) body.restingHr = Number(restingHr);
-      if (hrv.trim()) body.hrv = Number(hrv);
-      const res = await fetch("/api/readiness", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error ?? "Could not save");
-      }
-      setSaved(true);
-      router.refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
+    const body: Record<string, unknown> = { programId, weekNumber, ...vals };
+    if (restingHr.trim()) body.restingHr = Number(restingHr);
+    if (hrv.trim()) body.hrv = Number(hrv);
+    const r = await run(body);
+    if (r?.ok) setSaved(true);
   }
 
   return (
@@ -79,7 +61,10 @@ export default function ReadinessForm({
               min={1}
               max={7}
               value={vals[it.key]}
-              onChange={(e) => setVals((v) => ({ ...v, [it.key]: Number(e.target.value) }))}
+              onChange={(e) => {
+                setVals((v) => ({ ...v, [it.key]: Number(e.target.value) }));
+                setSaved(false);
+              }}
               className="w-full"
             />
             <span className="text-xs text-zinc-500">Rating: {vals[it.key]}</span>
@@ -90,21 +75,22 @@ export default function ReadinessForm({
       <div className="mt-3 flex flex-wrap gap-4">
         <label className="flex flex-col gap-1 text-sm">
           Resting HR <span className="text-xs text-zinc-400">(optional)</span>
-          <input type="number" min={25} max={150} value={restingHr} onChange={(e) => setRestingHr(e.target.value)}
+          <input type="number" min={25} max={150} value={restingHr}
+            onChange={(e) => { setRestingHr(e.target.value); setSaved(false); }}
             placeholder="bpm" className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           HRV <span className="text-xs text-zinc-400">(optional)</span>
-          <input type="number" min={1} max={400} value={hrv} onChange={(e) => setHrv(e.target.value)}
+          <input type="number" min={1} max={400} value={hrv}
+            onChange={(e) => { setHrv(e.target.value); setSaved(false); }}
             placeholder="ms" className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none" />
         </label>
       </div>
 
       <div className="mt-4 flex items-center gap-3">
-        <button onClick={save} disabled={saving}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-          {saving ? "Saving…" : existing ? "Update check-in" : "Save check-in"}
-        </button>
+        <Button variant="primary" size="sm" onClick={save} disabled={pending}>
+          {pending ? "Saving…" : existing ? "Update check-in" : "Save check-in"}
+        </Button>
         {saved && !error && <span className="text-sm text-green-600">Saved</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>

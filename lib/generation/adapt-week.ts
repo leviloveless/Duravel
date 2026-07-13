@@ -25,13 +25,13 @@ import { ProgramSkeletonSchema } from "@/lib/engine/skeleton-schema";
 import {
   applyDecisionToWeek,
   computeWeekSignals,
-  computeLoadMetrics,
   decideAdaptation,
   type AdaptContext,
   type AdaptDecision,
   type AdaptRuleCode,
   type WeekSignals,
 } from "@/lib/engine/adapt";
+import { computeLoadMetrics } from "@/lib/engine/load";
 import { computeReadiness, type ReadinessCheckin } from "@/lib/engine/readiness";
 import { generateChunk } from "@/lib/ai/generate-week";
 import { assembleArgsFromInput, assembleProgram } from "./assemble";

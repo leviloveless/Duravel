@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ProgramWeek, WorkoutLog } from "@/lib/schemas";
-import {
-  computeWeekSignals,
-  computeLoadMetrics,
-  decideAdaptation,
-  type AdaptContext,
-} from "./adapt";
+import { computeWeekSignals, decideAdaptation, type AdaptContext } from "./adapt";
+import { computeLoadMetrics } from "./load";
 import { increaseStep, INCREASE_MILEAGE_PCT, INCREASE_MILEAGE_MIN_STEP } from "./volume";
 import type { WeekSkeleton } from "./types";
 

@@ -43,6 +43,44 @@ const DAYS = [
   { key: "sun", label: "Sun" },
 ] as const;
 
+/** Toggleable day pills (accessible checkbox inside a pill label). Extracted
+ *  from the block that was duplicated 5× in this form (roadmap #2.7). */
+function DayPills({
+  options,
+  selected,
+  namePrefix,
+  onToggle,
+}: {
+  options: readonly { key: string; label: string }[];
+  selected: string[];
+  namePrefix: string;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((d) => {
+        const on = selected.includes(d.key);
+        return (
+          <label
+            key={d.key}
+            className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
+          >
+            <input
+              type="checkbox"
+              name={`${namePrefix}_${d.key}`}
+              checked={on}
+              onChange={() => onToggle(d.key)}
+              aria-pressed={on}
+              className="sr-only"
+            />
+            {d.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Standard %-of-max-HR bands, used as the default when custom zones are off. */
 const DEFAULT_ZONE_PCTS = [
   { low: 0, high: 60 },
@@ -483,20 +521,7 @@ export default function OnboardingForm({
 
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">Training days (pick at least 3)</legend>
-          <div className="flex flex-wrap gap-2">
-            {DAYS.map((d) => {
-              const on = days.includes(d.key);
-              return (
-                <label
-                  key={d.key}
-                  className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
-                >
-                  <input type="checkbox" name={`day_${d.key}`} checked={on} onChange={() => toggleDay(d.key)} className="sr-only" />
-                  {d.label}
-                </label>
-              );
-            })}
-          </div>
+          <DayPills options={DAYS} selected={days} namePrefix="day" onToggle={toggleDay} />
           <span className="text-xs text-zinc-500">{days.length} selected</span>
         </fieldset>
 
@@ -522,57 +547,18 @@ export default function OnboardingForm({
               </label>
               <div className="flex flex-col gap-1">
                 <span>Preferred rest day(s)</span>
-                <div className="flex flex-wrap gap-2">
-                  {DAYS.filter((d) => days.includes(d.key)).map((d) => {
-                    const on = restDays.includes(d.key);
-                    return (
-                      <label
-                        key={d.key}
-                        className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
-                      >
-                        <input type="checkbox" name={`restday_${d.key}`} checked={on} onChange={() => toggleRestDay(d.key)} className="sr-only" />
-                        {d.label}
-                      </label>
-                    );
-                  })}
-                </div>
+                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={restDays} namePrefix="restday" onToggle={toggleRestDay} />
                 <span className="text-xs text-zinc-500">
                   Rest days are kept clear when your schedule leaves room. A long-run-day preference wins if the two conflict.
                 </span>
               </div>
               <div className="flex flex-col gap-1">
                 <span>Preferred strength / lifting day(s)</span>
-                <div className="flex flex-wrap gap-2">
-                  {DAYS.filter((d) => days.includes(d.key)).map((d) => {
-                    const on = liftDays.includes(d.key);
-                    return (
-                      <label
-                        key={d.key}
-                        className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
-                      >
-                        <input type="checkbox" name={`liftday_${d.key}`} checked={on} onChange={() => toggleLiftDay(d.key)} className="sr-only" />
-                        {d.label}
-                      </label>
-                    );
-                  })}
-                </div>
+                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={liftDays} namePrefix="liftday" onToggle={toggleLiftDay} />
               </div>
               <div className="flex flex-col gap-1">
                 <span>Preferred hybrid (HYROX) day(s)</span>
-                <div className="flex flex-wrap gap-2">
-                  {DAYS.filter((d) => days.includes(d.key)).map((d) => {
-                    const on = hybridDays.includes(d.key);
-                    return (
-                      <label
-                        key={d.key}
-                        className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
-                      >
-                        <input type="checkbox" name={`hybridday_${d.key}`} checked={on} onChange={() => toggleHybridDay(d.key)} className="sr-only" />
-                        {d.label}
-                      </label>
-                    );
-                  })}
-                </div>
+                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={hybridDays} namePrefix="hybridday" onToggle={toggleHybridDay} />
                 <span className="text-xs text-zinc-500">
                   We pin these workout types to your chosen days when the week has room — the long-run day is placed first, then hybrid, then lifting.
                 </span>

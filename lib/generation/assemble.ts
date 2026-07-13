@@ -63,25 +63,76 @@ function indexAiWeeks(chunks: AiChunk[]): Map<number, AiWeek> {
   return map;
 }
 
-function daySessions(
+type PlannedSlot = WeekSkeleton["days"][number]["sessions"][number];
+
+/**
+ * A minimal, schema-valid placeholder for a planned slot the AI failed to fill,
+ * so the assembled day always carries the engine's planned session KINDS. The
+ * deterministic downstream passes then populate it: reconcile fully rewrites run
+ * distance/pace, applyStrengthSchemes + patchMovementPatterns fill lift content,
+ * replaceSimulations/applyStationProgression handle hybrids.
+ */
+function placeholderFor(slot: PlannedSlot): Session | null {
+  switch (slot.kind) {
+    case "run":
+      return { kind: "run", runType: slot.runType, durationMin: 0, paceMinMile: "", distanceMiles: 0, goalZone: slot.goalZone };
+    case "lift":
+      return { kind: "lift", liftType: slot.liftType, movements: [] };
+    case "hybrid":
+      return { kind: "hybrid", goalZone: slot.goalZone, elements: [], ...(slot.simulation ? { simulation: true } : {}) };
+    default:
+      return null; // rest / race handled by the caller
+  }
+}
+
+/**
+ * Resolve a day's sessions, ENFORCING the engine's planned session kinds
+ * (roadmap #2.1 / review E-H1). The schema promises "each returned day's
+ * sessions line up with the engine's slot kinds", but nothing checked it: the AI
+ * could return a lift where a run was planned, or drop a hybrid, and the week
+ * would silently diverge from the periodization. Here we match each planned slot
+ * (run/lift/hybrid) to an AI session of the same kind, synthesize a placeholder
+ * for any the AI omitted, and drop AI sessions with no corresponding slot —
+ * recording an issue for every correction. Race/rest days are engine-owned.
+ */
+export function daySessions(
   skelDay: WeekSkeleton["days"][number],
   aiWeek: AiWeek | undefined,
   issues: string[],
   weekNumber: number,
 ): Session[] {
-  const kinds = skelDay.sessions.map((s) => s.kind);
-
-  // Engine owns race + rest days.
   const race = skelDay.sessions.find((s) => s.kind === "race");
   if (race && race.kind === "race") return [{ kind: "race", priority: race.priority }];
-  if (kinds.every((k) => k === "rest")) return [];
+
+  const planned = skelDay.sessions.filter(
+    (s) => s.kind === "run" || s.kind === "lift" || s.kind === "hybrid",
+  );
+  if (planned.length === 0) return []; // rest day
 
   const aiDay = aiWeek?.days.find((d) => d.day === skelDay.day);
-  if (!aiDay || aiDay.sessions.length === 0) {
-    issues.push(`week ${weekNumber} ${skelDay.day}: no AI content for ${kinds.join("+")} — left empty`);
-    return [];
+  const pool = aiDay ? [...aiDay.sessions] : [];
+
+  const out: Session[] = [];
+  for (const slot of planned) {
+    const idx = pool.findIndex((s) => s.kind === slot.kind);
+    if (idx !== -1) {
+      out.push(pool.splice(idx, 1)[0]!); // safe: findIndex returned a valid index
+    } else {
+      const ph = placeholderFor(slot);
+      if (ph) out.push(ph);
+      issues.push(
+        `week ${weekNumber} ${skelDay.day}: AI omitted the planned ${slot.kind} session — inserted a placeholder`,
+      );
+    }
   }
-  return aiDay.sessions;
+  if (pool.length > 0) {
+    issues.push(
+      `week ${weekNumber} ${skelDay.day}: dropped ${pool.length} AI session(s) with no planned slot (${pool
+        .map((s) => s.kind)
+        .join(", ")})`,
+    );
+  }
+  return out;
 }
 
 /**

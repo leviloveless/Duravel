@@ -28,6 +28,7 @@ import {
   type RunPaces,
 } from "@/lib/engine/paces";
 import { hybridRunMiles, runOverhead, sessionTiming, weekMileage } from "@/lib/session-volume";
+import { round1 } from "@/lib/engine/math";
 
 type RunSession = Extract<Session, { kind: "run" }>;
 type CardioSession = Extract<Session, { kind: "cardio" }>;
@@ -49,10 +50,6 @@ const DROP_RANK: Record<RunType, number> = {
 
 const CARDIO_DESCRIPTION =
   "Easy Zone 1–2 non-running cardio (bike, row, ski erg, or elliptical) to complete the week's prescribed cardio volume. Keep it conversational — this is aerobic time, not a hard effort.";
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
 
 interface RunEntry {
   day: ProgramDay;

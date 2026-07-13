@@ -134,9 +134,22 @@ export const MovementPattern = z.enum([
   "vertical_pull",
 ]);
 
+/** The engine's run subtypes. Named so `lib/engine/types.ts` can derive its
+ *  `RunType` from this single source (roadmap #2.5) instead of re-listing them. */
+export const RunType = z.enum([
+  "easy",
+  "fartlek",
+  "progression",
+  "long",
+  "tempo",
+  "threshold",
+  "interval",
+  "hybrid_run",
+]);
+
 export const RunSessionSchema = z.object({
   kind: z.literal("run"),
-  runType: z.enum(["easy", "fartlek", "progression", "long", "tempo", "threshold", "interval", "hybrid_run"]),
+  runType: RunType,
   durationMin: z.number(),
   paceMinMile: z.string(),
   distanceMiles: z.number(),

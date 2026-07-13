@@ -16,6 +16,7 @@
  */
 
 import type { PhaseName } from "./types";
+import { round5 } from "./math";
 
 export type Division = "open" | "pro";
 export type StationSex = "male" | "female";
@@ -108,10 +109,6 @@ export function stationIdFor(exercise: string): StationId | null {
  * Peak = full race spec; Taper keeps race load but cuts volume for sharpness.
  */
 const VOLUME_FACTOR: Record<PhaseName, number> = { base: 0.6, build: 0.85, peak: 1, taper: 0.6 };
-
-function round5(n: number): number {
-  return Math.round(n / 5) * 5;
-}
 
 export interface StationPrescription {
   stationId: StationId;

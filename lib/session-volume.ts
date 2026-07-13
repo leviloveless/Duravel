@@ -9,6 +9,8 @@
  */
 
 import type { Session } from "@/lib/schemas";
+import { clamp, METERS_PER_MILE } from "@/lib/engine/math";
+export { METERS_PER_MILE };
 
 type RunSession = Extract<Session, { kind: "run" }>;
 type HybridSession = Extract<Session, { kind: "hybrid" }>;
@@ -29,12 +31,7 @@ export const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]
 export const HYBRID_MIN_WORK = 25;
 export const HYBRID_MAX_WORK = 60;
 
-export const METERS_PER_MILE = 1609.34;
 const DEFAULT_HYBRID_RUN_MILES = 1000 / METERS_PER_MILE; // 1000 m per hybrid run
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
-}
 
 /** Parse a distance ("1000m", "1 km", "0.6 mi") to miles, or null. */
 export function parseDistanceMiles(text: string): number | null {
