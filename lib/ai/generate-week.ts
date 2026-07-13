@@ -10,6 +10,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { AiChunkSchema, type AiChunk, type GenerationInput } from "@/lib/schemas";
 import type { PhaseName, WeekSkeleton } from "@/lib/engine/types";
+import { env } from "@/lib/env";
 import { buildSystemPrompt, buildUserPrompt } from "./prompts";
 
 /** Token usage for one mesocycle call, summed across any retry attempts. */
@@ -25,15 +26,22 @@ export interface ChunkResult {
 }
 
 /** Haiku model; overridable via env for pinning/upgrades. */
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
+const MODEL = env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 8000;
+
+// Per-request timeout, comfortably under the route's maxDuration (60s). Without
+// it the SDK default is 10 min, so a single hung call would silently consume the
+// whole function budget and leave the program stuck 'generating'. On timeout the
+// SDK throws → our catch marks the program 'failed' (roadmap #1.8). We do our own
+// content retry below, so keep the SDK's network retries low to bound latency.
+const REQUEST_TIMEOUT_MS = 40_000;
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!client) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-    client = new Anthropic({ apiKey });
+    client = new Anthropic({ apiKey, maxRetries: 1, timeout: REQUEST_TIMEOUT_MS });
   }
   return client;
 }
@@ -42,7 +50,7 @@ function getClient(): Anthropic {
 export function extractJson(text: string): unknown {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) t = fence[1].trim();
+  if (fence) t = fence[1]!.trim(); // safe: capture group 1 is present whenever the match succeeds
   const start = t.indexOf("{");
   const end = t.lastIndexOf("}");
   if (start === -1 || end === -1 || end < start) {

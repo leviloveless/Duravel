@@ -68,8 +68,10 @@ export function applyTapers(
     const startIdx = raceIdx - (len - 1); // first taper-window index
     const preIdx = startIdx - 1; // week just before the taper begins
 
-    const preMileage = preIdx >= 0 ? baseMileage[preIdx] : baseMileage[0];
-    const preCardio = preIdx >= 0 ? baseCardio[preIdx] : baseCardio[0];
+    // safe: preIdx (when >= 0) is < raceIdx < mileage.length, and baseMileage/
+    // baseCardio share that length; index 0 exists because races imply length >= 1.
+    const preMileage = preIdx >= 0 ? baseMileage[preIdx]! : baseMileage[0]!;
+    const preCardio = preIdx >= 0 ? baseCardio[preIdx]! : baseCardio[0]!;
 
     if (race.priority === "A" && len === 2) {
       // Both weeks measured from peak (not compounded): ~80% then ~60%.

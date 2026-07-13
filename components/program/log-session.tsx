@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WorkoutLog } from "@/lib/schemas";
 
@@ -45,6 +45,50 @@ export default function LogSession(props: LogSessionProps) {
 
   const existing = props.existing;
   const needsRpe = status !== null && status !== "skipped";
+
+  // Accessible dialog behaviour (roadmap #1.2): focus the panel on open, trap
+  // Tab inside it, close on Escape, and restore focus to the trigger on close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    const node = dialogRef.current;
+    const focusable = () =>
+      node
+        ? Array.from(
+            node.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => !el.hasAttribute("disabled"))
+        : [];
+    (focusable()[0] ?? node)?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const els = focusable();
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      restoreFocusRef.current?.focus();
+    };
+  }, [open]);
 
   async function save() {
     if (!status) return;
@@ -121,10 +165,17 @@ export default function LogSession(props: LogSessionProps) {
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={() => setOpen(false)}>
         <div
-          className="w-full max-w-sm rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="log-session-title"
+          tabIndex={-1}
+          className="w-full max-w-sm rounded-t-2xl bg-white p-5 shadow-xl outline-none sm:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 className="text-sm font-semibold">Log session</h3>
+          <h3 id="log-session-title" className="text-sm font-semibold">
+            Log session
+          </h3>
 
           {/* Status */}
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -132,6 +183,7 @@ export default function LogSession(props: LogSessionProps) {
               <button
                 key={s}
                 type="button"
+                aria-pressed={status === s}
                 onClick={() => setStatus(s)}
                 className={`rounded-lg border px-2 py-2 text-sm font-medium transition-colors ${
                   status === s ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700 hover:bg-zinc-50"
@@ -151,6 +203,8 @@ export default function LogSession(props: LogSessionProps) {
                   <button
                     key={n}
                     type="button"
+                    aria-pressed={rpe === n}
+                    aria-label={`RPE ${n}`}
                     onClick={() => setRpe(n)}
                     className={`rounded-md py-1.5 text-xs font-semibold tabular-nums transition-colors ${
                       rpe === n ? "bg-black text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
@@ -166,6 +220,7 @@ export default function LogSession(props: LogSessionProps) {
           {/* Optional actuals */}
           <button
             type="button"
+            aria-expanded={showActuals}
             onClick={() => setShowActuals((v) => !v)}
             className="mt-4 text-xs font-medium text-zinc-500 underline"
           >

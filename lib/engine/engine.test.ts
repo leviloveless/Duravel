@@ -142,11 +142,11 @@ describe("microcycle volume math (NHT)", () => {
   it("week 4 rebound holds the pre-deload peak (progressive overload)", () => {
     expect(seq.labels[3]).toBe("rebound");
     expect(seq.mileage[3]).toBeCloseTo(start * INCREASE_MILEAGE_FACTOR, 1);
-    expect(seq.mileage[3]).toBeGreaterThan(seq.mileage[0]);
+    expect(seq.mileage[3]).toBeGreaterThan(seq.mileage[0]!);
   });
 
   it("cardio rises on increase weeks by the greater of +20 min or +10%", () => {
-    expect(seq.cardioMinutes[1]).toBeGreaterThan(seq.cardioMinutes[0]);
+    expect(seq.cardioMinutes[1]).toBeGreaterThan(seq.cardioMinutes[0]!);
     // max(20, 10% of 200 = 20) = 20 → 220 (Tasks #6)
     expect(seq.cardioMinutes[1]).toBe(220);
   });
@@ -247,7 +247,7 @@ describe("C race trains through (no taper, no volume cut)", () => {
     const skeleton = buildSkeleton(
       makeInput({ durationWeeks: 12, races: [{ weekNumber: 12, priority: "C" }] }),
     );
-    const raceWeek = skeleton.weeks[11];
+    const raceWeek = skeleton.weeks[11]!;
     const sessions = raceWeek.days.flatMap((d) => d.sessions);
     const restDays = raceWeek.days.filter((d) => d.sessions.every((s) => s.kind === "rest")).length;
     // trains through: has real training + the race, not 5 days of rest
@@ -264,10 +264,10 @@ describe("B race post-race recovery", () => {
     const skeleton = buildSkeleton(
       makeInput({ durationWeeks: D, races: [{ weekNumber: 6, priority: "B" }] }),
     );
-    const recovery = skeleton.weeks[6]; // week 7 = the week after the B race
-    expect(recovery.days[0].sessions.every((s) => s.kind === "rest")).toBe(true);
-    expect(recovery.days[1].sessions.some((s) => s.kind === "run")).toBe(true);
-    expect(recovery.days[2].sessions.some((s) => s.kind === "run")).toBe(true);
+    const recovery = skeleton.weeks[6]!; // week 7 = the week after the B race
+    expect(recovery.days[0]!.sessions.every((s) => s.kind === "rest")).toBe(true);
+    expect(recovery.days[1]!.sessions.some((s) => s.kind === "run")).toBe(true);
+    expect(recovery.days[2]!.sessions.some((s) => s.kind === "run")).toBe(true);
   });
 });
 
@@ -311,7 +311,7 @@ describe("buildSkeleton — structural integrity", () => {
             // full training weeks carry exactly 3 lift sessions; race weeks
             // (incl. a C race that trains through) replace a day with the race,
             // and the week after a B race opens with recovery days
-            const afterBRace = i > 0 && skeleton.weeks[i - 1].raceDay?.priority === "B";
+            const afterBRace = i > 0 && skeleton.weeks[i - 1]!.raceDay?.priority === "B";
             if (w.microWeek !== "race" && w.microWeek !== "taper" && w.microWeek !== "deload" && !w.raceDay && !afterBRace) {
               const lifts = countKind(w, "lift");
               expect(lifts).toBe(3);
@@ -341,7 +341,7 @@ describe("buildSkeleton — spec anchor end-to-end (20wk NHT A race)", () => {
     expect(skeleton.allocation).toEqual({ base: 9, build: 6, peak: 3, taper: 2 });
   });
   it("final week is the A race", () => {
-    const last = skeleton.weeks[skeleton.weeks.length - 1];
+    const last = skeleton.weeks[skeleton.weeks.length - 1]!;
     expect(last.microWeek).toBe("race");
     expect(last.raceDay?.priority).toBe("A");
     expect(last.phase).toBe("taper");
@@ -352,7 +352,7 @@ describe("buildSkeleton — spec anchor end-to-end (20wk NHT A race)", () => {
     expect(peakMax).toBeLessThan(buildMax);
   });
   it("starting mileage matches the intermediate runner anchor", () => {
-    expect(skeleton.weeks[0].targetMileage).toBe(STARTING_MILEAGE.intermediate);
+    expect(skeleton.weeks[0]!.targetMileage).toBe(STARTING_MILEAGE.intermediate);
   });
 });
 

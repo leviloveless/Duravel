@@ -40,11 +40,11 @@ function clamp(n: number, lo: number, hi: number): number {
 export function parseDistanceMiles(text: string): number | null {
   const t = text.toLowerCase();
   let m = t.match(/(\d+(?:\.\d+)?)\s*(?:miles|mile|mi)\b/);
-  if (m) return parseFloat(m[1]);
+  if (m) return parseFloat(m[1]!); // safe: group 1 is present whenever the match succeeds
   m = t.match(/(\d+(?:\.\d+)?)\s*km\b/);
-  if (m) return parseFloat(m[1]) * 0.621371;
+  if (m) return parseFloat(m[1]!) * 0.621371; // safe: group 1 is present whenever the match succeeds
   m = t.match(/(\d+(?:\.\d+)?)\s*(?:meters|metres|meter|metre|m)\b/);
-  if (m) return parseFloat(m[1]) / METERS_PER_MILE;
+  if (m) return parseFloat(m[1]!) / METERS_PER_MILE; // safe: group 1 is present whenever the match succeeds
   return null;
 }
 

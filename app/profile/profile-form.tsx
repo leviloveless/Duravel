@@ -85,7 +85,7 @@ export default function ProfileForm({ profile }: { profile: ProfileRow | null })
           >
             {EXPERIENCE_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
-                {opt[0].toUpperCase() + opt.slice(1)}
+                {opt.charAt(0).toUpperCase() + opt.slice(1)}
               </option>
             ))}
           </select>

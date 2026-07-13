@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    # Placeholder env so env.ts validation + `next build` pass without secrets.
+    # The build compiles code; it does not call Supabase/Anthropic, so dummy
+    # values are sufficient here.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      ANTHROPIC_API_KEY: ci-placeholder-anthropic-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm run test
+      - name: Build (typechecks via Next)
+        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        # Non-blocking for now: ESLint was just introduced and may surface
+        # pre-existing warnings. Make this a required step once the tree is clean.
+        run: npm run lint
+        continue-on-error: true

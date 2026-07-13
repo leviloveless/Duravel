@@ -47,10 +47,10 @@ describe("buildSimulationElements", () => {
     const els = buildSimulationElements("open", "male");
     expect(els).toHaveLength(16);
     for (let i = 0; i < 16; i += 2) {
-      expect(els[i].exercise).toBe("run"); // run precedes each station
+      expect(els[i]!.exercise).toBe("run"); // run precedes each station
     }
-    expect(els[1].prescription).toContain("1000m"); // ski erg (first station)
-    expect(els[3].prescription).toContain("152kg"); // sled push (2nd station), Open male load
+    expect(els[1]!.prescription).toContain("1000m"); // ski erg (first station)
+    expect(els[3]!.prescription).toContain("152kg"); // sled push (2nd station), Open male load
     expect(els.filter((e) => e.exercise === "run")).toHaveLength(8);
     // stations appear in race order
     const stationLabels = els.filter((_, i) => i % 2 === 1).map((e) => e.exercise);

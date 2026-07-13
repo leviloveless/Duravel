@@ -77,7 +77,8 @@ function makeCardio(durationMin: number): CardioSession {
 
 function leastLoadedDay(days: ProgramDay[]): number {
   let best = 0;
-  for (let i = 1; i < days.length; i++) if (days[i].sessions.length < days[best].sessions.length) best = i;
+  // safe: i is bounded by days.length; best is 0 or a prior in-bounds index.
+  for (let i = 1; i < days.length; i++) if (days[i]!.sessions.length < days[best]!.sessions.length) best = i;
   return best;
 }
 
@@ -150,7 +151,7 @@ export function reconcileWeekVolume(
   }
 
   // Place added easy runs before the mileage true-up so they count.
-  for (const s of added) days[leastLoadedDay(days)].sessions.push(s);
+  for (const s of added) days[leastLoadedDay(days)]!.sessions.push(s); // safe: leastLoadedDay returns an in-bounds index for a non-empty week
   trueUpMileage(days, targetMileage, paces);
 
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
@@ -160,7 +161,7 @@ export function reconcileWeekVolume(
   }
   let gap = Math.round(targetCardioMinutes) - runningCardio;
   if (gap > 0) {
-    for (const block of splitCardio(gap)) days[leastLoadedDay(days)].sessions.push(block);
+    for (const block of splitCardio(gap)) days[leastLoadedDay(days)]!.sessions.push(block); // safe: leastLoadedDay returns an in-bounds index for a non-empty week
   }
 }
 
@@ -190,11 +191,11 @@ function sizeRuns(
     // Drop the most-droppable run (easy first; never the long run).
     const victimIdx = runs.reduce(
       (best, r, i) =>
-        r.type !== "long" && (best === -1 || DROP_RANK[r.type] < DROP_RANK[runs[best].type]) ? i : best,
+        r.type !== "long" && (best === -1 || DROP_RANK[r.type] < DROP_RANK[runs[best]!.type]) ? i : best, // safe: runs[best] only read when best !== -1, a prior in-bounds index
       -1,
     );
     if (victimIdx === -1) break;
-    const [victim] = runs.splice(victimIdx, 1);
+    const victim = runs.splice(victimIdx, 1)[0]!; // safe: victimIdx !== -1 and in-bounds, so splice yields exactly one element
     const j = victim.day.sessions.indexOf(victim.ref);
     if (j !== -1) victim.day.sessions.splice(j, 1);
   }

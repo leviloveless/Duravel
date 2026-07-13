@@ -16,9 +16,8 @@ export default async function ProfilePage() {
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
       <h1 className="text-2xl font-semibold">Your profile</h1>
       <p className="text-sm text-zinc-500">
-        This basic form covers Milestone 2 (auth + persistence). The full
-        4-step intake with benchmarks and race scheduling lands in
-        Milestone 4 (onboarding).
+        Update your basic details. Benchmarks, races, and scheduling live in each
+        program&apos;s setup.
       </p>
       <ProfileForm profile={profile} />
     </main>

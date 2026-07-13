@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getUserPrograms, type ProgramSummaryRow } from "@/lib/supabase/queries";
 import { signOut } from "@/app/login/actions";
 import ThisWeekCard from "@/components/dashboard/this-week-card";
-import { deleteProgram } from "./actions";
 import RenameProgram from "./rename-program";
+import DeleteProgram from "./delete-program";
 
 const TYPE_LABEL: Record<string, string> = {
   goal_event: "Goal event",
@@ -76,16 +76,7 @@ export default async function DashboardPage() {
                 </span>
               </Link>
               <RenameProgram programId={p.id} currentName={programTitle(p)} />
-              <form action={deleteProgram}>
-                <input type="hidden" name="programId" value={p.id} />
-                <button
-                  type="submit"
-                  className="rounded-md px-2 py-1 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label={`Delete ${programTitle(p)}`}
-                >
-                  Delete
-                </button>
-              </form>
+              <DeleteProgram programId={p.id} title={programTitle(p)} />
             </li>
           ))}
         </ul>

@@ -95,15 +95,30 @@ export function runLine(s: RunSession): string {
   return `${RUN_TYPE_LABEL[s.runType]} — ${Math.round(s.durationMin)} min @ ${s.paceMinMile} min/mile — ${miles} miles — Goal HR: Zone ${s.goalZone}`;
 }
 
-/** `Squat — 4 sets × 5–7 reps` (+ ` — ~185 lbs` when a weight is suggested) */
+const EMPHASIS_LABEL: Record<string, string> = {
+  max_strength: "Max strength",
+  strength: "Strength",
+  endurance: "Muscular endurance",
+};
+
+/** `Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR) · Max strength` */
 export function movementLine(m: Movement): string {
-  const base = `${patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
-  return m.suggestedWeight ? `${base} — ${m.suggestedWeight}` : base;
+  let line = `${patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
+  if (m.suggestedWeight) line += ` — ${m.suggestedWeight}`;
+  if (m.emphasis && EMPHASIS_LABEL[m.emphasis]) line += ` · ${EMPHASIS_LABEL[m.emphasis]}`;
+  return line;
 }
 
-/** `Hybrid Session — Goal HR: Zone 4` */
+/** `Plyometrics: box jumps — 4 × 3` (the reactive/power element, Review #4) */
+export function powerElementLine(power: LiftSession["power"]): string | null {
+  if (!power) return null;
+  return `Plyometrics: ${power.exercise} — ${power.sets} × ${enDash(power.reps)}`;
+}
+
+/** `Hybrid Session — Goal HR: Zone 4` (or a Race Simulation, Review #9) */
 export function hybridHeader(s: HybridSession): string {
-  return `Hybrid Session — Goal HR: Zone ${s.goalZone}`;
+  const name = s.simulation ? "Race Simulation (full HYROX)" : "Hybrid Session";
+  return `${name} — Goal HR: Zone ${s.goalZone}`;
 }
 
 /** `Row erg — 500m` */
@@ -119,7 +134,7 @@ export function raceLabel(priority: "A" | "B" | "C"): string {
 export function sessionTypeLabel(session: Session): string {
   if (session.kind === "run") return RUN_TYPE_LABEL[session.runType];
   if (session.kind === "lift") return `${LIFT_TYPE_LABEL[session.liftType]} lift`;
-  if (session.kind === "hybrid") return "Hybrid (HYROX)";
+  if (session.kind === "hybrid") return session.simulation ? "Race Simulation" : "Hybrid (HYROX)";
   if (session.kind === "cardio") return "Zone 1–2 cardio";
   return `${session.priority} race`;
 }
@@ -135,10 +150,13 @@ export function sessionZone(session: Session): string {
   return "—";
 }
 
-// --- HR zone ↔ bpm ranges (Tasks addition #4; custom bands new-additions #3) ---
-// Zone bands are fractions of max HR. Standard defaults: Z1 <60, Z2 60–70,
-// Z3 70–80, Z4 80–90, Z5 90–100. Users can override each band's low/high %
-// (new-additions #3); the overrides are threaded in as `ZoneBands`.
+// --- HR zone ↔ bpm ranges (Tasks addition #4; custom bands new-additions #3;
+// personalized anchoring Review #3) ---
+// Bands passed in are fractions of max HR (the page resolves them from the
+// athlete's threshold/resting HR when available — see lib/zones.resolveHrModel).
+// These defaults are the corrected %HRmax bands used when nothing better is
+// known: Z1 <70, Z2 70–80, Z3 80–87, Z4 87–93, Z5 93–100 (so genuine easy
+// running reads Zone 2 instead of being mislabeled Zone 3).
 
 /** One zone's [low, high] bounds as fractions (0–1) of max HR. */
 export type ZoneBand = { low: number; high: number };
@@ -146,11 +164,11 @@ export type ZoneBands = Record<1 | 2 | 3 | 4 | 5, ZoneBand>;
 
 /** Standard %-of-max-HR bands used when the athlete hasn't set custom zones. */
 export const DEFAULT_ZONE_BANDS: ZoneBands = {
-  1: { low: 0, high: 0.6 },
-  2: { low: 0.6, high: 0.7 },
-  3: { low: 0.7, high: 0.8 },
-  4: { low: 0.8, high: 0.9 },
-  5: { low: 0.9, high: 1.0 },
+  1: { low: 0, high: 0.7 },
+  2: { low: 0.7, high: 0.8 },
+  3: { low: 0.8, high: 0.87 },
+  4: { low: 0.87, high: 0.93 },
+  5: { low: 0.93, high: 1.0 },
 };
 
 /** The bpm range for a zone given the user's max HR and (optional) custom bands. */
@@ -240,7 +258,7 @@ const DAY_OFFSET: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri
 /** Parse a "YYYY-MM-DD" string as a local date (no timezone shift). */
 function parseISODate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1); // safe: split always yields at least one element, so y (index 0) is present
 }
 
 /** Monday on or before the given date (Mon=0 … Sun=6). */

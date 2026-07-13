@@ -30,7 +30,7 @@ describe("applyStrengthSchemes", () => {
   it("overrides AI reps with periodized schemes + weights + plyo (Base)", () => {
     const w = weekWith("base", "increase");
     applyStrengthSchemes(w, { fiveRmSquat: 315 }, "lbs");
-    const lift = w.days[0].sessions[0];
+    const lift = w.days[0]!.sessions[0]!;
     if (lift.kind !== "lift") throw new Error("expected lift");
     const squat = lift.movements.find((m) => m.pattern === "squat")!;
     const lunge = lift.movements.find((m) => m.pattern === "lunge")!;
@@ -44,9 +44,9 @@ describe("applyStrengthSchemes", () => {
   it("no plyometric element in Peak", () => {
     const w = weekWith("peak", "rebound");
     applyStrengthSchemes(w);
-    const lift = w.days[0].sessions[0];
+    const lift = w.days[0]!.sessions[0]!;
     if (lift.kind !== "lift") throw new Error("expected lift");
     expect(lift.power).toBeUndefined();
-    expect(lift.movements[0].intensityPct).toBe(88);
+    expect(lift.movements[0]!.intensityPct).toBe(88);
   });
 });

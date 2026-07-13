@@ -108,7 +108,7 @@ describe("computeWeekSignals", () => {
 
   it("race sessions are excluded from planned count", () => {
     const week = makeWeek();
-    week.days[6].sessions = [{ kind: "race", priority: "A" }];
+    week.days[6]!.sessions = [{ kind: "race", priority: "A" }];
     const s = computeWeekSignals(week, allCompleted());
     expect(s.plannedSessions).toBe(6); // race not counted
     expect(s.compliance).toBe(1);

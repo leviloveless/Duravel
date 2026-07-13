@@ -64,6 +64,10 @@ const STEPS = ["About you", "Experience", "Schedule & goal", "Benchmarks"] as co
 
 type ProgramType = "goal_event" | "fixed_duration" | "general_fitness";
 type Race = { date: string; priority: "A" | "B" | "C" };
+/** Internal row: a Race plus a stable client id used only as a React key, so
+ *  removing a middle race can't misassociate controlled inputs (roadmap #1.7). */
+type RaceRow = Race & { id: string };
+const newRaceId = () => crypto.randomUUID();
 
 /** Pre-fill values for edit mode (new-additions #1), derived from a program's
  *  stored input snapshot. */
@@ -116,8 +120,11 @@ export default function OnboardingForm({
   const [liftDays, setLiftDays] = useState<string[]>(profile?.day_preferences?.liftDays ?? []);
   const [hybridDays, setHybridDays] = useState<string[]>(profile?.day_preferences?.hybridDays ?? []);
   const [programType, setProgramType] = useState<ProgramType>(initial?.programType ?? "goal_event");
-  const [races, setRaces] = useState<Race[]>(
-    initial && initial.races.length > 0 ? initial.races : [{ date: "", priority: "A" }],
+  const [races, setRaces] = useState<RaceRow[]>(
+    (initial && initial.races.length > 0
+      ? initial.races
+      : [{ date: "", priority: "A" as const }]
+    ).map((r) => ({ ...r, id: newRaceId() })),
   );
   const [duration, setDuration] = useState(initial?.durationWeeks ?? 12);
   const [startDate, setStartDate] = useState<string>(initial?.startDate ?? new Date().toISOString().slice(0, 10));
@@ -158,7 +165,7 @@ export default function OnboardingForm({
     setRaces((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
   function addRace() {
-    setRaces((rs) => [...rs, { date: "", priority: "B" }]);
+    setRaces((rs) => [...rs, { id: newRaceId(), date: "", priority: "B" }]);
   }
   function removeRace(i: number) {
     setRaces((rs) => rs.filter((_, idx) => idx !== i));
@@ -389,7 +396,7 @@ export default function OnboardingForm({
                       type="number"
                       min={0}
                       max={100}
-                      value={zones[i].low}
+                      value={zones[i]!.low}
                       onChange={(e) => updateZone(i, { low: Number(e.target.value) })}
                       className="w-16 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
                     />
@@ -401,7 +408,7 @@ export default function OnboardingForm({
                       type="number"
                       min={0}
                       max={100}
-                      value={zones[i].high}
+                      value={zones[i]!.high}
                       onChange={(e) => updateZone(i, { high: Number(e.target.value) })}
                       className="w-16 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
                     />
@@ -606,7 +613,7 @@ export default function OnboardingForm({
             </div>
 
             {races.map((r, i) => (
-              <div key={i} className="flex items-end gap-2">
+              <div key={r.id} className="flex items-end gap-2">
                 <label className="flex flex-1 flex-col gap-1">
                   Date
                   <input type="date" min={minDate} value={r.date} onChange={(e) => updateRace(i, { date: e.target.value })} className={inputClass} />
@@ -632,7 +639,7 @@ export default function OnboardingForm({
             {/* Hidden serialized race fields for the server action */}
             <input type="hidden" name="race_count" value={races.length} />
             {races.map((r, i) => (
-              <div key={`h-${i}`}>
+              <div key={r.id}>
                 <input type="hidden" name={`race_date_${i}`} value={r.date} />
                 <input type="hidden" name={`race_priority_${i}`} value={r.priority} />
               </div>
@@ -678,7 +685,7 @@ export default function OnboardingForm({
           If you don&apos;t know it, enter your best guess. The rest are optional and help calibrate starting weights.
         </p>
         <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
+          {([
             ["mileTime", "1-mile time (mm:ss)", "text"],
             ["fiveKTime", "5K time (mm:ss) — required", "text"],
             ["tenKTime", "10K time (mm:ss)", "text"],
@@ -688,7 +695,7 @@ export default function OnboardingForm({
             ["fiveRmBench", "5-rep max bench (lbs)", "number"],
             ["fiveRmDeadlift", "5-rep max deadlift (lbs)", "number"],
             ["bike20MinCals", "Assault bike cals / 20 min", "number"],
-          ].map(([name, label, type]) => (
+          ] as const).map(([name, label, type]) => (
             <label key={name} className="flex flex-col gap-1">
               {label}
               <input

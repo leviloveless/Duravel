@@ -49,17 +49,19 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
 
   for (let i = 0; i < nonTaperWeeks; i++) {
     const peakFactor = phases[i] === "peak" ? PEAK_VOLUME_FACTOR : 1;
-    baseMileage[i] = round1(seq.mileage[i] * peakFactor);
-    baseCardio[i] = Math.round(seq.cardioMinutes[i] * peakFactor);
-    basisMileage[i] = round1(seq.heldMileage[i] * peakFactor);
-    basisCardio[i] = Math.round(seq.heldCardio[i] * peakFactor);
-    labels[i] = seq.labels[i];
+    // safe: seq arrays all have length nonTaperWeeks, and i < nonTaperWeeks
+    baseMileage[i] = round1(seq.mileage[i]! * peakFactor);
+    baseCardio[i] = Math.round(seq.cardioMinutes[i]! * peakFactor);
+    basisMileage[i] = round1(seq.heldMileage[i]! * peakFactor);
+    basisCardio[i] = Math.round(seq.heldCardio[i]! * peakFactor);
+    labels[i] = seq.labels[i]!;
   }
 
   // Seed the trailing Taper-mesocycle weeks with the last held peak level;
   // applyTapers overrides them from the race protocol.
-  const lastHeldMi = nonTaperWeeks > 0 ? basisMileage[nonTaperWeeks - 1] : startMi;
-  const lastHeldCa = nonTaperWeeks > 0 ? basisCardio[nonTaperWeeks - 1] : startCa;
+  // safe: guarded by nonTaperWeeks > 0, so nonTaperWeeks - 1 is in-bounds of the length-D arrays
+  const lastHeldMi = nonTaperWeeks > 0 ? basisMileage[nonTaperWeeks - 1]! : startMi;
+  const lastHeldCa = nonTaperWeeks > 0 ? basisCardio[nonTaperWeeks - 1]! : startCa;
   for (let i = nonTaperWeeks; i < D; i++) {
     baseMileage[i] = lastHeldMi;
     baseCardio[i] = lastHeldCa;
@@ -94,17 +96,19 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const weeks: WeekSkeleton[] = [];
   for (let i = 0; i < D; i++) {
     const weekNumber = i + 1;
-    const phase = phases[i];
-    const microWeek = tapered.microLabels[i];
+    // safe: phases and tapered arrays all have length D, and i < D
+    const phase = phases[i]!;
+    const microWeek = tapered.microLabels[i]!;
     const race = tapered.raceWeeks.get(weekNumber);
-    const pos = { index: i - phaseStart[phase], length: phaseLength[phase] };
+    // safe: phaseStart/phaseLength have an entry for every PhaseName
+    const pos = { index: i - phaseStart[phase]!, length: phaseLength[phase]! };
 
     weeks.push({
       weekNumber,
       phase,
       microWeek,
-      targetMileage: tapered.mileage[i],
-      targetCardioMinutes: tapered.cardioMinutes[i],
+      targetMileage: tapered.mileage[i]!,
+      targetCardioMinutes: tapered.cardioMinutes[i]!,
       zoneTargets: { ...PHASE_ZONE_TARGETS[phase] },
       days: assignDays(
         input.trainingDays,

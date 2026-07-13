@@ -75,9 +75,10 @@ export function parseTimeToSeconds(text: string): number | null {
     return Number.isFinite(n) ? n * 60 : null; // bare number → minutes
   }
   const nums = parts.map(Number);
-  if (nums.length === 2) return nums[0] * 60 + nums[1];
-  if (nums.length === 3) return nums[0] * 3600 + nums[1] * 60 + nums[2];
-  if (nums.length === 1) return nums[0] * 60;
+  // safe: element access guarded by the just-checked nums.length in each branch.
+  if (nums.length === 2) return nums[0]! * 60 + nums[1]!;
+  if (nums.length === 3) return nums[0]! * 3600 + nums[1]! * 60 + nums[2]!;
+  if (nums.length === 1) return nums[0]! * 60;
   return null;
 }
 

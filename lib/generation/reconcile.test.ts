@@ -31,7 +31,7 @@ const hybrid = (): Session => ({
 });
 const lift = (): Session => ({ kind: "lift", liftType: "full", movements: [{ pattern: "squat", sets: 4, repRange: "5-7" }] });
 const daysOf = (...ss: Session[][]): ProgramDay[] =>
-  ss.map((x, i) => ({ day: (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const)[i], sessions: x }));
+  ss.map((x, i) => ({ day: (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const)[i]!, sessions: x }));
 const runsOf = (days: ProgramDay[]): RunS[] =>
   days.flatMap((d) => d.sessions).filter((s): s is RunS => s.kind === "run");
 const maxRunTotal = (days: ProgramDay[]) => Math.max(0, ...runsOf(days).map((s) => sessionTiming(s).total));
@@ -74,7 +74,7 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
   it("rewrites hybrid run elements to threshold pace", () => {
     const days = daysOf([hybrid()], [run("easy")], [lift()]);
     reconcileWeekVolume(days, 15, 300, P, "intermediate");
-    const hy = days[0].sessions[0];
+    const hy = days[0]!.sessions[0]!;
     const el = hy.kind === "hybrid" ? hy.elements.find((e) => /run/i.test(e.exercise)) : undefined;
     expect(el?.prescription).toContain(`@ ${formatPace(P.threshold)}`);
   });
@@ -101,7 +101,7 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
         for (const mi of [8, 11.5, 20, 35, 55]) {
           const min = Math.round(mi * 22); // generous → always leftover for non-running cardio
           const sessions: Session[][] = [];
-          for (let i = 0; i < n; i++) sessions.push([run(rt[i % rt.length])]);
+          for (let i = 0; i < n; i++) sessions.push([run(rt[i % rt.length]!)]);
           if (wh) sessions.push([hybrid()]);
           sessions.push([lift()]);
           while (sessions.length < 7) sessions.push([]);

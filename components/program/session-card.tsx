@@ -4,6 +4,7 @@ import {
   elementLine,
   hybridHeader,
   movementLine,
+  powerElementLine,
   raceLabel,
   runLine,
 } from "./format";
@@ -54,6 +55,9 @@ export default function SessionCard({ session }: { session: Session }) {
               </li>
             ))}
           </ul>
+          {powerElementLine(session.power) && (
+            <p className="mt-1 text-xs text-zinc-500">{powerElementLine(session.power)}</p>
+          )}
         </div>
       </div>
     );

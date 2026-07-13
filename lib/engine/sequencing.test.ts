@@ -22,8 +22,8 @@ describe("applySequencingGuards", () => {
     // mon lower-lift, tue interval → conflict; wed empty is a safe target
     const days = [day("mon", [lower]), day("tue", [interval]), day("wed", [])];
     applySequencingGuards(days, new Set());
-    expect(days[0].sessions.some((s) => s.kind === "lift")).toBe(false); // moved off mon
-    expect(days[2].sessions.some((s) => s.kind === "lift" && s.liftType === "lower")).toBe(true);
+    expect(days[0]!.sessions.some((s) => s.kind === "lift")).toBe(false); // moved off mon
+    expect(days[2]!.sessions.some((s) => s.kind === "lift" && s.liftType === "lower")).toBe(true);
   });
 
   it("leaves an UPPER lift before a key run alone (no leg fatigue)", () => {
@@ -39,15 +39,15 @@ describe("applySequencingGuards", () => {
     const total = days.reduce((n, d) => n + d.sessions.length, 0);
     applySequencingGuards(days, new Set());
     expect(days.reduce((n, d) => n + d.sessions.length, 0)).toBe(total);
-    expect(days[0].sessions.some((s) => s.kind === "lift")).toBe(false);
-    expect(days[0].sessions.some((s) => s.kind === "run" && s.runType === "easy")).toBe(true); // easy swapped in
-    expect(days[2].sessions.some((s) => s.kind === "lift" && s.liftType === "full")).toBe(true);
+    expect(days[0]!.sessions.some((s) => s.kind === "lift")).toBe(false);
+    expect(days[0]!.sessions.some((s) => s.kind === "run" && s.runType === "easy")).toBe(true); // easy swapped in
+    expect(days[2]!.sessions.some((s) => s.kind === "lift" && s.liftType === "full")).toBe(true);
   });
 
   it("respects protected days (won't disturb a pinned lift day)", () => {
     const days = [day("mon", [lower]), day("tue", [interval]), day("wed", [])];
     applySequencingGuards(days, new Set(["mon"]));
-    expect(days[0].sessions.some((s) => s.kind === "lift")).toBe(true); // untouched
+    expect(days[0]!.sessions.some((s) => s.kind === "lift")).toBe(true); // untouched
   });
 
   it("does not relocate onto, or the day before, another key run", () => {
@@ -60,6 +60,6 @@ describe("applySequencingGuards", () => {
     ];
     applySequencingGuards(days, new Set());
     // no safe target (every non-conflict day is a key-run day or its predecessor)
-    expect(days[0].sessions.some((s) => s.kind === "lift")).toBe(true);
+    expect(days[0]!.sessions.some((s) => s.kind === "lift")).toBe(true);
   });
 });

@@ -193,9 +193,9 @@ describe("slot-level effects", () => {
   it("aerobic emphasis fronts easy runs; threshold emphasis fronts a quality run", () => {
     const aerobic = buildRunSlots("build", 3, { index: 0, length: 6 }, "aerobic");
     // slot 0 is always the long run; slot 1 should be easy under aerobic emphasis
-    expect(aerobic[1].runType).toBe("easy");
+    expect(aerobic[1]!.runType).toBe("easy");
     const threshold = buildRunSlots("build", 3, { index: 0, length: 6 }, "threshold");
-    expect(["tempo", "threshold", "interval"]).toContain(threshold[1].runType);
+    expect(["tempo", "threshold", "interval"]).toContain(threshold[1]!.runType);
   });
 
   it("default emphasis leaves run-type order unchanged", () => {

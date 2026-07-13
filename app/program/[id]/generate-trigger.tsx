@@ -39,7 +39,7 @@ export default function GenerateTrigger({
 }) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
-  const [stage, setStage] = useState(PROGRESS_STAGES[0].label);
+  const [stage, setStage] = useState(PROGRESS_STAGES[0]!.label);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
   const started = useRef(false);
@@ -47,7 +47,7 @@ export default function GenerateTrigger({
   // Advance the staged progress message on a timer while running.
   useEffect(() => {
     if (!running) return;
-    setStage(PROGRESS_STAGES[0].label);
+    setStage(PROGRESS_STAGES[0]!.label);
     const start = Date.now();
     const id = setInterval(() => {
       const elapsed = Date.now() - start;

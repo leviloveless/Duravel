@@ -77,7 +77,7 @@ export function planWeek(
   }
 
   const ei = EXP_INDEX[runningExp];
-  let runs = RUN_COUNT[phase][ei];
+  let runs = RUN_COUNT[phase][ei]!; // safe: ei is 0|1|2, and every RUN_COUNT tuple has 3 entries
   let hybrids = HYBRID_COUNT[phase];
   let lifts = 3;
 
@@ -171,7 +171,8 @@ export function buildRunSlots(
   if (count <= 0) return [];
   const types: RunType[] = ["long"]; // long run anchors every week
   const fillers = applyRunEmphasis(runFillers(phase, pos), emphasis);
-  for (let i = 0; types.length < count; i++) types.push(fillers[i % fillers.length]);
+  // safe: runFillers always returns a non-empty array, so i % fillers.length is in-bounds
+  for (let i = 0; types.length < count; i++) types.push(fillers[i % fillers.length]!);
 
   return types.slice(0, count).map((rt) => ({
     kind: "run" as const,
@@ -199,7 +200,7 @@ function applyRunEmphasis(fillers: RunType[], emphasis: RunEmphasis): RunType[] 
 function buildLiftSlots(count: number): SessionSlot[] {
   return Array.from({ length: count }, (_, i) => ({
     kind: "lift" as const,
-    liftType: LIFT_SPLIT[i % LIFT_SPLIT.length],
+    liftType: LIFT_SPLIT[i % LIFT_SPLIT.length]!, // safe: LIFT_SPLIT is non-empty, so the index is in-bounds
   }));
 }
 
@@ -345,17 +346,18 @@ function pickSequencingTarget(
   keyRunIdx: number,
   protectedDays: Set<TrainingDayName>,
 ): number {
-  const beforeKeyRun = (t: number) => t + 1 < days.length && dayHas(days[t + 1], isKeyRun);
+  const beforeKeyRun = (t: number) => t + 1 < days.length && dayHas(days[t + 1]!, isKeyRun); // safe: t + 1 < days.length
   let best = -1;
   let bestScore = -Infinity;
   for (let t = 0; t < days.length; t++) {
     if (t === keyRunIdx || t === keyRunIdx - 1) continue;
-    if (protectedDays.has(days[t].day)) continue;
-    if (dayHas(days[t], isKeyRun)) continue;
+    const day = days[t]!; // safe: t < days.length
+    if (protectedDays.has(day.day)) continue;
+    if (dayHas(day, isKeyRun)) continue;
     if (beforeKeyRun(t)) continue;
-    const empty = days[t].sessions.length === 0;
-    if (!empty && lightIndex(days[t]) === -1) continue; // nothing safe to swap back
-    const load = days[t].sessions.filter((x) => x.kind !== "rest").length;
+    const empty = day.sessions.length === 0;
+    if (!empty && lightIndex(day) === -1) continue; // nothing safe to swap back
+    const load = day.sessions.filter((x) => x.kind !== "rest").length;
     const score = (empty ? 100 : 0) - load;
     if (score > bestScore) {
       bestScore = score;
@@ -368,21 +370,22 @@ function pickSequencingTarget(
 /** Relocate heavy-leg lifts that sit the day before a key run. */
 export function applySequencingGuards(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
   for (let i = 1; i < days.length; i++) {
-    if (!dayHas(days[i], isKeyRun)) continue;
-    const prev = days[i - 1];
+    const day = days[i]!; // safe: i < days.length
+    if (!dayHas(day, isKeyRun)) continue;
+    const prev = days[i - 1]!; // safe: i >= 1
     if (protectedDays.has(prev.day)) continue;
     const j = prev.sessions.findIndex(isHardLegLift);
     if (j === -1) continue;
     const target = pickSequencingTarget(days, i, protectedDays);
     if (target === -1) continue;
 
-    const [lift] = prev.sessions.splice(j, 1);
-    const tgt = days[target];
+    const lift = prev.sessions.splice(j, 1)[0]!; // safe: j is a valid index (!== -1)
+    const tgt = days[target]!; // safe: pickSequencingTarget returns a valid index or -1
     if (tgt.sessions.length === 0) {
       tgt.sessions.push(lift);
     } else {
       const di = lightIndex(tgt); // guaranteed ≥ 0 by pickSequencingTarget
-      const [back] = tgt.sessions.splice(di, 1);
+      const back = tgt.sessions.splice(di, 1)[0]!; // safe: di ≥ 0 (a light session exists)
       prev.sessions.push(back);
       tgt.sessions.push(lift);
     }
@@ -405,18 +408,20 @@ function placeSessionOn(
 ): void {
   const targetIdx = days.findIndex((d) => d.day === targetDay);
   if (targetIdx === -1 || protectedDays.has(targetDay)) return;
-  if (days[targetIdx].sessions.some(predicate)) return; // already satisfied
+  const targetSlot = days[targetIdx]!; // safe: targetIdx !== -1
+  if (targetSlot.sessions.some(predicate)) return; // already satisfied
 
   for (let i = 0; i < days.length; i++) {
-    if (i === targetIdx || protectedDays.has(days[i].day)) continue;
-    const j = days[i].sessions.findIndex(predicate);
+    const day = days[i]!; // safe: i < days.length
+    if (i === targetIdx || protectedDays.has(day.day)) continue;
+    const j = day.sessions.findIndex(predicate);
     if (j === -1) continue;
-    const [sess] = days[i].sessions.splice(j, 1);
-    if (days[targetIdx].sessions.length > 0) {
-      const displaced = days[targetIdx].sessions.shift()!;
-      days[i].sessions.push(displaced);
+    const sess = day.sessions.splice(j, 1)[0]!; // safe: j is a valid index (!== -1)
+    if (targetSlot.sessions.length > 0) {
+      const displaced = targetSlot.sessions.shift()!;
+      day.sessions.push(displaced);
     }
-    days[targetIdx].sessions.unshift(sess);
+    targetSlot.sessions.unshift(sess);
     return;
   }
 }
@@ -497,8 +502,10 @@ export function assignDays(
 
   let di = 0;
   for (const s of ordered) {
-    const dayKey = distributionDays[di % distributionDays.length];
-    days[idxByDay.get(dayKey)!].sessions.push(s);
+    // safe: distributionDays is non-empty here, so di % length is in-bounds, and
+    // every distribution day has an entry in idxByDay pointing at a real day slot.
+    const dayKey = distributionDays[di % distributionDays.length]!;
+    days[idxByDay.get(dayKey)!]!.sessions.push(s);
     di += 1;
   }
 
@@ -526,7 +533,7 @@ export function assignDays(
   if (race) {
     // The race takes the last training day of the week, replacing that day's
     // session (for a C race this is the only change to an otherwise normal week).
-    const last = days[days.length - 1];
+    const last = days[days.length - 1]!; // safe: a race week always has ≥ 1 training day
     last.sessions = [{ kind: "race", priority: race.priority }];
   }
 
@@ -544,7 +551,7 @@ function interleave(...groups: SessionSlot[][]): SessionSlot[] {
   const max = Math.max(0, ...groups.map((g) => g.length));
   for (let i = 0; i < max; i++) {
     for (const g of groups) {
-      if (i < g.length) out.push(g[i]);
+      if (i < g.length) out.push(g[i]!); // safe: guarded by i < g.length
     }
   }
   return out;

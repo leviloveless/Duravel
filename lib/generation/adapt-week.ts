@@ -293,75 +293,19 @@ export async function applyAdaptation(
   const { signals, decision } = decide(loaded, weekNumber);
 
   const targetWeek = weekNumber + 1;
-  let refilled = false;
-  let usage: GenerationUsage | undefined;
 
   // Refill when the rule changed targets OR added a session constraint.
   const needsRefill =
     decision.revisedTargets !== null || decision.constraints.longRunMaxMiles !== undefined;
 
-  if (needsRefill && loaded.nextWeekSkeleton) {
-    const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
-    const context = buildAdaptationContext(loaded.reviewedWeek, loaded.logs, signals, decision);
-
-    const result = await generateChunk(loaded.input, revisedWeek.phase, [revisedWeek], context);
-    usage = {
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      costUsd:
-        Math.round(
-          (result.usage.inputTokens * INPUT_COST_PER_TOKEN +
-            result.usage.outputTokens * OUTPUT_COST_PER_TOKEN) *
-            1e6,
-        ) / 1e6,
-    };
-    console.log(
-      `[adapt] program=${programId} week=${targetWeek} rule=${decision.rule} in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd.toFixed(4)}`,
-    );
-
-    // Assemble just this week through the same summary/pattern guarantees AND
-    // the same individualization as the initial generation: full VDOT paces
-    // (mile/5K/10K), absolute working weights, and division/sex station loads.
-    // (Previously only runningExp + 5K were passed, so adapted weeks silently
-    // lost these — e.g. a female Pro athlete's hybrids reverted to male/Open.)
-    const miniSkeleton: ProgramSkeleton = { ...loaded.skeleton, weeks: [revisedWeek] };
-    const a = assembleArgsFromInput(loaded.input);
-    const { program: miniProgram } = assembleProgram(
-      miniSkeleton,
-      [result.chunk],
-      a.runningExp,
-      a.raceTimes,
-      a.benchmarks,
-      a.weightUnit,
-      a.division,
-      a.sex,
-    );
-    const newWeek = miniProgram.weeks[0];
-    if (!newWeek) return { error: "Refill produced no week", status: 502 };
-    // Keep the race-day marker if the original target week had one (it shouldn't — rule 1 —
-    // but never lose a race on a data edge case).
-    newWeek.raceDay = loaded.nextWeekSkeleton.raceDay
-      ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
-      : undefined;
-
-    const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? newWeek : w));
-    const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
-      w.weekNumber === targetWeek ? revisedWeek : w,
-    );
-
-    const { error: persistError } = await supabase
-      .from("programs")
-      .update({
-        program_data: { ...loaded.programData, weeks },
-        skeleton: { ...loaded.skeleton, weeks: skeletonWeeks },
-      })
-      .eq("id", programId);
-    if (persistError) return { error: `Failed to persist adapted week: ${persistError.message}`, status: 500 };
-    refilled = true;
-  }
-
+  // Snapshot the week we're about to replace BEFORE any mutation (for undo/audit).
   const previousWeek = loaded.programData.weeks.find((w) => w.weekNumber === targetWeek) ?? null;
-  const { error: auditError } = await supabase.from("adaptations").insert({
+
+  // LOCK BEFORE SPENDING (roadmap #1.9): write the audit row first. The unique
+  // (program_id, week_number) constraint makes a concurrent apply for the same
+  // week fail HERE — before a second Haiku call is made or the week is written
+  // twice. The route's pre-check is best-effort; this insert is the real guard.
+  const { error: lockError } = await supabase.from("adaptations").insert({
     user_id: userId,
     program_id: programId,
     week_number: weekNumber,
@@ -369,10 +313,84 @@ export async function applyAdaptation(
     decision: "applied",
     rule_applied: decision.rule,
     signals,
-    previous_week: refilled ? previousWeek : null,
+    previous_week: needsRefill ? previousWeek : null,
     revised_targets: decision.revisedTargets,
   });
-  if (auditError) return { error: `Failed to record adaptation: ${auditError.message}`, status: 500 };
+  if (lockError) {
+    // Unique-violation (or any insert failure) → this week is already claimed.
+    return { error: "This week has already been reviewed", status: 409 };
+  }
+
+  let refilled = false;
+  let usage: GenerationUsage | undefined;
+  try {
+    if (needsRefill && loaded.nextWeekSkeleton) {
+      const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
+      const context = buildAdaptationContext(loaded.reviewedWeek, loaded.logs, signals, decision);
+
+      const result = await generateChunk(loaded.input, revisedWeek.phase, [revisedWeek], context);
+      usage = {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        costUsd:
+          Math.round(
+            (result.usage.inputTokens * INPUT_COST_PER_TOKEN +
+              result.usage.outputTokens * OUTPUT_COST_PER_TOKEN) *
+              1e6,
+          ) / 1e6,
+      };
+      console.log(
+        `[adapt] program=${programId} week=${targetWeek} rule=${decision.rule} in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd.toFixed(4)}`,
+      );
+
+      // Assemble just this week through the same summary/pattern guarantees AND
+      // the same individualization as the initial generation: full VDOT paces
+      // (mile/5K/10K), absolute working weights, and division/sex station loads.
+      const miniSkeleton: ProgramSkeleton = { ...loaded.skeleton, weeks: [revisedWeek] };
+      const a = assembleArgsFromInput(loaded.input);
+      const { program: miniProgram } = assembleProgram(
+        miniSkeleton,
+        [result.chunk],
+        a.runningExp,
+        a.raceTimes,
+        a.benchmarks,
+        a.weightUnit,
+        a.division,
+        a.sex,
+      );
+      const newWeek = miniProgram.weeks[0];
+      if (!newWeek) throw new Error("Refill produced no week");
+      // Keep the race-day marker if the original target week had one (it shouldn't —
+      // rule 1 — but never lose a race on a data edge case).
+      newWeek.raceDay = loaded.nextWeekSkeleton.raceDay
+        ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
+        : undefined;
+
+      const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? newWeek : w));
+      const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
+        w.weekNumber === targetWeek ? revisedWeek : w,
+      );
+
+      const { error: persistError } = await supabase
+        .from("programs")
+        .update({
+          program_data: { ...loaded.programData, weeks },
+          skeleton: { ...loaded.skeleton, weeks: skeletonWeeks },
+        })
+        .eq("id", programId);
+      if (persistError) throw new Error(`Failed to persist adapted week: ${persistError.message}`);
+      refilled = true;
+    }
+  } catch (err) {
+    // The refill failed after we took the lock — roll it back so the user can
+    // retry the review (relies on the adaptations DELETE-own policy, migration 0013).
+    await supabase
+      .from("adaptations")
+      .delete()
+      .eq("program_id", programId)
+      .eq("week_number", weekNumber);
+    return { error: `Adaptation failed: ${(err as Error).message}`, status: 502 };
+  }
 
   return { rule: decision.rule, reason: decision.reason, targetWeek, refilled, usage };
 }

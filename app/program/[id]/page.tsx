@@ -39,6 +39,12 @@ function toZoneBands(hrZones: SnapshotProfile["hrZones"]): ZoneBands | undefined
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
+// A program still 'generating' this long after its last generation run started
+// was almost certainly killed mid-flight (the route's maxDuration is 60s) before
+// its own failure handler could run. We flip it to 'failed' on view so the user
+// gets a retry path instead of an endless spinner (roadmap #1.8).
+const STUCK_GENERATION_MS = 3 * 60 * 1000;
+
 /** Number of program weeks that have fully ended as of now. */
 function elapsedWeeks(startDate: string): number {
   const wk1 = weekStartDate(startDate, 1);
@@ -76,6 +82,26 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
 
+  // Recover programs stuck in 'generating' (function killed before its failure
+  // handler ran). If the most recent generation run for this program started
+  // longer ago than the stuck threshold, mark it failed so the view offers a
+  // retry instead of spinning forever.
+  let status = program.status;
+  if (status === "generating") {
+    const { data: lastEvent } = await supabase
+      .from("generation_events")
+      .select("created_at")
+      .eq("program_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const startedMs = lastEvent ? new Date(lastEvent.created_at).getTime() : null;
+    if (startedMs !== null && Date.now() - startedMs > STUCK_GENERATION_MS) {
+      await supabase.from("programs").update({ status: "failed" }).eq("id", id).eq("user_id", user.id);
+      status = "failed";
+    }
+  }
+
   // Per-session HR zone ranges use the best-available anchoring (Review #3):
   // custom bands → threshold-HR (LTHR) → resting-HR (HRR) → sex-specific %HRmax.
   const snapshotProfile = (program.input_snapshot as { profile?: SnapshotProfile } | null)?.profile;
@@ -98,7 +124,7 @@ export default async function ProgramPage({
     goalFinishTime: snapshotProfile?.goalFinishTime,
   });
 
-  if (program.status === "ready" && data) {
+  if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     const [logRows, adaptations, readinessRows] = await Promise.all([
       getProgramLogs(program.id),
@@ -201,7 +227,7 @@ export default async function ProgramPage({
       <p className="text-sm text-zinc-500">
         {program.duration_weeks}-week {program.program_type.replace("_", " ")} program.
       </p>
-      <GenerateTrigger programId={program.id} initialStatus={program.status === "failed" ? "failed" : "generating"} />
+      <GenerateTrigger programId={program.id} initialStatus={status === "failed" ? "failed" : "generating"} />
     </main>
   );
 }

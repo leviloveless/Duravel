@@ -73,7 +73,7 @@ export function sequenceMicrocycles(
   let heldCardio = startCardio;
 
   for (let i = 0; i < weeks; i++) {
-    const label = pattern[i % pattern.length];
+    const label = pattern[i % pattern.length]!; // safe: microcyclePattern always returns a non-empty array
     labels.push(label);
 
     if (label === "increase") {

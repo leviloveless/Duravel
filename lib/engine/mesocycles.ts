@@ -44,7 +44,7 @@ export function topPriority(races: EngineRace[]): RacePriorityName | null {
   if (races.length === 0) return null;
   return races.reduce<RacePriorityName>(
     (best, r) => (PRIORITY_RANK[r.priority] > PRIORITY_RANK[best] ? r.priority : best),
-    races[0].priority,
+    races[0]!.priority, // safe: races.length === 0 returned above
   );
 }
 

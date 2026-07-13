@@ -207,6 +207,6 @@ export function powerElementFor(
   const lib = POWER_LIB[phase];
   const vol = POWER_VOLUME[phase];
   if (!lib || !vol) return null;
-  const exercise = lib[((sessionIndex % lib.length) + lib.length) % lib.length];
+  const exercise = lib[((sessionIndex % lib.length) + lib.length) % lib.length]!; // safe: index normalized into [0, lib.length) and POWER_LIB entries are non-empty
   return { exercise, sets: vol.sets, reps: vol.reps, note: POWER_NOTE };
 }
