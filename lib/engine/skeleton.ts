@@ -38,7 +38,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   //    User-supplied starting volume overrides the experience-derived defaults.
   const startMi = input.startMileage ?? startingMileage(input.runningExp);
   const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
-  const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa);
+  const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa, input.age);
 
   // 2. Assemble full-length base arrays; apply the peak-phase volume drop.
   const baseMileage: number[] = new Array(D).fill(0);
@@ -202,6 +202,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
 
   return {
     trainingClass: input.profile.trainingClass,
+    age: input.profile.age,
     runningExp: input.profile.runningExp,
     hybridExp: input.profile.hybridExp,
     liftingExp: input.profile.liftingExp,

@@ -45,4 +45,22 @@ export const ADAPT = {
 
   /** Fallback duration for a completed hybrid session with no logged actuals. */
   DEFAULT_HYBRID_MINUTES: 45,
+
+  // --- Load metrics (Review #5): session-RPE load, ACWR, Foster monotony ---
+  /** Acute:Chronic Workload Ratio at/above this = a load spike → early deload. */
+  ACWR_SPIKE: 1.5,
+  /** ACWR in [caution, spike) with a scheduled increase → hold instead. */
+  ACWR_CAUTION: 1.3,
+  /** Minimum weeks of logged history before ACWR is trusted enough to act on. */
+  ACWR_MIN_WEEKS: 3,
+  /** Foster training monotony at/above this is a warning (little day-to-day variation). */
+  MONOTONY_HIGH: 2.0,
+
+  // --- Forward readiness (Review #7): weekly Hooper wellness + optional RHR/HRV ---
+  /** Readiness score below this = low (hold a scheduled increase; suppress bump). */
+  READINESS_LOW: 55,
+  /** Readiness score below this = very low (preemptive early deload). */
+  READINESS_VERY_LOW: 35,
+  /** Upper bound of the "moderate" band (≥ this = "good"). */
+  READINESS_MODERATE: 70,
 } as const;

@@ -12,6 +12,7 @@ import type { GenerationInput } from "@/lib/schemas";
 import type { PhaseName, WeekSkeleton } from "@/lib/engine/types";
 import { philosophyRules, PHASE_CHARACTER, HYBRID_LIBRARY } from "./philosophy";
 import { analyzeNeeds } from "@/lib/engine/needs";
+import { resolveHrModel } from "@/lib/zones";
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — respond with a single JSON object and nothing else (no prose, no markdown fences):
 
@@ -31,7 +32,7 @@ const OUTPUT_CONTRACT = `OUTPUT FORMAT — respond with a single JSON object and
 
 A <Session> is exactly one of:
 - Run:    { "kind": "run", "runType": "easy|fartlek|progression|long|tempo|threshold|interval|hybrid_run", "durationMin": <number>, "paceMinMile": "m:ss", "distanceMiles": <number>, "goalZone": <1-5> }
-- Lift:   { "kind": "lift", "liftType": "upper|lower|full", "movements": [ { "pattern": "squat|hip_hinge|lunge|horizontal_press|vertical_press|horizontal_pull|vertical_pull", "sets": <int>, "repRange": "5-7", "suggestedWeight": "optional string" } ] }
+- Lift:   { "kind": "lift", "liftType": "upper|lower|full", "movements": [ { "pattern": "squat|hip_hinge|lunge|horizontal_press|vertical_press|horizontal_pull|vertical_pull", "sets": <int>, "repRange": "string" } ] }  (the engine sets sets/reps/intensity/RIR and any plyometric element deterministically — just choose which patterns go in each session)
 - Hybrid: { "kind": "hybrid", "goalZone": <1-5>, "elements": [ { "exercise": "row erg", "prescription": "500m" }, { "exercise": "run", "prescription": "400m @ 7:30 min/mile (threshold)" } ] }
 
 Rules:
@@ -47,11 +48,36 @@ export function buildSystemPrompt(): string {
 
 function profileBlock(input: GenerationInput): string {
   const p = input.profile;
-  const maxHr = p.maxHr ?? 220 - p.age;
-  const maxHrNote = p.maxHr ? `custom max HR ${p.maxHr}` : `max HR ≈ ${maxHr}`;
+  // HR zones use the best-available anchoring (Review #3): threshold HR (LTHR) ->
+  // resting HR (HRR) -> sex-specific %HRmax. Give the model the resolved max HR,
+  // the method, and any resting/threshold HR so its goal-HR guidance is realistic.
+  const hr = resolveHrModel({
+    age: p.age,
+    sex: p.sex,
+    maxHr: p.maxHr,
+    restingHr: p.restingHr,
+    thresholdHr: p.thresholdHr,
+    customBands: p.hrZones
+      ? {
+          1: { low: p.hrZones.z1.low / 100, high: p.hrZones.z1.high / 100 },
+          2: { low: p.hrZones.z2.low / 100, high: p.hrZones.z2.high / 100 },
+          3: { low: p.hrZones.z3.low / 100, high: p.hrZones.z3.high / 100 },
+          4: { low: p.hrZones.z4.low / 100, high: p.hrZones.z4.high / 100 },
+          5: { low: p.hrZones.z5.low / 100, high: p.hrZones.z5.high / 100 },
+        }
+      : undefined,
+  });
+  const hrExtras = [
+    hr.restingHr ? `resting HR ${hr.restingHr}` : null,
+    hr.thresholdHr ? `threshold HR ${hr.thresholdHr}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const hrNote = `max HR ~ ${hr.maxHR} bpm; zones anchored to ${hr.label}${hrExtras ? ` (${hrExtras})` : ""}`;
   const lines = [
     `First name: ${p.firstName}`,
-    `Age: ${p.age} (${maxHrNote})`,
+    `Age: ${p.age}${p.sex ? `, sex: ${p.sex}` : ""}`,
+    `Heart rate: ${hrNote}`,
     `Body weight: ${p.bodyWeight} ${p.weightUnit}`,
     `Experience — running: ${p.runningExp}, hybrid: ${p.hybridExp}, lifting: ${p.liftingExp}`,
     `Training classification: ${p.trainingClass}`,

@@ -35,6 +35,8 @@ export interface EngineRace {
 
 export interface EngineInput {
   trainingClass: TrainingClassName;
+  /** Athlete age — masters (≥ MASTERS_AGE) get more frequent deloads (Review #10). */
+  age?: number;
   runningExp: ExperienceLevel;
   hybridExp: ExperienceLevel;
   liftingExp: ExperienceLevel;
@@ -84,6 +86,8 @@ export interface LiftSlot {
 export interface HybridSlot {
   kind: "hybrid";
   goalZone: number;
+  /** Marks a Peak race-simulation hybrid (Review #9). */
+  simulation?: boolean;
 }
 export interface RestSlot {
   kind: "rest";

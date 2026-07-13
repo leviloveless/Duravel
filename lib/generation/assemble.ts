@@ -17,6 +17,7 @@ import {
   REQUIRED_MOVEMENT_PATTERNS,
   type AiChunk,
   type AiWeek,
+  type GenerationInput,
   type ProgramData,
   type ProgramDay,
   type ProgramWeek,
@@ -26,7 +27,14 @@ import type { ExperienceLevel, ProgramSkeleton, WeekSkeleton } from "@/lib/engin
 import { runDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
-import { computePaces, type RunPaces } from "@/lib/engine/paces";
+import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
+import { movementScheme, powerElementFor, suggestedWeight } from "@/lib/engine/strength";
+import {
+  buildSimulationElements,
+  stationPrescription,
+  type Division,
+  type StationSex,
+} from "@/lib/engine/stations";
 
 type MovementPattern = (typeof REQUIRED_MOVEMENT_PATTERNS)[number];
 
@@ -133,12 +141,42 @@ function describeRuns(sessions: Session[], runningExp: ExperienceLevel): Session
   );
 }
 
+/**
+ * Replace Peak simulation-flagged hybrid slots with an engine-built full race
+ * simulation: the 8 race stations in order, each preceded by a 1 km run, at race
+ * spec (Review #9). Deterministic — the AI's content for that slot is discarded.
+ */
+function replaceSimulations(
+  days: ProgramDay[],
+  skel: WeekSkeleton,
+  division: Division,
+  sex: StationSex,
+): void {
+  for (const skelDay of skel.days) {
+    const simSlot = skelDay.sessions.find((s) => s.kind === "hybrid" && s.simulation === true);
+    if (!simSlot) continue;
+    const day = days.find((d) => d.day === skelDay.day);
+    if (!day) continue;
+    const sim: Session = {
+      kind: "hybrid",
+      goalZone: 4,
+      simulation: true,
+      elements: buildSimulationElements(division, sex),
+    };
+    const hi = day.sessions.findIndex((s) => s.kind === "hybrid");
+    if (hi === -1) day.sessions.push(sim);
+    else day.sessions[hi] = sim;
+  }
+}
+
 function buildWeek(
   skel: WeekSkeleton,
   aiWeek: AiWeek | undefined,
   issues: string[],
   runningExp: ExperienceLevel,
   paces: RunPaces | null,
+  division: Division = "open",
+  sex: StationSex = "male",
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -147,6 +185,11 @@ function buildWeek(
       runningExp,
     ),
   }));
+
+  // Review #9: replace any Peak simulation-flagged hybrid with an engine-built
+  // full race simulation BEFORE reconciliation, so its runs/stations are counted
+  // in the week's mileage + cardio totals.
+  replaceSimulations(days, skel, division, sex);
 
   // Rewrite the AI-filled run volume so the week's running mileage and cardio
   // time equal the engine's prescribed targets exactly: running is sized to the
@@ -212,23 +255,138 @@ export function patchMovementPatterns(week: ProgramWeek): MovementPattern[] {
   return [...missing];
 }
 
+/** 5RM benchmarks used to suggest working weights (Review #4). */
+export interface StrengthBenchmarks {
+  fiveRmSquat?: number;
+  fiveRmDeadlift?: number;
+  fiveRmBench?: number;
+}
+
+/**
+ * The full set of individualization arguments `assembleProgram` needs, derived
+ * from a stored generation input. Both the initial full generation and the
+ * per-week adaptation refill must pass ALL of these so an adapted week keeps the
+ * same VDOT paces (best of mile/5K/10K, Review #2), absolute working weights
+ * (Review #4), and division/sex-correct station loads (Review #6) as every other
+ * week. Threading only a subset here was the source of a silent adaptation
+ * regression (a female Pro athlete's refilled week reverting to male/Open loads).
+ */
+export interface AssembleArgs {
+  runningExp: ExperienceLevel;
+  raceTimes: RaceInput;
+  benchmarks: StrengthBenchmarks;
+  weightUnit: "lbs" | "kg";
+  division: Division;
+  sex: StationSex;
+}
+
+/** Build the complete `assembleProgram` argument set from a generation input.
+ *  Single source of truth shared by generate-program.ts and adapt-week.ts. */
+export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
+  const b = input.profile.benchmarks;
+  return {
+    runningExp: input.profile.runningExp,
+    // Best of mile / 5K / 10K → VDOT (Review #2).
+    raceTimes: { mileTime: b?.mileTime, fiveKTime: b?.fiveKTime, tenKTime: b?.tenKTime },
+    // 5RM benchmarks → periodized working weights (Review #4).
+    benchmarks: {
+      fiveRmSquat: b?.fiveRmSquat,
+      fiveRmDeadlift: b?.fiveRmDeadlift,
+      fiveRmBench: b?.fiveRmBench,
+    },
+    weightUnit: input.profile.weightUnit,
+    // Division + sex → HYROX station race loads (Review #6).
+    division: input.profile.division ?? "open",
+    sex: input.profile.sex === "female" ? "female" : "male",
+  };
+}
+
+/**
+ * Apply the periodized strength schemes over a week's lift sessions (Review #4):
+ * heavy/low-rep max strength on the full-body day, moderate strength on
+ * upper/lower, high-rep muscular endurance for the lunge, with load progressing
+ * by microcycle and an RIR cue. Adds a plyometric element in Base/Build. Runs
+ * AFTER pattern patching so injected movements are prescribed too. Deterministic.
+ */
+export function applyStrengthSchemes(
+  week: ProgramWeek,
+  benchmarks?: StrengthBenchmarks,
+  weightUnit: "lbs" | "kg" = "lbs",
+): void {
+  let liftIndex = 0;
+  for (const day of week.days) {
+    for (const session of day.sessions) {
+      if (session.kind !== "lift") continue;
+      for (const m of session.movements) {
+        const scheme = movementScheme(m.pattern, session.liftType, week.phase, week.microWeek);
+        m.sets = scheme.sets;
+        m.repRange = scheme.repRange;
+        m.intensityPct = scheme.intensityPct;
+        m.rir = scheme.rir;
+        m.emphasis = scheme.emphasis;
+        m.suggestedWeight = suggestedWeight(scheme, m.pattern, benchmarks, weightUnit);
+      }
+      const power = powerElementFor(week.phase, week.microWeek, liftIndex);
+      if (power) session.power = power;
+      else delete session.power;
+      liftIndex += 1;
+    }
+  }
+}
+
+/**
+ * Rewrite hybrid station prescriptions toward HYROX race spec (Review #6):
+ * exact race loads by division/sex, with volume (distance/reps) progressing by
+ * phase. Run elements are left alone (the reconciler paces them). Unknown
+ * exercises keep the AI's text. Deterministic.
+ */
+export function applyStationProgression(
+  week: ProgramWeek,
+  division: Division = "open",
+  sex: StationSex = "male",
+): void {
+  for (const day of week.days) {
+    for (const session of day.sessions) {
+      if (session.kind !== "hybrid") continue;
+      for (const el of session.elements) {
+        const isRun = /run/i.test(el.exercise) || /run/i.test(el.prescription);
+        if (isRun) continue;
+        const spec = stationPrescription(el.exercise, week.phase, division, sex);
+        if (spec) el.prescription = spec.prescription;
+      }
+    }
+  }
+}
+
 /** Build ProgramData from the skeleton + AI chunks, patching pattern gaps.
  *  `runningExp` selects the experience-appropriate run descriptions (Tasks #2/#4);
- *  it defaults to "intermediate" for callers that don't have the profile handy. */
+ *  it defaults to "intermediate" for callers that don't have the profile handy.
+ *  `raceTimes` supplies the mile/5K/10K used to derive VDOT paces (Review #2). */
 export function assembleProgram(
   skeleton: ProgramSkeleton,
   chunks: AiChunk[],
   runningExp: ExperienceLevel = "intermediate",
-  fiveKTime?: string,
+  raceTimes?: string | RaceInput,
+  benchmarks?: StrengthBenchmarks,
+  weightUnit: "lbs" | "kg" = "lbs",
+  division: Division = "open",
+  sex: StationSex = "male",
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
-  const paces = computePaces(fiveKTime);
+  // VDOT paces from the athlete's best of mile / 5K / 10K (Review #2). A bare
+  // 5K string is still accepted for backward compatibility.
+  const paces = computePaces(raceTimes);
 
   const weeks = skeleton.weeks.map((skel) => {
-    const week = buildWeek(skel, aiByWeek.get(skel.weekNumber), issues, runningExp, paces);
+    const week = buildWeek(skel, aiByWeek.get(skel.weekNumber), issues, runningExp, paces, division, sex);
     const patched = patchMovementPatterns(week);
     if (patched.length) issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
+    // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
+    // applied deterministically over whatever the AI returned.
+    applyStrengthSchemes(week, benchmarks, weightUnit);
+    // Review #6: progress hybrid station prescriptions toward race spec.
+    applyStationProgression(week, division, sex);
     return week;
   });
 

@@ -69,16 +69,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, dismissed: true });
   }
 
-  // Rate limit: adapt runs only (kind='adapt'), independent of the 3/day
-  // generate limit. A normal user needs 1/week; 7/day is generous headroom.
-  const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-  const { count, error: countError } = await supabase
-    .from("generation_events")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("kind", "adapt")
-    .gte("created_at", since);
-  if (!countError && (count ?? 0) >= DAILY_ADAPT_LIMIT) {
+  // Rate limit + run marker in one atomic DB step (kind='adapt', independent of
+  // the generate limit) so concurrent requests can't slip past the cap — see
+  // migration 0012. A normal user needs 1/week; 7/day is generous headroom.
+  const { data: eventId, error: claimError } = await supabase.rpc("claim_generation_slot", {
+    p_kind: "adapt",
+    p_program_id: programId,
+    p_limit: DAILY_ADAPT_LIMIT,
+    p_window_hours: RATE_WINDOW_MS / (60 * 60 * 1000),
+  });
+  if (claimError) {
+    return NextResponse.json({ error: "Could not start adaptation" }, { status: 500 });
+  }
+  if (!eventId) {
     return NextResponse.json(
       {
         error: "rate_limited",
@@ -88,28 +91,24 @@ export async function POST(request: Request) {
     );
   }
 
-  // Log the run up front (concurrent requests can't slip past the cap), then
-  // stamp usage on the same row afterward — mirrors /api/generate.
-  const { data: event } = await supabase
-    .from("generation_events")
-    .insert({ user_id: user.id, program_id: programId, kind: "adapt" })
-    .select("id")
-    .single();
-
   const result = await applyAdaptation(supabase, user.id, programId, weekNumber);
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  if (event?.id && result.usage) {
-    await supabase
+  // Best-effort usage stamp (logged, not fatal, if it fails).
+  if (eventId && result.usage) {
+    const { error: usageError } = await supabase
       .from("generation_events")
       .update({
         input_tokens: result.usage.inputTokens,
         output_tokens: result.usage.outputTokens,
         cost_usd: result.usage.costUsd,
       })
-      .eq("id", event.id);
+      .eq("id", eventId);
+    if (usageError) {
+      console.warn(`[adapt] failed to stamp usage on event ${eventId}: ${usageError.message}`);
+    }
   }
 
   return NextResponse.json({

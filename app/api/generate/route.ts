@@ -63,36 +63,29 @@ export async function POST(request: Request) {
   if (program.status === "ready" && !force) {
     return NextResponse.json({ status: "ready" });
   }
-  // Rate limit: count this user's real generation runs in the trailing 24h.
-  // (RLS scopes the count to the caller; this runs before any expensive work.)
-  // Allowlisted testing accounts skip the cap entirely.
+  // Rate limit + run marker in one atomic DB step so concurrent requests can't
+  // slip past the cap (see migration 0012 — the old count-then-insert was a
+  // TOCTOU race). Allowlisted testing accounts pass a very high limit so they're
+  // effectively uncapped. The returned id is the marker row we stamp usage onto.
   const unlimited = !!user.email && UNLIMITED_EMAILS.includes(user.email.toLowerCase());
-  if (!unlimited) {
-    const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-    const { count, error: countError } = await supabase
-      .from("generation_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .neq("kind", "adapt") // weekly adaptations have their own separate limit
-      .gte("created_at", since);
-    if (!countError && (count ?? 0) >= DAILY_GENERATION_LIMIT) {
-      return NextResponse.json(
-        {
-          error: "rate_limited",
-          message: `You've reached the limit of ${DAILY_GENERATION_LIMIT} generations per day. Please try again later.`,
-        },
-        { status: 429 },
-      );
-    }
+  const { data: eventId, error: claimError } = await supabase.rpc("claim_generation_slot", {
+    p_kind: force ? "recalculate" : "create",
+    p_program_id: programId,
+    p_limit: unlimited ? 1_000_000 : DAILY_GENERATION_LIMIT,
+    p_window_hours: RATE_WINDOW_MS / (60 * 60 * 1000),
+  });
+  if (claimError) {
+    return NextResponse.json({ error: "Could not start generation" }, { status: 500 });
   }
-
-  // Log this run before starting so concurrent requests can't slip past the cap.
-  // Keep the id so we can stamp token usage onto this same row afterward.
-  const { data: event } = await supabase
-    .from("generation_events")
-    .insert({ user_id: user.id, program_id: programId, kind: force ? "recalculate" : "create" })
-    .select("id")
-    .single();
+  if (!eventId) {
+    return NextResponse.json(
+      {
+        error: "rate_limited",
+        message: `You've reached the limit of ${DAILY_GENERATION_LIMIT} generations per day. Please try again later.`,
+      },
+      { status: 429 },
+    );
+  }
 
   // Recalculate: reset to generating and clear the old program before re-running.
   if (force) {
@@ -102,15 +95,19 @@ export async function POST(request: Request) {
   const result = await generateProgram(supabase, programId);
 
   // Record actual token usage + estimated cost on this generation's event row.
-  if (event?.id && result.usage) {
-    await supabase
+  // Best-effort: a failed stamp (e.g. missing UPDATE policy) is logged, not fatal.
+  if (eventId && result.usage) {
+    const { error: usageError } = await supabase
       .from("generation_events")
       .update({
         input_tokens: result.usage.inputTokens,
         output_tokens: result.usage.outputTokens,
         cost_usd: result.usage.costUsd,
       })
-      .eq("id", event.id);
+      .eq("id", eventId);
+    if (usageError) {
+      console.warn(`[generate] failed to stamp usage on event ${eventId}: ${usageError.message}`);
+    }
   }
 
   if (!result.ok) {

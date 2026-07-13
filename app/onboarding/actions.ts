@@ -57,8 +57,15 @@ function parseGenerationInput(
   // --- Training days multi-select ---
   const trainingDays = DAY_KEYS.filter((d) => formData.get(`day_${d}`) === "on");
 
-  // --- Custom max HR (optional; blank → 220 − age) (new-additions #2) ---
+  // --- Sex + HR inputs (optional) (Review #3) ---
+  const sexRaw = str(formData, "sex");
+  const sex = sexRaw === "male" || sexRaw === "female" || sexRaw === "other" ? sexRaw : undefined;
   const maxHr = num(formData, "maxHr");
+  const restingHr = num(formData, "restingHr");
+  const thresholdHr = num(formData, "thresholdHr");
+  const divisionRaw = str(formData, "division");
+  const division = divisionRaw === "open" || divisionRaw === "pro" ? divisionRaw : undefined;
+  const goalFinishTime = str(formData, "goalFinishTime");
 
   // --- Custom HR zone bands (optional) (new-additions #3) ---
   const zonesEnabled = formData.get("hrZonesEnabled") === "on";
@@ -107,7 +114,12 @@ function parseGenerationInput(
       trainingClass: formData.get("trainingClass"),
       trainingDays,
       benchmarks,
+      sex,
       maxHr,
+      restingHr,
+      thresholdHr,
+      division,
+      goalFinishTime,
       hrZones,
       dayPreferences,
     },
@@ -153,7 +165,12 @@ function profileUpsertRow(userId: string, input: GenerationInput) {
     training_class: input.profile.trainingClass,
     training_days: input.profile.trainingDays,
     benchmarks: input.profile.benchmarks ?? null,
+    sex: input.profile.sex ?? null,
     max_hr: input.profile.maxHr ?? null,
+    resting_hr: input.profile.restingHr ?? null,
+    threshold_hr: input.profile.thresholdHr ?? null,
+    division: input.profile.division ?? null,
+    goal_finish_time: input.profile.goalFinishTime ?? null,
     hr_zones: input.profile.hrZones ?? null,
     day_preferences: input.profile.dayPreferences ?? null,
     updated_at: new Date().toISOString(),

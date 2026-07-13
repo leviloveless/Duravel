@@ -21,7 +21,7 @@ import {
 import type { PhaseName, ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { generateChunk } from "@/lib/ai/generate-week";
-import { assembleProgram, verifyProgram } from "./assemble";
+import { assembleArgsFromInput, assembleProgram, verifyProgram } from "./assemble";
 
 /** Token + cost totals for one full generation (all mesocycle calls). */
 export interface GenerationUsage {
@@ -132,12 +132,19 @@ export async function generateProgram(
       `[generate] program=${programId} calls=${results.length} in=${inputTokens} out=${outputTokens} cost=$${usage.costUsd.toFixed(4)}`,
     );
 
-    // Assemble (engine summaries + pattern patching) and verify.
+    // Assemble (engine summaries + pattern patching) and verify. All the
+    // individualization args (VDOT paces, working weights, division/sex station
+    // loads) come from one shared builder so generation and adaptation agree.
+    const a = assembleArgsFromInput(input);
     const { program, issues } = assembleProgram(
       skeleton,
       chunks,
-      input.profile.runningExp,
-      input.profile.benchmarks?.fiveKTime,
+      a.runningExp,
+      a.raceTimes,
+      a.benchmarks,
+      a.weightUnit,
+      a.division,
+      a.sex,
     );
     const verdict = verifyProgram(program);
     if (!verdict.ok) {

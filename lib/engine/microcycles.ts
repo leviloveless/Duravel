@@ -24,6 +24,7 @@ import {
   DELOAD_FACTOR,
   INCREASE_MILEAGE_MIN_STEP,
   INCREASE_MILEAGE_PCT,
+  MASTERS_AGE,
   increaseCardioStep,
   increaseStep,
 } from "./volume";
@@ -33,7 +34,10 @@ const PATTERNS: Record<TrainingClassName, MicroWeekType[]> = {
   highly_trained: ["rebound", "increase", "increase", "deload"],
 };
 
-export function microcyclePattern(trainingClass: TrainingClassName): MicroWeekType[] {
+export function microcyclePattern(trainingClass: TrainingClassName, age?: number): MicroWeekType[] {
+  // Masters athletes recover more slowly → more frequent deloads: use the
+  // 3-week (2:1) microcycle regardless of training class (Review #10).
+  if (typeof age === "number" && age >= MASTERS_AGE) return PATTERNS.non_highly_trained;
   return PATTERNS[trainingClass];
 }
 
@@ -56,8 +60,9 @@ export function sequenceMicrocycles(
   trainingClass: TrainingClassName,
   startMileage: number,
   startCardio: number,
+  age?: number,
 ): MicrocycleSequence {
-  const pattern = PATTERNS[trainingClass];
+  const pattern = microcyclePattern(trainingClass, age);
   const labels: MicroWeekType[] = [];
   const mileage: number[] = [];
   const cardioMinutes: number[] = [];

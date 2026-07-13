@@ -286,19 +286,80 @@ export default function OnboardingForm({
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm">
-          Max heart rate <span className="text-xs text-zinc-400">(optional)</span>
-          <input
-            name="maxHr"
-            type="number"
-            min={100}
-            max={230}
-            defaultValue={profile?.max_hr ?? ""}
-            placeholder={profile?.age ? `Default ${220 - profile.age}` : "Default 220 − age"}
-            className={inputClass}
-          />
+          Sex <span className="text-xs text-zinc-400">(optional — improves max-HR estimate)</span>
+          <select name="sex" defaultValue={profile?.sex ?? ""} className={inputClass}>
+            <option value="">Prefer not to say</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+          </select>
         </label>
+        <div className="flex gap-4">
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Max heart rate <span className="text-xs text-zinc-400">(optional)</span>
+            <input
+              name="maxHr"
+              type="number"
+              min={100}
+              max={230}
+              defaultValue={profile?.max_hr ?? ""}
+              placeholder="From age & sex"
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Resting HR <span className="text-xs text-zinc-400">(optional)</span>
+            <input
+              name="restingHr"
+              type="number"
+              min={25}
+              max={120}
+              defaultValue={profile?.resting_hr ?? ""}
+              placeholder="e.g. 52"
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Threshold HR <span className="text-xs text-zinc-400">(optional)</span>
+            <input
+              name="thresholdHr"
+              type="number"
+              min={90}
+              max={220}
+              defaultValue={profile?.threshold_hr ?? ""}
+              placeholder="e.g. 168"
+              className={inputClass}
+            />
+          </label>
+        </div>
         <p className="text-xs text-zinc-500">
-          Leave blank to use 220 − age. Set a custom value if you know your tested max HR.
+          Max HR defaults to a sex-specific age formula (Tanaka / Gulati). Zones use the best data you
+          give: a threshold HR (lactate-threshold / Friel zones), else a resting HR (heart-rate reserve),
+          else % of max HR. Set a tested max HR if you know it.
+        </p>
+
+        <div className="flex gap-4">
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            HYROX division <span className="text-xs text-zinc-400">(station loads)</span>
+            <select name="division" defaultValue={profile?.division ?? "open"} className={inputClass}>
+              <option value="open">Open</option>
+              <option value="pro">Pro</option>
+            </select>
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            Goal finish time <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
+            <input
+              name="goalFinishTime"
+              type="text"
+              defaultValue={profile?.goal_finish_time ?? ""}
+              placeholder="e.g. 1:15:00"
+              className={inputClass}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-zinc-500">
+          Division sets the sled / carry / lunge / wall-ball race loads your hybrid sessions build toward.
+          A goal time drives your race pacing plan — leave it blank and we predict one from your benchmarks.
         </p>
 
         {/* Custom HR zones (new-additions #3) */}

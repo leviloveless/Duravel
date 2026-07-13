@@ -14,23 +14,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   GenerationInputSchema,
+  ProgramDataSchema,
   type GenerationInput,
   type ProgramData,
   type ProgramWeek,
   type WorkoutLog,
 } from "@/lib/schemas";
 import type { ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
+import { ProgramSkeletonSchema } from "@/lib/engine/skeleton-schema";
 import {
   applyDecisionToWeek,
   computeWeekSignals,
+  computeLoadMetrics,
   decideAdaptation,
   type AdaptContext,
   type AdaptDecision,
   type AdaptRuleCode,
   type WeekSignals,
 } from "@/lib/engine/adapt";
+import { computeReadiness, type ReadinessCheckin } from "@/lib/engine/readiness";
 import { generateChunk } from "@/lib/ai/generate-week";
-import { assembleProgram } from "./assemble";
+import { assembleArgsFromInput, assembleProgram } from "./assemble";
 import type { GenerationUsage } from "./generate-program";
 
 // Haiku list rates, matching generate-program.ts.
@@ -58,6 +62,10 @@ interface LoadedProgram {
   reviewedWeek: ProgramWeek;
   nextWeekSkeleton: WeekSkeleton | null;
   logs: WorkoutLog[];
+  /** Logs across the ACWR window (up to 4 weeks) for load metrics (Review #5). */
+  allLogs: WorkoutLog[];
+  /** Readiness check-ins up to the reviewed week (Review #7). */
+  readinessCheckins: ReadinessCheckin[];
   prevSignals: WeekSignals | null;
   lastRule: AdaptRuleCode | null;
 }
@@ -99,9 +107,18 @@ async function loadForAdaptation(
   const parsedInput = GenerationInputSchema.safeParse(row.input_snapshot);
   if (!parsedInput.success) return { error: "Stored input snapshot is invalid", status: 500 };
 
-  const programData = row.program_data as ProgramData | null;
-  const skeleton = row.skeleton as ProgramSkeleton | null;
-  if (!programData || !skeleton) return { error: "Program has no generated data", status: 409 };
+  if (!row.program_data || !row.skeleton) {
+    return { error: "Program has no generated data", status: 409 };
+  }
+  // Validate the persisted JSON on the way in rather than trusting a raw cast —
+  // a corrupted or schema-drifted program/skeleton must fail cleanly, not flow
+  // silently into the adaptation math and the mini-refill.
+  const parsedData = ProgramDataSchema.safeParse(row.program_data);
+  if (!parsedData.success) return { error: "Stored program data is invalid", status: 500 };
+  const parsedSkeleton = ProgramSkeletonSchema.safeParse(row.skeleton);
+  if (!parsedSkeleton.success) return { error: "Stored skeleton is invalid", status: 500 };
+  const programData: ProgramData = parsedData.data;
+  const skeleton: ProgramSkeleton = parsedSkeleton.data;
 
   const reviewedWeek = programData.weeks.find((w) => w.weekNumber === weekNumber);
   if (!reviewedWeek) return { error: `Week ${weekNumber} not found in program`, status: 400 };
@@ -112,7 +129,8 @@ async function loadForAdaptation(
     .from("workout_logs")
     .select("week_number, day, session_index, status, rpe, actuals, note")
     .eq("program_id", programId)
-    .in("week_number", weekNumber > 1 ? [weekNumber - 1, weekNumber] : [weekNumber]);
+    .gte("week_number", Math.max(1, weekNumber - 3))
+    .lte("week_number", weekNumber);
   const logs = (logRows ?? []).map(toWorkoutLog);
 
   let prevSignals: WeekSignals | null = null;
@@ -121,6 +139,22 @@ async function loadForAdaptation(
     const prevLogs = logs.filter((l) => l.weekNumber === weekNumber - 1);
     if (prevLogs.length > 0) prevSignals = computeWeekSignals(prevWeek, prevLogs);
   }
+
+  // Weekly readiness check-ins up to this week, for the forward signal (Review #7).
+  const { data: readinessRows } = await supabase
+    .from("readiness_checkins")
+    .select("week_number, sleep, fatigue, stress, soreness, resting_hr, hrv")
+    .eq("program_id", programId)
+    .lte("week_number", weekNumber);
+  const readinessCheckins: ReadinessCheckin[] = (readinessRows ?? []).map((r) => ({
+    weekNumber: r.week_number,
+    sleep: r.sleep,
+    fatigue: r.fatigue,
+    stress: r.stress,
+    soreness: r.soreness,
+    restingHr: r.resting_hr,
+    hrv: r.hrv,
+  }));
 
   // Most recent applied rule (the earned bump can't fire twice in a row).
   const { data: lastAdaptation } = await supabase
@@ -139,6 +173,8 @@ async function loadForAdaptation(
     reviewedWeek,
     nextWeekSkeleton,
     logs: logs.filter((l) => l.weekNumber === weekNumber),
+    allLogs: logs,
+    readinessCheckins,
     prevSignals,
     lastRule: (lastAdaptation?.rule_applied as AdaptRuleCode | undefined) ?? null,
   };
@@ -147,6 +183,12 @@ async function loadForAdaptation(
 function decide(loaded: LoadedProgram, weekNumber: number): { signals: WeekSignals; decision: AdaptDecision } {
   const signals = computeWeekSignals(loaded.reviewedWeek, loaded.logs);
   const reviewedSkeleton = loaded.skeleton.weeks.find((w) => w.weekNumber === weekNumber);
+  // ACWR + monotony across the loaded window (Review #5).
+  const load = computeLoadMetrics(loaded.programData.weeks, loaded.allLogs, weekNumber);
+  // Forward readiness (Review #7): the reviewed week's check-in vs personal baseline.
+  const currentReadiness = loaded.readinessCheckins.find((c) => c.weekNumber === weekNumber) ?? null;
+  const priorReadiness = loaded.readinessCheckins.filter((c) => c.weekNumber < weekNumber);
+  const readiness = currentReadiness ? computeReadiness(currentReadiness, priorReadiness) : null;
   const ctx: AdaptContext = {
     reviewedTargets: {
       targetMileage: reviewedSkeleton?.targetMileage ?? loaded.reviewedWeek.summary.totalMileage,
@@ -157,6 +199,9 @@ function decide(loaded: LoadedProgram, weekNumber: number): { signals: WeekSigna
     prevCompliance: loaded.prevSignals?.compliance ?? null,
     prevStrain: loaded.prevSignals?.strain ?? null,
     lastRule: loaded.lastRule,
+    acwr: load.acwr,
+    monotony: signals.monotony,
+    readiness: readiness ? { score: readiness.score, category: readiness.category } : null,
   };
   return { signals, decision: decideAdaptation(signals, ctx) };
 }
@@ -274,13 +319,22 @@ export async function applyAdaptation(
       `[adapt] program=${programId} week=${targetWeek} rule=${decision.rule} in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd.toFixed(4)}`,
     );
 
-    // Assemble just this week through the same summary/pattern guarantees.
+    // Assemble just this week through the same summary/pattern guarantees AND
+    // the same individualization as the initial generation: full VDOT paces
+    // (mile/5K/10K), absolute working weights, and division/sex station loads.
+    // (Previously only runningExp + 5K were passed, so adapted weeks silently
+    // lost these — e.g. a female Pro athlete's hybrids reverted to male/Open.)
     const miniSkeleton: ProgramSkeleton = { ...loaded.skeleton, weeks: [revisedWeek] };
+    const a = assembleArgsFromInput(loaded.input);
     const { program: miniProgram } = assembleProgram(
       miniSkeleton,
       [result.chunk],
-      loaded.input.profile.runningExp,
-      loaded.input.profile.benchmarks?.fiveKTime,
+      a.runningExp,
+      a.raceTimes,
+      a.benchmarks,
+      a.weightUnit,
+      a.division,
+      a.sex,
     );
     const newWeek = miniProgram.weeks[0];
     if (!newWeek) return { error: "Refill produced no week", status: 502 };

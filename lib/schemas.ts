@@ -8,19 +8,26 @@ import { z } from "zod";
 export const ExperienceLevel = z.enum(["beginner", "intermediate", "advanced"]);
 export const TrainingClass = z.enum(["non_highly_trained", "highly_trained"]);
 export const WeightUnit = z.enum(["lbs", "kg"]);
+export const Sex = z.enum(["male", "female", "other"]);
+export const Division = z.enum(["open", "pro"]);
 export const RacePriority = z.enum(["A", "B", "C"]);
 export const ProgramType = z.enum(["goal_event", "fixed_duration", "general_fitness"]);
 export const TrainingDay = z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
+// Time/benchmark strings are short ("mm:ss" / "h:mm:ss"). Cap them so a large
+// value can't inflate prompt token cost or become a prompt-injection payload —
+// several of these are embedded verbatim into the generation prompt.
+const TIME_STRING_MAX = 16;
+
 export const BenchmarksSchema = z.object({
-  mileTime: z.string().optional(),
-  fiveKTime: z.string().optional(),
-  tenKTime: z.string().optional(),
+  mileTime: z.string().max(TIME_STRING_MAX).optional(),
+  fiveKTime: z.string().max(TIME_STRING_MAX).optional(),
+  tenKTime: z.string().max(TIME_STRING_MAX).optional(),
   fiveRmSquat: z.number().optional(),
   fiveRmBench: z.number().optional(),
   fiveRmDeadlift: z.number().optional(),
-  ski2kTime: z.string().optional(),
-  row2kTime: z.string().optional(),
+  ski2kTime: z.string().max(TIME_STRING_MAX).optional(),
+  row2kTime: z.string().max(TIME_STRING_MAX).optional(),
   bike20MinCals: z.number().optional(),
 });
 
@@ -59,7 +66,9 @@ export const DayPreferencesSchema = z.object({
 });
 
 export const ProfileSchema = z.object({
-  firstName: z.string().min(1),
+  // firstName is embedded verbatim into every generation + adaptation prompt;
+  // bound it so it can't be used to amplify token cost or inject instructions.
+  firstName: z.string().min(1).max(80),
   age: z.number().int().min(13).max(100),
   bodyWeight: z.number().positive(),
   weightUnit: WeightUnit,
@@ -69,8 +78,18 @@ export const ProfileSchema = z.object({
   trainingClass: TrainingClass,
   trainingDays: z.array(TrainingDay).min(3),
   benchmarks: BenchmarksSchema.optional(),
-  /** Optional custom max HR (bpm). When omitted, the app uses 220 − age. */
+  /** Optional biological sex — drives the sex-specific max-HR formula (Review #3). */
+  sex: Sex.optional(),
+  /** Optional tested max HR (bpm). When omitted, a sex-specific age formula is used. */
   maxHr: z.number().int().min(100).max(230).optional(),
+  /** Optional resting HR (bpm) — enables %HRR (Karvonen) zones (Review #3). */
+  restingHr: z.number().int().min(25).max(120).optional(),
+  /** Optional lactate-threshold HR (bpm) — enables %LTHR (Friel) zones (Review #3). */
+  thresholdHr: z.number().int().min(90).max(220).optional(),
+  /** Target HYROX division (Open/Pro) — drives station race loads (Review #6). */
+  division: Division.optional(),
+  /** Optional goal HYROX finish time (e.g. "1:15:00") for the pacing plan (Review #6). */
+  goalFinishTime: z.string().max(TIME_STRING_MAX).optional(),
   /** Optional custom HR zone bands (% of max HR). When omitted, standard bands. */
   hrZones: HrZonesSchema.optional(),
   /** Optional day-placement preferences (long-run day, preferred rest days). */
@@ -78,7 +97,7 @@ export const ProfileSchema = z.object({
 });
 
 export const RaceSchema = z.object({
-  raceDate: z.string(), // ISO date
+  raceDate: z.string().max(32), // ISO date
   priority: RacePriority,
 });
 
@@ -91,7 +110,7 @@ export const GenerationInputSchema = z.object({
   startMileage: z.number().positive().max(200).optional(),
   startCardioMinutes: z.number().positive().max(2000).optional(),
   /** Program start date (ISO yyyy-mm-dd). Defaults to today when omitted. */
-  startDate: z.string().optional(),
+  startDate: z.string().max(32).optional(),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
@@ -127,6 +146,16 @@ export const RunSessionSchema = z.object({
   description: z.string().optional(),
 });
 
+export const StrengthEmphasis = z.enum(["max_strength", "strength", "endurance"]);
+
+/** A plyometric / reactive-strength element (Review #4) — Base/Build only. */
+export const PowerElementSchema = z.object({
+  exercise: z.string(),
+  sets: z.number().int(),
+  reps: z.string(),
+  note: z.string().optional(),
+});
+
 export const LiftSessionSchema = z.object({
   kind: z.literal("lift"),
   liftType: z.enum(["upper", "lower", "full"]),
@@ -136,8 +165,14 @@ export const LiftSessionSchema = z.object({
       sets: z.number().int(),
       repRange: z.string(),
       suggestedWeight: z.string().optional(),
+      /** Periodized load + autoregulation (Review #4); set deterministically at assembly. */
+      intensityPct: z.number().optional(),
+      rir: z.number().optional(),
+      emphasis: StrengthEmphasis.optional(),
     }),
   ),
+  /** Optional plyometric/reactive element (Review #4), added at assembly in Base/Build. */
+  power: PowerElementSchema.optional(),
 });
 
 export const HybridSessionSchema = z.object({
@@ -149,6 +184,8 @@ export const HybridSessionSchema = z.object({
       prescription: z.string(),
     }),
   ),
+  /** True for a Peak full-race simulation (Review #9). */
+  simulation: z.boolean().optional(),
 });
 
 export const RaceSessionSchema = z.object({
@@ -274,6 +311,19 @@ export const WorkoutLogInputSchema = z
     message: "RPE is required unless the session was skipped",
     path: ["rpe"],
   });
+
+/** Body of POST /api/readiness — one weekly readiness check-in (Review #7). */
+export const ReadinessCheckinInputSchema = z.object({
+  programId: z.string().min(1),
+  weekNumber: z.number().int().min(1).max(24),
+  sleep: z.number().int().min(1).max(7),
+  fatigue: z.number().int().min(1).max(7),
+  stress: z.number().int().min(1).max(7),
+  soreness: z.number().int().min(1).max(7),
+  restingHr: z.number().int().min(25).max(150).optional(),
+  hrv: z.number().min(1).max(400).optional(),
+});
+export type ReadinessCheckinInput = z.infer<typeof ReadinessCheckinInputSchema>;
 
 export type LogActuals = z.infer<typeof LogActualsSchema>;
 export type WorkoutLogInput = z.infer<typeof WorkoutLogInputSchema>;

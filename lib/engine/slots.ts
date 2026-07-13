@@ -94,9 +94,18 @@ export function planWeek(
     hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, 3);
   }
 
-  if (microWeek === "deload" || microWeek === "taper") {
+  if (microWeek === "taper") {
+    // Taper: cut frequency AND volume for race-week freshness.
     runs = Math.max(2, Math.round(runs * 0.6));
     hybrids = Math.max(0, hybrids - 1);
+    lifts = 2;
+  } else if (microWeek === "deload") {
+    // Deload (Review #9): preserve intensity + frequency touch-points and let the
+    // −40% volume target (set at the microcycle level) do the load reduction by
+    // shortening each session, rather than dropping quality work. Keep ≥3 runs so
+    // the long run and a quality run both survive; keep one hybrid; trim lifts.
+    runs = Math.max(3, runs - 1);
+    hybrids = Math.max(1, hybrids - 1);
     lifts = 2;
   }
 
@@ -194,8 +203,12 @@ function buildLiftSlots(count: number): SessionSlot[] {
   }));
 }
 
-function buildHybridSlots(count: number): SessionSlot[] {
-  return Array.from({ length: count }, () => ({ kind: "hybrid" as const, goalZone: GOAL_ZONE.hybrid_run }));
+function buildHybridSlots(count: number, simulateFirst = false): SessionSlot[] {
+  return Array.from({ length: count }, (_, i) => ({
+    kind: "hybrid" as const,
+    goalZone: GOAL_ZONE.hybrid_run,
+    ...(simulateFirst && i === 0 ? { simulation: true } : {}),
+  }));
 }
 
 /**
@@ -291,6 +304,91 @@ const isLongRun: SlotPredicate = (s) => s.kind === "run" && s.isLong === true;
 const isHybrid: SlotPredicate = (s) => s.kind === "hybrid";
 const isLift: SlotPredicate = (s) => s.kind === "lift";
 
+// --- Concurrent-training sequencing guards (Review #8) ---
+//
+// Endurance and strength adaptations interfere (AMPK vs mTOR), and heavy leg
+// work leaves residual fatigue that compromises a quality run the next day. So
+// we keep heavy-leg lifts (lower / full body) off the day BEFORE a key run
+// (long / interval / threshold / tempo). Best-effort + count-preserving: it only
+// relocates onto unprotected days and never onto (or the day before) another key
+// run, and only pushes a "light" session back to the vacated day.
+
+const KEY_RUN_TYPES: ReadonlySet<RunType> = new Set(["long", "interval", "threshold", "tempo"]);
+export const isKeyRun: SlotPredicate = (s) => s.kind === "run" && KEY_RUN_TYPES.has(s.runType);
+export const isHardLegLift: SlotPredicate = (s) =>
+  s.kind === "lift" && (s.liftType === "lower" || s.liftType === "full");
+
+/** A session light enough to sit the day before a key run (no leg fatigue). */
+function isLightSlot(s: SessionSlot): boolean {
+  if (s.kind === "rest") return true;
+  if (s.kind === "run") return !isKeyRun(s);
+  if (s.kind === "lift") return s.liftType === "upper";
+  return false; // hybrid / race are not "light"
+}
+
+function dayHas(day: DaySlot, pred: SlotPredicate): boolean {
+  return day.sessions.some(pred);
+}
+
+/** Index of a movable "light" session on a day, or -1. */
+function lightIndex(day: DaySlot): number {
+  return day.sessions.findIndex(isLightSlot);
+}
+
+/**
+ * Pick a day to relocate a heavy-leg lift to: unprotected, not a key-run day,
+ * not the day before a key run, and able to give back a light session (or empty).
+ * Empty days are strongly preferred. Returns the day index, or -1.
+ */
+function pickSequencingTarget(
+  days: DaySlot[],
+  keyRunIdx: number,
+  protectedDays: Set<TrainingDayName>,
+): number {
+  const beforeKeyRun = (t: number) => t + 1 < days.length && dayHas(days[t + 1], isKeyRun);
+  let best = -1;
+  let bestScore = -Infinity;
+  for (let t = 0; t < days.length; t++) {
+    if (t === keyRunIdx || t === keyRunIdx - 1) continue;
+    if (protectedDays.has(days[t].day)) continue;
+    if (dayHas(days[t], isKeyRun)) continue;
+    if (beforeKeyRun(t)) continue;
+    const empty = days[t].sessions.length === 0;
+    if (!empty && lightIndex(days[t]) === -1) continue; // nothing safe to swap back
+    const load = days[t].sessions.filter((x) => x.kind !== "rest").length;
+    const score = (empty ? 100 : 0) - load;
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  return best;
+}
+
+/** Relocate heavy-leg lifts that sit the day before a key run. */
+export function applySequencingGuards(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  for (let i = 1; i < days.length; i++) {
+    if (!dayHas(days[i], isKeyRun)) continue;
+    const prev = days[i - 1];
+    if (protectedDays.has(prev.day)) continue;
+    const j = prev.sessions.findIndex(isHardLegLift);
+    if (j === -1) continue;
+    const target = pickSequencingTarget(days, i, protectedDays);
+    if (target === -1) continue;
+
+    const [lift] = prev.sessions.splice(j, 1);
+    const tgt = days[target];
+    if (tgt.sessions.length === 0) {
+      tgt.sessions.push(lift);
+    } else {
+      const di = lightIndex(tgt); // guaranteed ≥ 0 by pickSequencingTarget
+      const [back] = tgt.sessions.splice(di, 1);
+      prev.sessions.push(back);
+      tgt.sessions.push(lift);
+    }
+  }
+}
+
 /**
  * Move a session matching `predicate` onto `targetDay` (new-additions #4;
  * generalized for lift/hybrid days in Tasks #1). Keeps the total session count
@@ -373,7 +471,9 @@ export function assignDays(
     // don't cluster on adjacent days.
     const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none");
     const lifts = buildLiftSlots(plan.lifts);
-    const hybrids = buildHybridSlots(plan.hybrids);
+    // Review #9: one Peak hybrid per normal week becomes a full race simulation.
+    const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");
+    const hybrids = buildHybridSlots(plan.hybrids, simulate);
     ordered = interleave(runs, lifts, hybrids);
   }
 
@@ -419,6 +519,8 @@ export function assignDays(
     if (prefs?.liftDays?.length) {
       placeSessionsOn(days, prefs.liftDays.filter(inDays), isLift, protectedDays);
     }
+    // Review #8: keep heavy-leg lifts off the day before a key run.
+    applySequencingGuards(days, protectedDays);
   }
 
   if (race) {

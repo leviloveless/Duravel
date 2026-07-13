@@ -46,6 +46,8 @@ export interface NeedsProfile {
   hybridExp: "beginner" | "intermediate" | "advanced";
   liftingExp: "beginner" | "intermediate" | "advanced";
   trainingDays: string[];
+  /** Biological sex — selects sex-specific scoring anchors (Review #10). */
+  sex?: "male" | "female" | "other";
   benchmarks?: {
     mileTime?: string;
     fiveKTime?: string;
@@ -146,10 +148,38 @@ const EPLEY_5RM_TO_1RM = 1 + 5 / 30; // ≈1.1667
 const FIVE_K_MILES = 5000 / 1609.34;
 const TEN_K_MILES = 10000 / 1609.34;
 
+/**
+ * Sex-specific scoring anchors (Review #10). The absolute anchors were male-ish,
+ * which skewed a female athlete's limiter detection (she'd look "weak" on erg /
+ * strength across the board). Scoring each domain against sex norms keeps the
+ * relative comparison — the actual job — fair. Male values are unchanged.
+ */
+type SexKey = "male" | "female";
+function sexKey(sex?: string): SexKey {
+  return sex === "female" ? "female" : "male";
+}
+
+// [best, worst] pace (sec/mile); lower is better.
+const RUN_ANCHORS: Record<SexKey, { mile: [number, number]; five: [number, number]; ten: [number, number] }> = {
+  male: { mile: [300, 600], five: [330, 690], ten: [360, 720] },
+  female: { mile: [330, 660], five: [363, 759], ten: [396, 792] },
+};
+// erg times [best, worst] sec (lower better); bike cals [worst, best] (higher better).
+const ERG_ANCHORS: Record<SexKey, { row: [number, number]; ski: [number, number]; bike: [number, number] }> = {
+  male: { row: [400, 560], ski: [420, 590], bike: [150, 380] },
+  female: { row: [460, 644], ski: [483, 679], bike: [110, 285] },
+};
+// relative 1RM [worst, best] (higher better).
+const STR_ANCHORS: Record<SexKey, { squat: [number, number]; dead: [number, number]; bench: [number, number] }> = {
+  male: { squat: [1.0, 2.25], dead: [1.2, 2.75], bench: [0.6, 1.6] },
+  female: { squat: [0.8, 1.8], dead: [1.0, 2.2], bench: [0.45, 1.15] },
+};
+
 /** Running engine from mile / 5K / 10K, pace-normalized. Longer distances are
  *  weighted higher because HYROX is an aerobic-endurance (8 km) event. */
-function scoreRunEngine(b: NeedsProfile["benchmarks"]): number | null {
+function scoreRunEngine(b: NeedsProfile["benchmarks"], sex: SexKey): number | null {
   if (!b) return null;
+  const a = RUN_ANCHORS[sex];
   const mileSec = b.mileTime ? parseTimeToSeconds(b.mileTime) : null;
   const fiveSec = b.fiveKTime ? parseTimeToSeconds(b.fiveKTime) : null;
   const tenSec = b.tenKTime ? parseTimeToSeconds(b.tenKTime) : null;
@@ -159,31 +189,33 @@ function scoreRunEngine(b: NeedsProfile["benchmarks"]): number | null {
   const tenPace = tenSec && tenSec > 0 ? tenSec / TEN_K_MILES : null;
 
   return weightedMean([
-    { score: milePace ? scoreLowerBetter(milePace, 300, 600) : null, weight: 0.15 },
-    { score: fivePace ? scoreLowerBetter(fivePace, 330, 690) : null, weight: 0.35 },
-    { score: tenPace ? scoreLowerBetter(tenPace, 360, 720) : null, weight: 0.5 },
+    { score: milePace ? scoreLowerBetter(milePace, a.mile[0], a.mile[1]) : null, weight: 0.15 },
+    { score: fivePace ? scoreLowerBetter(fivePace, a.five[0], a.five[1]) : null, weight: 0.35 },
+    { score: tenPace ? scoreLowerBetter(tenPace, a.ten[0], a.ten[1]) : null, weight: 0.5 },
   ]);
 }
 
 /** Non-running cardio engine from ski / row 2 k and 20-min bike calories. */
-function scoreErgEngine(b: NeedsProfile["benchmarks"]): number | null {
+function scoreErgEngine(b: NeedsProfile["benchmarks"], sex: SexKey): number | null {
   if (!b) return null;
+  const a = ERG_ANCHORS[sex];
   const ski = b.ski2kTime ? parseTimeToSeconds(b.ski2kTime) : null;
   const row = b.row2kTime ? parseTimeToSeconds(b.row2kTime) : null;
   const bike = typeof b.bike20MinCals === "number" ? b.bike20MinCals : null;
 
   return weightedMean([
-    { score: row && row > 0 ? scoreLowerBetter(row, 400, 560) : null, weight: 1 },
-    { score: ski && ski > 0 ? scoreLowerBetter(ski, 420, 590) : null, weight: 1 },
-    { score: bike !== null ? scoreHigherBetter(bike, 150, 380) : null, weight: 1 },
+    { score: row && row > 0 ? scoreLowerBetter(row, a.row[0], a.row[1]) : null, weight: 1 },
+    { score: ski && ski > 0 ? scoreLowerBetter(ski, a.ski[0], a.ski[1]) : null, weight: 1 },
+    { score: bike !== null ? scoreHigherBetter(bike, a.bike[0], a.bike[1]) : null, weight: 1 },
   ]);
 }
 
 /** Relative maximal strength from 5RM squat / deadlift / bench ÷ body weight.
  *  Squat + deadlift (leg drive / posterior chain for the sled) weighted highest. */
-function scoreStrength(p: NeedsProfile): number | null {
+function scoreStrength(p: NeedsProfile, sex: SexKey): number | null {
   const b = p.benchmarks;
   if (!b || !(p.bodyWeight > 0)) return null;
+  const a = STR_ANCHORS[sex];
   const rel = (fiveRm?: number): number | null =>
     typeof fiveRm === "number" && fiveRm > 0 ? (fiveRm * EPLEY_5RM_TO_1RM) / p.bodyWeight : null;
 
@@ -192,9 +224,9 @@ function scoreStrength(p: NeedsProfile): number | null {
   const bench = rel(b.fiveRmBench);
 
   return weightedMean([
-    { score: squat !== null ? scoreHigherBetter(squat, 1.0, 2.25) : null, weight: 0.4 },
-    { score: dead !== null ? scoreHigherBetter(dead, 1.2, 2.75) : null, weight: 0.4 },
-    { score: bench !== null ? scoreHigherBetter(bench, 0.6, 1.6) : null, weight: 0.2 },
+    { score: squat !== null ? scoreHigherBetter(squat, a.squat[0], a.squat[1]) : null, weight: 0.4 },
+    { score: dead !== null ? scoreHigherBetter(dead, a.dead[0], a.dead[1]) : null, weight: 0.4 },
+    { score: bench !== null ? scoreHigherBetter(bench, a.bench[0], a.bench[1]) : null, weight: 0.2 },
   ]);
 }
 
@@ -269,10 +301,11 @@ const DOMAIN_LABEL: Record<NeedsDomain, string> = {
  */
 export function analyzeNeeds(profile: NeedsProfile): NeedsAnalysis {
   const b = profile.benchmarks;
+  const sk = sexKey(profile.sex);
   const domainScores: Record<NeedsDomain, number | null> = {
-    run_engine: roundOrNull(scoreRunEngine(b)),
-    erg_engine: roundOrNull(scoreErgEngine(b)),
-    strength: roundOrNull(scoreStrength(profile)),
+    run_engine: roundOrNull(scoreRunEngine(b, sk)),
+    erg_engine: roundOrNull(scoreErgEngine(b, sk)),
+    strength: roundOrNull(scoreStrength(profile, sk)),
   };
   const durability = scoreDurability(b);
   const limiters = detectLimiters(domainScores);

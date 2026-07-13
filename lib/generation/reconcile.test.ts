@@ -38,11 +38,18 @@ const maxRunTotal = (days: ProgramDay[]) => Math.max(0, ...runsOf(days).map((s) 
 const hasCardio = (days: ProgramDay[]) => days.some((d) => d.sessions.some((s) => s.kind === "cardio"));
 const paceOf = (days: ProgramDay[], t: string) => runsOf(days).find((r) => r.runType === t)?.paceMinMile;
 
-describe("pace formulas (Levi's rules)", () => {
-  it("easy 162%, threshold 108%, interval 92% of 5K pace/mile", () => {
-    expect(P.easy / P.fiveKSecPerMile).toBeCloseTo(1.62, 3);
-    expect(P.threshold / P.fiveKSecPerMile).toBeCloseTo(1.08, 3);
-    expect(P.interval / P.fiveKSecPerMile).toBeCloseTo(0.92, 3);
+describe("pace formulas (Daniels VDOT)", () => {
+  it("paces order correctly and sit at sensible offsets from 5K pace", () => {
+    // fastest → slowest: interval < threshold < tempo < easy (= long)
+    expect(P.interval).toBeLessThan(P.threshold);
+    expect(P.threshold).toBeLessThan(P.tempo);
+    expect(P.tempo).toBeLessThan(P.easy);
+    expect(P.long).toBe(P.easy);
+    const delta = (x: number) => x - P.fiveKSecPerMile;
+    expect(delta(P.threshold)).toBeGreaterThan(10); // ~+25 s/mi over 5K pace
+    expect(delta(P.threshold)).toBeLessThan(40);
+    expect(delta(P.easy)).toBeGreaterThan(60); // easy clearly slower than 5K
+    expect(delta(P.interval)).toBeLessThan(10); // ~5K pace or a touch faster
   });
 });
 

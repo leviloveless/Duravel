@@ -53,14 +53,35 @@ export const INCREASE_MILEAGE_MIN_STEP = 1.5; //   …but at least +1.5 miles/we
 export const INCREASE_CARDIO_PCT = 0.1; //         +10% of current cardio minutes…
 export const INCREASE_CARDIO_MIN_STEP = 20; //     …but at least +20 minutes/week
 export const DELOAD_FACTOR = 0.6; //               deload week = 60% of the prior week (−40%)
+/**
+ * Ceiling on the RELATIVE weekly mileage increase (Review #5). The +1.5 mi
+ * absolute floor made low-mileage beginners jump disproportionately (12 → 13.5 =
+ * +12.5%), i.e. the athletes least able to absorb load ramped FASTER than
+ * advanced runners (a flat +7.5%). Capping the relative step at 10% — the
+ * classic safe ceiling — removes that inversion while still letting beginners
+ * progress a little quicker in absolute terms than a pure-percentage rule.
+ */
+export const MAX_INCREASE_MILEAGE_REL_PCT = 0.1;
+
+/**
+ * Masters age threshold (Review #10). At/above this age recovery slows, so the
+ * program uses a more frequent deload (a 3-week 2:1 microcycle) regardless of
+ * training class. Tunable.
+ */
+export const MASTERS_AGE = 50;
 
 // Kept for backward-compatible imports; the rules above are authoritative.
 export const INCREASE_MILEAGE_FACTOR = 1.075;
 export const INCREASE_CARDIO_FACTOR = 1.1;
 
-/** Mileage increase step = max(absolute floor, percentage of current) (Tasks #5). */
+/**
+ * Mileage increase step = max(absolute floor, percentage of current), but never
+ * more than MAX_INCREASE_MILEAGE_REL_PCT of the current mileage (Tasks #5;
+ * relative cap added in Review #5 to remove the beginner ramp-rate inversion).
+ */
 export function increaseStep(current: number, pct: number, minStep: number): number {
-  return Math.max(minStep, current * pct);
+  const step = Math.max(minStep, current * pct);
+  return Math.min(step, current * MAX_INCREASE_MILEAGE_REL_PCT);
 }
 
 /** Cardio increase step = max(absolute floor, percentage of current) (Tasks #6). */

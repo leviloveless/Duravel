@@ -13,8 +13,18 @@ export type ProfileRow = {
   training_class: "non_highly_trained" | "highly_trained";
   training_days: string[];
   benchmarks: Record<string, unknown> | null;
-  /** Optional custom max HR (bpm); null → use 220 − age (new-additions #2). */
+  /** Optional biological sex — drives the sex-specific max-HR formula (Review #3). */
+  sex: "male" | "female" | "other" | null;
+  /** Optional tested max HR (bpm); null → sex-specific age formula (Review #3). */
   max_hr: number | null;
+  /** Optional resting HR (bpm) — enables %HRR (Karvonen) zones (Review #3). */
+  resting_hr: number | null;
+  /** Optional lactate-threshold HR (bpm) — enables %LTHR (Friel) zones (Review #3). */
+  threshold_hr: number | null;
+  /** Target HYROX division (Open/Pro) — drives station race loads (Review #6). */
+  division: "open" | "pro" | null;
+  /** Optional goal HYROX finish time (e.g. "1:15:00") for the pacing plan (Review #6). */
+  goal_finish_time: string | null;
   /** Optional custom HR zone bands as % of max HR (new-additions #3). */
   hr_zones: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }> | null;
   /** Optional day-placement preferences (new-additions #4; lift/hybrid days Tasks #1). */
@@ -112,4 +122,25 @@ export async function getUserPrograms(): Promise<ProgramSummaryRow[]> {
     .order("created_at", { ascending: false });
 
   return (data as ProgramSummaryRow[] | null) ?? [];
+}
+
+export type ReadinessCheckinRow = {
+  week_number: number;
+  sleep: number;
+  fatigue: number;
+  stress: number;
+  soreness: number;
+  resting_hr: number | null;
+  hrv: number | null;
+};
+
+/** All readiness check-ins for a program (Review #7). */
+export async function getProgramReadiness(programId: string): Promise<ReadinessCheckinRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("readiness_checkins")
+    .select("week_number, sleep, fatigue, stress, soreness, resting_hr, hrv")
+    .eq("program_id", programId)
+    .order("week_number", { ascending: true });
+  return (data as ReadinessCheckinRow[] | null) ?? [];
 }

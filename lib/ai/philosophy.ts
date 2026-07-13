@@ -16,7 +16,7 @@
 export const PHILOSOPHY_VERSION = "questionnaire-2026-07-09";
 
 /** HR zones (spec §3). Intensity is always prescribed as a zone. */
-export const ZONE_DEFINITIONS = `Heart-rate zones (max HR = 220 − age):
+export const ZONE_DEFINITIONS = `Heart-rate zones (each athlete's max HR and zone boundaries are personalized — the profile block gives the resolved max HR and the anchoring method, which may be % of max HR, heart-rate reserve, or lactate-threshold HR):
 - Zone 1 (<60% max HR): recovery / very easy
 - Zone 2 (60–70%): easy aerobic / base building
 - Zone 3 (70–80%): moderate aerobic / tempo
@@ -38,16 +38,21 @@ Pace: if the athlete provided benchmarks (mile / 5K / 10K), derive paces from th
 
 /** Lifting rules (spec §5b, Q16/Q23). */
 export const LIFT_GUIDANCE = `Weightlifting: exactly 3 sessions in a full training week — 1 upper, 1 lower, 1 full body.
-Rep ranges: full-body sessions 5–7 reps (strength); upper- and lower-body sessions 12–15 reps (hypertrophy/endurance).
-Every full training week MUST include all 7 non-negotiable movement patterns across its lift sessions:
+The engine assigns each movement its sets, rep range, target %1RM, and RIR, and adds any plyometric element — you only choose WHICH of the 7 non-negotiable movement patterns appear in each session (all 7 must appear across the week):
 squat, hip_hinge, lunge, horizontal_press, vertical_press, horizontal_pull, vertical_pull.
-For each movement give: pattern, number of sets, and rep range. If a 5-rep-max benchmark was provided, you may suggest a starting weight (~75–80% of 5RM) for that lift.`;
+The strength model (for context; the engine enforces the numbers):
+- The FULL-BODY day is heavy, low-rep MAX STRENGTH on the main compounds — this builds running economy and delays fatigue for HYROX, and adds minimal mass.
+- UPPER and LOWER days run a MODERATE strength scheme (reps drop toward the race), not high-rep hypertrophy.
+- The LUNGE pattern is trained as HIGH-REP muscular endurance — it mirrors the HYROX sandbag-lunge station.
+- Load PROGRESSES through the microcycle (heavier on build weeks, lighter on deloads) with an RIR autoregulation cue.
+- A PLYOMETRIC / reactive element is added in the Base and Build phases for power and running economy.
+Do not output sets/reps/weights yourself — return the pattern list per session and the engine fills the prescription.`;
 
 /** Hybrid (HYROX-specific) rules (spec §5c, Q18). */
 export const HYBRID_GUIDANCE = `Hybrid sessions simulate the HYROX format: threshold-pace runs interleaved with non-running cardio/strength stations ("events").
 Structure EVERY hybrid session as exactly 4 runs and 4 events, alternating run → event → run → event … Each run is 1000m at threshold pace (give the pace). So the "elements" array for a hybrid should contain 8 entries: 4 run elements each prescribed as "1000m @ <pace> (threshold)" and 4 event elements from the station library, interleaved.
 Rotate the events across the week's hybrid sessions: when a week has two hybrid sessions, choose the 4 events for each so that, together, all of the week's HYROX stations are covered at least once (don't repeat the same 4 events in both sessions).
-Prescribe each event as reps / distance / calories. Assign a goal HR zone (typically Zone 4). Each hybrid session should total between 25 and 60 minutes of WORK time (excluding warmup/cooldown). Keep the set of hybrid workouts repeatable within a mesocycle and rotate/replace them between mesocycles.`;
+Give each event a placeholder prescription: the engine rewrites station prescriptions to the athlete's HYROX race spec (division/sex loads, phase-progressed distances and reps), so you only pick which stations appear. Assign a goal HR zone (typically Zone 4). Each hybrid session should total between 25 and 60 minutes of WORK time (excluding warmup/cooldown). Keep the set of hybrid workouts repeatable within a mesocycle and rotate/replace them between mesocycles.`;
 
 /** Rotating hybrid station library, biased by mesocycle (spec §5c, Q24). */
 export const HYBRID_LIBRARY: Record<"base" | "build" | "peak" | "taper", string[]> = {

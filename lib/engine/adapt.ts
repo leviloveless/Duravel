@@ -17,6 +17,8 @@
 import type { ProgramWeek, WorkoutLog } from "@/lib/schemas";
 import type { MicroWeekType, TrainingDayName, WeekSkeleton } from "./types";
 import { ADAPT } from "./adapt-config";
+import { sessionTiming } from "@/lib/session-volume";
+import type { ReadinessCategory } from "./readiness";
 
 // --- Signals (phase2-spec.md §4a) ---
 
@@ -38,6 +40,12 @@ export interface WeekSignals {
   actualCardioMinutes: number;
   plannedMileage: number;
   plannedCardioMinutes: number;
+  /** Weekly session-RPE load, Σ (rpe × session minutes) (Review #5). */
+  weeklyLoad: number;
+  /** Foster training monotony = mean daily load / SD, or null if not computable. */
+  monotony: number | null;
+  /** Foster strain = monotony × weekly load, or null. */
+  fosterStrain: number | null;
 }
 
 type LogKey = string;
@@ -45,6 +53,30 @@ const logKey = (day: string, sessionIndex: number): LogKey => `${day}:${sessionI
 
 function isEasySession(session: ProgramWeek["days"][number]["sessions"][number]): boolean {
   return (session.kind === "run" || session.kind === "cardio") && session.goalZone <= 2;
+}
+
+/** Minutes used to weight a session's RPE into session-RPE load (Review #5).
+ *  Prefers the logged actual duration; else the session's estimated total. */
+function sessionLoadMinutes(
+  session: ProgramWeek["days"][number]["sessions"][number],
+  log: WorkoutLog | undefined,
+): number {
+  const actual = log?.actuals?.durationMin;
+  if (typeof actual === "number" && actual > 0) return actual;
+  if (session.kind === "hybrid") return ADAPT.DEFAULT_HYBRID_MINUTES;
+  return sessionTiming(session).total;
+}
+
+/** Foster training monotony from a week's per-day loads (rest days = 0). */
+function computeMonotony(dailyLoads: number[]): number | null {
+  if (dailyLoads.length < 2) return null;
+  const mean = dailyLoads.reduce((a, b) => a + b, 0) / dailyLoads.length;
+  if (mean <= 0) return null;
+  const variance =
+    dailyLoads.reduce((a, b) => a + (b - mean) * (b - mean), 0) / dailyLoads.length;
+  const sd = Math.sqrt(variance);
+  if (sd <= 0) return null;
+  return round2(mean / sd);
 }
 
 /** Compute the review signals for one program week from its logs. */
@@ -67,8 +99,11 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
   let plannedCardio = 0;
   let actualMileage = 0;
   let actualCardio = 0;
+  let weeklyLoad = 0;
+  const dailyLoads: number[] = [];
 
   for (const day of week.days) {
+    let dayLoad = 0;
     day.sessions.forEach((session, sessionIndex) => {
       if (session.kind === "race") return; // races never feed volume adaptation
       planned += 1;
@@ -82,6 +117,10 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
         const w = isEasySession(session) ? ADAPT.EASY_RPE_WEIGHT : 1;
         rpeWeighted += log.rpe * w;
         rpeWeightSum += w;
+        // Session-RPE load (Review #5): RPE × session minutes.
+        const load = log.rpe * sessionLoadMinutes(session, log);
+        weeklyLoad += load;
+        dayLoad += load;
       }
 
       // Key-session tracking.
@@ -111,7 +150,11 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
         actualCardio += log?.actuals?.durationMin ?? plannedMin * fraction;
       }
     });
+    dailyLoads.push(dayLoad);
   }
+
+  const monotony = computeMonotony(dailyLoads);
+  const fosterStrain = monotony != null ? Math.round(monotony * weeklyLoad) : null;
 
   return {
     plannedSessions: planned,
@@ -124,7 +167,55 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
     actualCardioMinutes: Math.round(actualCardio),
     plannedMileage: round1(plannedMileage),
     plannedCardioMinutes: Math.round(plannedCardio),
+    weeklyLoad: Math.round(weeklyLoad),
+    monotony,
+    fosterStrain,
   };
+}
+
+/** Weekly session-RPE load for any program week (Review #5). */
+export function weekLoad(week: ProgramWeek, logs: WorkoutLog[]): number {
+  return computeWeekSignals(week, logs).weeklyLoad;
+}
+
+export interface LoadMetrics {
+  /** This week's load (the "acute" 7-day load). */
+  acute: number;
+  /** Rolling ~4-week average weekly load (the "chronic" 28-day load). */
+  chronic: number;
+  /** Acute:Chronic Workload Ratio, or null when history is too short to trust. */
+  acwr: number | null;
+}
+
+/**
+ * Acute:Chronic Workload Ratio across weeks (Review #5). Acute = the reviewed
+ * week's load; chronic = the rolling mean over the last (up to) 4 weeks. Returns
+ * acwr = null until at least ADAPT.ACWR_MIN_WEEKS weeks carry logged load, so a
+ * cold start never triggers a load rule.
+ */
+export function computeLoadMetrics(
+  weeks: ProgramWeek[],
+  logs: WorkoutLog[],
+  throughWeek: number,
+): LoadMetrics {
+  const byNum = new Map(weeks.map((w) => [w.weekNumber, w]));
+  const loadAt = (n: number): number => {
+    const w = byNum.get(n);
+    return w ? weekLoad(w, logs) : 0;
+  };
+  const acute = loadAt(throughWeek);
+  // Chronic baseline = mean over the window's WEEKS THAT ACTUALLY CARRY LOAD, so
+  // unlogged past weeks don't deflate the baseline and inflate the ratio.
+  const loaded: number[] = [];
+  for (let n = throughWeek - 3; n <= throughWeek; n++) {
+    if (!byNum.has(n)) continue;
+    const l = loadAt(n);
+    if (l > 0) loaded.push(l);
+  }
+  const chronic = loaded.length ? loaded.reduce((a, b) => a + b, 0) / loaded.length : 0;
+  const acwr =
+    loaded.length >= ADAPT.ACWR_MIN_WEEKS && chronic > 0 ? round2(acute / chronic) : null;
+  return { acute: Math.round(acute), chronic: Math.round(chronic), acwr };
 }
 
 // --- Decision (phase2-spec.md §4b, first match wins) ---
@@ -135,7 +226,11 @@ export type AdaptRuleCode =
   | "early_deload"
   | "protect_long_run"
   | "earned_bump"
-  | "re_anchor";
+  | "re_anchor"
+  | "load_spike"
+  | "load_caution"
+  | "readiness_deload"
+  | "readiness_hold";
 
 export interface RevisedTargets {
   targetMileage: number;
@@ -165,6 +260,12 @@ export interface AdaptContext {
   prevStrain: number | null;
   /** Rule applied by the most recent applied adaptation (bump can't repeat). */
   lastRule: AdaptRuleCode | null;
+  /** ACWR for the reviewed week (Review #5); null when history is insufficient. */
+  acwr?: number | null;
+  /** Foster monotony for the reviewed week (Review #5); enriches load reasons. */
+  monotony?: number | null;
+  /** Forward readiness for the reviewed week (Review #7); null when not logged. */
+  readiness?: { score: number; category: ReadinessCategory } | null;
 }
 
 /** Decide what (if anything) to change about the next week. */
@@ -249,6 +350,41 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
     };
   }
 
+  // 4b. Load spike (ACWR) → early deload. Gated on ACWR history being present,
+  //     so cold-start weeks are never affected (Review #5).
+  if (ctx.acwr != null && ctx.acwr >= ADAPT.ACWR_SPIKE) {
+    return {
+      rule: "load_spike",
+      reason:
+        `Your training load spiked — acute:chronic workload ratio ${ctx.acwr} (≥ ${ADAPT.ACWR_SPIKE}). ` +
+        `Next week becomes an early deload (−40% volume) to let the spike settle before building again.`,
+      revisedTargets: {
+        targetMileage: round1(ctx.reviewedTargets.targetMileage * ADAPT.DELOAD_FACTOR),
+        targetCardioMinutes: Math.round(ctx.reviewedTargets.targetCardioMinutes * ADAPT.DELOAD_FACTOR),
+        microWeek: "deload",
+      },
+      constraints: {},
+    };
+  }
+
+  // 4c. Very low readiness → preemptive early deload (Review #7). Gated on a
+  //     logged check-in, so it never fires without the athlete's input.
+  if (ctx.readiness && ctx.readiness.category === "very_low") {
+    return {
+      rule: "readiness_deload",
+      reason:
+        `Your readiness check-in came back very low (${ctx.readiness.score}/100) — sleep, fatigue, ` +
+        `stress and soreness point to under-recovery. Next week becomes an early deload (−40% volume) ` +
+        `to get ahead of it rather than pushing into a hole.`,
+      revisedTargets: {
+        targetMileage: round1(ctx.reviewedTargets.targetMileage * ADAPT.DELOAD_FACTOR),
+        targetCardioMinutes: Math.round(ctx.reviewedTargets.targetCardioMinutes * ADAPT.DELOAD_FACTOR),
+        microWeek: "deload",
+      },
+      constraints: {},
+    };
+  }
+
   // 5. Missed long run (with otherwise-OK compliance) → protect the long run.
   if (signals.longRunCompleted === false && signals.longRunPlannedMiles !== null) {
     return {
@@ -261,13 +397,57 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
     };
   }
 
+  // 5b. Elevated (not yet spiked) load heading into a scheduled increase → hold
+  //     rather than progress, so the ratio doesn't climb into a spike (Review #5).
+  if (ctx.acwr != null && ctx.acwr >= ADAPT.ACWR_CAUTION && next.microWeek === "increase") {
+    const monoNote =
+      ctx.monotony != null && ctx.monotony >= ADAPT.MONOTONY_HIGH
+        ? ` Training monotony is also high (${ctx.monotony}) — vary your hard and easy days.`
+        : "";
+    return {
+      rule: "load_caution",
+      reason:
+        `Your acute:chronic workload ratio is climbing (${ctx.acwr}). Next week holds at last week's ` +
+        `volume instead of the scheduled increase, to keep the ratio in a safe range.${monoNote}`,
+      revisedTargets: clampToBounds(
+        {
+          targetMileage: ctx.reviewedTargets.targetMileage,
+          targetCardioMinutes: ctx.reviewedTargets.targetCardioMinutes,
+        },
+        next,
+      ),
+      constraints: {},
+    };
+  }
+
+  // 5c. Low readiness heading into a scheduled increase → hold (Review #7).
+  if (ctx.readiness && ctx.readiness.category === "low" && next.microWeek === "increase") {
+    return {
+      rule: "readiness_hold",
+      reason:
+        `Your readiness is low (${ctx.readiness.score}/100), so next week holds at last week's volume ` +
+        `instead of the scheduled increase — build again once you're recovered.`,
+      revisedTargets: clampToBounds(
+        {
+          targetMileage: ctx.reviewedTargets.targetMileage,
+          targetCardioMinutes: ctx.reviewedTargets.targetCardioMinutes,
+        },
+        next,
+      ),
+      constraints: {},
+    };
+  }
+
   // 6. Great week on a scheduled increase → small earned bump (never twice in a row).
   if (
     signals.compliance >= ADAPT.COMPLIANCE_BUMP &&
     signals.strain !== null &&
     signals.strain <= ADAPT.STRAIN_BUMP &&
     next.microWeek === "increase" &&
-    ctx.lastRule !== "earned_bump"
+    ctx.lastRule !== "earned_bump" &&
+    (ctx.acwr == null || ctx.acwr < ADAPT.ACWR_CAUTION) &&
+    (ctx.readiness == null ||
+      (ctx.readiness.category !== "low" && ctx.readiness.category !== "very_low"))
   ) {
     return {
       rule: "earned_bump",

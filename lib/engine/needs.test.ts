@@ -245,3 +245,22 @@ describe("buildSkeleton integration", () => {
     expect(s.needs?.limiters).toContain("run_engine");
   });
 });
+
+
+describe("sex-adjusted anchors (Review #10)", () => {
+  const benchmarks = { row2kTime: "9:00", ski2kTime: "9:20", bike20MinCals: 170,
+    fiveRmSquat: 175, fiveRmDeadlift: 235, fiveRmBench: 120 };
+
+  it("scores erg + strength against sex norms (female not penalized vs male anchors)", () => {
+    const male = analyzeNeeds(baseProfile({ sex: "male", bodyWeight: 150, benchmarks }));
+    const female = analyzeNeeds(baseProfile({ sex: "female", bodyWeight: 150, benchmarks }));
+    expect((female.domainScores.erg_engine ?? 0)).toBeGreaterThan(male.domainScores.erg_engine ?? 0);
+    expect((female.domainScores.strength ?? 0)).toBeGreaterThan(male.domainScores.strength ?? 0);
+  });
+
+  it("no sex (or 'other') uses male anchors — unchanged from before", () => {
+    const none = analyzeNeeds(baseProfile({ bodyWeight: 150, benchmarks }));
+    const male = analyzeNeeds(baseProfile({ sex: "male", bodyWeight: 150, benchmarks }));
+    expect(none.domainScores).toEqual(male.domainScores);
+  });
+});

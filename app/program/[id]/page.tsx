@@ -2,16 +2,29 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ProgramData, WorkoutLog } from "@/lib/schemas";
-import { getProgramAdaptations, getProgramLogs } from "@/lib/supabase/queries";
+import { getProgramAdaptations, getProgramLogs, getProgramReadiness } from "@/lib/supabase/queries";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
+import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
+import PacingCard from "@/components/program/pacing-card";
+import ReadinessForm from "@/components/program/readiness-form";
+import { computePacingPlan } from "@/lib/engine/pacing";
 import GenerateTrigger from "./generate-trigger";
 
 /** Snapshot profile fields we read for HR personalization (new-additions #2, #3). */
 type SnapshotProfile = {
   age?: number;
+  sex?: Sex;
   maxHr?: number;
+  restingHr?: number;
+  thresholdHr?: number;
   hrZones?: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }>;
+  benchmarks?: {
+    mileTime?: string; fiveKTime?: string; tenKTime?: string;
+    ski2kTime?: string; row2kTime?: string;
+  };
+  division?: "open" | "pro";
+  goalFinishTime?: string;
 };
 
 /** Convert stored %-of-max zone bands (0–100) into ZoneBands fractions (0–1). */
@@ -63,22 +76,34 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
 
-  // Max HR for the per-session HR zone ranges: a custom override if the athlete
-  // set one (new-additions #2), otherwise 220 − age. Falls back to a 30-year-old
-  // default when no age is present. Custom zone bands, if set, override the
-  // standard %-of-max bands (new-additions #3).
+  // Per-session HR zone ranges use the best-available anchoring (Review #3):
+  // custom bands → threshold-HR (LTHR) → resting-HR (HRR) → sex-specific %HRmax.
   const snapshotProfile = (program.input_snapshot as { profile?: SnapshotProfile } | null)?.profile;
-  const maxHR =
-    typeof snapshotProfile?.maxHr === "number"
-      ? snapshotProfile.maxHr
-      : 220 - (typeof snapshotProfile?.age === "number" ? snapshotProfile.age : 30);
-  const zoneBands = toZoneBands(snapshotProfile?.hrZones);
+  const hrModel = resolveHrModel({
+    age: snapshotProfile?.age,
+    sex: snapshotProfile?.sex,
+    maxHr: snapshotProfile?.maxHr,
+    restingHr: snapshotProfile?.restingHr,
+    thresholdHr: snapshotProfile?.thresholdHr,
+    customBands: toZoneBands(snapshotProfile?.hrZones),
+  });
+  const maxHR = hrModel.maxHR;
+  const zoneBands: ZoneBands = hrModel.bands;
+
+  // Race pacing plan (Review #6): from the athlete's benchmarks + optional goal.
+  const pacingPlan = computePacingPlan({
+    benchmarks: snapshotProfile?.benchmarks,
+    sex: snapshotProfile?.sex,
+    division: snapshotProfile?.division,
+    goalFinishTime: snapshotProfile?.goalFinishTime,
+  });
 
   if (program.status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
-    const [logRows, adaptations] = await Promise.all([
+    const [logRows, adaptations, readinessRows] = await Promise.all([
       getProgramLogs(program.id),
       getProgramAdaptations(program.id),
+      getProgramReadiness(program.id),
     ]);
     const logs: WorkoutLog[] = logRows.map((r) => ({
       weekNumber: r.week_number,
@@ -137,8 +162,16 @@ export default async function ProgramPage({
       reviewWeek,
     };
 
+    const readinessWeek = Math.min(
+      program.duration_weeks,
+      Math.max(1, elapsedWeeks(program.start_date) + 1),
+    );
+    const existingReadiness = readinessRows.find((r) => r.week_number === readinessWeek) ?? null;
+
     return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+        <PacingCard plan={pacingPlan} />
+        <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
         <ProgramView
           program={data}
           meta={{
