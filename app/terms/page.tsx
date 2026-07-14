@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — HyroxAI",
-  description: "The terms governing your use of HyroxAI.",
+  title: "Terms of Service — Duravel",
+  description: "The terms governing your use of Duravel.",
 };
 
 // NOTE (for Levi): a solid starting draft, not legal advice. Replace the
 // [bracketed] placeholders and have counsel review before the App Store launch.
-const SUPPORT_EMAIL = "support@hyroxai.app"; // TODO: replace with your real support address
-const ENTITY = "HyroxAI"; // TODO: replace with your legal entity name
+const SUPPORT_EMAIL = "support@duravel.app"; // TODO: replace with your real support address
+const ENTITY = "Duravel"; // TODO: replace with your legal entity name
 const GOVERNING_LAW = "[your state/country]"; // TODO: replace
 const UPDATED = "July 14, 2026";
 
@@ -22,21 +22,21 @@ export default function TermsPage() {
       </div>
 
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of the HyroxAI web app and related
+        These Terms of Service (&quot;Terms&quot;) govern your use of the Duravel web app and related
         applications (the &quot;Service&quot;), operated by {ENTITY}. By creating an account or using
         the Service, you agree to these Terms.
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">The Service</h2>
       <p>
-        HyroxAI generates individualized HYROX training programs and adapts them based on the
+        Duravel generates individualized HYROX training programs and adapts them based on the
         information and session data you provide. Program content is produced with the help of
         automated systems and is provided for general fitness and informational purposes.
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Not medical advice</h2>
       <p>
-        HyroxAI is not a medical service and does not provide medical advice. The programs, paces,
+        Duravel is not a medical service and does not provide medical advice. The programs, paces,
         heart-rate zones, and recommendations are for general fitness purposes only and are not a
         substitute for professional medical guidance. Exercise carries inherent risks. Consult a
         qualified physician before beginning any training program, and stop and seek medical

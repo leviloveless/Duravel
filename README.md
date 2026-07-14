@@ -1,4 +1,4 @@
-# HyroxAI
+# Duravel
 
 An AI-assisted HYROX training-program generator. A deterministic periodization
 **engine** designs the program structure and volume; **Claude Haiku** fills in

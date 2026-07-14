@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — HyroxAI",
-  description: "How HyroxAI collects, uses, and protects your data.",
+  title: "Privacy Policy — Duravel",
+  description: "How Duravel collects, uses, and protects your data.",
 };
 
 // NOTE (for Levi): this is a solid starting draft, not legal advice. Before the
 // App Store submission, replace the [bracketed] placeholders (legal entity name,
 // support email, governing-law location) and have it reviewed by counsel.
-const SUPPORT_EMAIL = "support@hyroxai.app"; // TODO: replace with your real support address
-const ENTITY = "HyroxAI"; // TODO: replace with your legal entity name
+const SUPPORT_EMAIL = "support@duravel.app"; // TODO: replace with your real support address
+const ENTITY = "Duravel"; // TODO: replace with your legal entity name
 const UPDATED = "July 14, 2026";
 
 export default function PrivacyPage() {
@@ -22,8 +22,8 @@ export default function PrivacyPage() {
       </div>
 
       <p>
-        This Privacy Policy explains how {ENTITY} (&quot;HyroxAI,&quot; &quot;we,&quot; &quot;us&quot;)
-        collects, uses, and shares information when you use the HyroxAI web app and any related
+        This Privacy Policy explains how {ENTITY} (&quot;Duravel,&quot; &quot;we,&quot; &quot;us&quot;)
+        collects, uses, and shares information when you use the Duravel web app and any related
         applications (the &quot;Service&quot;). By using the Service you agree to this policy.
       </p>
 

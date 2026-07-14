@@ -8,8 +8,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HyroxAI",
-    short_name: "HyroxAI",
+    name: "Duravel",
+    short_name: "Duravel",
     description: "AI-powered HYROX training programs that adapt to every session you log.",
     start_url: "/dashboard",
     display: "standalone",

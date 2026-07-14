@@ -5,7 +5,7 @@ import { useState } from "react";
 type Plan = "monthly" | "annual";
 
 const PRICES: Record<Plan, { label: string; price: string; per: string; sub: string }> = {
-  monthly: { label: "Monthly", price: "$19.99", per: "/month", sub: "billed monthly" },
+  monthly: { label: "Monthly", price: "$19", per: "/month", sub: "billed monthly" },
   annual: { label: "Annual", price: "$149", per: "/year", sub: "under $12.50/mo — billed yearly" },
 };
 
@@ -20,12 +20,9 @@ const FEATURES = [
 export default function PricingPlans({
   hasSubscription,
   plan,
-  trialDaysLeft,
 }: {
   hasSubscription: boolean;
   plan: Plan | null;
-  /** >0 = active trial (days left); 0 = trial ended; null = n/a. */
-  trialDaysLeft: number | null;
 }) {
   const [selected, setSelected] = useState<Plan>("annual");
   const [pending, setPending] = useState(false);
@@ -57,7 +54,7 @@ export default function PricingPlans({
         </span>
         <h2 className="text-xl font-semibold">You&apos;re subscribed</h2>
         <p className="text-sm text-zinc-600">
-          Thanks for supporting HyroxAI. Manage your plan, payment method, or cancel anytime.
+          Thanks for supporting Duravel. Manage your plan, payment method, or cancel anytime.
         </p>
         <button
           onClick={() => post("/api/stripe/portal")}
@@ -73,20 +70,6 @@ export default function PricingPlans({
 
   return (
     <div className="flex flex-col gap-6">
-      {trialDaysLeft !== null && (
-        <div
-          className={`mx-auto max-w-md rounded-xl border px-4 py-3 text-center text-sm ${
-            trialDaysLeft > 0
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          {trialDaysLeft > 0
-            ? `You're on your free trial — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. No card needed until you subscribe.`
-            : "Your free trial has ended. Subscribe below to keep training with HyroxAI."}
-        </div>
-      )}
-
       <div className="mx-auto inline-flex rounded-full border border-zinc-200 p-1">
         {(["monthly", "annual"] as Plan[]).map((p) => (
           <button

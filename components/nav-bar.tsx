@@ -18,7 +18,7 @@ export default async function NavBar() {
     <header className="border-b border-zinc-200 bg-white/90 backdrop-blur print:hidden">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="text-lg font-semibold tracking-tight">
-          HyroxAI
+          Duravel
         </Link>
         <div className="flex items-center gap-1 text-sm">
           {user && (
@@ -28,9 +28,6 @@ export default async function NavBar() {
               </Link>
               <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 New program
-              </Link>
-              <Link href="/settings/connections" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                Connections
               </Link>
               <Link href="/profile" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 Profile
