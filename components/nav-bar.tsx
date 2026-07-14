@@ -30,6 +30,9 @@ export default async function NavBar() {
               <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 New program
               </Link>
+              <Link href="/activity" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Activity
+              </Link>
               <Link href="/settings" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 Settings
               </Link>
