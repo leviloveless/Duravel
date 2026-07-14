@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/queries";
 import ProfileForm from "./profile-form";
+import DeleteAccount from "./delete-account";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -20,6 +22,14 @@ export default async function ProfilePage() {
         program&apos;s setup.
       </p>
       <ProfileForm profile={profile} />
+
+      <p className="text-xs text-zinc-400">
+        <Link href="/privacy" className="underline">Privacy Policy</Link>
+        {" · "}
+        <Link href="/terms" className="underline">Terms of Service</Link>
+      </p>
+
+      <DeleteAccount />
     </main>
   );
 }

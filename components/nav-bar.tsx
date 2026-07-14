@@ -5,8 +5,8 @@ import { signOut } from "@/app/login/actions";
 /**
  * Global top navigation bar (Tasks addition #6). Lets the user move between the
  * main pages from anywhere. Auth-aware: signed-in users see the app links plus a
- * Sign out button; signed-out users see a single Log in button. The Log in
- * button is hidden entirely once a user is authenticated (new-additions #1).
+ * Sign out button; signed-out users see Pricing + a single Log in button. The
+ * Log in button is hidden entirely once a user is authenticated (new-additions #1).
  */
 export default async function NavBar() {
   const supabase = await createClient();
@@ -29,8 +29,14 @@ export default async function NavBar() {
               <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 New program
               </Link>
+              <Link href="/settings/connections" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Connections
+              </Link>
               <Link href="/profile" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
                 Profile
+              </Link>
+              <Link href="/pricing" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Pricing
               </Link>
               <form action={signOut}>
                 <button
@@ -45,12 +51,17 @@ export default async function NavBar() {
           {/* Log in button — shown only when signed out; it disappears once the
               user is authenticated (new-additions #1). */}
           {!user && (
-            <Link
-              href="/login"
-              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
-            >
-              Log in
-            </Link>
+            <>
+              <Link href="/pricing" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
+                Pricing
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
+              >
+                Log in
+              </Link>
+            </>
           )}
         </div>
       </nav>

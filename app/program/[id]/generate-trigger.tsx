@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 /**
  * Kicks the generation pipeline for a program that is still `generating`, and
@@ -10,7 +11,8 @@ import { useRouter } from "next/navigation";
  * Generation is a single long request (one Haiku call per mesocycle, in
  * parallel) with no server-sent progress, so the "progress" here is a friendly
  * staged message that advances on a timer while the request is in flight
- * (Milestone 7 loading UX). Rate-limit (429) responses get their own message.
+ * (Milestone 7 loading UX). Rate-limit (429) and payment-required (402)
+ * responses get their own messages.
  */
 
 // Staged messages shown while the request is in flight, keyed by elapsed ms.
@@ -42,6 +44,7 @@ export default function GenerateTrigger({
   const [stage, setStage] = useState(PROGRESS_STAGES[0]!.label);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
   const started = useRef(false);
 
   // Advance the staged progress message on a timer while running.
@@ -61,6 +64,7 @@ export default function GenerateTrigger({
     setRunning(true);
     setError(null);
     setRateLimited(false);
+    setPaymentRequired(false);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -68,6 +72,12 @@ export default function GenerateTrigger({
         body: JSON.stringify({ programId }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setPaymentRequired(true);
+        setError(data?.message ?? "An active subscription is required to generate programs.");
+        setRunning(false);
+        return;
+      }
       if (res.status === 429) {
         setRateLimited(true);
         setError(data?.message ?? "You've reached today's generation limit. Please try again later.");
@@ -107,15 +117,26 @@ export default function GenerateTrigger({
         </div>
       ) : error ? (
         <>
-          <p className={`text-sm ${rateLimited ? "text-amber-700" : "text-red-600"}`}>{error}</p>
-          {!rateLimited && (
-            <button
-              type="button"
-              onClick={run}
+          <p className={`text-sm ${rateLimited ? "text-amber-700" : paymentRequired ? "text-zinc-700" : "text-red-600"}`}>
+            {error}
+          </p>
+          {paymentRequired ? (
+            <Link
+              href="/pricing"
               className="self-start rounded-full bg-black px-5 py-2 text-sm text-white transition-colors hover:bg-zinc-800"
             >
-              Try again
-            </button>
+              View plans
+            </Link>
+          ) : (
+            !rateLimited && (
+              <button
+                type="button"
+                onClick={run}
+                className="self-start rounded-full bg-black px-5 py-2 text-sm text-white transition-colors hover:bg-zinc-800"
+              >
+                Try again
+              </button>
+            )
           )}
         </>
       ) : (

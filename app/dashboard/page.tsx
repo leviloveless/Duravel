@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getUserPrograms, type ProgramSummaryRow } from "@/lib/supabase/queries";
 import { signOut } from "@/app/login/actions";
 import ThisWeekCard from "@/components/dashboard/this-week-card";
+import TrialBanner from "@/components/trial-banner";
 import RenameProgram from "./rename-program";
 import DeleteProgram from "./delete-program";
 
@@ -48,6 +49,8 @@ export default async function DashboardPage() {
           </button>
         </form>
       </div>
+
+      <TrialBanner />
 
       <ThisWeekCard />
 

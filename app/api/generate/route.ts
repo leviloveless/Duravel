@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateProgram } from "@/lib/generation/generate-program";
+import { getEntitlement } from "@/lib/subscription";
 
 /**
  * POST /api/generate  { programId: string }
@@ -35,6 +36,19 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Billing gate (monetization). No-op while BILLING_ENABLED !== "true". Once
+  // billing is on, access requires a live subscription OR an active 14-day free
+  // trial; otherwise 402 and the client sends the user to /pricing. The message
+  // distinguishes "trial ended" from "no subscription" so the copy fits.
+  const entitlement = await getEntitlement();
+  if (!entitlement.entitled) {
+    const message =
+      entitlement.reason === "none" && entitlement.trialEndsAt
+        ? "Your 14-day free trial has ended. Subscribe to keep generating and adapting your programs."
+        : "An active subscription is required to generate programs.";
+    return NextResponse.json({ error: "payment_required", message }, { status: 402 });
   }
 
   let programId: string | undefined;
