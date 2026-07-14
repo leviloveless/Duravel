@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { applySequencingGuards } from "./sequencing";
 import type { DaySlot, TrainingDayName } from "./types";
 
-const D: TrainingDayName[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const day = (d: TrainingDayName, sessions: DaySlot["sessions"]): DaySlot => ({ day: d, sessions });
 const lower = { kind: "lift", liftType: "lower" } as const;
 const upper = { kind: "lift", liftType: "upper" } as const;

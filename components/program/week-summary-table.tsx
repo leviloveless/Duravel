@@ -30,14 +30,29 @@ export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"
                   <a href={`#week-${w.weekNumber}`} className="font-medium text-zinc-800 hover:underline">
                     {w.weekNumber}
                   </a>
-                  {w.raceDay && <span className="ml-1 text-red-600" title={`${w.raceDay.priority} race`}>●</span>}
+                  {w.raceDay && (
+                    <span className="ml-1 text-red-600" role="img" aria-label={`${w.raceDay.priority} race`}>
+                      ●
+                    </span>
+                  )}
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalCardioMinutes}m</td>
                 <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalMileage}</td>
                 <td className="px-3 py-2">
-                  <div className="flex h-2 w-24 overflow-hidden rounded-full" title="Zone distribution">
+                  <div
+                    className="flex h-2 w-24 overflow-hidden rounded-full"
+                    role="img"
+                    aria-label={`Zone mix: ${zoneEntries(w.summary.zoneDistribution)
+                      .map((e) => `${e.label} ${e.pct}%`)
+                      .join(", ")}`}
+                  >
                     {zoneEntries(w.summary.zoneDistribution).map((e) => (
-                      <div key={e.zone} className={e.barClass} style={{ width: `${e.pct}%` }} title={`${e.label}: ${e.pct}%`} />
+                      <div
+                        key={e.zone}
+                        className={e.barClass}
+                        style={{ width: `${e.pct}%` }}
+                        title={`${e.label}: ${e.pct}%`}
+                      />
                     ))}
                   </div>
                 </td>

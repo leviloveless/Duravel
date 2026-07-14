@@ -33,3 +33,8 @@ jobs:
         # pre-existing warnings. Make this a required step once the tree is clean.
         run: npm run lint
         continue-on-error: true
+      - name: Dependency audit
+        # Reports known high-severity advisories; non-blocking so a transitive
+        # advisory doesn't wedge every PR. Review the output and bump as needed.
+        run: npm audit --audit-level=high
+        continue-on-error: true

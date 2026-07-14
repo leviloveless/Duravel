@@ -177,7 +177,7 @@ function maxMiles(paceMin: number, overhead: number): number {
 function sizeRuns(
   runs: RunEntry[],
   RM: number,
-  days: ProgramDay[],
+  _days: ProgramDay[],
   paces: RunPaces,
   runningExp: ExperienceLevel,
   added: Session[],

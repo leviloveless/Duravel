@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { EngineInput, TrainingClassName, ProgramTypeName, ExperienceLevel } from "./types";
+import type { EngineInput, TrainingClassName, ProgramTypeName } from "./types";
 import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles, microcyclePattern } from "./microcycles";
 import { applyTapers } from "./taper";
@@ -324,8 +324,8 @@ describe("buildSkeleton — structural integrity", () => {
 
           // race weeks carry a race session + raceDay marker
           for (const race of races) {
-            const wk = skeleton.weeks.find((w) => w.raceDay);
-            expect(wk).toBeTruthy();
+            const wk = skeleton.weeks.find((w) => w.weekNumber === race.weekNumber);
+            expect(wk?.raceDay).toBeTruthy();
           }
           const raceSlotWeeks = skeleton.weeks.filter((w) => countKind(w, "race") > 0);
           expect(raceSlotWeeks.length).toBe(races.length);

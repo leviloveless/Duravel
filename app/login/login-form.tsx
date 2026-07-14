@@ -16,14 +16,18 @@ export default function LoginForm({ checkEmail }: { checkEmail: boolean }) {
       <div className="flex gap-2 text-sm">
         <button
           type="button"
+          aria-pressed={mode === "signin"}
           onClick={() => setMode("signin")}
           className={mode === "signin" ? "font-semibold underline" : "text-zinc-500"}
         >
           Sign in
         </button>
-        <span className="text-zinc-300">/</span>
+        <span className="text-zinc-300" aria-hidden="true">
+          /
+        </span>
         <button
           type="button"
+          aria-pressed={mode === "signup"}
           onClick={() => setMode("signup")}
           className={mode === "signup" ? "font-semibold underline" : "text-zinc-500"}
         >
@@ -60,9 +64,10 @@ export default function LoginForm({ checkEmail }: { checkEmail: boolean }) {
             />
             <button
               type="button"
+              aria-pressed={showPassword}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               onClick={() => setShowPassword((v) => !v)}
               className="text-xs text-zinc-500 underline"
-              tabIndex={-1}
             >
               {showPassword ? "Hide" : "Show"}
             </button>
