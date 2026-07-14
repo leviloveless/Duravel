@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReadinessCheckinRow } from "@/lib/supabase/queries";
 import { usePostAction } from "@/lib/hooks/use-post-action";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,28 @@ export default function ReadinessForm({
   const [restingHr, setRestingHr] = useState(String(existing?.resting_hr ?? ""));
   const [hrv, setHrv] = useState(String(existing?.hrv ?? ""));
   const [saved, setSaved] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Auto-fill resting HR / HRV from a connected wearable when the athlete hasn't
+  // entered them and there's no saved check-in yet. Best-effort and non-destructive:
+  // it only fills empty fields, and any error (e.g. no wearable) is ignored.
+  useEffect(() => {
+    if (existing || restingHr.trim() || hrv.trim()) return;
+    let cancelled = false;
+    fetch("/api/wearables/readiness-prefill")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { restingHr?: number | null; hrv?: number | null } | null) => {
+        if (cancelled || !d) return;
+        if (d.restingHr != null) setRestingHr(String(d.restingHr));
+        if (d.hrv != null) setHrv(String(d.hrv));
+        if (d.restingHr != null || d.hrv != null) setPrefilled(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function save() {
     const body: Record<string, unknown> = { programId, weekNumber, ...vals };
@@ -76,16 +98,19 @@ export default function ReadinessForm({
         <label className="flex flex-col gap-1 text-sm">
           Resting HR <span className="text-xs text-zinc-400">(optional)</span>
           <input type="number" min={25} max={150} value={restingHr}
-            onChange={(e) => { setRestingHr(e.target.value); setSaved(false); }}
+            onChange={(e) => { setRestingHr(e.target.value); setSaved(false); setPrefilled(false); }}
             placeholder="bpm" className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           HRV <span className="text-xs text-zinc-400">(optional)</span>
           <input type="number" min={1} max={400} value={hrv}
-            onChange={(e) => { setHrv(e.target.value); setSaved(false); }}
+            onChange={(e) => { setHrv(e.target.value); setSaved(false); setPrefilled(false); }}
             placeholder="ms" className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none" />
         </label>
       </div>
+      {prefilled && (
+        <p className="mt-2 text-xs text-emerald-600">Prefilled from your connected wearable — edit if needed.</p>
+      )}
 
       <div className="mt-4 flex items-center gap-3">
         <Button variant="primary" size="sm" onClick={save} disabled={pending}>
