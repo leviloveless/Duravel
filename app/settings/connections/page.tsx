@@ -34,8 +34,8 @@ export default async function ConnectionsPage({
         flashError={sp.error ?? null}
       />
 
-      <Link href="/dashboard" className="text-sm underline">
-        Back to dashboard
+      <Link href="/settings" className="text-sm underline">
+        Back to settings
       </Link>
     </main>
   );
