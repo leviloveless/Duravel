@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applyAdaptation } from "@/lib/generation/adapt-week";
+import { getEntitlement } from "@/lib/subscription";
 
 /**
  * POST /api/adapt/apply  { programId, weekNumber, decision: "apply" | "dismiss" }
@@ -43,6 +44,20 @@ export async function POST(request: Request) {
       { error: "programId, weekNumber and decision are required" },
       { status: 400 },
     );
+  }
+
+  // Billing gate (monetization). Applying an adaptation triggers a Haiku refill
+  // of the upcoming week — a paid feature. Dismissing stays free so a lapsed user
+  // can still clear the banner. No-op while BILLING_ENABLED !== "true".
+  if (decision === "apply") {
+    const entitlement = await getEntitlement();
+    if (!entitlement.entitled) {
+      const message =
+        entitlement.reason === "none" && entitlement.trialEndsAt
+          ? "Your 14-day free trial has ended. Subscribe to keep adapting your program."
+          : "An active subscription is required to adapt your program.";
+      return NextResponse.json({ error: "payment_required", message }, { status: 402 });
+    }
   }
 
   // Each week can be reviewed once (applied or dismissed).

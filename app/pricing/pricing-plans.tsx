@@ -5,7 +5,7 @@ import { useState } from "react";
 type Plan = "monthly" | "annual";
 
 const PRICES: Record<Plan, { label: string; price: string; per: string; sub: string }> = {
-  monthly: { label: "Monthly", price: "$19", per: "/month", sub: "billed monthly" },
+  monthly: { label: "Monthly", price: "$19.99", per: "/month", sub: "billed monthly" },
   annual: { label: "Annual", price: "$149", per: "/year", sub: "under $12.50/mo — billed yearly" },
 };
 
@@ -87,7 +87,7 @@ export default function PricingPlans({
                   selected === p ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
                 }`}
               >
-                Save 35%
+                Save 38%
               </span>
             )}
           </button>

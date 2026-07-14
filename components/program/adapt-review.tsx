@@ -80,6 +80,10 @@ export default function AdaptReview({ programId, weekNumber }: { programId: stri
         body: JSON.stringify({ programId, weekNumber, decision }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        router.push("/pricing"); // trial ended / no subscription — send to plans
+        return;
+      }
       if (!res.ok) {
         setError(data?.message ?? data?.error ?? "Something went wrong.");
         setRunning(null);
