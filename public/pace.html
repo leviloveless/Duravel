@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Free HYROX Pacing Guide — Duravel</title>
+<meta name="description" content="Get your HYROX goal-time pacing guide free. Enter your email and we'll send the splits + early access to the Duravel training app."/>
+<meta property="og:title" content="Know your HYROX splits before the gun — Duravel"/>
+<meta property="og:description" content="Free HYROX pacing guide + early access to the Duravel training app."/>
+<meta name="robots" content="noindex"/>
+<!--
+  ============================================================================
+  DURAVEL — STOPGAP CAPTURE PAGE  (host this for DekaFit, Jul 25)
+  ----------------------------------------------------------------------------
+  ONE thing to do before going live: set FORM_ENDPOINT below (line marked SET ME).
+  Fastest options (all free, ~2 min, no backend needed):
+    • Formspree  → https://formspree.io  (create form, paste the /f/xxxx URL)
+    • Getform    → https://getform.io
+    • Basin      → https://usebasin.com
+  This page POSTs JSON {first_name,email,source,consent} with Accept: application/json,
+  which all three accept. It also degrades to a normal form POST if JS is off.
+  Captured fields include `source` (from the ?src= URL param) so DekaFit leads are tagged.
+  When the real /pace tool + Resend flow ship (Phase 3 / M13), retire this page.
+  Replace the [bracketed] mailing address before first send (CAN-SPAM).
+  ============================================================================
+-->
+<style>
+  :root{
+    --ink:#0E1116; --ink2:#161B22; --paper:#F7F5F2; --accent:#FF5A1F;
+    --muted:#8A8F98; --line:#252A31; --ok:#3DBE73;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    background:var(--ink); color:#fff; -webkit-font-smoothing:antialiased;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  .bg{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(900px 500px at 82% -8%, rgba(255,90,31,.16), transparent 60%),
+      radial-gradient(700px 600px at -10% 110%, rgba(255,90,31,.08), transparent 60%),
+      linear-gradient(180deg,#0E1116,#0B0E12);
+  }
+  .wrap{position:relative; z-index:1; width:100%; max-width:520px; margin:0 auto; padding:26px 20px 40px; flex:1;}
+  .brand{display:flex; align-items:center; gap:9px; font-weight:800; letter-spacing:.16em; font-size:14px;}
+  .brand .dot{width:11px; height:11px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(255,90,31,.18);}
+
+  .badge{display:inline-block; background:var(--accent); color:#fff; font-weight:800; font-size:11px;
+    letter-spacing:.08em; padding:6px 13px; border-radius:999px; margin:30px 0 16px;}
+  .badge span{color:#0E1116;}
+  h1{font-size:34px; line-height:1.06; font-weight:800; letter-spacing:-.02em; margin:0 0 14px;}
+  h1 .hl{color:var(--accent);}
+  .lede{color:#c4c9d0; font-size:16px; line-height:1.5; margin:0 0 26px; max-width:440px;}
+
+  .card{background:var(--ink2); border:1px solid var(--line); border-radius:16px; padding:22px 20px;
+    box-shadow:0 24px 60px rgba(0,0,0,.4);}
+  .card h2{font-size:18px; margin:0 0 4px; font-weight:800;}
+  .card .sub{color:var(--muted); font-size:13.5px; line-height:1.5; margin:0 0 18px;}
+
+  label{display:block; font-size:12.5px; font-weight:700; letter-spacing:.02em; color:#dfe3e8; margin:0 0 6px;}
+  .field{margin-bottom:15px;}
+  input[type=text], input[type=email]{
+    width:100%; padding:14px 15px; font-size:16px; color:#fff; background:#0E1116;
+    border:1.5px solid #2b323b; border-radius:10px; outline:none; transition:border-color .15s;
+    font-family:inherit;
+  }
+  input::placeholder{color:#5b626c;}
+  input:focus{border-color:var(--accent);}
+  .optional{color:var(--muted); font-weight:500;}
+
+  .consent{display:flex; gap:11px; align-items:flex-start; margin:4px 0 20px; cursor:pointer;}
+  .consent input{margin-top:2px; width:18px; height:18px; accent-color:var(--accent); flex:0 0 auto;}
+  .consent span{font-size:12.5px; line-height:1.45; color:#aeb4bc;}
+
+  button{
+    width:100%; padding:16px; font-size:16px; font-weight:800; letter-spacing:.01em; color:#fff;
+    background:var(--accent); border:none; border-radius:11px; cursor:pointer; font-family:inherit;
+    transition:filter .15s, transform .05s;
+  }
+  button:hover{filter:brightness(1.06);}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.6; cursor:default;}
+  .finehint{color:var(--muted); font-size:11.5px; text-align:center; margin:12px 0 0; line-height:1.5;}
+
+  .trust{margin:24px 2px 0; display:flex; flex-direction:column; gap:11px;}
+  .trust .row{display:flex; gap:11px; align-items:flex-start; color:#c4c9d0; font-size:13.5px; line-height:1.4;}
+  .trust .ck{color:var(--accent); font-weight:900; flex:0 0 auto;}
+
+  .foot{position:relative; z-index:1; text-align:center; color:var(--muted); font-size:11.5px;
+    padding:24px 20px 30px; line-height:1.6;}
+  .foot a{color:var(--muted);}
+
+  /* success state */
+  .success{display:none; text-align:center; padding:8px 4px 6px;}
+  .success .tick{width:56px; height:56px; border-radius:50%; background:rgba(61,190,115,.14);
+    color:var(--ok); font-size:30px; display:flex; align-items:center; justify-content:center; margin:6px auto 16px;}
+  .success h2{font-size:20px; margin:0 0 8px;}
+  .success p{color:#c4c9d0; font-size:14.5px; line-height:1.55; margin:0 auto; max-width:380px;}
+
+  .err{display:none; background:rgba(255,90,31,.12); border:1px solid rgba(255,90,31,.4);
+    color:#ffb399; font-size:13px; border-radius:9px; padding:11px 13px; margin:0 0 15px; line-height:1.45;}
+  .devnote{display:none; background:#3a2a12; border:1px solid #7a5320; color:#ffcf9e; font-size:12.5px;
+    border-radius:9px; padding:11px 13px; margin:0 0 16px; line-height:1.45;}
+  .hp{position:absolute; left:-9999px; top:-9999px;}
+
+  @media (max-width:420px){
+    h1{font-size:29px;}
+    .lede{font-size:15px;}
+    .wrap{padding-top:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<div class="wrap">
+  <div class="brand"><span class="dot"></span>DURAVEL</div>
+
+  <div id="badge" class="badge">FREE HYROX PACING GUIDE</div>
+  <h1>Know your <span class="hl">goal-time splits</span> before the gun.</h1>
+  <p class="lede">Drop your email and I'll send you a HYROX pacing guide — the run splits and station targets that actually hold up under fatigue — plus early access to the Duravel training app.</p>
+
+  <div class="card">
+    <div id="formview">
+      <h2>Get your pacing guide</h2>
+      <p class="sub">Free. No account. Takes 10 seconds.</p>
+
+      <div id="devnote" class="devnote"></div>
+      <div id="err" class="err"></div>
+
+      <form id="capform" novalidate>
+        <!-- honeypot: bots fill this; humans never see it -->
+        <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true"/>
+
+        <div class="field">
+          <label for="first_name">First name <span class="optional">(optional)</span></label>
+          <input type="text" id="first_name" name="first_name" placeholder="First name" autocomplete="given-name"/>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" required/>
+        </div>
+
+        <label class="consent" for="consent">
+          <input type="checkbox" id="consent" name="consent" required/>
+          <span>Email me my HYROX pacing guide and occasional training tips from Duravel. Unsubscribe anytime.</span>
+        </label>
+
+        <button type="submit" id="submitbtn">Send me my pacing guide →</button>
+        <p class="finehint">No spam. One-click unsubscribe in every email.</p>
+      </form>
+    </div>
+
+    <div id="success" class="success">
+      <div class="tick">✓</div>
+      <h2>You're on the list.</h2>
+      <p id="successmsg">Check your inbox — your HYROX pacing guide is on the way. Come find the Duravel setup at the race for a live look at how the training app builds your next block.</p>
+    </div>
+  </div>
+
+  <div class="trust">
+    <div class="row"><span class="ck">✓</span><span>Built by an age-grouper, for age-groupers — not a generic calculator.</span></div>
+    <div class="row"><span class="ck">✓</span><span>Station-aware pacing: accounts for the compromised runs, not just fresh legs.</span></div>
+    <div class="row"><span class="ck">✓</span><span>Early access to the full training app — a 14-day free trial, no credit card.</span></div>
+  </div>
+</div>
+
+<div class="foot">
+  Duravel · 5900 Balcones Dr STE 100, Austin, TX 78731 · <a href="/privacy">Privacy</a><br>
+  duravel.app · @duravel
+</div>
+
+<script>
+(function(){
+  // ====== SET ME before going live (see comment at top of file) ======
+  var FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycby0MmbuMSErIdViPM5o1v-RZ-L6I9Re-iOdBzr88nTCpqRYRTxyreBkjgkzXfKxYoFV/exec";
+  // ===================================================================
+
+  // Race-aware badge from ?src=  (works for any race, defaults generic)
+  var RACES = {
+    dekafit: "RACING DEKAFIT",
+    slc:     "RACING HYROX SALT LAKE CITY",
+    bos:     "RACING HYROX BOSTON",
+    dal:     "RACING HYROX DALLAS"
+  };
+  function qp(k){ try { return new URLSearchParams(window.location.search).get(k); } catch(e){ return null; } }
+  var src = (qp("src") || "web").toLowerCase();
+  if (RACES[src]) { document.getElementById("badge").textContent = RACES[src]; }
+
+  var form = document.getElementById("capform");
+  var errBox = document.getElementById("err");
+  var devnote = document.getElementById("devnote");
+
+  // Warn (only visible to you locally) if the endpoint isn't set yet.
+  if (FORM_ENDPOINT.indexOf("YOUR_DEPLOYMENT_ID") !== -1) {
+    devnote.style.display = "block";
+    devnote.textContent = "Setup: this form isn't connected yet. Set FORM_ENDPOINT in the page source to your Google Apps Script Web App /exec URL, then redeploy.";
+  }
+
+  function showError(msg){ errBox.style.display="block"; errBox.textContent = msg; }
+  function clearError(){ errBox.style.display="none"; errBox.textContent=""; }
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    clearError();
+
+    var honeypot = form.querySelector('input[name=company]').value;
+    if (honeypot) { return; } // bot
+
+    var first = document.getElementById("first_name").value.trim();
+    var email = document.getElementById("email").value.trim();
+    var consent = document.getElementById("consent").checked;
+
+    if (!email || email.indexOf("@") < 1 || email.indexOf(".") < 0) {
+      showError("Please enter a valid email so we can send your guide."); return;
+    }
+    if (!consent) {
+      showError("Please tick the box so we're allowed to email your guide."); return;
+    }
+    if (FORM_ENDPOINT.indexOf("YOUR_DEPLOYMENT_ID") !== -1) {
+      showError("This form isn't connected yet (endpoint not set)."); return;
+    }
+
+    var payload = { first_name:first, email:email, source:src, consent:true,
+                    captured_at:new Date().toISOString() };
+
+    var button = form.querySelector("button[type=submit]");
+    button.disabled = true; button.textContent = "Sending…";
+
+    // Google Apps Script Web App: cross-origin response reads are blocked, so we
+    // send a CORS "simple" request (text/plain, no preflight) with mode:no-cors
+    // and treat a resolved fetch as success — the row is written server-side
+    // regardless. Only a real network failure (offline) rejects and shows retry.
+    fetch(FORM_ENDPOINT, {
+      method:"POST",
+      mode:"no-cors",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    })
+    .then(function(){
+      document.getElementById("formview").style.display = "none";
+      document.getElementById("success").style.display = "block";
+      if (first) {
+        document.getElementById("successmsg").innerHTML =
+          "Nice one, " + first.replace(/[<>&]/g,"") + " — your HYROX pacing guide is on the way. " +
+          "Come find the Duravel setup at the race for a live look at how the app builds your next block.";
+      }
+    })
+    .catch(function(){
+      button.disabled = false; button.textContent = "Send me my pacing guide →";
+      showError("Network hiccup — check your connection and try again.");
+    });
+  });
+})();
+</script>
+</body>
+</html>

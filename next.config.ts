@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async rewrites() {
+    // Clean /pace URL for the race lead-capture page (public/pace.html).
+    return [{ source: "/pace", destination: "/pace.html" }];
+  },
 };
 
 export default nextConfig;
