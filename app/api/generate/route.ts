@@ -17,10 +17,10 @@ export const maxDuration = 60;
 
 // Per-user rate limit (Milestone 7): a generation run is expensive (one Haiku
 // call per mesocycle), so cap how many a single user can trigger in a rolling
-// 24-hour window. Counts real runs only — a no-op "already ready" request never
+// 7-day window. Counts real runs only — a no-op "already ready" request never
 // reaches this check, so it doesn't burn quota.
-const DAILY_GENERATION_LIMIT = 3;
-const RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const GENERATION_LIMIT = 2;
+const RATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Accounts exempt from the daily generation cap (e.g. for testing). Set the
 // GENERATION_UNLIMITED_EMAILS env var to a comma-separated list of emails.
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   const { data: eventId, error: claimError } = await supabase.rpc("claim_generation_slot", {
     p_kind: force ? "recalculate" : "create",
     p_program_id: programId,
-    p_limit: unlimited ? 1_000_000 : DAILY_GENERATION_LIMIT,
+    p_limit: unlimited ? 1_000_000 : GENERATION_LIMIT,
     p_window_hours: RATE_WINDOW_MS / (60 * 60 * 1000),
   });
   if (claimError) {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "rate_limited",
-        message: `You've reached the limit of ${DAILY_GENERATION_LIMIT} generations per day. Please try again later.`,
+        message: `You've reached the limit of ${GENERATION_LIMIT} program generations per 7 days. Please try again later.`,
       },
       { status: 429 },
     );
@@ -103,7 +103,10 @@ export async function POST(request: Request) {
 
   // Recalculate: reset to generating and clear the old program before re-running.
   if (force) {
-    await supabase.from("programs").update({ status: "generating", program_data: null }).eq("id", programId);
+    await supabase
+      .from("programs")
+      .update({ status: "generating", program_data: null })
+      .eq("id", programId);
   }
 
   const result = await generateProgram(supabase, programId);

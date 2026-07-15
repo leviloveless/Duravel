@@ -41,12 +41,19 @@ const RULE_LABEL: Record<string, string> = {
   re_anchor: "Re-anchor",
 };
 
-export default function AdaptReview({ programId, weekNumber }: { programId: string; weekNumber: number }) {
+export default function AdaptReview({
+  programId,
+  weekNumber,
+}: {
+  programId: string;
+  weekNumber: number;
+}) {
   const router = useRouter();
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [running, setRunning] = useState<"apply" | "dismiss" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingApply, setConfirmingApply] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,33 +150,65 @@ export default function AdaptReview({ programId, weekNumber }: { programId: stri
           {preview.decision.revisedTargets && preview.nextOriginal && (
             <p className="mt-1 text-xs text-indigo-800/70">
               Week {preview.targetWeek}: {preview.nextOriginal.targetMileage} →{" "}
-              <span className="font-semibold">{preview.decision.revisedTargets.targetMileage} mi</span>
+              <span className="font-semibold">
+                {preview.decision.revisedTargets.targetMileage} mi
+              </span>
               {" · "}
               {preview.nextOriginal.targetCardioMinutes} →{" "}
-              <span className="font-semibold">{preview.decision.revisedTargets.targetCardioMinutes} min</span>
+              <span className="font-semibold">
+                {preview.decision.revisedTargets.targetCardioMinutes} min
+              </span>
             </p>
           )}
 
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => resolve("apply")}
-              disabled={running !== null}
-              className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {running === "apply" ? "Applying…" : preview.decision.rule !== "none" ? "Apply adjustment" : "Sounds good"}
-            </button>
-            <button
-              type="button"
-              onClick={() => resolve("dismiss")}
-              disabled={running !== null}
-              className="rounded-full px-4 py-2 text-sm text-indigo-900/70 hover:bg-indigo-100 disabled:opacity-50"
-            >
-              {running === "dismiss" ? "Saving…" : "Keep as planned"}
-            </button>
-          </div>
+          {confirmingApply ? (
+            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-900">Adapt once per day</p>
+              <p className="mt-1 text-sm text-amber-900/80">
+                You can adapt your program once per calendar day. Once you apply this, you won’t be
+                able to re-adapt until the next calendar day.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => resolve("apply")}
+                  disabled={running !== null}
+                  className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {running === "apply" ? "Applying…" : "Yes, apply"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingApply(false)}
+                  disabled={running !== null}
+                  className="rounded-full px-4 py-2 text-sm text-indigo-900/70 hover:bg-indigo-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingApply(true)}
+                disabled={running !== null}
+                className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {preview.decision.rule !== "none" ? "Apply adjustment" : "Sounds good"}
+              </button>
+              <button
+                type="button"
+                onClick={() => resolve("dismiss")}
+                disabled={running !== null}
+                className="rounded-full px-4 py-2 text-sm text-indigo-900/70 hover:bg-indigo-100 disabled:opacity-50"
+              >
+                {running === "dismiss" ? "Saving…" : "Keep as planned"}
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>

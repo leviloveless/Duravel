@@ -16,8 +16,10 @@ import { getEntitlement } from "@/lib/subscription";
 // One Haiku call at most; small headroom over the default.
 export const maxDuration = 60;
 
-const DAILY_ADAPT_LIMIT = 7;
-const RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+// One weekly adaptation per CALENDAR day (resets at 00:00 UTC), enforced via
+// claim_generation_slot(p_calendar_day => true). The UI warns the user before
+// applying that they cannot re-adapt until the next calendar day.
+const ADAPT_LIMIT_PER_DAY = 1;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -35,7 +37,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     programId = typeof body?.programId === "string" ? body.programId : undefined;
     weekNumber = Number.isInteger(body?.weekNumber) ? body.weekNumber : undefined;
-    decision = body?.decision === "apply" || body?.decision === "dismiss" ? body.decision : undefined;
+    decision =
+      body?.decision === "apply" || body?.decision === "dismiss" ? body.decision : undefined;
   } catch {
     /* fall through */
   }
@@ -86,12 +89,13 @@ export async function POST(request: Request) {
 
   // Rate limit + run marker in one atomic DB step (kind='adapt', independent of
   // the generate limit) so concurrent requests can't slip past the cap — see
-  // migration 0012. A normal user needs 1/week; 7/day is generous headroom.
+  // migrations 0012 & 0019. One applied adaptation per calendar day.
   const { data: eventId, error: claimError } = await supabase.rpc("claim_generation_slot", {
     p_kind: "adapt",
     p_program_id: programId,
-    p_limit: DAILY_ADAPT_LIMIT,
-    p_window_hours: RATE_WINDOW_MS / (60 * 60 * 1000),
+    p_limit: ADAPT_LIMIT_PER_DAY,
+    p_window_hours: 24, // ignored when p_calendar_day is true
+    p_calendar_day: true,
   });
   if (claimError) {
     return NextResponse.json({ error: "Could not start adaptation" }, { status: 500 });
@@ -100,7 +104,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "rate_limited",
-        message: `You've reached the limit of ${DAILY_ADAPT_LIMIT} weekly adaptations per day. Please try again later.`,
+        message:
+          "You can adapt your program once per day. You've already adapted today — try again tomorrow.",
       },
       { status: 429 },
     );
