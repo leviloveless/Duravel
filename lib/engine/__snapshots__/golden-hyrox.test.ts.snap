@@ -1,0 +1,8559 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > C race (train-through), fixed_duration, 14wk, C@8 + A@14 1`] = `
+{
+  "allocation": {
+    "base": 6,
+    "build": 4,
+    "peak": 2,
+    "taper": 2,
+  },
+  "durationWeeks": 14,
+  "needs": undefined,
+  "trainingClass": "non_highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 396,
+      "targetMileage": 22,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 261,
+      "targetMileage": 14.2,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 287,
+      "targetMileage": 15.3,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "C",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": {
+        "date": undefined,
+        "priority": "C",
+      },
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 316,
+      "targetMileage": 16.4,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 522,
+      "targetMileage": 26.5,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 313,
+      "targetMileage": 15.8,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+      ],
+      "microWeek": "taper",
+      "phase": "taper",
+      "raceDay": undefined,
+      "targetCardioMinutes": 418,
+      "targetMileage": 21.2,
+      "weekNumber": 13,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "A",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "taper",
+      "raceDay": {
+        "date": undefined,
+        "priority": "A",
+      },
+      "targetCardioMinutes": 313,
+      "targetMileage": 15.9,
+      "weekNumber": 14,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+  ],
+}
+`;
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > baseline: non-highly-trained, intermediate x3, 16wk, 5d, A@16 1`] = `
+{
+  "allocation": {
+    "base": 7,
+    "build": 5,
+    "peak": 2,
+    "taper": 2,
+  },
+  "durationWeeks": 16,
+  "needs": undefined,
+  "trainingClass": "non_highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 396,
+      "targetMileage": 22,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 261,
+      "targetMileage": 14.2,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 287,
+      "targetMileage": 15.3,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 316,
+      "targetMileage": 16.4,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 580,
+      "targetMileage": 29.4,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 348,
+      "targetMileage": 17.6,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 522,
+      "targetMileage": 26.5,
+      "weekNumber": 13,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 574,
+      "targetMileage": 28.4,
+      "weekNumber": 14,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+      ],
+      "microWeek": "taper",
+      "phase": "taper",
+      "raceDay": undefined,
+      "targetCardioMinutes": 459,
+      "targetMileage": 22.7,
+      "weekNumber": 15,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "A",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "taper",
+      "raceDay": {
+        "date": undefined,
+        "priority": "A",
+      },
+      "targetCardioMinutes": 344,
+      "targetMileage": 17,
+      "weekNumber": 16,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+  ],
+}
+`;
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > general fitness (fixed_duration), beginner x3, 12wk, 4d, no races 1`] = `
+{
+  "allocation": {
+    "base": 6,
+    "build": 4,
+    "peak": 2,
+    "taper": 0,
+  },
+  "durationWeeks": 12,
+  "needs": undefined,
+  "trainingClass": "non_highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 216,
+      "targetMileage": 12,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 238,
+      "targetMileage": 13.2,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 143,
+      "targetMileage": 7.9,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 238,
+      "targetMileage": 13.2,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 261,
+      "targetMileage": 14.5,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 157,
+      "targetMileage": 8.7,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 261,
+      "targetMileage": 14.5,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 287,
+      "targetMileage": 16,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 172,
+      "targetMileage": 9.6,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 287,
+      "targetMileage": 16,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 284,
+      "targetMileage": 15.8,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 171,
+      "targetMileage": 9.5,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+  ],
+}
+`;
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > highly-trained, advanced run, 20wk, 6d, A@20 + B@10 (multi-race + post-B recovery) 1`] = `
+{
+  "allocation": {
+    "base": 8,
+    "build": 6,
+    "peak": 4,
+    "taper": 2,
+  },
+  "durationWeeks": 20,
+  "needs": undefined,
+  "trainingClass": "highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 630,
+      "targetMileage": 35,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 693,
+      "targetMileage": 37.6,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 762,
+      "targetMileage": 40.4,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 457,
+      "targetMileage": 24.3,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 762,
+      "targetMileage": 40.4,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 839,
+      "targetMileage": 43.5,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 922,
+      "targetMileage": 46.7,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 553,
+      "targetMileage": 28,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 922,
+      "targetMileage": 46.7,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "B",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "build",
+      "raceDay": {
+        "date": undefined,
+        "priority": "B",
+      },
+      "targetCardioMinutes": 553,
+      "targetMileage": 28,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1116,
+      "targetMileage": 54,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 670,
+      "targetMileage": 32.4,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1116,
+      "targetMileage": 54,
+      "weekNumber": 13,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1228,
+      "targetMileage": 58.1,
+      "weekNumber": 14,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1215,
+      "targetMileage": 56.2,
+      "weekNumber": 15,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 729,
+      "targetMileage": 33.8,
+      "weekNumber": 16,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1215,
+      "targetMileage": 56.2,
+      "weekNumber": 17,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1337,
+      "targetMileage": 60.4,
+      "weekNumber": 18,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+      ],
+      "microWeek": "taper",
+      "phase": "taper",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1070,
+      "targetMileage": 48.3,
+      "weekNumber": 19,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "A",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "taper",
+      "raceDay": {
+        "date": undefined,
+        "priority": "A",
+      },
+      "targetCardioMinutes": 802,
+      "targetMileage": 36.2,
+      "weekNumber": 20,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+  ],
+}
+`;
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > masters override: age 55 forces 3-week microcycle, 18wk, A@18 1`] = `
+{
+  "allocation": {
+    "base": 7,
+    "build": 5,
+    "peak": 4,
+    "taper": 2,
+  },
+  "durationWeeks": 18,
+  "needs": undefined,
+  "trainingClass": "highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 396,
+      "targetMileage": 22,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 261,
+      "targetMileage": 14.2,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 436,
+      "targetMileage": 23.7,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 287,
+      "targetMileage": 15.3,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 479,
+      "targetMileage": 25.4,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 316,
+      "targetMileage": 16.4,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 527,
+      "targetMileage": 27.3,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 580,
+      "targetMileage": 29.4,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 348,
+      "targetMileage": 17.6,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 522,
+      "targetMileage": 26.5,
+      "weekNumber": 13,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 574,
+      "targetMileage": 28.4,
+      "weekNumber": 14,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 345,
+      "targetMileage": 17.1,
+      "weekNumber": 15,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 574,
+      "targetMileage": 28.4,
+      "weekNumber": 16,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+      ],
+      "microWeek": "taper",
+      "phase": "taper",
+      "raceDay": undefined,
+      "targetCardioMinutes": 459,
+      "targetMileage": 22.7,
+      "weekNumber": 17,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "A",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "taper",
+      "raceDay": {
+        "date": undefined,
+        "priority": "A",
+      },
+      "targetCardioMinutes": 344,
+      "targetMileage": 17,
+      "weekNumber": 18,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+  ],
+}
+`;
+
+exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical through P0 > needs-biased: weak erg engine limiter shifts frequency + station emphasis 1`] = `
+{
+  "allocation": {
+    "base": 8,
+    "build": 7,
+    "peak": 3,
+    "taper": 2,
+  },
+  "durationWeeks": 20,
+  "needs": {
+    "bias": {
+      "baseWeeksDelta": -1,
+      "buildWeeksDelta": 1,
+      "hybridCountDelta": 1,
+      "peakWeeksDelta": 0,
+      "runCountDelta": 0,
+      "runEmphasis": "none",
+      "stationEmphasis": [
+        "ski erg",
+        "row erg",
+        "assault bike",
+      ],
+    },
+    "domainScores": {
+      "erg_engine": 33,
+      "run_engine": 89,
+      "strength": 98,
+    },
+    "durability": "normal",
+    "informative": true,
+    "limiters": [
+      "erg_engine",
+    ],
+    "summary": "Primary limiter: erg / non-running cardio. Program biased to address this.",
+  },
+  "trainingClass": "non_highly_trained",
+  "weeks": [
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 630,
+      "targetMileage": 35,
+      "weekNumber": 1,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 693,
+      "targetMileage": 37.6,
+      "weekNumber": 2,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 416,
+      "targetMileage": 22.6,
+      "weekNumber": 3,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 693,
+      "targetMileage": 37.6,
+      "weekNumber": 4,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 762,
+      "targetMileage": 40.4,
+      "weekNumber": 5,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 457,
+      "targetMileage": 24.3,
+      "weekNumber": 6,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 762,
+      "targetMileage": 40.4,
+      "weekNumber": 7,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "base",
+      "raceDay": undefined,
+      "targetCardioMinutes": 839,
+      "targetMileage": 43.5,
+      "weekNumber": 8,
+      "zoneTargets": {
+        "z1": 25,
+        "z2": 60,
+        "z3": 8,
+        "z4": 4,
+        "z5": 3,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 503,
+      "targetMileage": 26.1,
+      "weekNumber": 9,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 839,
+      "targetMileage": 43.5,
+      "weekNumber": 10,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 922,
+      "targetMileage": 46.7,
+      "weekNumber": 11,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 553,
+      "targetMileage": 28,
+      "weekNumber": 12,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 922,
+      "targetMileage": 46.7,
+      "weekNumber": 13,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1015,
+      "targetMileage": 50.2,
+      "weekNumber": 14,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "tempo",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "build",
+      "raceDay": undefined,
+      "targetCardioMinutes": 609,
+      "targetMileage": 30.1,
+      "weekNumber": 15,
+      "zoneTargets": {
+        "z1": 20,
+        "z2": 58,
+        "z3": 12,
+        "z4": 6,
+        "z5": 4,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "rebound",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 914,
+      "targetMileage": 45.2,
+      "weekNumber": 16,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+            {
+              "kind": "lift",
+              "liftType": "lower",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+              "simulation": true,
+            },
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "increase",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 1004,
+      "targetMileage": 48.6,
+      "weekNumber": 17,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "isLong": false,
+              "kind": "run",
+              "runType": "threshold",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+          ],
+        },
+      ],
+      "microWeek": "deload",
+      "phase": "peak",
+      "raceDay": undefined,
+      "targetCardioMinutes": 603,
+      "targetMileage": 29.2,
+      "weekNumber": 18,
+      "zoneTargets": {
+        "z1": 15,
+        "z2": 52,
+        "z3": 15,
+        "z4": 10,
+        "z5": 8,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "full",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "goalZone": 3,
+              "isLong": false,
+              "kind": "run",
+              "runType": "progression",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "lift",
+              "liftType": "upper",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+      ],
+      "microWeek": "taper",
+      "phase": "taper",
+      "raceDay": undefined,
+      "targetCardioMinutes": 803,
+      "targetMileage": 38.9,
+      "weekNumber": 19,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+    {
+      "days": [
+        {
+          "day": "mon",
+          "sessions": [
+            {
+              "goalZone": 2,
+              "kind": "run",
+              "runType": "easy",
+            },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
+            {
+              "goalZone": 5,
+              "kind": "run",
+              "runType": "interval",
+            },
+          ],
+        },
+        {
+          "day": "wed",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "thu",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "fri",
+          "sessions": [
+            {
+              "kind": "rest",
+            },
+          ],
+        },
+        {
+          "day": "sat",
+          "sessions": [
+            {
+              "kind": "race",
+              "priority": "A",
+            },
+          ],
+        },
+      ],
+      "microWeek": "race",
+      "phase": "taper",
+      "raceDay": {
+        "date": undefined,
+        "priority": "A",
+      },
+      "targetCardioMinutes": 602,
+      "targetMileage": 29.2,
+      "weekNumber": 20,
+      "zoneTargets": {
+        "z1": 18,
+        "z2": 57,
+        "z3": 13,
+        "z4": 7,
+        "z5": 5,
+      },
+    },
+  ],
+}
+`;
