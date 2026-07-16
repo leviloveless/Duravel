@@ -230,17 +230,10 @@
     var button = form.querySelector("button[type=submit]");
     button.disabled = true; button.textContent = "Sending…";
 
-    // Google Apps Script Web App: cross-origin response reads are blocked, so we
-    // send a CORS "simple" request (text/plain, no preflight) with mode:no-cors
-    // and treat a resolved fetch as success — the row is written server-side
-    // regardless. Only a real network failure (offline) rejects and shows retry.
-    fetch(FORM_ENDPOINT, {
-      method:"POST",
-      mode:"no-cors",
-      headers:{ "Content-Type":"text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    })
-    .then(function(){
+    // no-cors + keepalive; response is opaque so a resolved fetch (or a 9s timeout) = success.
+    var settled = false;
+    function succeed(){
+      if (settled) return; settled = true;
       document.getElementById("formview").style.display = "none";
       document.getElementById("success").style.display = "block";
       if (first) {
@@ -248,8 +241,20 @@
           "Nice one, " + first.replace(/[<>&]/g,"") + " — your HYROX pacing guide is on the way. " +
           "Come find the Duravel setup at the race for a live look at how the app builds your next block.";
       }
+    }
+    // Never let the button hang on a slow Apps Script cold start: fall back to success in 9s.
+    var failTimer = setTimeout(succeed, 9000);
+    fetch(FORM_ENDPOINT, {
+      method:"POST",
+      mode:"no-cors",
+      keepalive:true,
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
     })
+    .then(function(){ clearTimeout(failTimer); succeed(); })
     .catch(function(){
+      clearTimeout(failTimer);
+      if (settled) return; settled = true;
       button.disabled = false; button.textContent = "Send me my pacing guide →";
       showError("Network hiccup — check your connection and try again.");
     });

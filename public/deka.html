@@ -397,14 +397,20 @@
     var btn=form.querySelector("button.go"); btn.disabled=true; btn.textContent="Sending…";
     var payload={ first_name:$("first_name").value.trim(), email:email, source:src, consent:true,
                   captured_at:new Date().toISOString() };
-    fetch(FORM_ENDPOINT,{ method:"POST", mode:"no-cors",
+    var settled=false;
+    function succeed(){
+      if(settled) return; settled=true;
+      $("formview").style.display="none"; $("success").style.display="block";
+      var fn=$("first_name").value.trim();
+      if(fn) $("successmsg").textContent="Nice one, "+fn.replace(/[<>&]/g,"")+" — your DEKA plan is on the way.";
+    }
+    // Never let the button hang on a slow Apps Script cold start: fall back to success in 9s
+    // (opaque no-cors can't confirm anyway; keepalive lets the request finish in the background).
+    var failTimer=setTimeout(succeed, 9000);
+    fetch(FORM_ENDPOINT,{ method:"POST", mode:"no-cors", keepalive:true,
       headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(payload) })
-      .then(function(){
-        $("formview").style.display="none"; $("success").style.display="block";
-        var fn=$("first_name").value.trim();
-        if(fn) $("successmsg").textContent="Nice one, "+fn.replace(/[<>&]/g,"")+" — your DEKA plan is on the way.";
-      })
-      .catch(function(){ btn.disabled=false; btn.textContent="Send me my plan →"; showErr("Network hiccup — try again."); });
+      .then(function(){ clearTimeout(failTimer); succeed(); })
+      .catch(function(){ clearTimeout(failTimer); if(settled) return; settled=true; btn.disabled=false; btn.textContent="Send me my plan →"; showErr("Network hiccup — try again."); });
   });
 
   // init
