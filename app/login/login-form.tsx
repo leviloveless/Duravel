@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { signIn, signUp, type AuthState } from "./actions";
 
@@ -73,6 +74,12 @@ export default function LoginForm({ checkEmail }: { checkEmail: boolean }) {
             </button>
           </div>
         </label>
+
+        {mode === "signin" && (
+          <Link href="/forgot-password" className="self-start text-sm text-zinc-500 underline">
+            Forgot password?
+          </Link>
+        )}
 
         {mode === "signup" && (
           <label className="flex flex-col gap-1 text-sm">
