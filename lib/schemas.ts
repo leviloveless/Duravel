@@ -14,6 +14,24 @@ export const RacePriority = z.enum(["A", "B", "C"]);
 export const ProgramType = z.enum(["goal_event", "fixed_duration", "general_fitness"]);
 export const TrainingDay = z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
+/**
+ * Target sport for the program (multi-sport expansion). Defaults to "hyrox"
+ * for backward compatibility — existing programs and inputs omit it. The engine
+ * resolves a SportConfig from this id (see lib/engine/sports).
+ */
+export const Sport = z.enum([
+  "hyrox",
+  "deka_fit",
+  "deka_mile",
+  "deka_strong",
+  "deka_atlas",
+  "deka_ultra",
+  "tri_70_3",
+  "tri_140_6",
+  "general_fitness",
+]);
+export type SportId = z.infer<typeof Sport>;
+
 // Time/benchmark strings are short ("mm:ss" / "h:mm:ss"). Cap them so a large
 // value can't inflate prompt token cost or become a prompt-injection payload —
 // several of these are embedded verbatim into the generation prompt.
@@ -104,6 +122,8 @@ export const RaceSchema = z.object({
 export const GenerationInputSchema = z.object({
   profile: ProfileSchema,
   programType: ProgramType,
+  /** Target sport (multi-sport expansion). Omitted → HYROX. */
+  sport: Sport.optional(),
   durationWeeks: z.number().int().min(4).max(24).optional(),
   races: z.array(RaceSchema).optional(),
   /** Optional overrides for the engine's experience-derived starting volume. */

@@ -202,6 +202,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     .filter((r, idx, arr) => arr.findIndex((x) => x.weekNumber === r.weekNumber) === idx);
 
   return {
+    sport: input.sport ?? "hyrox",
     trainingClass: input.profile.trainingClass,
     age: input.profile.age,
     runningExp: input.profile.runningExp,

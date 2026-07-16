@@ -44,7 +44,7 @@ const GOAL_ZONE: Record<RunType, number> = {
 const EXP_INDEX: Record<ExperienceLevel, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 
 /** Base run counts per phase, indexed by running experience [beg, int, adv]. */
-const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
+export const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
   base: [3, 4, 5],
   build: [4, 5, 6],
   peak: [3, 4, 4],
@@ -52,7 +52,7 @@ const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
 };
 
 /** Hybrid session counts per phase (ramps toward race). */
-const HYBRID_COUNT: Record<PhaseName, number> = {
+export const HYBRID_COUNT: Record<PhaseName, number> = {
   base: 1,
   build: 2,
   peak: 3,

@@ -20,6 +20,7 @@ import {
   RunType as RunTypeEnum,
 } from "@/lib/schemas";
 import type { NeedsAnalysis } from "./needs";
+import type { SportId } from "@/lib/schemas";
 
 // Engine string-union types are DERIVED from the canonical Zod enums (roadmap
 // #2.5) so the schema and the engine can never drift out of sync.
@@ -43,6 +44,8 @@ export interface EngineRace {
 }
 
 export interface EngineInput {
+  /** Target sport (multi-sport expansion). Omitted → HYROX. */
+  sport?: SportId;
   trainingClass: TrainingClassName;
   /** Athlete age — masters (≥ MASTERS_AGE) get more frequent deloads (Review #10). */
   age?: number;
