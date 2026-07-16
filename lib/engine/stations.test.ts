@@ -17,7 +17,7 @@ describe("stationPrescription — race loads, progressed volume", () => {
   it("uses exact race loads (fixed implements), not scaled weights", () => {
     for (const phase of ["base", "build", "peak", "taper"] as const) {
       const p = stationPrescription("sled push", phase, "open", "male")!;
-      expect(p.loadKg).toBe(STATIONS.sled_push.loadKg!.open.male); // 152 every phase
+      expect(p.loadKg).toBe(STATIONS.sled_push.loadKg!.open!.male); // 152 every phase
     }
     expect(stationPrescription("wall balls", "base", "open", "female")!.loadKg).toBe(4);
   });

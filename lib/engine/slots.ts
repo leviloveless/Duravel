@@ -70,6 +70,11 @@ export interface SessionCountTables {
   run: Record<PhaseName, [number, number, number]>; // indexed [beg, int, adv]
   hybrid: Record<PhaseName, number>;
   lift: Record<PhaseName, number>;
+  /** Minimum runs the deload/taper/bias floors may not drop below. HYROX (undefined)
+   *  keeps its 3 (deload/bias) / 2 (taper) floors; station-only DEKA sets 0. */
+  runFloor?: number;
+  /** "maintenance" forces every run to easy Z2 (station-only DEKA); default "full". */
+  runCharacter?: "maintenance" | "full";
 }
 
 export const DEFAULT_COUNTS: SessionCountTables = {
@@ -110,22 +115,25 @@ export function planWeek(
   // the spec bounds (runs 3–8, hybrids 0–3). This changes training FREQUENCY of
   // a quality, not weekly volume — the reconciler still hits the mileage/cardio
   // targets exactly.
+  // Run floor is sport-provided (station-only DEKA = 0); HYROX keeps 3 (deload/bias) / 2 (taper).
+  const runFloor = counts.runFloor ?? 3;
+  const runFloorTaper = counts.runFloor ?? 2;
   if (bias && (microWeek === "rebound" || microWeek === "increase")) {
-    runs = clampInt(runs + (bias.runCountDelta ?? 0), 3, 8);
-    hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, 3);
+    runs = clampInt(runs + (bias.runCountDelta ?? 0), runFloor, 8);
+    hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, Math.max(3, hybrids));
   }
 
   if (microWeek === "taper") {
     // Taper: cut frequency AND volume for race-week freshness.
-    runs = Math.max(2, Math.round(runs * 0.6));
+    runs = Math.max(runFloorTaper, Math.round(runs * 0.6));
     hybrids = Math.max(0, hybrids - 1);
     lifts = 2;
   } else if (microWeek === "deload") {
     // Deload (Review #9): preserve intensity + frequency touch-points and let the
     // −40% volume target (set at the microcycle level) do the load reduction by
-    // shortening each session, rather than dropping quality work. Keep ≥3 runs so
+    // shortening each session, rather than dropping quality work. Keep ≥runFloor runs so
     // the long run and a quality run both survive; keep one hybrid; trim lifts.
-    runs = Math.max(3, runs - 1);
+    runs = Math.max(runFloor, runs - 1);
     hybrids = Math.max(1, hybrids - 1);
     lifts = 2;
   }
@@ -184,8 +192,18 @@ export function buildRunSlots(
   count: number,
   pos?: PhasePosition,
   emphasis: RunEmphasis = "none",
+  character: "maintenance" | "full" = "full",
 ): RunSlot[] {
   if (count <= 0) return [];
+  // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
+  if (character === "maintenance") {
+    return Array.from({ length: count }, () => ({
+      kind: "run" as const,
+      runType: "easy" as const,
+      goalZone: GOAL_ZONE.easy,
+      isLong: false,
+    }));
+  }
   const types: RunType[] = ["long"]; // long run anchors every week
   const fillers = applyRunEmphasis(runFillers(phase, pos), emphasis);
   // safe: runFillers always returns a non-empty array, so i % fillers.length is in-bounds
@@ -238,7 +256,12 @@ function buildHybridSlots(count: number, simulateFirst = false): SessionSlot[] {
  * C races are NOT routed here: they train through as a normal week, with the
  * race simply replacing the race-day session.
  */
-function raceWeekSlots(priority: RacePriorityName): SessionSlot[] {
+function raceWeekSlots(priority: RacePriorityName, maintenance = false): SessionSlot[] {
+  if (maintenance) {
+    // Station-only sport (DEKA Strong/Atlas): a short easy shakeout before the
+    // race — no interval opener or lift, which assume a running race.
+    return [{ kind: "run", runType: "easy", goalZone: GOAL_ZONE.easy, isLong: false }];
+  }
   if (priority === "A") {
     return [
       { kind: "run", runType: "easy", goalZone: GOAL_ZONE.easy },
@@ -398,12 +421,12 @@ export function assignDays(
   // the normal plan below and just has the race overlaid on the race day.
   let ordered: SessionSlot[];
   if (race && microWeek === "race") {
-    ordered = raceWeekSlots(race.priority);
+    ordered = raceWeekSlots(race.priority, counts.runCharacter === "maintenance");
   } else {
     const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
-    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none");
+    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none", counts.runCharacter ?? "full");
     const lifts = buildLiftSlots(plan.lifts);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
     const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");

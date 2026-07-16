@@ -40,6 +40,9 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
     run: (cfg.sessionCounts.run as SessionCountTables["run"] | undefined) ?? DEFAULT_COUNTS.run,
     hybrid: (cfg.sessionCounts.hybrid as SessionCountTables["hybrid"] | undefined) ?? DEFAULT_COUNTS.hybrid,
     lift: (cfg.sessionCounts.lift as SessionCountTables["lift"] | undefined) ?? DEFAULT_COUNTS.lift,
+    // Station-only sports (totalRaceRunMeters 0) floor runs to 0 and keep them easy.
+    runFloor: cfg.runFloor ?? (cfg.totalRaceRunMeters === 0 ? 0 : undefined),
+    runCharacter: cfg.totalRaceRunMeters === 0 ? "maintenance" : "full",
   };
   const alloc = allocateMesocycles(input);
   const phases = expandPhases(alloc, D);
