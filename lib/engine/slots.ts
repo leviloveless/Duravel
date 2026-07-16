@@ -61,6 +61,23 @@ export const HYBRID_COUNT: Record<PhaseName, number> = {
 
 const LIFT_SPLIT: Array<"upper" | "lower" | "full"> = ["full", "upper", "lower"];
 
+/**
+ * Sport-provided per-phase session counts (P0 rewire). The engine reads these
+ * from the resolved SportConfig; when omitted it falls back to the HYROX tables
+ * so existing callers (and HYROX) are byte-identical.
+ */
+export interface SessionCountTables {
+  run: Record<PhaseName, [number, number, number]>; // indexed [beg, int, adv]
+  hybrid: Record<PhaseName, number>;
+  lift: Record<PhaseName, number>;
+}
+
+export const DEFAULT_COUNTS: SessionCountTables = {
+  run: RUN_COUNT,
+  hybrid: HYBRID_COUNT,
+  lift: { base: 3, build: 3, peak: 3, taper: 2 },
+};
+
 export interface SlotPlan {
   runs: number;
   lifts: number;
@@ -74,15 +91,16 @@ export function planWeek(
   runningExp: ExperienceLevel,
   hybridExp: ExperienceLevel,
   bias?: ProgramBias,
+  counts: SessionCountTables = DEFAULT_COUNTS,
 ): SlotPlan {
   if (microWeek === "race") {
     return { runs: 1, lifts: 0, hybrids: 0 }; // shakeout only; race is added separately
   }
 
   const ei = EXP_INDEX[runningExp];
-  let runs = RUN_COUNT[phase][ei]!; // safe: ei is 0|1|2, and every RUN_COUNT tuple has 3 entries
-  let hybrids = HYBRID_COUNT[phase];
-  let lifts = 3;
+  let runs = counts.run[phase][ei]!; // safe: ei is 0|1|2, and every run tuple has 3 entries
+  let hybrids = counts.hybrid[phase];
+  let lifts = counts.lift[phase];
 
   // Hybrid-inexperienced athletes get more HYROX-specific work earlier (§4c).
   if (hybridExp === "beginner" && phase === "base") hybrids += 1;
@@ -373,6 +391,7 @@ export function assignDays(
   prefs?: DayPreferences,
   pos?: PhasePosition,
   bias?: ProgramBias,
+  counts: SessionCountTables = DEFAULT_COUNTS,
 ): DaySlot[] {
   // An A/B race week (microWeek "race") uses the reduced taper sessions; a C
   // race keeps its normal microcycle label and trains through, so it falls to
@@ -381,7 +400,7 @@ export function assignDays(
   if (race && microWeek === "race") {
     ordered = raceWeekSlots(race.priority);
   } else {
-    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias);
+    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
     const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none");

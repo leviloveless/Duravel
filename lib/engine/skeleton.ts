@@ -21,8 +21,9 @@ import type {
 import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
-import { assignDays } from "./slots";
-import { PEAK_VOLUME_FACTOR, PHASE_ZONE_TARGETS, startingCardioMinutes, startingMileage } from "./volume";
+import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
+import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
+import { getSport } from "./sports";
 import { analyzeNeeds } from "./needs";
 import { clamp, round1 } from "./math";
 
@@ -31,13 +32,26 @@ import { clamp, round1 } from "./math";
  */
 export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const D = input.durationWeeks;
+  // Resolve the sport config (P0 rewire). For HYROX these values are the same
+  // references as the module constants, so output is byte-identical; a different
+  // sport supplies different counts / zone targets / starting volume.
+  const cfg = getSport(input.sport);
+  const counts: SessionCountTables = {
+    run: (cfg.sessionCounts.run as SessionCountTables["run"] | undefined) ?? DEFAULT_COUNTS.run,
+    hybrid: (cfg.sessionCounts.hybrid as SessionCountTables["hybrid"] | undefined) ?? DEFAULT_COUNTS.hybrid,
+    lift: (cfg.sessionCounts.lift as SessionCountTables["lift"] | undefined) ?? DEFAULT_COUNTS.lift,
+  };
   const alloc = allocateMesocycles(input);
   const phases = expandPhases(alloc, D);
   const nonTaperWeeks = alloc.base + alloc.build + alloc.peak;
 
   // 1. Continuous microcycle progression across the non-taper weeks.
   //    User-supplied starting volume overrides the experience-derived defaults.
-  const startMi = input.startMileage ?? startingMileage(input.runningExp);
+  const startMi =
+    input.startMileage ??
+    (cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.runningExp]
+      : startingMileage(input.runningExp));
   const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
   const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa, input.age);
 
@@ -110,7 +124,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
       microWeek,
       targetMileage: tapered.mileage[i]!,
       targetCardioMinutes: tapered.cardioMinutes[i]!,
-      zoneTargets: { ...PHASE_ZONE_TARGETS[phase] },
+      zoneTargets: { ...cfg.phaseZoneTargets[phase] },
       days: assignDays(
         input.trainingDays,
         phase,
@@ -126,6 +140,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
         },
         pos,
         input.needs?.bias,
+        counts,
       ),
       raceDay: race ? { priority: race.priority, date: race.date } : undefined,
     });

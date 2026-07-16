@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SPORTS, getSport, hyrox } from "./index";
 import { STATIONS, RACE_STATION_ORDER } from "../stations";
-import { RUN_COUNT, HYBRID_COUNT } from "../slots";
+import { RUN_COUNT, HYBRID_COUNT, planWeek, DEFAULT_COUNTS } from "../slots";
 import { PHASE_ZONE_TARGETS, STARTING_MILEAGE, AVG_MIN_PER_MILE } from "../volume";
 import { HYBRID_LIBRARY } from "@/lib/ai/philosophy";
 
@@ -34,5 +34,18 @@ describe("sport registry (P0)", () => {
     expect(hyrox.totalRaceRunMeters).toBe(8000);
     expect(hyrox.experienceAxes.map((a): string => a.key)).toEqual(["running", "hybrid", "lifting"]);
     expect(hyrox.programType).toBe("race_peaking");
+  });
+
+  it("session counts are injectable — the rewire is live, not cosmetic", () => {
+    const custom = {
+      ...DEFAULT_COUNTS,
+      run: { base: [1, 1, 1], build: [1, 1, 1], peak: [1, 1, 1], taper: [1, 1, 1] } as typeof DEFAULT_COUNTS.run,
+      hybrid: { base: 5, build: 5, peak: 5, taper: 5 },
+    };
+    const def = planWeek("build", "increase", "intermediate", "intermediate");
+    const inj = planWeek("build", "increase", "intermediate", "intermediate", undefined, custom);
+    expect(inj.runs).toBe(1); // custom run table respected
+    expect(inj.hybrids).toBe(5); // custom hybrid table respected
+    expect(def.runs).not.toBe(inj.runs); // default differs → injection is real
   });
 });
