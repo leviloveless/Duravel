@@ -26,7 +26,7 @@ import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./vo
 import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
 import { getSport, type SportConfig } from "./sports";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
-import { analyzeNeeds } from "./needs";
+import { analyzeNeedsForSport } from "./needs-atlas";
 import { clamp, round1 } from "./math";
 
 /**
@@ -346,7 +346,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     restDays: input.profile.dayPreferences?.restDays,
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,
-    needs: analyzeNeeds(input.profile, {
+    needs: analyzeNeedsForSport(input.profile, input.sport, {
       ergStations: sportCfg.needsStations?.erg,
       strengthStations: sportCfg.needsStations?.strength,
     }),

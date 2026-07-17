@@ -59,6 +59,10 @@ export interface NeedsProfile {
     ski2kTime?: string;
     row2kTime?: string;
     bike20MinCals?: number;
+    /** DEKA ATLAS: max unbroken DB shoulder-to-overhead reps (press endurance). */
+    ohpEnduranceReps?: number;
+    /** DEKA ATLAS: benchmark glycolytic couplet time, "mm:ss" (glycolytic capacity). */
+    glycolyticTestSec?: string;
   };
 }
 
@@ -86,12 +90,14 @@ export interface ProgramBias {
 }
 
 export interface NeedsAnalysis {
-  /** 0–100 capability per scored domain (higher = stronger); null = no data. */
-  domainScores: Record<NeedsDomain, number | null>;
+  /** 0–100 capability per scored domain (higher = stronger); null = no data.
+   *  Keyed by string so sport-specific analyses (e.g. Atlas) can carry their own
+   *  domains; the HYROX/DEKA path still emits exactly run/erg/strength. */
+  domainScores: Record<string, number | null>;
   /** Durability across the speed–duration curve (Riegel deviation), or null. */
   durability: Durability;
   /** Weakest 1–2 scored domains, lowest first. Empty when info is insufficient. */
-  limiters: NeedsDomain[];
+  limiters: string[];
   /** Whether the analysis had enough data to bias the program at all. */
   informative: boolean;
   bias: ProgramBias;
@@ -116,17 +122,17 @@ const LIMITER_GAP = 10;
 // --- scoring primitives -----------------------------------------------------
 
 /** Score a metric where LOWER is better (race/erg times). best→100, worst→0. */
-function scoreLowerBetter(value: number, best: number, worst: number): number {
+export function scoreLowerBetter(value: number, best: number, worst: number): number {
   return clamp((100 * (worst - value)) / (worst - best), 0, 100);
 }
 
 /** Score a metric where HIGHER is better (calories, relative strength). */
-function scoreHigherBetter(value: number, worst: number, best: number): number {
+export function scoreHigherBetter(value: number, worst: number, best: number): number {
   return clamp((100 * (value - worst)) / (best - worst), 0, 100);
 }
 
 /** Weighted mean of the present (non-null) entries, or null if none present. */
-function weightedMean(entries: Array<{ score: number | null; weight: number }>): number | null {
+export function weightedMean(entries: Array<{ score: number | null; weight: number }>): number | null {
   let sum = 0;
   let wsum = 0;
   for (const e of entries) {
@@ -145,8 +151,8 @@ function weightedMean(entries: Array<{ score: number | null; weight: number }>):
  * strength across the board). Scoring each domain against sex norms keeps the
  * relative comparison — the actual job — fair. Male values are unchanged.
  */
-type SexKey = "male" | "female";
-function sexKey(sex?: string): SexKey {
+export type SexKey = "male" | "female";
+export function sexKey(sex?: string): SexKey {
   return sex === "female" ? "female" : "male";
 }
 
@@ -203,7 +209,7 @@ function scoreErgEngine(b: NeedsProfile["benchmarks"], sex: SexKey): number | nu
 
 /** Relative maximal strength from 5RM squat / deadlift / bench ÷ body weight.
  *  Squat + deadlift (leg drive / posterior chain for the sled) weighted highest. */
-function scoreStrength(p: NeedsProfile, sex: SexKey): number | null {
+export function scoreStrength(p: NeedsProfile, sex: SexKey): number | null {
   const b = p.benchmarks;
   if (!b || !(p.bodyWeight > 0)) return null;
   const a = STR_ANCHORS[sex];
@@ -255,9 +261,9 @@ function scoreDurability(b: NeedsProfile["benchmarks"]): Durability {
 
 // --- limiter detection + bias ----------------------------------------------
 
-function detectLimiters(scores: Record<NeedsDomain, number | null>): NeedsDomain[] {
-  const present = (Object.entries(scores) as Array<[NeedsDomain, number | null]>).filter(
-    (e): e is [NeedsDomain, number] => e[1] !== null,
+export function detectLimiters(scores: Record<string, number | null>): string[] {
+  const present = Object.entries(scores).filter(
+    (e): e is [string, number] => e[1] !== null,
   );
   if (present.length < 2) return []; // not enough to compare ⇒ no limiter claim
   const mean = present.reduce((a, [, s]) => a + s, 0) / present.length;
@@ -275,8 +281,8 @@ export interface NeedsOptions {
 }
 
 function stationEmphasisFor(
-  limiters: NeedsDomain[],
-  scores: Record<NeedsDomain, number | null>,
+  limiters: string[],
+  scores: Record<string, number | null>,
   ergStations: readonly string[],
   strengthStations: readonly string[],
 ): string[] {
@@ -378,14 +384,14 @@ export function analyzeNeeds(profile: NeedsProfile, opts?: NeedsOptions): NeedsA
   };
 }
 
-function buildSummary(limiters: NeedsDomain[], durability: Durability): string {
+function buildSummary(limiters: string[], durability: Durability): string {
   if (limiters.length === 0 && durability === "low") {
     return "Endurance fades over distance — emphasizing aerobic base.";
   }
   if (limiters.length === 0 && durability === "high") {
     return "Strong endurance over distance — room for more threshold work.";
   }
-  const names = limiters.map((d) => DOMAIN_LABEL[d]).join(" and ");
+  const names = limiters.map((d) => DOMAIN_LABEL[d as NeedsDomain] ?? d).join(" and ");
   const dur =
     durability === "low" ? " Endurance also fades over distance (aerobic emphasis)." : "";
   return `Primary limiter${limiters.length > 1 ? "s" : ""}: ${names}. Program biased to address ${limiters.length > 1 ? "these" : "this"}.${dur}`;

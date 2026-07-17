@@ -55,6 +55,10 @@ export const BenchmarksSchema = z.object({
   cssPace: z.string().max(TIME_STRING_MAX).optional(),
   /** Triathlon bike anchor: FTP (functional threshold power) in watts. */
   ftpWatts: z.number().positive().max(600).optional(),
+  /** DEKA ATLAS anchor: max unbroken strict DB shoulder-to-overhead reps at Rx load. */
+  ohpEnduranceReps: z.number().int().positive().max(200).optional(),
+  /** DEKA ATLAS anchor: benchmark glycolytic couplet time (21-15-9), "mm:ss". */
+  glycolyticTestSec: z.string().max(TIME_STRING_MAX).optional(),
 });
 
 /**

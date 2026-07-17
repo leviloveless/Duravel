@@ -170,6 +170,7 @@ export default function OnboardingForm({
   const sportBlurb = SPORT_OPTIONS.find((s) => s.value === sport)?.blurb ?? "";
   const isGeneralFitness = sport === "general_fitness";
   const isDeka = sport.startsWith("deka_");
+  const isAtlas = sport === "deka_atlas";
   const isTriathlon = sport === "tri_70_3" || sport === "tri_140_6";
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
@@ -779,6 +780,39 @@ export default function OnboardingForm({
             </label>
           ))}
         </div>
+
+        {isAtlas && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-500">
+              <span className="font-medium text-zinc-700">ATLAS anchors</span> — overhead-pressing endurance
+              and a glycolytic test let us find your limiter (absolute strength comes from your barbell lifts
+              above) and bias the program toward it.
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <label className="flex flex-col gap-1">
+                Max unbroken DB shoulder-to-overhead reps @ Rx
+                <input
+                  name="ohpEnduranceReps"
+                  type="number"
+                  step="1"
+                  placeholder="e.g. 22"
+                  defaultValue={initial?.benchmarks?.ohpEnduranceReps ?? ""}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                Glycolytic test — 21-15-9 thrusters &amp; burpees (mm:ss)
+                <input
+                  name="glycolyticTestSec"
+                  type="text"
+                  placeholder="e.g. 3:10"
+                  defaultValue={initial?.benchmarks?.glycolyticTestSec ?? ""}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+          </div>
+        )}
 
         {isTriathlon && (
           <div className="flex flex-col gap-3">

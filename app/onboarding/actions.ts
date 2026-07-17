@@ -53,6 +53,8 @@ function parseGenerationInput(
     bike20MinCals: num(formData, "bike20MinCals"),
     cssPace: str(formData, "cssPace"),
     ftpWatts: num(formData, "ftpWatts"),
+    ohpEnduranceReps: num(formData, "ohpEnduranceReps"),
+    glycolyticTestSec: str(formData, "glycolyticTestSec"),
   };
   const hasBenchmark = Object.values(benchmarksRaw).some((v) => v !== undefined);
   const benchmarks = hasBenchmark ? benchmarksRaw : undefined;

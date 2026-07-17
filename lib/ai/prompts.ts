@@ -11,7 +11,7 @@
 import type { GenerationInput } from "@/lib/schemas";
 import type { PhaseName, WeekSkeleton } from "@/lib/engine/types";
 import { getSport, type SportConfig } from "@/lib/engine/sports";
-import { analyzeNeeds } from "@/lib/engine/needs";
+import { analyzeNeedsForSport } from "@/lib/engine/needs-atlas";
 import { resolveHrModel } from "@/lib/zones";
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — respond with a single JSON object and nothing else (no prose, no markdown fences):
@@ -161,7 +161,7 @@ export function buildUserPrompt(
   // Review #1: bias the station library toward the athlete's limiter. Stations
   // the needs analysis prioritizes (and that exist in this mesocycle's library)
   // are listed first; the AI still fills the same 4-run/4-event structure.
-  const needs = analyzeNeeds(input.profile, {
+  const needs = analyzeNeedsForSport(input.profile, cfg.id, {
     ergStations: cfg.needsStations?.erg,
     strengthStations: cfg.needsStations?.strength,
   });
