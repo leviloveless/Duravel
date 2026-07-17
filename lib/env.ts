@@ -40,6 +40,15 @@ const EnvSchema = z.object({
   STRAVA_CLIENT_SECRET: z.string().optional(),
   GARMIN_CLIENT_ID: z.string().optional(),
   GARMIN_CLIENT_SECRET: z.string().optional(),
+  // --- Lifecycle email (Resend). All optional so the app boots before email is
+  //     configured; sendEmail() no-ops while EMAIL_ENABLED is unset. ---
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  EMAIL_REPLY_TO: z.string().optional(),
+  EMAIL_ENABLED: z.string().optional(),
+  EMAIL_UNSUB_SECRET: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 });
 
 const parsed = EnvSchema.safeParse({
@@ -59,6 +68,14 @@ const parsed = EnvSchema.safeParse({
   STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET,
   GARMIN_CLIENT_ID: process.env.GARMIN_CLIENT_ID,
   GARMIN_CLIENT_SECRET: process.env.GARMIN_CLIENT_SECRET,
+
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+  EMAIL_FROM: process.env.EMAIL_FROM,
+  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
+  EMAIL_ENABLED: process.env.EMAIL_ENABLED,
+  EMAIL_UNSUB_SECRET: process.env.EMAIL_UNSUB_SECRET,
+  CRON_SECRET: process.env.CRON_SECRET,
 });
 
 if (!parsed.success) {

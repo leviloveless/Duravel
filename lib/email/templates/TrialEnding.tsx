@@ -17,7 +17,7 @@ import {
 const PREVIEW: Record<TrialEndingStage, string> = {
   'T-3': 'Your plan — and your logged progress — stays with you.',
   'T-1': 'Two clicks to keep your plan adapting.',
-  'T-0': 'Last call. Lock in $149/yr before it pauses.',
+  'T-0': 'Last call. Lock in $159.99/yr before it pauses.',
 };
 
 const FOOTNOTE =
@@ -93,7 +93,7 @@ function BodyT3({
           : 'The part most apps can’t give you is that your plan isn’t static — it adapts to you week to week. Walk away now and it pauses.'}
       </Text>
       <Text style={paragraphLast}>
-        Keep it going for <b>$19.99/mo</b> or <b>$149/yr</b>. Cancel anytime, in two clicks.
+        Keep it going for <b>$19.99/mo</b> or <b>$159.99/yr</b>. Cancel anytime, in two clicks.
       </Text>
 
       <Button href={subscribeUrl} style={button}>
@@ -127,8 +127,8 @@ function BodyT1({ firstName, sessionsLogged, subscribeUrl }: TrialEndingProps) {
         )}
       </Text>
       <Text style={paragraphLast}>
-        Keep everything running for <b>$19.99/mo</b> (or <b>$149/yr</b> &mdash; two months free). Two
-        clicks, cancel anytime.
+        Keep everything running for <b>$19.99/mo</b> (or <b>$159.99/yr</b> &mdash; about four months
+        free). Two clicks, cancel anytime.
       </Text>
 
       <Button href={subscribeUrl} style={button}>
@@ -153,13 +153,13 @@ function BodyT0({ firstName, subscribeUrl, annualUrl }: TrialEndingProps) {
 
       <Section style={quote}>
         <Text style={quoteText}>
-          <b>Go annual and save.</b> $149/yr works out to about <b>$12.42/mo</b> &mdash; roughly two
-          months free versus monthly. Best value if you&rsquo;re training toward a race this year.
+          <b>Go annual and save.</b> $159.99/yr works out to about <b>$13.33/mo</b> &mdash; roughly
+          four months free versus monthly. Best value if you&rsquo;re training toward a race this year.
         </Text>
       </Section>
 
       <Button href={annualUrl} style={button}>
-        Keep my plan &mdash; $149/yr &rarr;
+        Keep my plan &mdash; $159.99/yr &rarr;
       </Button>
       <Text style={{ ...paragraph, fontSize: '13px', margin: '12px 0 0' }}>
         Prefer monthly?{' '}
