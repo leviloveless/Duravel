@@ -108,7 +108,8 @@ export function planWeek(
   let lifts = counts.lift[phase];
 
   // Hybrid-inexperienced athletes get more HYROX-specific work earlier (§4c).
-  if (hybridExp === "beginner" && phase === "base") hybrids += 1;
+  // Only when the sport actually schedules hybrids (skip for general fitness).
+  if (hybridExp === "beginner" && phase === "base" && hybrids > 0) hybrids += 1;
 
   // Review #1: needs-analysis frequency nudges. Applied only on normal loading
   // weeks (never deload/taper/race) so recovery is untouched, then clamped to
@@ -134,7 +135,7 @@ export function planWeek(
     // shortening each session, rather than dropping quality work. Keep ≥runFloor runs so
     // the long run and a quality run both survive; keep one hybrid; trim lifts.
     runs = Math.max(runFloor, runs - 1);
-    hybrids = Math.max(1, hybrids - 1);
+    hybrids = hybrids > 0 ? Math.max(1, hybrids - 1) : 0; // never resurrect a hybrid for a no-hybrid sport
     lifts = 2;
   }
 

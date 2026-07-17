@@ -47,6 +47,7 @@ const SPORT_LABEL: Record<string, string> = {
   deka_strong: "DEKA STRONG",
   deka_atlas: "DEKA ATLAS",
   deka_ultra: "DEKA ULTRA",
+  general_fitness: "General Fitness",
 };
 
 // A program still 'generating' this long after its last generation run started

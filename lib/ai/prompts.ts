@@ -177,8 +177,12 @@ export function buildUserPrompt(
     "",
     `MESOCYCLE: ${phase.toUpperCase()}`,
     cfg.philosophy.phaseCharacter?.[phase] ?? "",
-    `Hybrid station library for this mesocycle: ${library}.`,
   ];
+  // Station-hybrid sports list a station library; sports without stations (e.g.
+  // general fitness) skip it.
+  if (phaseLib.length > 0) {
+    parts.push(`Hybrid station library for this mesocycle: ${library}.`);
+  }
   if (needs.informative) {
     parts.push(`Athlete needs focus: ${needs.summary}`);
     if (prioritized.length) {

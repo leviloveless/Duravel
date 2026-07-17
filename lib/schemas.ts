@@ -32,6 +32,10 @@ export const Sport = z.enum([
 ]);
 export type SportId = z.infer<typeof Sport>;
 
+/** General-fitness sub-goal — biases the emphasis rotation (balanced default). */
+export const SubGoal = z.enum(["balanced", "recomp", "general_strength", "general_endurance"]);
+export type SubGoalKey = z.infer<typeof SubGoal>;
+
 // Time/benchmark strings are short ("mm:ss" / "h:mm:ss"). Cap them so a large
 // value can't inflate prompt token cost or become a prompt-injection payload —
 // several of these are embedded verbatim into the generation prompt.
@@ -124,6 +128,8 @@ export const GenerationInputSchema = z.object({
   programType: ProgramType,
   /** Target sport (multi-sport expansion). Omitted → HYROX. */
   sport: Sport.optional(),
+  /** General-fitness sub-goal. Omitted → balanced. */
+  subGoal: SubGoal.optional(),
   durationWeeks: z.number().int().min(4).max(24).optional(),
   races: z.array(RaceSchema).optional(),
   /** Optional overrides for the engine's experience-derived starting volume. */

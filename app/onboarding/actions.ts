@@ -91,7 +91,11 @@ function parseGenerationInput(
       : undefined;
 
   // --- Program type + conditional race / duration inputs ---
-  const programType = formData.get("programType");
+  // The general-fitness sport has no race: force a non-race program type and drop
+  // any races so the engine's rotating-emphasis macro-arc is used.
+  const sportVal = str(formData, "sport");
+  const isGenFit = sportVal === "general_fitness";
+  const programType = isGenFit ? "general_fitness" : formData.get("programType");
   const raceCount = num(formData, "race_count") ?? 0;
   const races: { raceDate: string; priority: "A" | "B" | "C" }[] = [];
   for (let i = 0; i < raceCount; i++) {
@@ -124,10 +128,11 @@ function parseGenerationInput(
       hrZones,
       dayPreferences,
     },
-    sport: str(formData, "sport"),
+    sport: sportVal,
+    subGoal: isGenFit ? (str(formData, "subGoal") ?? "balanced") : undefined,
     programType,
     durationWeeks,
-    races: races.length > 0 ? races : undefined,
+    races: isGenFit ? undefined : races.length > 0 ? races : undefined,
     startMileage: num(formData, "startMileage"),
     startCardioMinutes: num(formData, "startCardioMinutes"),
     startDate: str(formData, "startDate"),

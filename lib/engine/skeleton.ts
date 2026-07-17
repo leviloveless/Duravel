@@ -15,6 +15,7 @@ import type {
   EngineInput,
   EngineRace,
   MicroWeekType,
+  PhaseName,
   ProgramSkeleton,
   WeekSkeleton,
 } from "./types";
@@ -23,7 +24,7 @@ import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
 import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
-import { getSport } from "./sports";
+import { getSport, type SportConfig } from "./sports";
 import { analyzeNeeds } from "./needs";
 import { clamp, round1 } from "./math";
 
@@ -44,6 +45,13 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
     runFloor: cfg.runFloor ?? (cfg.totalRaceRunMeters === 0 ? 0 : undefined),
     runCharacter: cfg.totalRaceRunMeters === 0 ? "maintenance" : "full",
   };
+
+  // General fitness has no race to peak toward: a rotating-emphasis macro-arc
+  // (strength → aerobic → mixed) with no taper, instead of Base/Build/Peak/Taper.
+  if (cfg.programType === "general_fitness") {
+    return buildRotationSkeleton(input, cfg, counts);
+  }
+
   const alloc = allocateMesocycles(input);
   const phases = expandPhases(alloc, D);
   const nonTaperWeeks = alloc.base + alloc.build + alloc.peak;
@@ -176,6 +184,87 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
   }
 }
 
+// --- General-fitness rotating-emphasis macro-arc (no race, no taper) ---
+
+/** Emphasis block → synthetic phase, so strength schemes + zone targets + run-type
+ *  selection all reuse the existing phase machinery unchanged. */
+const EMPHASIS_PHASE: Record<string, PhaseName> = { aerobic: "base", mixed: "build", strength: "peak" };
+
+/** Sub-goal → the block rotation. Balanced cycles evenly; the others weight the loop. */
+const SUBGOAL_ROTATION: Record<string, string[]> = {
+  balanced: ["aerobic", "strength", "mixed"],
+  recomp: ["strength", "aerobic", "mixed"],
+  general_strength: ["strength", "mixed", "aerobic", "strength"],
+  general_endurance: ["aerobic", "mixed", "aerobic", "strength"],
+};
+
+const BLOCK_WEEKS = 4;
+
+/**
+ * Build a general-fitness skeleton: repeating ~4-week emphasis blocks
+ * (strength/aerobic/mixed) instead of Base→Build→Peak→Taper. Microcycles run
+ * continuously across all weeks (rising baseline), there is no taper, and each
+ * week carries its `emphasis` for the UI/AI. The sub-goal chooses the rotation.
+ */
+function buildRotationSkeleton(input: EngineInput, cfg: SportConfig, counts: SessionCountTables): ProgramSkeleton {
+  const D = input.durationWeeks;
+  const startMi =
+    input.startMileage ??
+    (cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.runningExp]
+      : startingMileage(input.runningExp));
+  const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
+  // Continuous progression across ALL weeks (no taper carve-out) → rising baseline.
+  const seq = sequenceMicrocycles(D, input.trainingClass, startMi, startCa, input.age);
+
+  const rotation = SUBGOAL_ROTATION[input.subGoal ?? "balanced"] ?? SUBGOAL_ROTATION.balanced!;
+
+  const weeks: WeekSkeleton[] = [];
+  for (let i = 0; i < D; i++) {
+    const blockIdx = Math.floor(i / BLOCK_WEEKS);
+    const emphasis = rotation[blockIdx % rotation.length]!;
+    const phase = EMPHASIS_PHASE[emphasis]!;
+    const microWeek = seq.labels[i]!;
+    const posIndex = i % BLOCK_WEEKS;
+    const posLen = Math.min(BLOCK_WEEKS, D - blockIdx * BLOCK_WEEKS);
+    // Strength-emphasis blocks (mapped to "peak") carry slightly less cardio volume.
+    const peakFactor = phase === "peak" ? PEAK_VOLUME_FACTOR : 1;
+
+    weeks.push({
+      weekNumber: i + 1,
+      phase,
+      microWeek,
+      targetMileage: round1(seq.mileage[i]! * peakFactor),
+      targetCardioMinutes: Math.round(seq.cardioMinutes[i]! * peakFactor),
+      zoneTargets: { ...cfg.phaseZoneTargets[phase] },
+      days: assignDays(
+        input.trainingDays,
+        phase,
+        microWeek,
+        input.runningExp,
+        input.hybridExp,
+        undefined, // no race
+        {
+          longRunDay: input.longRunDay,
+          restDays: input.restDays,
+          liftDays: input.liftDays,
+          hybridDays: input.hybridDays,
+        },
+        { index: posIndex, length: posLen },
+        input.needs?.bias,
+        counts,
+      ),
+      emphasis,
+    });
+  }
+
+  // Allocation is informational for general fitness — report block-phase counts.
+  const alloc = { base: 0, build: 0, peak: 0, taper: 0 };
+  for (const w of weeks) alloc[w.phase] += 1;
+
+  return { durationWeeks: D, trainingClass: input.trainingClass, allocation: alloc, weeks, needs: input.needs };
+}
+
 // --- Adapter: GenerationInput (spec section 2 shape) -> EngineInput (week-space) ---
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -222,6 +311,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
 
   return {
     sport: input.sport ?? "hyrox",
+    subGoal: input.subGoal,
     trainingClass: input.profile.trainingClass,
     age: input.profile.age,
     runningExp: input.profile.runningExp,

@@ -62,6 +62,7 @@ const WeekSkeletonSchema = z.object({
   zoneTargets: ZoneDistributionSchema,
   days: z.array(DaySlotSchema),
   raceDay: z.object({ priority: RacePriority, date: z.string().optional() }).optional(),
+  emphasis: z.string().optional(),
 });
 
 export const ProgramSkeletonSchema = z.object({

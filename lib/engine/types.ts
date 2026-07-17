@@ -46,6 +46,8 @@ export interface EngineRace {
 export interface EngineInput {
   /** Target sport (multi-sport expansion). Omitted → HYROX. */
   sport?: SportId;
+  /** General-fitness sub-goal (biases the emphasis rotation). Omitted → balanced. */
+  subGoal?: string;
   trainingClass: TrainingClassName;
   /** Athlete age — masters (≥ MASTERS_AGE) get more frequent deloads (Review #10). */
   age?: number;
@@ -138,6 +140,8 @@ export interface WeekSkeleton {
   zoneTargets: ZoneDistribution;
   days: DaySlot[];
   raceDay?: { priority: RacePriorityName; date?: string };
+  /** General-fitness rotating emphasis for this week (strength|aerobic|mixed). */
+  emphasis?: string;
 }
 
 export interface ProgramSkeleton {

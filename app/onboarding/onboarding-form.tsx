@@ -108,6 +108,14 @@ const SPORT_OPTIONS = [
   { value: "deka_strong", label: "DEKA STRONG", blurb: "10 zones back-to-back, no running — strength-endurance" },
   { value: "deka_atlas", label: "DEKA ATLAS", blurb: "10 heavy barbell/DB zones, no running — strength-led" },
   { value: "deka_ultra", label: "DEKA ULTRA", blurb: "5× DEKA FIT — 25km + 50 zones (endurance)" },
+  { value: "general_fitness", label: "General Fitness", blurb: "No race — rotating strength + cardio blocks for all-round fitness" },
+] as const;
+
+const SUBGOAL_OPTIONS = [
+  { value: "balanced", label: "Balanced (default)" },
+  { value: "general_strength", label: "Build strength" },
+  { value: "general_endurance", label: "Build endurance" },
+  { value: "recomp", label: "Fat loss / recomposition" },
 ] as const;
 
 type ProgramType = "goal_event" | "fixed_duration" | "general_fitness";
@@ -121,6 +129,7 @@ const newRaceId = () => crypto.randomUUID();
  *  stored input snapshot. */
 export type EditInitial = {
   sport?: string;
+  subGoal?: string;
   programType: ProgramType;
   races: Race[];
   durationWeeks: number;
@@ -155,7 +164,9 @@ export default function OnboardingForm({
   const [step, setStep] = useState(0);
   const [stepError, setStepError] = useState<string | null>(null);
   const [sport, setSport] = useState<string>(initial?.sport ?? "hyrox");
+  const [subGoal, setSubGoal] = useState<string>(initial?.subGoal ?? "balanced");
   const sportBlurb = SPORT_OPTIONS.find((s) => s.value === sport)?.blurb ?? "";
+  const isGeneralFitness = sport === "general_fitness";
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
@@ -327,7 +338,12 @@ export default function OnboardingForm({
           <select
             name="sport"
             value={sport}
-            onChange={(e) => setSport(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSport(v);
+              // General fitness has no race; race sports default back to a goal event.
+              setProgramType(v === "general_fitness" ? "general_fitness" : "goal_event");
+            }}
             className={inputClass}
           >
             {SPORT_OPTIONS.map((s) => (
@@ -338,6 +354,19 @@ export default function OnboardingForm({
           </select>
           <span className="text-xs text-zinc-400">{sportBlurb}</span>
         </label>
+        {isGeneralFitness && (
+          <label className="flex flex-col gap-1 text-sm">
+            Primary goal
+            <select name="subGoal" value={subGoal} onChange={(e) => setSubGoal(e.target.value)} className={inputClass}>
+              {SUBGOAL_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-zinc-400">Biases the emphasis rotation; all-round fitness stays the base.</span>
+          </label>
+        )}
         <label className="flex flex-col gap-1 text-sm">
           First name
           <input name="firstName" defaultValue={profile?.first_name ?? ""} className={inputClass} />

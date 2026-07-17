@@ -72,6 +72,7 @@ export default async function EditProgramPage({
 
   const initial: EditInitial = {
     sport: snap.sport,
+    subGoal: snap.subGoal,
     programType: snap.programType,
     races: (snap.races ?? []).map((r) => ({ date: r.raceDate, priority: r.priority })),
     durationWeeks: snap.durationWeeks ?? program.duration_weeks,
