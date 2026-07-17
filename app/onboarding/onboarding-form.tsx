@@ -191,6 +191,8 @@ export default function OnboardingForm({
   const isDeka = sport.startsWith("deka_");
   const isAtlas = sport === "deka_atlas";
   const isTriathlon = sport === "tri_70_3" || sport === "tri_140_6";
+  // Only HYROX and DEKA Fit prescribe runs paced off a 5K, so only they require it.
+  const requiresFiveK = sport === "hyrox" || sport === "deka_fit";
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
@@ -564,19 +566,33 @@ export default function OnboardingForm({
         </fieldset>
       </fieldset>
 
-      {/* Step 2 — Experience */}
+      {/* Step 2 — Experience. The axes are tailored to the program: triathlon
+          asks swim + bike (not hybrid); every other sport asks hybrid. Required
+          fields that aren't shown for this sport get a hidden neutral default. */}
       <fieldset className={`flex flex-col gap-6 ${step === 1 ? "" : "hidden"}`}>
-        {(["running", "hybrid", "lifting"] as const).map((key) => {
+        {(isTriathlon
+          ? (["running", "swim", "bike", "lifting"] as const)
+          : (["running", "hybrid", "lifting"] as const)
+        ).map((key) => {
           const group = EXPERIENCE_DEFS[key];
           const fieldName = `${key}Exp`;
+          const fallback = key === "swim" || key === "bike" ? "intermediate" : "beginner";
           const current =
-            key === "running" ? profile?.running_exp : key === "hybrid" ? profile?.hybrid_exp : profile?.lifting_exp;
+            key === "running"
+              ? profile?.running_exp
+              : key === "hybrid"
+                ? profile?.hybrid_exp
+                : key === "lifting"
+                  ? profile?.lifting_exp
+                  : key === "swim"
+                    ? initial?.swimExp
+                    : initial?.bikeExp;
           return (
             <fieldset key={key} className="flex flex-col gap-2 text-sm">
               <legend className="mb-1 font-medium">{group.label}</legend>
               {group.options.map((opt) => (
                 <label key={opt.value} className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2">
-                  <input type="radio" name={fieldName} value={opt.value} defaultChecked={(current ?? "beginner") === opt.value} className="mt-1" />
+                  <input type="radio" name={fieldName} value={opt.value} defaultChecked={(current ?? fallback) === opt.value} className="mt-1" />
                   <span>
                     <span className="font-medium">{opt.label}</span>
                     <span className="block text-xs text-zinc-500">{opt.def}</span>
@@ -587,27 +603,9 @@ export default function OnboardingForm({
           );
         })}
 
-        {/* Triathlon adds explicit swim + bike experience — these directly set the
-            per-discipline volume tier (they override the CSS/FTP-derived guess). */}
-        {isTriathlon &&
-          (["swim", "bike"] as const).map((key) => {
-            const group = EXPERIENCE_DEFS[key];
-            const fieldName = `${key}Exp`;
-            return (
-              <fieldset key={key} className="flex flex-col gap-2 text-sm">
-                <legend className="mb-1 font-medium">{group.label}</legend>
-                {group.options.map((opt) => (
-                  <label key={opt.value} className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2">
-                    <input type="radio" name={fieldName} value={opt.value} defaultChecked={(initial?.[`${key}Exp`] ?? "intermediate") === opt.value} className="mt-1" />
-                    <span>
-                      <span className="font-medium">{opt.label}</span>
-                      <span className="block text-xs text-zinc-500">{opt.def}</span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            );
-          })}
+        {/* Hybrid experience isn't asked for triathlon, but the schema requires it —
+            submit a neutral default so validation passes and it stays inert. */}
+        {isTriathlon && <input type="hidden" name="hybridExp" value="intermediate" />}
 
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">Training classification</legend>
@@ -794,13 +792,21 @@ export default function OnboardingForm({
       {/* Step 4 — Benchmarks */}
       <fieldset className={`flex flex-col gap-5 ${step === 3 ? "" : "hidden"}`}>
         <p className="text-sm text-zinc-500">
-          Your <span className="font-medium text-zinc-700">5K time is required</span> — all run paces are calculated from it.
-          If you don&apos;t know it, enter your best guess. The rest are optional and help calibrate starting weights.
+          {requiresFiveK ? (
+            <>
+              Your <span className="font-medium text-zinc-700">5K time is required</span> — all run paces are calculated
+              from it. If you don&apos;t know it, enter your best guess.{" "}
+            </>
+          ) : (
+            <>All benchmarks are optional for this program. </>
+          )}
+          Add all benchmarks that you know. If you are unsure, you may add a best guess, but err on the side of
+          conservative estimates to begin the program.
         </p>
         <div className="grid grid-cols-2 gap-4 text-sm">
           {([
             ["mileTime", "1-mile time (mm:ss)", "text"],
-            ["fiveKTime", "5K time (mm:ss) — required", "text"],
+            ["fiveKTime", `5K time (mm:ss)${requiresFiveK ? " — required" : ""}`, "text"],
             ["tenKTime", "10K time (mm:ss)", "text"],
             ["ski2kTime", "2000m ski erg (mm:ss)", "text"],
             ["row2kTime", "2000m row erg (mm:ss)", "text"],
