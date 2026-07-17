@@ -3,7 +3,7 @@ import type { EngineInput } from "../types";
 import { buildSkeleton } from "../skeleton";
 import { ProgramDataSchema } from "@/lib/schemas";
 import { getSport } from "./index";
-import { tri_70_3, tri_140_6, buildTriProgramData } from "./triathlon";
+import { tri_70_3, tri_140_6, buildTriProgramData, swimLevelFromCss, bikeLevelFromFtp, triVolumeLevel } from "./triathlon";
 
 function triInput(sport: EngineInput["sport"], o: Partial<EngineInput> = {}): EngineInput {
   return {
@@ -82,6 +82,26 @@ describe("Triathlon", () => {
     const full = buildSkeleton(triInput("tri_140_6"));
     const peak = (s: typeof half) => Math.max(...s.weeks.map((w) => w.targetCardioMinutes));
     expect(peak(full)).toBeGreaterThan(peak(half));
+  });
+
+  it("derives swim level from CSS and bike level from FTP (W/kg, sex-specific)", () => {
+    expect(swimLevelFromCss("1:30")).toBe("advanced");
+    expect(swimLevelFromCss("1:50")).toBe("intermediate");
+    expect(swimLevelFromCss("2:10")).toBe("beginner");
+    expect(swimLevelFromCss(undefined)).toBeUndefined();
+    // 280W / 70kg = 4.0 W/kg → advanced (M); same absolute for a lighter female.
+    expect(bikeLevelFromFtp(280, 70, "male")).toBe("advanced");
+    expect(bikeLevelFromFtp(210, 70, "male")).toBe("intermediate"); // 3.0
+    expect(bikeLevelFromFtp(140, 70, "male")).toBe("beginner"); // 2.0
+    expect(bikeLevelFromFtp(200, 70, "female")).toBe("intermediate"); // 2.86, ≥2.4
+    expect(bikeLevelFromFtp(280, undefined, "male")).toBeUndefined();
+  });
+
+  it("blends the volume tier and a strong cyclist lifts it above run alone", () => {
+    const base = triInput("tri_70_3", { runningExp: "beginner" });
+    expect(triVolumeLevel(base)).toBe("beginner");
+    // beginner run + advanced swim + advanced bike → rounds up to intermediate.
+    expect(triVolumeLevel({ ...base, swimLevel: "advanced", bikeLevel: "advanced" })).toBe("intermediate");
   });
 
   it("assembles deterministic ProgramData (no AI) that passes the schema", () => {

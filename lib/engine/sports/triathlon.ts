@@ -16,6 +16,7 @@
  */
 import { allocateMesocycles, expandPhases } from "../mesocycles";
 import { microcyclePattern } from "../microcycles";
+import { parseTimeToSeconds } from "../paces";
 import type {
   EngineInput,
   MicroWeekType,
@@ -161,10 +162,54 @@ export const tri_140_6: SportConfig = {
 
 export const TRI_SPORTS = { tri_70_3, tri_140_6 };
 
+// --- per-discipline proficiency (from CSS / FTP anchors) --------------------
+
+type Level = "beginner" | "intermediate" | "advanced";
+
+/** Swim level from CSS pace per 100 m (SWIM_BANDS thresholds: 1:35 / 2:00). */
+export function swimLevelFromCss(cssPace: string | undefined): Level | undefined {
+  const s = cssPace ? parseTimeToSeconds(cssPace) : null;
+  if (s === null || s <= 0) return undefined;
+  if (s < 95) return "advanced"; // faster than 1:35/100m
+  if (s <= 120) return "intermediate"; // 1:35–2:00
+  return "beginner";
+}
+
+/** Bike level from FTP (W/kg), sex-specific (BIKE_BANDS thresholds). */
+export function bikeLevelFromFtp(
+  ftpWatts: number | undefined,
+  bodyKg: number | undefined,
+  sex: string | undefined,
+): Level | undefined {
+  if (!ftpWatts || ftpWatts <= 0 || !bodyKg || bodyKg <= 0) return undefined;
+  const wkg = ftpWatts / bodyKg;
+  const female = sex === "female";
+  const midLo = female ? 2.4 : 2.9;
+  const midHi = female ? 3.0 : 3.6;
+  if (wkg > midHi) return "advanced";
+  if (wkg >= midLo) return "intermediate";
+  return "beginner";
+}
+
 // --- deterministic triathlon skeleton builder -------------------------------
 
 const EXP_INDEX: Record<string, number> = { beginner: 0, intermediate: 1, advanced: 2 };
+const INDEX_EXP: Level[] = ["beginner", "intermediate", "advanced"];
 const A_TAPER = [0.8, 0.6]; // 2-week taper factors from peak
+
+/**
+ * Blended volume tier across the three disciplines. Each discipline defaults to
+ * the athlete's run level when its anchor (CSS / FTP) is missing, so an absent
+ * benchmark neither raises nor lowers the tier. The rounded average lets a
+ * strong cyclist or swimmer carry more volume than run experience alone implies.
+ */
+export function triVolumeLevel(input: EngineInput): Level {
+  const run = EXP_INDEX[input.runningExp] ?? 1;
+  const swim = input.swimLevel ? EXP_INDEX[input.swimLevel]! : run;
+  const bike = input.bikeLevel ? EXP_INDEX[input.bikeLevel]! : run;
+  const avg = Math.round((run + swim + bike) / 3);
+  return INDEX_EXP[Math.min(2, Math.max(0, avg))]!;
+}
 
 function n(table: PhaseCountTable | undefined, phase: PhaseName, idx: number): number {
   const v = table?.[phase];
@@ -238,7 +283,7 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
   const alloc = allocateMesocycles(input);
   const phases = expandPhases(alloc, D);
   const pattern = microcyclePattern(input.trainingClass, input.age);
-  const level = input.runningExp; // volume tier proxy (per-discipline levels: future work)
+  const level = triVolumeLevel(input); // blended swim/bike/run volume tier
   const idx = EXP_INDEX[level] ?? 1;
   const key = `${distanceKey(cfg.id)}:${level}`;
   const hours =

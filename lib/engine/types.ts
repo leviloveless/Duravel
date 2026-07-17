@@ -54,6 +54,10 @@ export interface EngineInput {
   runningExp: ExperienceLevel;
   hybridExp: ExperienceLevel;
   liftingExp: ExperienceLevel;
+  /** Triathlon swim proficiency, derived from CSS pace. Omitted → run level. */
+  swimLevel?: ExperienceLevel;
+  /** Triathlon bike proficiency, derived from FTP (W/kg). Omitted → run level. */
+  bikeLevel?: ExperienceLevel;
   programType: ProgramTypeName;
   durationWeeks: number; // 4–24
   trainingDays: TrainingDayName[]; // ≥3

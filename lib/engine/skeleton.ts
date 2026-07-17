@@ -25,7 +25,7 @@ import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
 import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
 import { getSport, type SportConfig } from "./sports";
-import { buildTriathlonSkeleton } from "./sports/triathlon";
+import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
 import { analyzeNeeds } from "./needs";
 import { clamp, round1 } from "./math";
 
@@ -284,6 +284,12 @@ const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
  * race). For fixed_duration / general_fitness, durationWeeks drives length and
  * any races are positioned relative to the start.
  */
+/** Body weight in kilograms (bike W/kg needs kg regardless of the athlete's unit). */
+function toKg(weight: number | undefined, unit: "lbs" | "kg" | undefined): number | undefined {
+  if (!weight || weight <= 0) return undefined;
+  return unit === "lbs" ? weight * 0.453592 : weight;
+}
+
 export function toEngineInput(input: GenerationInput, startDate?: string): EngineInput {
   const start = startDate ? new Date(startDate) : undefined;
   const sportCfg = getSport(input.sport);
@@ -324,6 +330,12 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     runningExp: input.profile.runningExp,
     hybridExp: input.profile.hybridExp,
     liftingExp: input.profile.liftingExp,
+    swimLevel: swimLevelFromCss(input.profile.benchmarks?.cssPace),
+    bikeLevel: bikeLevelFromFtp(
+      input.profile.benchmarks?.ftpWatts,
+      toKg(input.profile.bodyWeight, input.profile.weightUnit),
+      input.profile.sex,
+    ),
     programType: input.programType,
     durationWeeks,
     trainingDays: input.profile.trainingDays,
