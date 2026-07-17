@@ -87,6 +87,16 @@ export function sessionTiming(session: Session): SessionTiming {
     const work = Math.max(1, Math.round(session.durationMin));
     return { warmup: 0, work, cooldown: 0, total: work };
   }
+  if (session.kind === "swim" || session.kind === "bike") {
+    // Triathlon endurance session: the prescribed duration IS the work.
+    const work = Math.max(1, Math.round(session.durationMin));
+    return { warmup: 0, work, cooldown: 0, total: work };
+  }
+  if (session.kind === "brick") {
+    // Bike→run in one session: total is the sum of the segment durations.
+    const work = Math.max(1, Math.round(session.segments.reduce((a, s) => a + s.durationMin, 0)));
+    return { warmup: 0, work, cooldown: 0, total: work };
+  }
   return { warmup: 0, work: 0, cooldown: 0, total: 0 };
 }
 
@@ -108,7 +118,15 @@ export function weekCardioMinutes(week: { days: { sessions: Session[] }[] }): nu
   let total = 0;
   for (const day of week.days) {
     for (const s of day.sessions) {
-      if (s.kind === "run" || s.kind === "hybrid" || s.kind === "cardio") total += sessionTiming(s).total;
+      if (
+        s.kind === "run" ||
+        s.kind === "hybrid" ||
+        s.kind === "cardio" ||
+        s.kind === "swim" ||
+        s.kind === "bike" ||
+        s.kind === "brick"
+      )
+        total += sessionTiming(s).total;
     }
   }
   return total;

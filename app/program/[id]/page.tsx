@@ -7,8 +7,14 @@ import { weekStartDate, type ZoneBands } from "@/components/program/format";
 import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
 import PacingCard from "@/components/program/pacing-card";
+import DekaPacingCard from "@/components/program/deka-pacing-card";
+import TriZonesCard from "@/components/program/tri-zones-card";
 import ReadinessForm from "@/components/program/readiness-form";
 import { computePacingPlan } from "@/lib/engine/pacing";
+import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
+import { computeTriZones } from "@/lib/engine/tri-zones";
+import { getSport } from "@/lib/engine/sports";
+import type { SportId } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import GenerateTrigger from "./generate-trigger";
 
@@ -23,6 +29,7 @@ type SnapshotProfile = {
   benchmarks?: {
     mileTime?: string; fiveKTime?: string; tenKTime?: string;
     ski2kTime?: string; row2kTime?: string;
+    cssPace?: string; ftpWatts?: number;
   };
   division?: "open" | "pro";
   goalFinishTime?: string;
@@ -39,6 +46,23 @@ function toZoneBands(hrZones: SnapshotProfile["hrZones"]): ZoneBands | undefined
 }
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+const SPORT_LABEL: Record<string, string> = {
+  hyrox: "HYROX",
+  deka_fit: "DEKA FIT",
+  deka_mile: "DEKA MILE",
+  deka_strong: "DEKA STRONG",
+  deka_atlas: "DEKA ATLAS",
+  deka_ultra: "DEKA ULTRA",
+  tri_70_3: "Ironman 70.3",
+  tri_140_6: "Ironman 140.6",
+  general_fitness: "General Fitness",
+};
+
+/** Sports whose weekly adaptation/review loop is intentionally hidden. All
+ *  current sports adapt (HYROX/DEKA via AI refill; triathlon deterministically),
+ *  so this is empty — kept as the switch for any future no-adapt format. */
+const NO_ADAPT_SPORTS = new Set<string>([]);
 
 // A program still 'generating' this long after its last generation run started
 // was almost certainly killed mid-flight (the route's maxDuration is 60s) before
@@ -82,6 +106,8 @@ export default async function ProgramPage({
   }
 
   const data = program.program_data as ProgramData | null;
+  const sport = (program.input_snapshot as { sport?: string } | null)?.sport ?? "hyrox";
+  const sportLabel = SPORT_LABEL[sport] ?? "HYROX";
 
   // Recover programs stuck in 'generating' (function killed before its failure
   // handler ran). If the most recent generation run for this program started
@@ -124,6 +150,26 @@ export default async function ProgramPage({
     division: snapshotProfile?.division,
     goalFinishTime: snapshotProfile?.goalFinishTime,
   });
+
+  // Sport-specific extras: a DEKA station-by-station pacing plan, or triathlon
+  // per-discipline (swim/bike/run) training zones. Both are null/empty for HYROX.
+  const sportCfg = getSport(sport as SportId);
+  const dekaPlan =
+    sportCfg.family === "station_hybrid" && sport !== "hyrox"
+      ? computeDekaPacingPlan(sportCfg, {
+          benchmarks: snapshotProfile?.benchmarks,
+          sex: snapshotProfile?.sex,
+          goalFinishTime: snapshotProfile?.goalFinishTime,
+        })
+      : null;
+  const triZones =
+    sportCfg.family === "triathlon"
+      ? computeTriZones({
+          cssPace: snapshotProfile?.benchmarks?.cssPace,
+          ftpWatts: snapshotProfile?.benchmarks?.ftpWatts,
+          benchmarks: snapshotProfile?.benchmarks,
+        })
+      : null;
 
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
@@ -175,11 +221,13 @@ export default async function ProgramPage({
     };
 
     let reviewWeek: number | null = null;
-    for (let w = maxReviewable; w >= 1; w--) {
-      if (reviewed.has(w)) continue;
-      if (w <= elapsed || isFullyLogged(w)) {
-        reviewWeek = w;
-        break;
+    if (!NO_ADAPT_SPORTS.has(sport)) {
+      for (let w = maxReviewable; w >= 1; w--) {
+        if (reviewed.has(w)) continue;
+        if (w <= elapsed || isFullyLogged(w)) {
+          reviewWeek = w;
+          break;
+        }
       }
     }
 
@@ -200,7 +248,15 @@ export default async function ProgramPage({
 
     return (
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
-        <PacingCard plan={pacingPlan} />
+        <div>
+          <span className="inline-block rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
+            {sportLabel}
+          </span>
+        </div>
+        {/* The pacing plan is HYROX race-format specific; hidden for other sports. */}
+        {sport === "hyrox" && <PacingCard plan={pacingPlan} />}
+        {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
+        {triZones && <TriZonesCard zones={triZones} />}
         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
         <ProgramView
           program={data}
@@ -234,7 +290,7 @@ export default async function ProgramPage({
         </Link>
       </div>
       <p className="text-sm text-zinc-500">
-        {program.duration_weeks}-week {program.program_type.replace("_", " ")} program.
+        {sportLabel} · {program.duration_weeks}-week {program.program_type.replace("_", " ")} program.
       </p>
       <GenerateTrigger programId={program.id} initialStatus={status === "failed" ? "failed" : "generating"} />
     </main>

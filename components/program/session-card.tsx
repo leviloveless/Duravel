@@ -15,6 +15,9 @@ const KIND_TAG: Record<Session["kind"], { label: string; className: string }> = 
   hybrid: { label: "Hybrid", className: "bg-orange-100 text-orange-800" },
   race: { label: "Race", className: "bg-red-100 text-red-800" },
   cardio: { label: "Cardio", className: "bg-teal-100 text-teal-800" },
+  swim: { label: "Swim", className: "bg-cyan-100 text-cyan-800" },
+  bike: { label: "Bike", className: "bg-indigo-100 text-indigo-800" },
+  brick: { label: "Brick", className: "bg-amber-100 text-amber-800" },
 };
 
 function Tag({ kind }: { kind: Session["kind"] }) {
@@ -89,6 +92,55 @@ export default function SessionCard({ session }: { session: Session }) {
           <p>
             {session.modality ?? "Zone 1–2 cardio"} — {Math.round(session.durationMin)} min — Goal HR: Zone {session.goalZone}
           </p>
+          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (session.kind === "swim") {
+    return (
+      <div className="flex items-start gap-2">
+        <Tag kind="swim" />
+        <div className="text-sm text-zinc-800">
+          <p>
+            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span> swim —{" "}
+            {Math.round(session.durationMin)} min — Zone {session.goalZone}
+          </p>
+          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (session.kind === "bike") {
+    return (
+      <div className="flex items-start gap-2">
+        <Tag kind="bike" />
+        <div className="text-sm text-zinc-800">
+          <p>
+            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span> ride
+            {session.isLong ? " (long)" : ""} — {Math.round(session.durationMin)} min — Zone {session.goalZone}
+          </p>
+          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (session.kind === "brick") {
+    return (
+      <div className="flex items-start gap-2">
+        <Tag kind="brick" />
+        <div className="text-sm text-zinc-800">
+          <p className="font-medium">Brick</p>
+          <ul className="mt-0.5 flex flex-col gap-0.5">
+            {session.segments.map((s, i) => (
+              <li key={i} className="capitalize text-zinc-700">
+                {s.discipline} — {Math.round(s.durationMin)} min — Zone {s.goalZone}
+              </li>
+            ))}
+          </ul>
           {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
         </div>
       </div>

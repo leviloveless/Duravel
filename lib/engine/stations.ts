@@ -34,17 +34,52 @@ export type StationId =
   | "assault_bike"; // training substitute, not a race station
 
 export interface StationSpec {
-  id: StationId;
+  /** Station id. HYROX ids are the StationId union; DEKA catalogs use their own. */
+  id: string;
   label: string;
   /** Race-spec work unit at full (Peak) volume. */
   meters?: number;
-  reps?: number;
-  /** Load in kg by division × sex, or null when the station has no load. */
-  loadKg?: Record<Division, Record<StationSex, number>> | null;
-  /** Per-hand load (farmers carry) rather than total. */
+  /** Reps: a number (volume-progressed) or a fixed string (e.g. "25 cal"). */
+  reps?: number | string;
+  /** Load in kg by tier (HYROX open|pro; DEKA rx|foundation) × sex, or null. */
+  loadKg?: Record<string, Record<StationSex, number>> | null;
+  /** Per-hand load (farmers carry / bear crawl) rather than total. */
   perHand?: boolean;
-  /** Wall-ball target height note. */
+  /** Display note (wall-ball height, magnetic-sled level, etc.). */
   note?: string;
+  /** Regex mapping a free-text element name to this station (catalog matcher). */
+  match?: RegExp;
+}
+
+/**
+ * A sport's station catalog + race geometry (P0 rewire). Lets assembly build
+ * simulations and progress station prescriptions from a sport-provided catalog
+ * instead of the HYROX module globals. HYROX supplies HYROX_CATALOG (below);
+ * DEKA formats supply their own 10-zone catalogs.
+ */
+export interface StationCatalog {
+  stations: Record<string, StationSpec>;
+  raceOrder: string[];
+  /** Run distance (m) that precedes each station in a race simulation (0 = no runs). */
+  interStationRunMeters: number;
+  /** Map a free-text element name to a catalog station id (null = unknown). */
+  matcher: (exercise: string) => string | null;
+  /** Race-simulation laps (DEKA ULTRA = 5 consecutive FIT laps). Default 1. */
+  laps?: number;
+  /** Run-element effort note (default "race pace (threshold)"; Ultra = controlled effort). */
+  runNote?: string;
+}
+
+/** Build a catalog matcher from each station's `match` regex (first hit wins;
+ *  order the specs most-specific first). */
+export function makeMatcher(specs: StationSpec[]): (exercise: string) => string | null {
+  return (exercise: string) => {
+    const t = exercise.toLowerCase();
+    for (const s of specs) {
+      if (s.match && s.match.test(t)) return s.id;
+    }
+    return null;
+  };
 }
 
 /** Race specs. Distances/reps are division-independent; loads are not. */
@@ -111,7 +146,7 @@ export function stationIdFor(exercise: string): StationId | null {
 const VOLUME_FACTOR: Record<PhaseName, number> = { base: 0.6, build: 0.85, peak: 1, taper: 0.6 };
 
 export interface StationPrescription {
-  stationId: StationId;
+  stationId: string;
   label: string;
   /** Human-readable prescription, e.g. "50m sled push @ 120kg" or "1000m ski". */
   prescription: string;
@@ -131,20 +166,28 @@ export function stationPrescription(
   phase: PhaseName,
   division: Division = "open",
   sex: StationSex = "male",
+  catalog?: StationCatalog,
 ): StationPrescription | null {
-  const id = stationIdFor(exercise);
+  const cat = catalog ?? HYROX_CATALOG;
+  const id = cat.matcher(exercise);
   if (!id) return null;
-  const spec = STATIONS[id];
+  const spec = cat.stations[id];
+  if (!spec) return null;
   const vf = VOLUME_FACTOR[phase];
 
   const meters = spec.meters != null ? Math.max(5, round5(spec.meters * vf)) : undefined;
-  const reps = spec.reps != null ? Math.max(5, round5(spec.reps * vf)) : undefined;
-  // Race load, exact (fixed implements) — progression is by volume, not load.
-  const loadKg = spec.loadKg != null ? spec.loadKg[division][sex] : undefined;
+  // Numeric reps progress by volume; string reps (e.g. "25 cal") are fixed.
+  const numericReps = typeof spec.reps === "number" ? Math.max(5, round5(spec.reps * vf)) : undefined;
+  const stringReps = typeof spec.reps === "string" ? spec.reps : undefined;
+  // Race load, exact (fixed implements). Use the requested tier, else the
+  // catalog's first tier (DEKA has a single Rx set keyed differently from HYROX).
+  const tier = spec.loadKg != null ? (spec.loadKg[division] ?? Object.values(spec.loadKg)[0]) : undefined;
+  const loadKg = tier ? tier[sex] : undefined;
 
   const parts: string[] = [];
   if (meters != null) parts.push(`${meters}m`);
-  if (reps != null) parts.push(`${reps} reps`);
+  if (numericReps != null) parts.push(`${numericReps} reps`);
+  if (stringReps != null) parts.push(stringReps);
   parts.push(spec.label.toLowerCase());
   let prescription = parts.join(" ");
   if (loadKg != null) {
@@ -153,7 +196,7 @@ export function stationPrescription(
   if (id === "assault_bike") prescription = `${Math.max(5, round5(20 * vf))} cal assault bike`;
 
   const atRaceSpec = vf >= 1;
-  return { stationId: id, label: spec.label, prescription, meters, reps, loadKg, atRaceSpec };
+  return { stationId: id, label: spec.label, prescription, meters, reps: numericReps, loadKg, atRaceSpec };
 }
 
 /** The 8 race stations in HYROX race order (no assault bike). */
@@ -181,12 +224,30 @@ export interface HybridElement {
 export function buildSimulationElements(
   division: Division = "open",
   sex: StationSex = "male",
+  catalog?: StationCatalog,
 ): HybridElement[] {
+  const cat = catalog ?? HYROX_CATALOG;
+  const laps = cat.laps ?? 1;
+  const runNote = cat.runNote ?? "race pace (threshold)";
   const els: HybridElement[] = [];
-  for (const id of RACE_STATION_ORDER) {
-    els.push({ exercise: "run", prescription: "1000m @ race pace (threshold)" });
-    const spec = stationPrescription(STATIONS[id].label, "peak", division, sex);
-    els.push({ exercise: STATIONS[id].label.toLowerCase(), prescription: spec?.prescription ?? STATIONS[id].label });
+  for (let lap = 0; lap < laps; lap++) {
+    for (const id of cat.raceOrder) {
+      const label = cat.stations[id]?.label ?? id;
+      // Station-only formats (DEKA Strong/Atlas) set interStationRunMeters = 0.
+      if (cat.interStationRunMeters > 0) {
+        els.push({ exercise: "run", prescription: `${cat.interStationRunMeters}m @ ${runNote}` });
+      }
+      const spec = stationPrescription(label, "peak", division, sex, cat);
+      els.push({ exercise: label.toLowerCase(), prescription: spec?.prescription ?? label });
+    }
   }
   return els;
 }
+
+/** The HYROX station catalog bundle — the default for the station-hybrid engine. */
+export const HYROX_CATALOG: StationCatalog = {
+  stations: STATIONS,
+  raceOrder: RACE_STATION_ORDER,
+  interStationRunMeters: 1000,
+  matcher: stationIdFor,
+};

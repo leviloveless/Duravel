@@ -11,6 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { AiChunkSchema, type AiChunk, type GenerationInput } from "@/lib/schemas";
 import type { PhaseName, WeekSkeleton } from "@/lib/engine/types";
 import { env } from "@/lib/env";
+import { getSport } from "@/lib/engine/sports";
 import { buildSystemPrompt, buildUserPrompt } from "./prompts";
 
 /** Token usage for one mesocycle call, summed across any retry attempts. */
@@ -80,8 +81,9 @@ export async function generateChunk(
   weeks: WeekSkeleton[],
   adaptationContext?: string,
 ): Promise<ChunkResult> {
-  const system = buildSystemPrompt();
-  const user = buildUserPrompt(input, phase, weeks, adaptationContext);
+  const cfg = getSport(input.sport);
+  const system = buildSystemPrompt(cfg);
+  const user = buildUserPrompt(input, phase, weeks, adaptationContext, cfg);
   const anthropic = getClient();
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: user }];

@@ -79,6 +79,9 @@ const TYPE_DOT: Record<Session["kind"], string> = {
   hybrid: "bg-orange-500",
   race: "bg-red-500",
   cardio: "bg-teal-500",
+  swim: "bg-cyan-500",
+  bike: "bg-indigo-500",
+  brick: "bg-amber-500",
 };
 
 /** Extra props for Phase 2 logging (all optional so the print view stays clean). */

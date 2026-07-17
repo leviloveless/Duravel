@@ -32,9 +32,12 @@ import { movementScheme, powerElementFor, suggestedWeight } from "@/lib/engine/s
 import {
   buildSimulationElements,
   stationPrescription,
+  HYROX_CATALOG,
   type Division,
   type StationSex,
+  type StationCatalog,
 } from "@/lib/engine/stations";
+import { getSport } from "@/lib/engine/sports";
 
 type MovementPattern = (typeof REQUIRED_MOVEMENT_PATTERNS)[number];
 
@@ -202,6 +205,7 @@ function replaceSimulations(
   skel: WeekSkeleton,
   division: Division,
   sex: StationSex,
+  catalog: StationCatalog = HYROX_CATALOG,
 ): void {
   for (const skelDay of skel.days) {
     const simSlot = skelDay.sessions.find((s) => s.kind === "hybrid" && s.simulation === true);
@@ -212,7 +216,7 @@ function replaceSimulations(
       kind: "hybrid",
       goalZone: 4,
       simulation: true,
-      elements: buildSimulationElements(division, sex),
+      elements: buildSimulationElements(division, sex, catalog),
     };
     const hi = day.sessions.findIndex((s) => s.kind === "hybrid");
     if (hi === -1) day.sessions.push(sim);
@@ -228,6 +232,7 @@ function buildWeek(
   paces: RunPaces | null,
   division: Division = "open",
   sex: StationSex = "male",
+  catalog: StationCatalog = HYROX_CATALOG,
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -240,7 +245,7 @@ function buildWeek(
   // Review #9: replace any Peak simulation-flagged hybrid with an engine-built
   // full race simulation BEFORE reconciliation, so its runs/stations are counted
   // in the week's mileage + cardio totals.
-  replaceSimulations(days, skel, division, sex);
+  replaceSimulations(days, skel, division, sex, catalog);
 
   // Rewrite the AI-filled run volume so the week's running mileage and cardio
   // time equal the engine's prescribed targets exactly: running is sized to the
@@ -329,6 +334,7 @@ export interface AssembleArgs {
   weightUnit: "lbs" | "kg";
   division: Division;
   sex: StationSex;
+  catalog: StationCatalog;
 }
 
 /** Build the complete `assembleProgram` argument set from a generation input.
@@ -349,6 +355,8 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
     // Division + sex → HYROX station race loads (Review #6).
     division: input.profile.division ?? "open",
     sex: input.profile.sex === "female" ? "female" : "male",
+    // Sport's station catalog (P0 rewire) — HYROX by default.
+    catalog: getSport(input.sport).stationCatalog ?? HYROX_CATALOG,
   };
 }
 
@@ -395,6 +403,7 @@ export function applyStationProgression(
   week: ProgramWeek,
   division: Division = "open",
   sex: StationSex = "male",
+  catalog: StationCatalog = HYROX_CATALOG,
 ): void {
   for (const day of week.days) {
     for (const session of day.sessions) {
@@ -402,7 +411,7 @@ export function applyStationProgression(
       for (const el of session.elements) {
         const isRun = /run/i.test(el.exercise) || /run/i.test(el.prescription);
         if (isRun) continue;
-        const spec = stationPrescription(el.exercise, week.phase, division, sex);
+        const spec = stationPrescription(el.exercise, week.phase, division, sex, catalog);
         if (spec) el.prescription = spec.prescription;
       }
     }
@@ -422,6 +431,7 @@ export function assembleProgram(
   weightUnit: "lbs" | "kg" = "lbs",
   division: Division = "open",
   sex: StationSex = "male",
+  catalog: StationCatalog = HYROX_CATALOG,
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
@@ -430,14 +440,14 @@ export function assembleProgram(
   const paces = computePaces(raceTimes);
 
   const weeks = skeleton.weeks.map((skel) => {
-    const week = buildWeek(skel, aiByWeek.get(skel.weekNumber), issues, runningExp, paces, division, sex);
+    const week = buildWeek(skel, aiByWeek.get(skel.weekNumber), issues, runningExp, paces, division, sex, catalog);
     const patched = patchMovementPatterns(week);
     if (patched.length) issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
     // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
     // applied deterministically over whatever the AI returned.
     applyStrengthSchemes(week, benchmarks, weightUnit);
     // Review #6: progress hybrid station prescriptions toward race spec.
-    applyStationProgression(week, division, sex);
+    applyStationProgression(week, division, sex, catalog);
     return week;
   });
 

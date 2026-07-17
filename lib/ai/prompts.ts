@@ -10,8 +10,8 @@
 
 import type { GenerationInput } from "@/lib/schemas";
 import type { PhaseName, WeekSkeleton } from "@/lib/engine/types";
-import { philosophyRules, PHASE_CHARACTER, HYBRID_LIBRARY } from "./philosophy";
-import { analyzeNeeds } from "@/lib/engine/needs";
+import { getSport, type SportConfig } from "@/lib/engine/sports";
+import { analyzeNeedsForSport } from "@/lib/engine/needs-atlas";
 import { resolveHrModel } from "@/lib/zones";
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — respond with a single JSON object and nothing else (no prose, no markdown fences):
@@ -42,8 +42,21 @@ Rules:
 - Every full training week (weeks with 3 lift slots) must include all 7 movement patterns across its lift sessions.
 - Keep numbers realistic and internally consistent (durationMin ≈ distanceMiles × paceMinMile).`;
 
-export function buildSystemPrompt(): string {
-  return [philosophyRules(), "", OUTPUT_CONTRACT].join("\n");
+// Framing around the sport's coach persona (was philosophy.philosophyRules()).
+const COACH_LINE_PREFIX = "You are an ";
+const COACH_LINE_SUFFIX =
+  " filling in the concrete session content for a program whose structure and volume have already been decided by a periodization engine. Never change the prescribed volume, session counts, zones, or which days have which session kinds — only fill in the content.";
+const ZONE_TARGET_LINE =
+  "Target overall cardio-time zone split across the whole program: ~20% Z1, 60% Z2, 10% Z3, 5% Z4, 5% Z5 (weightlifting excluded).";
+
+/** Qualitative philosophy block for a sport (coach persona + guidance blocks). */
+export function buildPhilosophyRules(cfg: SportConfig): string {
+  const coachLine = `${COACH_LINE_PREFIX}${cfg.philosophy.coach}${COACH_LINE_SUFFIX}`;
+  return [coachLine, ...cfg.philosophy.guidance, ZONE_TARGET_LINE].join("\n\n");
+}
+
+export function buildSystemPrompt(cfg: SportConfig = getSport(undefined)): string {
+  return [buildPhilosophyRules(cfg), "", OUTPUT_CONTRACT].join("\n");
 }
 
 function profileBlock(input: GenerationInput): string {
@@ -143,13 +156,17 @@ export function buildUserPrompt(
   phase: PhaseName,
   weeks: WeekSkeleton[],
   adaptationContext?: string,
+  cfg: SportConfig = getSport(undefined),
 ): string {
   // Review #1: bias the station library toward the athlete's limiter. Stations
   // the needs analysis prioritizes (and that exist in this mesocycle's library)
   // are listed first; the AI still fills the same 4-run/4-event structure.
-  const needs = analyzeNeeds(input.profile);
+  const needs = analyzeNeedsForSport(input.profile, cfg.id, {
+    ergStations: cfg.needsStations?.erg,
+    strengthStations: cfg.needsStations?.strength,
+  });
   const emphasis = needs.bias.stationEmphasis;
-  const phaseLib = HYBRID_LIBRARY[phase];
+  const phaseLib = cfg.philosophy.stationLibrary?.[phase] ?? [];
   const prioritized = emphasis.filter((st) => phaseLib.includes(st));
   const orderedLib = [...prioritized, ...phaseLib.filter((st) => !prioritized.includes(st))];
   const library = orderedLib.join(", ");
@@ -159,9 +176,13 @@ export function buildUserPrompt(
     profileBlock(input),
     "",
     `MESOCYCLE: ${phase.toUpperCase()}`,
-    PHASE_CHARACTER[phase],
-    `Hybrid station library for this mesocycle: ${library}.`,
+    cfg.philosophy.phaseCharacter?.[phase] ?? "",
   ];
+  // Station-hybrid sports list a station library; sports without stations (e.g.
+  // general fitness) skip it.
+  if (phaseLib.length > 0) {
+    parts.push(`Hybrid station library for this mesocycle: ${library}.`);
+  }
   if (needs.informative) {
     parts.push(`Athlete needs focus: ${needs.summary}`);
     if (prioritized.length) {

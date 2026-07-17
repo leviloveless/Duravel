@@ -37,6 +37,7 @@ const SessionSlotSchema = z.discriminatedUnion("kind", [
     runType: RunTypeSchema,
     goalZone: z.number(),
     isLong: z.boolean().optional(),
+    durationMin: z.number().optional(),
   }),
   z.object({ kind: z.literal("lift"), liftType: z.enum(["upper", "lower", "full"]) }),
   z.object({
@@ -46,6 +47,30 @@ const SessionSlotSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("rest") }),
   z.object({ kind: z.literal("race"), priority: RacePriority }),
+  z.object({
+    kind: z.literal("swim"),
+    goalZone: z.number(),
+    durationMin: z.number(),
+    sessionType: z.enum(["technique", "css", "threshold", "endurance", "open_water"]),
+  }),
+  z.object({
+    kind: z.literal("bike"),
+    goalZone: z.number(),
+    durationMin: z.number(),
+    isLong: z.boolean().optional(),
+    sessionType: z.enum(["endurance", "sweet_spot", "threshold", "vo2", "recovery"]),
+  }),
+  z.object({
+    kind: z.literal("brick"),
+    goalZone: z.number(),
+    segments: z.array(
+      z.object({
+        discipline: z.enum(["bike", "run", "swim"]),
+        durationMin: z.number(),
+        goalZone: z.number(),
+      }),
+    ),
+  }),
 ]);
 
 const DaySlotSchema = z.object({
@@ -62,6 +87,7 @@ const WeekSkeletonSchema = z.object({
   zoneTargets: ZoneDistributionSchema,
   days: z.array(DaySlotSchema),
   raceDay: z.object({ priority: RacePriority, date: z.string().optional() }).optional(),
+  emphasis: z.string().optional(),
 });
 
 export const ProgramSkeletonSchema = z.object({

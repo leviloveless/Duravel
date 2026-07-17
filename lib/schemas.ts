@@ -14,6 +14,28 @@ export const RacePriority = z.enum(["A", "B", "C"]);
 export const ProgramType = z.enum(["goal_event", "fixed_duration", "general_fitness"]);
 export const TrainingDay = z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
+/**
+ * Target sport for the program (multi-sport expansion). Defaults to "hyrox"
+ * for backward compatibility — existing programs and inputs omit it. The engine
+ * resolves a SportConfig from this id (see lib/engine/sports).
+ */
+export const Sport = z.enum([
+  "hyrox",
+  "deka_fit",
+  "deka_mile",
+  "deka_strong",
+  "deka_atlas",
+  "deka_ultra",
+  "tri_70_3",
+  "tri_140_6",
+  "general_fitness",
+]);
+export type SportId = z.infer<typeof Sport>;
+
+/** General-fitness sub-goal — biases the emphasis rotation (balanced default). */
+export const SubGoal = z.enum(["balanced", "recomp", "general_strength", "general_endurance"]);
+export type SubGoalKey = z.infer<typeof SubGoal>;
+
 // Time/benchmark strings are short ("mm:ss" / "h:mm:ss"). Cap them so a large
 // value can't inflate prompt token cost or become a prompt-injection payload —
 // several of these are embedded verbatim into the generation prompt.
@@ -29,6 +51,14 @@ export const BenchmarksSchema = z.object({
   ski2kTime: z.string().max(TIME_STRING_MAX).optional(),
   row2kTime: z.string().max(TIME_STRING_MAX).optional(),
   bike20MinCals: z.number().optional(),
+  /** Triathlon swim anchor: CSS (critical swim speed) pace per 100 m, "mm:ss". */
+  cssPace: z.string().max(TIME_STRING_MAX).optional(),
+  /** Triathlon bike anchor: FTP (functional threshold power) in watts. */
+  ftpWatts: z.number().positive().max(600).optional(),
+  /** DEKA ATLAS anchor: max unbroken strict DB shoulder-to-overhead reps at Rx load. */
+  ohpEnduranceReps: z.number().int().positive().max(200).optional(),
+  /** DEKA ATLAS anchor: benchmark glycolytic couplet time (21-15-9), "mm:ss". */
+  glycolyticTestSec: z.string().max(TIME_STRING_MAX).optional(),
 });
 
 /**
@@ -75,6 +105,10 @@ export const ProfileSchema = z.object({
   runningExp: ExperienceLevel,
   hybridExp: ExperienceLevel,
   liftingExp: ExperienceLevel,
+  /** Triathlon per-discipline experience — sets the swim/bike volume tier when
+   *  provided (else derived from CSS/FTP benchmarks). Optional for other sports. */
+  swimExp: ExperienceLevel.optional(),
+  bikeExp: ExperienceLevel.optional(),
   trainingClass: TrainingClass,
   trainingDays: z.array(TrainingDay).min(3),
   benchmarks: BenchmarksSchema.optional(),
@@ -104,6 +138,10 @@ export const RaceSchema = z.object({
 export const GenerationInputSchema = z.object({
   profile: ProfileSchema,
   programType: ProgramType,
+  /** Target sport (multi-sport expansion). Omitted → HYROX. */
+  sport: Sport.optional(),
+  /** General-fitness sub-goal. Omitted → balanced. */
+  subGoal: SubGoal.optional(),
   durationWeeks: z.number().int().min(4).max(24).optional(),
   races: z.array(RaceSchema).optional(),
   /** Optional overrides for the engine's experience-derived starting volume. */
@@ -220,12 +258,48 @@ export const CardioSessionSchema = z.object({
   description: z.string().optional(),
 });
 
+/** Triathlon swim session (content templated deterministically from the skeleton). */
+export const SwimSessionSchema = z.object({
+  kind: z.literal("swim"),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  sessionType: z.enum(["technique", "css", "threshold", "endurance", "open_water"]),
+  description: z.string().optional(),
+});
+
+/** Triathlon bike session. */
+export const BikeSessionSchema = z.object({
+  kind: z.literal("bike"),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  sessionType: z.enum(["endurance", "sweet_spot", "threshold", "vo2", "recovery"]),
+  isLong: z.boolean().optional(),
+  description: z.string().optional(),
+});
+
+/** Triathlon brick — ordered bike→run (or other) segments in one session. */
+export const BrickSegmentSchema = z.object({
+  discipline: z.enum(["bike", "run", "swim"]),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  note: z.string().optional(),
+});
+export const BrickSessionSchema = z.object({
+  kind: z.literal("brick"),
+  goalZone: z.number().int().min(1).max(5),
+  segments: z.array(BrickSegmentSchema),
+  description: z.string().optional(),
+});
+
 export const SessionSchema = z.discriminatedUnion("kind", [
   RunSessionSchema,
   LiftSessionSchema,
   HybridSessionSchema,
   RaceSessionSchema,
   CardioSessionSchema,
+  SwimSessionSchema,
+  BikeSessionSchema,
+  BrickSessionSchema,
 ]);
 
 export type Session = z.infer<typeof SessionSchema>;

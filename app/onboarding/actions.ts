@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { GenerationInputSchema, type GenerationInput } from "@/lib/schemas";
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
+import { getSport } from "@/lib/engine/sports";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -50,6 +51,10 @@ function parseGenerationInput(
     ski2kTime: str(formData, "ski2kTime"),
     row2kTime: str(formData, "row2kTime"),
     bike20MinCals: num(formData, "bike20MinCals"),
+    cssPace: str(formData, "cssPace"),
+    ftpWatts: num(formData, "ftpWatts"),
+    ohpEnduranceReps: num(formData, "ohpEnduranceReps"),
+    glycolyticTestSec: str(formData, "glycolyticTestSec"),
   };
   const hasBenchmark = Object.values(benchmarksRaw).some((v) => v !== undefined);
   const benchmarks = hasBenchmark ? benchmarksRaw : undefined;
@@ -90,7 +95,11 @@ function parseGenerationInput(
       : undefined;
 
   // --- Program type + conditional race / duration inputs ---
-  const programType = formData.get("programType");
+  // The general-fitness sport has no race: force a non-race program type and drop
+  // any races so the engine's rotating-emphasis macro-arc is used.
+  const sportVal = str(formData, "sport");
+  const isGenFit = sportVal === "general_fitness";
+  const programType = isGenFit ? "general_fitness" : formData.get("programType");
   const raceCount = num(formData, "race_count") ?? 0;
   const races: { raceDate: string; priority: "A" | "B" | "C" }[] = [];
   for (let i = 0; i < raceCount; i++) {
@@ -111,6 +120,8 @@ function parseGenerationInput(
       runningExp: formData.get("runningExp"),
       hybridExp: formData.get("hybridExp"),
       liftingExp: formData.get("liftingExp"),
+      swimExp: str(formData, "swimExp"),
+      bikeExp: str(formData, "bikeExp"),
       trainingClass: formData.get("trainingClass"),
       trainingDays,
       benchmarks,
@@ -123,9 +134,11 @@ function parseGenerationInput(
       hrZones,
       dayPreferences,
     },
+    sport: sportVal,
+    subGoal: isGenFit ? (str(formData, "subGoal") ?? "balanced") : undefined,
     programType,
     durationWeeks,
-    races: races.length > 0 ? races : undefined,
+    races: isGenFit ? undefined : races.length > 0 ? races : undefined,
     startMileage: num(formData, "startMileage"),
     startCardioMinutes: num(formData, "startCardioMinutes"),
     startDate: str(formData, "startDate"),
@@ -137,7 +150,9 @@ function parseGenerationInput(
   }
   const input = parsed.data;
 
-  if (!input.profile.benchmarks?.fiveKTime) {
+  // Run-based sports need a 5K to derive paces; station-only DEKA (no running) don't.
+  const runsInRace = getSport(input.sport).totalRaceRunMeters !== 0;
+  if (runsInRace && !input.profile.benchmarks?.fiveKTime) {
     return { error: "Enter your 5K time so run paces can be calculated — a best guess is fine if you don't know it." };
   }
 

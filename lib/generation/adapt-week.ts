@@ -36,6 +36,9 @@ import { computeReadiness, type ReadinessCheckin } from "@/lib/engine/readiness"
 import { generateChunk } from "@/lib/ai/generate-week";
 import { assembleArgsFromInput, assembleProgram } from "./assemble";
 import type { GenerationUsage } from "./generate-program";
+import { getSport } from "@/lib/engine/sports";
+import { toEngineInput } from "@/lib/engine/skeleton";
+import { rebuildTriWeek, triAnchorsFromBenchmarks } from "@/lib/engine/sports/triathlon";
 
 // Haiku list rates, matching generate-program.ts.
 const INPUT_COST_PER_TOKEN = 1 / 1_000_000;
@@ -323,8 +326,34 @@ export async function applyAdaptation(
 
   let refilled = false;
   let usage: GenerationUsage | undefined;
+  const isTriathlon = getSport(loaded.input.sport).family === "triathlon";
   try {
-    if (needsRefill && loaded.nextWeekSkeleton) {
+    if (needsRefill && loaded.nextWeekSkeleton && isTriathlon) {
+      // Triathlon assembles deterministically (no AI): regenerate the revised
+      // week's sessions from the adapted cardio-minute target, splice, persist.
+      const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
+      const engineInput = toEngineInput(loaded.input);
+      const cfg = getSport(loaded.input.sport);
+      const anchors = triAnchorsFromBenchmarks(loaded.input.profile.benchmarks);
+      const { skeletonWeek, programWeek } = rebuildTriWeek(revisedWeek, engineInput, cfg, anchors);
+      programWeek.raceDay = loaded.nextWeekSkeleton.raceDay
+        ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
+        : undefined;
+
+      const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? programWeek : w));
+      const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
+        w.weekNumber === targetWeek ? skeletonWeek : w,
+      );
+      const { error: persistError } = await supabase
+        .from("programs")
+        .update({
+          program_data: { ...loaded.programData, weeks },
+          skeleton: { ...loaded.skeleton, weeks: skeletonWeeks },
+        })
+        .eq("id", programId);
+      if (persistError) throw new Error(`Failed to persist adapted week: ${persistError.message}`);
+      refilled = true;
+    } else if (needsRefill && loaded.nextWeekSkeleton) {
       const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
       const context = buildAdaptationContext(loaded.reviewedWeek, loaded.logs, signals, decision);
 
@@ -357,6 +386,7 @@ export async function applyAdaptation(
         a.weightUnit,
         a.division,
         a.sex,
+        a.catalog,
       );
       const newWeek = miniProgram.weeks[0];
       if (!newWeek) throw new Error("Refill produced no week");

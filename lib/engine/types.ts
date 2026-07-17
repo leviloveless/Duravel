@@ -20,6 +20,7 @@ import {
   RunType as RunTypeEnum,
 } from "@/lib/schemas";
 import type { NeedsAnalysis } from "./needs";
+import type { SportId } from "@/lib/schemas";
 
 // Engine string-union types are DERIVED from the canonical Zod enums (roadmap
 // #2.5) so the schema and the engine can never drift out of sync.
@@ -43,12 +44,20 @@ export interface EngineRace {
 }
 
 export interface EngineInput {
+  /** Target sport (multi-sport expansion). Omitted → HYROX. */
+  sport?: SportId;
+  /** General-fitness sub-goal (biases the emphasis rotation). Omitted → balanced. */
+  subGoal?: string;
   trainingClass: TrainingClassName;
   /** Athlete age — masters (≥ MASTERS_AGE) get more frequent deloads (Review #10). */
   age?: number;
   runningExp: ExperienceLevel;
   hybridExp: ExperienceLevel;
   liftingExp: ExperienceLevel;
+  /** Triathlon swim proficiency, derived from CSS pace. Omitted → run level. */
+  swimLevel?: ExperienceLevel;
+  /** Triathlon bike proficiency, derived from FTP (W/kg). Omitted → run level. */
+  bikeLevel?: ExperienceLevel;
   programType: ProgramTypeName;
   durationWeeks: number; // 4–24
   trainingDays: TrainingDayName[]; // ≥3
@@ -87,6 +96,9 @@ export interface RunSlot {
   runType: RunType;
   goalZone: number;
   isLong?: boolean;
+  /** Prescribed duration (triathlon runs carry it directly; HYROX runs omit it —
+   *  the reconciler sizes them from the mileage target). */
+  durationMin?: number;
 }
 export interface LiftSlot {
   kind: "lift";
@@ -105,7 +117,39 @@ export interface RaceSlot {
   kind: "race";
   priority: RacePriorityName;
 }
-export type SessionSlot = RunSlot | LiftSlot | HybridSlot | RestSlot | RaceSlot;
+// --- Triathlon session slots (swim / bike / brick) ---
+export interface SwimSlot {
+  kind: "swim";
+  goalZone: number;
+  durationMin: number;
+  sessionType: "technique" | "css" | "threshold" | "endurance" | "open_water";
+}
+export interface BikeSlot {
+  kind: "bike";
+  goalZone: number;
+  durationMin: number;
+  isLong?: boolean;
+  sessionType: "endurance" | "sweet_spot" | "threshold" | "vo2" | "recovery";
+}
+export interface BrickSegment {
+  discipline: "bike" | "run" | "swim";
+  durationMin: number;
+  goalZone: number;
+}
+export interface BrickSlot {
+  kind: "brick";
+  goalZone: number;
+  segments: BrickSegment[];
+}
+export type SessionSlot =
+  | RunSlot
+  | LiftSlot
+  | HybridSlot
+  | RestSlot
+  | RaceSlot
+  | SwimSlot
+  | BikeSlot
+  | BrickSlot;
 
 /** A predicate over engine session slots (used by slot placement + sequencing). */
 export type SlotPredicate = (slot: SessionSlot) => boolean;
@@ -135,6 +179,8 @@ export interface WeekSkeleton {
   zoneTargets: ZoneDistribution;
   days: DaySlot[];
   raceDay?: { priority: RacePriorityName; date?: string };
+  /** General-fitness rotating emphasis for this week (strength|aerobic|mixed). */
+  emphasis?: string;
 }
 
 export interface ProgramSkeleton {

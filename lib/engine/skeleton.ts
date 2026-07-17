@@ -15,15 +15,18 @@ import type {
   EngineInput,
   EngineRace,
   MicroWeekType,
+  PhaseName,
   ProgramSkeleton,
   WeekSkeleton,
 } from "./types";
 import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
-import { assignDays } from "./slots";
-import { PEAK_VOLUME_FACTOR, PHASE_ZONE_TARGETS, startingCardioMinutes, startingMileage } from "./volume";
-import { analyzeNeeds } from "./needs";
+import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
+import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
+import { getSport, type SportConfig } from "./sports";
+import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
+import { analyzeNeedsForSport } from "./needs-atlas";
 import { clamp, round1 } from "./math";
 
 /**
@@ -31,13 +34,42 @@ import { clamp, round1 } from "./math";
  */
 export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const D = input.durationWeeks;
+  // Resolve the sport config (P0 rewire). For HYROX these values are the same
+  // references as the module constants, so output is byte-identical; a different
+  // sport supplies different counts / zone targets / starting volume.
+  const cfg = getSport(input.sport);
+  const counts: SessionCountTables = {
+    run: (cfg.sessionCounts.run as SessionCountTables["run"] | undefined) ?? DEFAULT_COUNTS.run,
+    hybrid: (cfg.sessionCounts.hybrid as SessionCountTables["hybrid"] | undefined) ?? DEFAULT_COUNTS.hybrid,
+    lift: (cfg.sessionCounts.lift as SessionCountTables["lift"] | undefined) ?? DEFAULT_COUNTS.lift,
+    // Station-only sports (totalRaceRunMeters 0) floor runs to 0 and keep them easy.
+    runFloor: cfg.runFloor ?? (cfg.totalRaceRunMeters === 0 ? 0 : undefined),
+    runCharacter: cfg.totalRaceRunMeters === 0 ? "maintenance" : "full",
+  };
+
+  // General fitness has no race to peak toward: a rotating-emphasis macro-arc
+  // (strength → aerobic → mixed) with no taper, instead of Base/Build/Peak/Taper.
+  if (cfg.programType === "general_fitness") {
+    return buildRotationSkeleton(input, cfg, counts);
+  }
+
+  // Triathlon (Family B) uses per-discipline swim/bike/run/brick volume — its own
+  // deterministic skeleton path (see sports/triathlon.ts).
+  if (cfg.family === "triathlon") {
+    return buildTriathlonSkeleton(input, cfg);
+  }
+
   const alloc = allocateMesocycles(input);
   const phases = expandPhases(alloc, D);
   const nonTaperWeeks = alloc.base + alloc.build + alloc.peak;
 
   // 1. Continuous microcycle progression across the non-taper weeks.
   //    User-supplied starting volume overrides the experience-derived defaults.
-  const startMi = input.startMileage ?? startingMileage(input.runningExp);
+  const startMi =
+    input.startMileage ??
+    (cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.runningExp]
+      : startingMileage(input.runningExp));
   const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
   const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa, input.age);
 
@@ -110,7 +142,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
       microWeek,
       targetMileage: tapered.mileage[i]!,
       targetCardioMinutes: tapered.cardioMinutes[i]!,
-      zoneTargets: { ...PHASE_ZONE_TARGETS[phase] },
+      zoneTargets: { ...cfg.phaseZoneTargets[phase] },
       days: assignDays(
         input.trainingDays,
         phase,
@@ -126,6 +158,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
         },
         pos,
         input.needs?.bias,
+        counts,
       ),
       raceDay: race ? { priority: race.priority, date: race.date } : undefined,
     });
@@ -158,6 +191,87 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
   }
 }
 
+// --- General-fitness rotating-emphasis macro-arc (no race, no taper) ---
+
+/** Emphasis block → synthetic phase, so strength schemes + zone targets + run-type
+ *  selection all reuse the existing phase machinery unchanged. */
+const EMPHASIS_PHASE: Record<string, PhaseName> = { aerobic: "base", mixed: "build", strength: "peak" };
+
+/** Sub-goal → the block rotation. Balanced cycles evenly; the others weight the loop. */
+const SUBGOAL_ROTATION: Record<string, string[]> = {
+  balanced: ["aerobic", "strength", "mixed"],
+  recomp: ["strength", "aerobic", "mixed"],
+  general_strength: ["strength", "mixed", "aerobic", "strength"],
+  general_endurance: ["aerobic", "mixed", "aerobic", "strength"],
+};
+
+const BLOCK_WEEKS = 4;
+
+/**
+ * Build a general-fitness skeleton: repeating ~4-week emphasis blocks
+ * (strength/aerobic/mixed) instead of Base→Build→Peak→Taper. Microcycles run
+ * continuously across all weeks (rising baseline), there is no taper, and each
+ * week carries its `emphasis` for the UI/AI. The sub-goal chooses the rotation.
+ */
+function buildRotationSkeleton(input: EngineInput, cfg: SportConfig, counts: SessionCountTables): ProgramSkeleton {
+  const D = input.durationWeeks;
+  const startMi =
+    input.startMileage ??
+    (cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.runningExp]
+      : startingMileage(input.runningExp));
+  const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
+  // Continuous progression across ALL weeks (no taper carve-out) → rising baseline.
+  const seq = sequenceMicrocycles(D, input.trainingClass, startMi, startCa, input.age);
+
+  const rotation = SUBGOAL_ROTATION[input.subGoal ?? "balanced"] ?? SUBGOAL_ROTATION.balanced!;
+
+  const weeks: WeekSkeleton[] = [];
+  for (let i = 0; i < D; i++) {
+    const blockIdx = Math.floor(i / BLOCK_WEEKS);
+    const emphasis = rotation[blockIdx % rotation.length]!;
+    const phase = EMPHASIS_PHASE[emphasis]!;
+    const microWeek = seq.labels[i]!;
+    const posIndex = i % BLOCK_WEEKS;
+    const posLen = Math.min(BLOCK_WEEKS, D - blockIdx * BLOCK_WEEKS);
+    // Strength-emphasis blocks (mapped to "peak") carry slightly less cardio volume.
+    const peakFactor = phase === "peak" ? PEAK_VOLUME_FACTOR : 1;
+
+    weeks.push({
+      weekNumber: i + 1,
+      phase,
+      microWeek,
+      targetMileage: round1(seq.mileage[i]! * peakFactor),
+      targetCardioMinutes: Math.round(seq.cardioMinutes[i]! * peakFactor),
+      zoneTargets: { ...cfg.phaseZoneTargets[phase] },
+      days: assignDays(
+        input.trainingDays,
+        phase,
+        microWeek,
+        input.runningExp,
+        input.hybridExp,
+        undefined, // no race
+        {
+          longRunDay: input.longRunDay,
+          restDays: input.restDays,
+          liftDays: input.liftDays,
+          hybridDays: input.hybridDays,
+        },
+        { index: posIndex, length: posLen },
+        input.needs?.bias,
+        counts,
+      ),
+      emphasis,
+    });
+  }
+
+  // Allocation is informational for general fitness — report block-phase counts.
+  const alloc = { base: 0, build: 0, peak: 0, taper: 0 };
+  for (const w of weeks) alloc[w.phase] += 1;
+
+  return { durationWeeks: D, trainingClass: input.trainingClass, allocation: alloc, weeks, needs: input.needs };
+}
+
 // --- Adapter: GenerationInput (spec section 2 shape) -> EngineInput (week-space) ---
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -170,8 +284,15 @@ const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
  * race). For fixed_duration / general_fitness, durationWeeks drives length and
  * any races are positioned relative to the start.
  */
+/** Body weight in kilograms (bike W/kg needs kg regardless of the athlete's unit). */
+function toKg(weight: number | undefined, unit: "lbs" | "kg" | undefined): number | undefined {
+  if (!weight || weight <= 0) return undefined;
+  return unit === "lbs" ? weight * 0.453592 : weight;
+}
+
 export function toEngineInput(input: GenerationInput, startDate?: string): EngineInput {
   const start = startDate ? new Date(startDate) : undefined;
+  const sportCfg = getSport(input.sport);
 
   const rawRaces = input.races ?? [];
   let races: EngineRace[] = [];
@@ -202,11 +323,22 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     .filter((r, idx, arr) => arr.findIndex((x) => x.weekNumber === r.weekNumber) === idx);
 
   return {
+    sport: input.sport ?? "hyrox",
+    subGoal: input.subGoal,
     trainingClass: input.profile.trainingClass,
     age: input.profile.age,
     runningExp: input.profile.runningExp,
     hybridExp: input.profile.hybridExp,
     liftingExp: input.profile.liftingExp,
+    // Explicit per-discipline experience wins; else derive from CSS / FTP anchors.
+    swimLevel: input.profile.swimExp ?? swimLevelFromCss(input.profile.benchmarks?.cssPace),
+    bikeLevel:
+      input.profile.bikeExp ??
+      bikeLevelFromFtp(
+        input.profile.benchmarks?.ftpWatts,
+        toKg(input.profile.bodyWeight, input.profile.weightUnit),
+        input.profile.sex,
+      ),
     programType: input.programType,
     durationWeeks,
     trainingDays: input.profile.trainingDays,
@@ -217,6 +349,9 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     restDays: input.profile.dayPreferences?.restDays,
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,
-    needs: analyzeNeeds(input.profile),
+    needs: analyzeNeedsForSport(input.profile, input.sport, {
+      ergStations: sportCfg.needsStations?.erg,
+      strengthStations: sportCfg.needsStations?.strength,
+    }),
   };
 }

@@ -44,7 +44,7 @@ const GOAL_ZONE: Record<RunType, number> = {
 const EXP_INDEX: Record<ExperienceLevel, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 
 /** Base run counts per phase, indexed by running experience [beg, int, adv]. */
-const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
+export const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
   base: [3, 4, 5],
   build: [4, 5, 6],
   peak: [3, 4, 4],
@@ -52,7 +52,7 @@ const RUN_COUNT: Record<PhaseName, [number, number, number]> = {
 };
 
 /** Hybrid session counts per phase (ramps toward race). */
-const HYBRID_COUNT: Record<PhaseName, number> = {
+export const HYBRID_COUNT: Record<PhaseName, number> = {
   base: 1,
   build: 2,
   peak: 3,
@@ -60,6 +60,28 @@ const HYBRID_COUNT: Record<PhaseName, number> = {
 };
 
 const LIFT_SPLIT: Array<"upper" | "lower" | "full"> = ["full", "upper", "lower"];
+
+/**
+ * Sport-provided per-phase session counts (P0 rewire). The engine reads these
+ * from the resolved SportConfig; when omitted it falls back to the HYROX tables
+ * so existing callers (and HYROX) are byte-identical.
+ */
+export interface SessionCountTables {
+  run: Record<PhaseName, [number, number, number]>; // indexed [beg, int, adv]
+  hybrid: Record<PhaseName, number>;
+  lift: Record<PhaseName, number>;
+  /** Minimum runs the deload/taper/bias floors may not drop below. HYROX (undefined)
+   *  keeps its 3 (deload/bias) / 2 (taper) floors; station-only DEKA sets 0. */
+  runFloor?: number;
+  /** "maintenance" forces every run to easy Z2 (station-only DEKA); default "full". */
+  runCharacter?: "maintenance" | "full";
+}
+
+export const DEFAULT_COUNTS: SessionCountTables = {
+  run: RUN_COUNT,
+  hybrid: HYBRID_COUNT,
+  lift: { base: 3, build: 3, peak: 3, taper: 2 },
+};
 
 export interface SlotPlan {
   runs: number;
@@ -74,41 +96,46 @@ export function planWeek(
   runningExp: ExperienceLevel,
   hybridExp: ExperienceLevel,
   bias?: ProgramBias,
+  counts: SessionCountTables = DEFAULT_COUNTS,
 ): SlotPlan {
   if (microWeek === "race") {
     return { runs: 1, lifts: 0, hybrids: 0 }; // shakeout only; race is added separately
   }
 
   const ei = EXP_INDEX[runningExp];
-  let runs = RUN_COUNT[phase][ei]!; // safe: ei is 0|1|2, and every RUN_COUNT tuple has 3 entries
-  let hybrids = HYBRID_COUNT[phase];
-  let lifts = 3;
+  let runs = counts.run[phase][ei]!; // safe: ei is 0|1|2, and every run tuple has 3 entries
+  let hybrids = counts.hybrid[phase];
+  let lifts = counts.lift[phase];
 
   // Hybrid-inexperienced athletes get more HYROX-specific work earlier (§4c).
-  if (hybridExp === "beginner" && phase === "base") hybrids += 1;
+  // Only when the sport actually schedules hybrids (skip for general fitness).
+  if (hybridExp === "beginner" && phase === "base" && hybrids > 0) hybrids += 1;
 
   // Review #1: needs-analysis frequency nudges. Applied only on normal loading
   // weeks (never deload/taper/race) so recovery is untouched, then clamped to
   // the spec bounds (runs 3–8, hybrids 0–3). This changes training FREQUENCY of
   // a quality, not weekly volume — the reconciler still hits the mileage/cardio
   // targets exactly.
+  // Run floor is sport-provided (station-only DEKA = 0); HYROX keeps 3 (deload/bias) / 2 (taper).
+  const runFloor = counts.runFloor ?? 3;
+  const runFloorTaper = counts.runFloor ?? 2;
   if (bias && (microWeek === "rebound" || microWeek === "increase")) {
-    runs = clampInt(runs + (bias.runCountDelta ?? 0), 3, 8);
-    hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, 3);
+    runs = clampInt(runs + (bias.runCountDelta ?? 0), runFloor, 8);
+    hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, Math.max(3, hybrids));
   }
 
   if (microWeek === "taper") {
     // Taper: cut frequency AND volume for race-week freshness.
-    runs = Math.max(2, Math.round(runs * 0.6));
+    runs = Math.max(runFloorTaper, Math.round(runs * 0.6));
     hybrids = Math.max(0, hybrids - 1);
     lifts = 2;
   } else if (microWeek === "deload") {
     // Deload (Review #9): preserve intensity + frequency touch-points and let the
     // −40% volume target (set at the microcycle level) do the load reduction by
-    // shortening each session, rather than dropping quality work. Keep ≥3 runs so
+    // shortening each session, rather than dropping quality work. Keep ≥runFloor runs so
     // the long run and a quality run both survive; keep one hybrid; trim lifts.
-    runs = Math.max(3, runs - 1);
-    hybrids = Math.max(1, hybrids - 1);
+    runs = Math.max(runFloor, runs - 1);
+    hybrids = hybrids > 0 ? Math.max(1, hybrids - 1) : 0; // never resurrect a hybrid for a no-hybrid sport
     lifts = 2;
   }
 
@@ -166,8 +193,18 @@ export function buildRunSlots(
   count: number,
   pos?: PhasePosition,
   emphasis: RunEmphasis = "none",
+  character: "maintenance" | "full" = "full",
 ): RunSlot[] {
   if (count <= 0) return [];
+  // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
+  if (character === "maintenance") {
+    return Array.from({ length: count }, () => ({
+      kind: "run" as const,
+      runType: "easy" as const,
+      goalZone: GOAL_ZONE.easy,
+      isLong: false,
+    }));
+  }
   const types: RunType[] = ["long"]; // long run anchors every week
   const fillers = applyRunEmphasis(runFillers(phase, pos), emphasis);
   // safe: runFillers always returns a non-empty array, so i % fillers.length is in-bounds
@@ -220,7 +257,12 @@ function buildHybridSlots(count: number, simulateFirst = false): SessionSlot[] {
  * C races are NOT routed here: they train through as a normal week, with the
  * race simply replacing the race-day session.
  */
-function raceWeekSlots(priority: RacePriorityName): SessionSlot[] {
+function raceWeekSlots(priority: RacePriorityName, maintenance = false): SessionSlot[] {
+  if (maintenance) {
+    // Station-only sport (DEKA Strong/Atlas): a short easy shakeout before the
+    // race — no interval opener or lift, which assume a running race.
+    return [{ kind: "run", runType: "easy", goalZone: GOAL_ZONE.easy, isLong: false }];
+  }
   if (priority === "A") {
     return [
       { kind: "run", runType: "easy", goalZone: GOAL_ZONE.easy },
@@ -373,18 +415,19 @@ export function assignDays(
   prefs?: DayPreferences,
   pos?: PhasePosition,
   bias?: ProgramBias,
+  counts: SessionCountTables = DEFAULT_COUNTS,
 ): DaySlot[] {
   // An A/B race week (microWeek "race") uses the reduced taper sessions; a C
   // race keeps its normal microcycle label and trains through, so it falls to
   // the normal plan below and just has the race overlaid on the race day.
   let ordered: SessionSlot[];
   if (race && microWeek === "race") {
-    ordered = raceWeekSlots(race.priority);
+    ordered = raceWeekSlots(race.priority, counts.runCharacter === "maintenance");
   } else {
-    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias);
+    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
-    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none");
+    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none", counts.runCharacter ?? "full");
     const lifts = buildLiftSlots(plan.lifts);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
     const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");
