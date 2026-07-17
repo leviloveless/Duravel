@@ -291,19 +291,35 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
   const [baseH, peakH] = hours as [number, number];
   const nonTaper = alloc.base + alloc.build + alloc.peak;
 
+  // Held-level progression (matches the run/station engine's microcycle model):
+  // the "held" volume steps up only on INCREASE weeks; REBOUND weeks hold the
+  // prior increase level, and DELOAD weeks dip WITHOUT lowering the held level.
+  // Increase steps are sized so the held level climbs baseH → peakH across the
+  // working weeks, so a rebound equals the increase week before it (not a ramp).
+  const nonTaperLabels: MicroWeekType[] = [];
+  for (let i = 0; i < nonTaper; i++) nonTaperLabels.push(pattern[i % pattern.length]!);
+  const increaseCount = nonTaperLabels.filter((l) => l === "increase").length;
+  const step = increaseCount > 0 ? (peakH - baseH) / increaseCount : 0;
+  const DELOAD = 0.65;
+
   const weeks: WeekSkeleton[] = [];
+  let held = baseH; // current increase-level (peak-of-cycle) hours
   let taperWeek = 0;
   for (let i = 0; i < D; i++) {
     const phase = phases[i]!;
-    let micro: MicroWeekType = phase === "taper" ? "taper" : pattern[i % pattern.length]!;
-    // Ramp base→peak across the working weeks.
-    const progress = nonTaper > 1 ? Math.min(1, i / (nonTaper - 1)) : 1;
-    let hoursThis = baseH + (peakH - baseH) * progress;
-    if (micro === "deload") hoursThis *= 0.65;
+    let micro: MicroWeekType = phase === "taper" ? "taper" : nonTaperLabels[i]!;
+    let hoursThis: number;
     if (phase === "taper") {
       hoursThis = peakH * (A_TAPER[Math.min(taperWeek, A_TAPER.length - 1)] ?? 0.6);
       taperWeek += 1;
       if (i === D - 1 && input.races.length > 0) micro = "race";
+    } else if (micro === "increase") {
+      held += step; // step up the held level, then hold it through the next rebound
+      hoursThis = held;
+    } else if (micro === "deload") {
+      hoursThis = held * DELOAD; // dip; held level is NOT reduced
+    } else {
+      hoursThis = held; // rebound: hold the prior increase level
     }
     const totalMin = Math.round(hoursThis * 60);
 

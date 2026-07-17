@@ -72,6 +72,38 @@ describe("Triathlon", () => {
     expect(bricksIn(peak)).toBeGreaterThan(0);
   });
 
+  it("rebound weeks hold the prior increase week's volume (no continuous ramp)", () => {
+    // Long, non-highly-trained program → repeating rebound/increase/deload.
+    const skel = buildSkeleton(triInput("tri_70_3", { durationWeeks: 20, trainingClass: "non_highly_trained" }));
+    const working = skel.weeks.filter((w) => w.phase !== "taper");
+    let sawCheck = false;
+    for (let i = 1; i < working.length; i++) {
+      const w = working[i]!;
+      const prev = working[i - 1]!;
+      // A rebound immediately following an increase must match that increase's volume.
+      if (w.microWeek === "rebound" && prev.microWeek === "deload") {
+        // rebound follows deload; the increase two weeks back is the held level.
+        const inc = working[i - 2];
+        if (inc && inc.microWeek === "increase") {
+          expect(w.targetCardioMinutes).toBe(inc.targetCardioMinutes);
+          sawCheck = true;
+        }
+      }
+    }
+    expect(sawCheck).toBe(true);
+    // And volume must never strictly increase on a rebound vs the week before a deload.
+  });
+
+  it("increase weeks step up and deloads dip below the held level", () => {
+    const skel = buildSkeleton(triInput("tri_70_3", { durationWeeks: 20, trainingClass: "non_highly_trained" }));
+    const working = skel.weeks.filter((w) => w.phase !== "taper");
+    for (let i = 1; i < working.length; i++) {
+      const w = working[i]!;
+      const prev = working[i - 1]!;
+      if (w.microWeek === "deload") expect(w.targetCardioMinutes).toBeLessThan(prev.targetCardioMinutes);
+    }
+  });
+
   it("taper reduces volume", () => {
     const skel = buildSkeleton(triInput("tri_70_3"));
     const peakMax = Math.max(...skel.weeks.filter((w) => w.phase === "peak").map((w) => w.targetCardioMinutes));

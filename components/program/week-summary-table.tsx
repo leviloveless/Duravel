@@ -1,10 +1,20 @@
 import type { ProgramData } from "@/lib/schemas";
 import { zoneEntries } from "./format";
 
+/** Microcycle label + pill styling for the weekly summary "Cycle" column. */
+const MICRO_TAG: Record<string, { label: string; className: string }> = {
+  increase: { label: "Increase", className: "bg-emerald-100 text-emerald-700" },
+  rebound: { label: "Rebound", className: "bg-sky-100 text-sky-700" },
+  deload: { label: "Deload", className: "bg-amber-100 text-amber-700" },
+  taper: { label: "Taper", className: "bg-violet-100 text-violet-700" },
+  race: { label: "Race", className: "bg-red-100 text-red-700" },
+};
+
 /**
- * Compact per-week summary table (Tasks addition #5): total cardio time, total
- * mileage, and the HR-zone distribution for each week. Rendered inside a sticky
- * sidebar on the program view so it follows the screen while scrolling.
+ * Compact per-week summary table (Tasks addition #5): microcycle type, total
+ * cardio time, total mileage, and the HR-zone distribution for each week.
+ * Rendered inside a sticky sidebar on the program view so it follows the screen
+ * while scrolling.
  */
 export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"] }) {
   return (
@@ -18,6 +28,7 @@ export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"
           <thead className="sticky top-0 bg-zinc-50 text-zinc-500">
             <tr>
               <th className="px-3 py-2 text-left font-medium">Wk</th>
+              <th className="px-2 py-2 text-left font-medium">Cycle</th>
               <th className="px-2 py-2 text-right font-medium">Cardio</th>
               <th className="px-2 py-2 text-right font-medium">Miles</th>
               <th className="px-3 py-2 text-left font-medium">Zones</th>
@@ -35,6 +46,16 @@ export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"
                       ●
                     </span>
                   )}
+                </td>
+                <td className="px-2 py-2">
+                  {(() => {
+                    const tag = MICRO_TAG[w.microWeek];
+                    return tag ? (
+                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${tag.className}`}>
+                        {tag.label}
+                      </span>
+                    ) : null;
+                  })()}
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalCardioMinutes}m</td>
                 <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalMileage}</td>
