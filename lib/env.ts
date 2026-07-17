@@ -8,8 +8,19 @@ import { z } from "zod";
  * or a silent `undefined` reaching the Supabase/Anthropic/Stripe SDKs.
  * NEXT_PUBLIC_* are inlined into the client bundle; server-only secrets are
  * required only when running on the server (window === undefined).
+ *
+ * IMPORTANT — build vs runtime: during `next build`, static page-data collection
+ * evaluates this module in worker processes that don't always have the runtime
+ * env populated (a Next 16 / turbopack build quirk that made production deploys
+ * fail intermittently). The build doesn't need these runtime secrets to compile
+ * the bundle, so during the build phase a missing/invalid var is a WARNING, not
+ * a fatal throw. At real runtime (server request or client) validation is strict
+ * and still throws — the fail-fast guarantee is preserved where it matters.
  */
 const isServer = typeof window === "undefined";
+// Next sets NEXT_PHASE to "phase-production-build" for the build process (and its
+// static-collection workers), but not at runtime.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const EnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("NEXT_PUBLIC_SUPABASE_URL must be a valid URL"),
@@ -51,7 +62,7 @@ const EnvSchema = z.object({
   CRON_SECRET: z.string().optional(),
 });
 
-const parsed = EnvSchema.safeParse({
+const rawEnv = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -76,11 +87,22 @@ const parsed = EnvSchema.safeParse({
   EMAIL_ENABLED: process.env.EMAIL_ENABLED,
   EMAIL_UNSUB_SECRET: process.env.EMAIL_UNSUB_SECRET,
   CRON_SECRET: process.env.CRON_SECRET,
-});
+};
+
+const parsed = EnvSchema.safeParse(rawEnv);
 
 if (!parsed.success) {
   const lines = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
-  throw new Error(`Invalid environment configuration:\n${lines}`);
+  const message = `Invalid environment configuration:\n${lines}`;
+  if (isBuildPhase) {
+    // Don't fail the production build over a runtime secret that's momentarily
+    // unreadable in a static-collection worker; runtime re-validates and throws.
+    console.warn(`[env] ${message}\n[env] Non-fatal during build; runtime will re-validate.`);
+  } else {
+    throw new Error(message);
+  }
 }
 
-export const env = parsed.data;
+// At runtime the parse succeeds (vars are present) → validated data. During the
+// build phase, if it didn't, fall back to the raw values (unused for compilation).
+export const env = (parsed.success ? parsed.data : rawEnv) as z.infer<typeof EnvSchema>;
