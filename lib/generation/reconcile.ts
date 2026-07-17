@@ -38,6 +38,15 @@ const MIN_CARDIO_TOTAL = 45; // every cardio session ≥ 45 min
 const EASY_LONG_MIN_MI = 3;
 const MIN_RUN_MILES = 0.3;
 
+// Long-run progression (Tasks addition #5). The long run should be clearly
+// longer than the easy runs in the same week and grow week over week toward the
+// 90-min cap. These control a redistribution-only pass: miles are pulled from
+// the easy runs into the long run (weekly mileage stays exact), so the long run
+// reaches a week-ramped duration target without changing the prescribed volume.
+const LONG_RUN_BASE_WORK = 50; // week-1 long-run work-minutes target
+const LONG_RUN_STEP_WORK = 4; // added work-minutes per subsequent week
+const LONG_RUN_DOMINANCE = 1.5; // long run ≥ 1.5× the longest easy run
+
 /** Relative distance share by run type when spreading remaining miles. */
 const TYPE_WEIGHT: Record<RunType, number> = {
   long: 2.0, progression: 1.3, fartlek: 1.2, tempo: 1.1, threshold: 1.1, interval: 1.0, easy: 1.0, hybrid_run: 1.0,
@@ -100,6 +109,7 @@ export function reconcileWeekVolume(
   targetCardioMinutes: number,
   paces: RunPaces | null,
   runningExp: ExperienceLevel,
+  weekNumber = 1,
 ): void {
   if (!paces) return; // no 5K → can't apply formula paces
   const hasRace = days.some((d) => d.sessions.some((s) => s.kind === "race"));
@@ -144,6 +154,7 @@ export function reconcileWeekVolume(
     if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp));
   } else {
     sizeRuns(runs, RM, days, paces, runningExp, added);
+    enforceLongRun(runs, weekNumber);
     for (const r of runs) writeRun(r, paces);
   }
 
@@ -226,6 +237,45 @@ function sizeRuns(
       }
       if (overflow > 0.05) added.push(...buildEasyRuns(overflow, paces, runningExp));
     }
+  }
+}
+
+/**
+ * Make the week's long run clearly dominant and progressive (Tasks addition #5).
+ * Redistribution only: miles are shifted from the easy runs into the long run,
+ * so the week's total mileage is unchanged. The long run is grown toward a
+ * week-ramped work-minute target (up to the 90-min cap) and to at least
+ * LONG_RUN_DOMINANCE× the longest easy run, limited by how much spare distance
+ * the easy runs have above their minimums.
+ */
+function enforceLongRun(runs: RunEntry[], weekNumber: number): void {
+  const long = runs.find((r) => r.type === "long");
+  if (!long || runs.length < 2) return;
+  const others = runs.filter((r) => r !== long);
+  if (others.length === 0) return;
+
+  // Week-ramped duration target, expressed in miles at the long-run pace, capped
+  // by the per-run 90-min ceiling (long.max already encodes the cap).
+  const targetWork = Math.min(
+    MAX_RUN_TOTAL - long.overhead,
+    LONG_RUN_BASE_WORK + LONG_RUN_STEP_WORK * Math.max(0, weekNumber - 1),
+  );
+  const targetMiles = targetWork / long.paceMin;
+  const maxEasyMiles = others.reduce((m, r) => Math.max(m, r.miles), 0);
+
+  let want = Math.max(long.miles, targetMiles, LONG_RUN_DOMINANCE * maxEasyMiles);
+  want = Math.min(want, long.max); // never exceed the 90-min cap
+  let need = want - long.miles;
+  if (need <= 0.05) return;
+
+  // Pull spare miles from the easy/quality runs (biggest first), never below min.
+  for (const r of [...others].sort((a, b) => b.miles - a.miles)) {
+    if (need <= 0.05) break;
+    const spare = Math.max(0, r.miles - r.min);
+    const take = Math.min(spare, need);
+    r.miles -= take;
+    long.miles += take;
+    need -= take;
   }
 }
 

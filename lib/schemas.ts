@@ -414,6 +414,20 @@ export const ReadinessCheckinInputSchema = z.object({
 });
 export type ReadinessCheckinInput = z.infer<typeof ReadinessCheckinInputSchema>;
 
+/** Body of POST /api/daily-metrics — one day's resting HR + HRV (Tasks #7). */
+export const DailyMetricInputSchema = z
+  .object({
+    /** ISO date "YYYY-MM-DD" the reading was taken (usually on waking). */
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+    restingHr: z.number().int().min(25).max(150).optional(),
+    hrv: z.number().min(1).max(400).optional(),
+  })
+  .refine((v) => v.restingHr !== undefined || v.hrv !== undefined, {
+    message: "Enter a resting HR and/or HRV",
+    path: ["restingHr"],
+  });
+export type DailyMetricInput = z.infer<typeof DailyMetricInputSchema>;
+
 export type LogActuals = z.infer<typeof LogActualsSchema>;
 export type WorkoutLogInput = z.infer<typeof WorkoutLogInputSchema>;
 

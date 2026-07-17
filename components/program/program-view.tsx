@@ -5,7 +5,7 @@ import type { SyncSuggestion, SyncActivitySummary } from "@/lib/wearables/sugges
 import PhaseTimeline from "./phase-timeline";
 import WeekNav from "./week-nav";
 import WeekCard from "./week-card";
-import WeekSummaryTable from "./week-summary-table";
+import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
 import AdaptReview from "./adapt-review";
 import SyncSuggestions from "./sync-suggestions";
 import RegenerateButton from "@/app/program/[id]/regenerate-button";
@@ -30,6 +30,8 @@ export interface ProgramActivity {
   adaptedWeeks: number[];
   /** The week awaiting review, if any. */
   reviewWeek: number | null;
+  /** Weekly average resting HR + HRV by week number (Tasks addition #7). */
+  recoveryByWeek?: Map<number, WeekRecovery>;
 }
 
 const PROGRAM_TYPE_LABEL: Record<string, string> = {
@@ -101,34 +103,37 @@ export default function ProgramView({
 
       <WeekNav weeks={program.weeks} />
 
-      {/* Weeks + sticky summary sidebar */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          {program.weeks.map((w) => (
-            <WeekCard
-              key={w.weekNumber}
-              week={w}
-              startDate={meta.startDate}
-              maxHR={meta.maxHR}
-              zoneBands={meta.zoneBands}
-              logging={
-                activity
-                  ? {
-                      programId: meta.programId,
-                      logs: logsByWeek.get(w.weekNumber) ?? [],
-                      frozen: activity.frozenWeeks.includes(w.weekNumber),
-                      adapted: activity.adaptedWeeks.includes(w.weekNumber),
-                      linkableActivities: linking?.linkableActivities ?? [],
-                      linkedBySession: linking?.linkedBySession ?? {},
-                    }
-                  : undefined
-              }
-            />
-          ))}
-        </div>
-        <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:block lg:w-72 lg:self-start print:hidden">
-          <WeekSummaryTable weeks={program.weeks} />
-        </aside>
+      {/* Full-width weekly summary (extended so the whole table is visible
+          without horizontal scroll — Tasks addition #10). */}
+      <WeekSummaryTable
+        weeks={program.weeks}
+        logsByWeek={logsByWeek}
+        recoveryByWeek={activity?.recoveryByWeek}
+      />
+
+      {/* Week cards */}
+      <div className="flex flex-col gap-6">
+        {program.weeks.map((w) => (
+          <WeekCard
+            key={w.weekNumber}
+            week={w}
+            startDate={meta.startDate}
+            maxHR={meta.maxHR}
+            zoneBands={meta.zoneBands}
+            logging={
+              activity
+                ? {
+                    programId: meta.programId,
+                    logs: logsByWeek.get(w.weekNumber) ?? [],
+                    frozen: activity.frozenWeeks.includes(w.weekNumber),
+                    adapted: activity.adaptedWeeks.includes(w.weekNumber),
+                    linkableActivities: linking?.linkableActivities ?? [],
+                    linkedBySession: linking?.linkedBySession ?? {},
+                  }
+                : undefined
+            }
+          />
+        ))}
       </div>
     </div>
   );

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ProgramData, WorkoutLog } from "@/lib/schemas";
-import { getProgramAdaptations, getProgramLogs, getProgramReadiness } from "@/lib/supabase/queries";
+import { getProgramAdaptations, getProgramLogs, getProgramReadiness, getDailyMetrics } from "@/lib/supabase/queries";
+import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
 import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
@@ -10,6 +11,7 @@ import PacingCard from "@/components/program/pacing-card";
 import DekaPacingCard from "@/components/program/deka-pacing-card";
 import TriZonesCard from "@/components/program/tri-zones-card";
 import ReadinessForm from "@/components/program/readiness-form";
+import DailyMetricsForm from "@/components/program/daily-metrics-form";
 import { computePacingPlan } from "@/lib/engine/pacing";
 import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
 import { computeTriZones } from "@/lib/engine/tri-zones";
@@ -174,11 +176,12 @@ export default async function ProgramPage({
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
-    const [logRows, adaptations, readinessRows, syncData] = await Promise.all([
+    const [logRows, adaptations, readinessRows, syncData, dailyMetrics] = await Promise.all([
       getProgramLogs(program.id),
       getProgramAdaptations(program.id),
       getProgramReadiness(program.id),
       getProgramSyncData(program.id),
+      getDailyMetrics(),
     ]);
     const logs: WorkoutLog[] = logRows.map((r) => ({
       weekNumber: r.week_number,
@@ -238,6 +241,7 @@ export default async function ProgramPage({
         .filter((a) => a.decision === "applied" && a.rule_applied !== "none")
         .map((a) => a.target_week),
       reviewWeek,
+      recoveryByWeek: weeklyRecoveryAverages(dailyMetrics, program.start_date, program.duration_weeks),
     };
 
     const readinessWeek = Math.min(
@@ -258,6 +262,7 @@ export default async function ProgramPage({
         {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
         {triZones && <TriZonesCard zones={triZones} />}
         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
+        <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />
         <ProgramView
           program={data}
           meta={{
