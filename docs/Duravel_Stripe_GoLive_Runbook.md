@@ -4,7 +4,7 @@ _Last updated: July 14, 2026_
 
 This is the step-by-step to turn on paid billing. The billing **code** is already built and gated behind a single flag (`BILLING_ENABLED`), so nothing is paywalled until the final step. Everything here is operational: creating prices in Stripe, setting env vars in Vercel, wiring the webhook, testing, then flipping the flag.
 
-**Launch prices:** **$19.99 / month** and **$149 / year** (no card required for the 14‑day trial — the trial is enforced app‑side, there is deliberately no Stripe trial).
+**Launch prices:** **$19.99 / month** and **$159.99 / year** (no card required for the 14‑day trial — the trial is enforced app‑side, there is deliberately no Stripe trial).
 
 Do the whole thing in **Stripe Test mode first** on a Vercel Preview, verify the checklist, then repeat the price/webhook/env steps with **Live** keys on Production.
 
@@ -51,7 +51,7 @@ Stripe Dashboard → **Products** → **Add product**.
 
 1. **Product:** "Duravel" (or "Duravel Membership"). One product with two recurring prices is cleanest:
    - **Monthly** — Recurring, **$19.99 USD**, billing period **Monthly**. Save → copy the **Price ID** (`price_...`).
-   - **Annual** — Recurring, **$149.00 USD**, billing period **Yearly**. Save → copy the **Price ID** (`price_...`).
+   - **Annual** — Recurring, **$159.99 USD**, billing period **Yearly**. Save → copy the **Price ID** (`price_...`).
 2. Keep both prices **active**. No trial on the price (the trial is app‑side).
 
 You now have `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_ANNUAL`.

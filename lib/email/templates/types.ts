@@ -37,7 +37,7 @@ export interface TrialEndingProps extends BaseEmailProps {
   stage: TrialEndingStage;
   /** Stripe checkout — monthly price ($19.99/mo). */
   subscribeUrl: string;
-  /** Stripe checkout — annual price ($149/yr). Primary CTA on T-0. */
+  /** Stripe checkout — annual price ($159.99/yr). Primary CTA on T-0. */
   annualUrl: string;
   /**
    * The user's own logged progress. When 0/undefined the template omits the
@@ -53,7 +53,7 @@ export interface TrialEndingProps extends BaseEmailProps {
 export interface ReceiptProps extends BaseEmailProps {
   /** e.g. "Duravel Annual" or "Duravel Monthly". */
   planLabel: string;
-  /** Pre-formatted charge, e.g. "$149.00". */
+  /** Pre-formatted charge, e.g. "$159.99". */
   amount: string;
   /** Pre-formatted next renewal date, e.g. "Jul 17, 2027". */
   renewalDate: string;

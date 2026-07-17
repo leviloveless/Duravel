@@ -45,7 +45,7 @@ An AI-driven endurance training app, single-founder (Levi). It generates persona
 - **Email sending = Resend (LIVE).** Transactional/lead mail sends via **Resend on `send.duravel.app`** (verified). **Supabase Auth also now uses Resend custom SMTP** (see Auth below).
 
 ### Product / code
-- **Billing is LIVE** (since 2026-07-14): **$19.99/mo · $149/yr**, 14-day no-card trial. Stripe webhook is the sole entitlement writer. `BILLING_ENABLED=true`.
+- **Billing is LIVE** (since 2026-07-14): **$19.99/mo · $159.99/yr**, 14-day no-card trial. Stripe webhook is the sole entitlement writer. `BILLING_ENABLED=true`.
 - **Auth (updated + verified this session):**
   - **Signup email confirmation now works correctly and sends from Duravel.** Root cause of the old "confirmation error but it still logs me in" bug: Supabase's default `{{ .ConfirmationURL }}` template verified on Supabase's side and redirected to `/auth/confirm` without a `token_hash`, so the route always hit the error path. Fixed by (a) hardening `app/auth/confirm/route.ts` to handle `token_hash`+`type`, PKCE `?code=`, and already-authenticated cases, and (b) switching the Supabase "Confirm signup" template to the token-hash link + enabling **custom SMTP via Resend** so the sender is Duravel. Full detail: `duravel-auth-email-confirm` memory.
   - **Forgot-password flow built + verified working** (`/forgot-password` → email → `/auth/confirm?type=recovery` → `/account/update-password`). Files: `app/login/actions.ts` (`requestPasswordReset`, `updatePassword`), `app/login/login-form.tsx` ("Forgot password?" link), `app/forgot-password/*`, `app/account/update-password/*`.

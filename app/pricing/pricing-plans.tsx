@@ -6,7 +6,7 @@ type Plan = "monthly" | "annual";
 
 const PRICES: Record<Plan, { label: string; price: string; per: string; sub: string }> = {
   monthly: { label: "Monthly", price: "$19.99", per: "/month", sub: "billed monthly" },
-  annual: { label: "Annual", price: "$149", per: "/year", sub: "under $12.50/mo — billed yearly" },
+  annual: { label: "Annual", price: "$159.99", per: "/year", sub: "about $13.33/mo — billed yearly" },
 };
 
 const FEATURES = [
