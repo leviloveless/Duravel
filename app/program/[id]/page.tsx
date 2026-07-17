@@ -7,8 +7,14 @@ import { weekStartDate, type ZoneBands } from "@/components/program/format";
 import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
 import PacingCard from "@/components/program/pacing-card";
+import DekaPacingCard from "@/components/program/deka-pacing-card";
+import TriZonesCard from "@/components/program/tri-zones-card";
 import ReadinessForm from "@/components/program/readiness-form";
 import { computePacingPlan } from "@/lib/engine/pacing";
+import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
+import { computeTriZones } from "@/lib/engine/tri-zones";
+import { getSport } from "@/lib/engine/sports";
+import type { SportId } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import GenerateTrigger from "./generate-trigger";
 
@@ -23,6 +29,7 @@ type SnapshotProfile = {
   benchmarks?: {
     mileTime?: string; fiveKTime?: string; tenKTime?: string;
     ski2kTime?: string; row2kTime?: string;
+    cssPace?: string; ftpWatts?: number;
   };
   division?: "open" | "pro";
   goalFinishTime?: string;
@@ -143,6 +150,26 @@ export default async function ProgramPage({
     goalFinishTime: snapshotProfile?.goalFinishTime,
   });
 
+  // Sport-specific extras: a DEKA station-by-station pacing plan, or triathlon
+  // per-discipline (swim/bike/run) training zones. Both are null/empty for HYROX.
+  const sportCfg = getSport(sport as SportId);
+  const dekaPlan =
+    sportCfg.family === "station_hybrid" && sport !== "hyrox"
+      ? computeDekaPacingPlan(sportCfg, {
+          benchmarks: snapshotProfile?.benchmarks,
+          sex: snapshotProfile?.sex,
+          goalFinishTime: snapshotProfile?.goalFinishTime,
+        })
+      : null;
+  const triZones =
+    sportCfg.family === "triathlon"
+      ? computeTriZones({
+          cssPace: snapshotProfile?.benchmarks?.cssPace,
+          ftpWatts: snapshotProfile?.benchmarks?.ftpWatts,
+          benchmarks: snapshotProfile?.benchmarks,
+        })
+      : null;
+
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
@@ -227,6 +254,8 @@ export default async function ProgramPage({
         </div>
         {/* The pacing plan is HYROX race-format specific; hidden for other sports. */}
         {sport === "hyrox" && <PacingCard plan={pacingPlan} />}
+        {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
+        {triZones && <TriZonesCard zones={triZones} />}
         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
         <ProgramView
           program={data}

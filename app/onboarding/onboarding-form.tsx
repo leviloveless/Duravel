@@ -169,6 +169,8 @@ export default function OnboardingForm({
   const [subGoal, setSubGoal] = useState<string>(initial?.subGoal ?? "balanced");
   const sportBlurb = SPORT_OPTIONS.find((s) => s.value === sport)?.blurb ?? "";
   const isGeneralFitness = sport === "general_fitness";
+  const isDeka = sport.startsWith("deka_");
+  const isTriathlon = sport === "tri_70_3" || sport === "tri_140_6";
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
@@ -471,6 +473,25 @@ export default function OnboardingForm({
           </>
         )}
 
+        {isDeka && (
+          <>
+            <label className="flex flex-col gap-1 text-sm">
+              Goal finish time <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
+              <input
+                name="goalFinishTime"
+                type="text"
+                defaultValue={profile?.goal_finish_time ?? ""}
+                placeholder="e.g. 42:00"
+                className={inputClass}
+              />
+            </label>
+            <p className="text-xs text-zinc-500">
+              A goal time drives your zone-by-zone race pacing plan — leave it blank and we predict one from
+              your run and erg benchmarks.
+            </p>
+          </>
+        )}
+
         {/* Custom HR zones (new-additions #3) */}
         <fieldset className="flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
@@ -758,6 +779,38 @@ export default function OnboardingForm({
             </label>
           ))}
         </div>
+
+        {isTriathlon && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-500">
+              <span className="font-medium text-zinc-700">Triathlon anchors</span> — your swim CSS pace and
+              bike FTP unlock personalized swim-pace and bike-power zones (your 5K time drives run zones).
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <label className="flex flex-col gap-1">
+                Swim CSS pace (mm:ss / 100m)
+                <input
+                  name="cssPace"
+                  type="text"
+                  placeholder="e.g. 1:40"
+                  defaultValue={initial?.benchmarks?.cssPace ?? ""}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                Bike FTP (watts)
+                <input
+                  name="ftpWatts"
+                  type="number"
+                  step="1"
+                  placeholder="e.g. 240"
+                  defaultValue={initial?.benchmarks?.ftpWatts ?? ""}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+          </div>
+        )}
       </fieldset>
 
       {(stepError || state.error) && <p className="text-sm text-red-600">{stepError ?? state.error}</p>}

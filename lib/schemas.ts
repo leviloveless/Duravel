@@ -51,6 +51,10 @@ export const BenchmarksSchema = z.object({
   ski2kTime: z.string().max(TIME_STRING_MAX).optional(),
   row2kTime: z.string().max(TIME_STRING_MAX).optional(),
   bike20MinCals: z.number().optional(),
+  /** Triathlon swim anchor: CSS (critical swim speed) pace per 100 m, "mm:ss". */
+  cssPace: z.string().max(TIME_STRING_MAX).optional(),
+  /** Triathlon bike anchor: FTP (functional threshold power) in watts. */
+  ftpWatts: z.number().positive().max(600).optional(),
 });
 
 /**
