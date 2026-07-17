@@ -108,6 +108,8 @@ const SPORT_OPTIONS = [
   { value: "deka_strong", label: "DEKA STRONG", blurb: "10 zones back-to-back, no running — strength-endurance" },
   { value: "deka_atlas", label: "DEKA ATLAS", blurb: "10 heavy barbell/DB zones, no running — strength-led" },
   { value: "deka_ultra", label: "DEKA ULTRA", blurb: "5× DEKA FIT — 25km + 50 zones (endurance)" },
+  { value: "tri_70_3", label: "Ironman 70.3", blurb: "Half — 1.9km swim / 90km bike / 21.1km run" },
+  { value: "tri_140_6", label: "Ironman 140.6", blurb: "Full — 3.8km swim / 180km bike / 42.2km run" },
   { value: "general_fitness", label: "General Fitness", blurb: "No race — rotating strength + cardio blocks for all-round fitness" },
 ] as const;
 

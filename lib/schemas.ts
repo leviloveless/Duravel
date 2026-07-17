@@ -246,12 +246,48 @@ export const CardioSessionSchema = z.object({
   description: z.string().optional(),
 });
 
+/** Triathlon swim session (content templated deterministically from the skeleton). */
+export const SwimSessionSchema = z.object({
+  kind: z.literal("swim"),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  sessionType: z.enum(["technique", "css", "threshold", "endurance", "open_water"]),
+  description: z.string().optional(),
+});
+
+/** Triathlon bike session. */
+export const BikeSessionSchema = z.object({
+  kind: z.literal("bike"),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  sessionType: z.enum(["endurance", "sweet_spot", "threshold", "vo2", "recovery"]),
+  isLong: z.boolean().optional(),
+  description: z.string().optional(),
+});
+
+/** Triathlon brick — ordered bike→run (or other) segments in one session. */
+export const BrickSegmentSchema = z.object({
+  discipline: z.enum(["bike", "run", "swim"]),
+  durationMin: z.number(),
+  goalZone: z.number().int().min(1).max(5),
+  note: z.string().optional(),
+});
+export const BrickSessionSchema = z.object({
+  kind: z.literal("brick"),
+  goalZone: z.number().int().min(1).max(5),
+  segments: z.array(BrickSegmentSchema),
+  description: z.string().optional(),
+});
+
 export const SessionSchema = z.discriminatedUnion("kind", [
   RunSessionSchema,
   LiftSessionSchema,
   HybridSessionSchema,
   RaceSessionSchema,
   CardioSessionSchema,
+  SwimSessionSchema,
+  BikeSessionSchema,
+  BrickSessionSchema,
 ]);
 
 export type Session = z.infer<typeof SessionSchema>;

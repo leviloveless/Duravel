@@ -27,6 +27,7 @@ import type {
   ZoneDistribution,
 } from "../types";
 import type { SportConfig, ExperienceBand, NeedsDomainConfig, PhaseCountTable } from "./types";
+import type { ProgramData, ProgramWeek, ProgramDay, Session } from "@/lib/schemas";
 
 // --- shared bands / needs ---------------------------------------------------
 
@@ -273,4 +274,98 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
   }
 
   return { durationWeeks: D, trainingClass: input.trainingClass, allocation: alloc, weeks, needs: input.needs };
+}
+
+// --- deterministic triathlon program-data assembler (no AI) -----------------
+
+const SWIM_DESC: Record<string, string> = {
+  technique: "Warm-up, then a drill set for form, an easy aerobic main set, and a cool-down.",
+  css: "Warm-up, CSS interval set (e.g. 8–12×100m at CSS pace, short rest), cool-down.",
+  threshold: "Warm-up, sustained threshold swimming, cool-down.",
+  endurance: "Continuous aerobic swim at an easy, steady effort.",
+  open_water: "Open-water skills: sighting every few strokes, drafting, race starts.",
+};
+const BIKE_DESC: Record<string, string> = {
+  endurance: "Steady Zone 2 aerobic ride — the aerobic cornerstone. Keep it conversational.",
+  sweet_spot: "Sweet-spot intervals (~88–94% FTP) with short recoveries.",
+  threshold: "Threshold intervals (~95–105% FTP), e.g. 2–3×15–20 min.",
+  vo2: "VO2max intervals (~115–120% FTP), e.g. 4–6×3 min hard.",
+  recovery: "Easy recovery spin, fully aerobic.",
+};
+const RUN_DESC: Record<string, string> = {
+  long: "Long aerobic run at an easy, steady Zone 2 effort.",
+  tempo: "Tempo/threshold segment at race effort after a warm-up.",
+  easy: "Easy Zone 2 aerobic run.",
+};
+
+function slotToSession(slot: SessionSlot): Session | null {
+  switch (slot.kind) {
+    case "swim":
+      return {
+        kind: "swim",
+        durationMin: slot.durationMin,
+        goalZone: slot.goalZone,
+        sessionType: slot.sessionType,
+        description: SWIM_DESC[slot.sessionType],
+      };
+    case "bike":
+      return {
+        kind: "bike",
+        durationMin: slot.durationMin,
+        goalZone: slot.goalZone,
+        sessionType: slot.sessionType,
+        isLong: slot.isLong,
+        description: (slot.isLong ? "Long ride. " : "") + (BIKE_DESC[slot.sessionType] ?? ""),
+      };
+    case "brick":
+      return {
+        kind: "brick",
+        goalZone: slot.goalZone,
+        segments: slot.segments.map((s) => ({ discipline: s.discipline, durationMin: s.durationMin, goalZone: s.goalZone })),
+        description: "Brick: ride the bike segment, then run immediately off the bike — hold controlled effort as your legs adapt over the first km.",
+      };
+    case "run":
+      return {
+        kind: "run",
+        runType: slot.runType,
+        durationMin: slot.durationMin ?? 40,
+        paceMinMile: "by effort",
+        distanceMiles: 0,
+        goalZone: slot.goalZone,
+        description: RUN_DESC[slot.runType] ?? "Aerobic run.",
+      };
+    case "race":
+      return { kind: "race", priority: slot.priority };
+    case "rest":
+      return null;
+    default:
+      return null; // lift/hybrid never occur in a triathlon skeleton
+  }
+}
+
+/**
+ * Deterministically assemble a triathlon ProgramData directly from the skeleton —
+ * no AI. The skeleton slots already carry per-session durations, zones, and types;
+ * this maps them to sessions with templated coaching notes and engine summaries.
+ */
+export function buildTriProgramData(skeleton: ProgramSkeleton): ProgramData {
+  const weeks: ProgramWeek[] = skeleton.weeks.map((w): ProgramWeek => {
+    const days: ProgramDay[] = w.days.map((d) => ({
+      day: d.day,
+      sessions: d.sessions.map(slotToSession).filter((s): s is Session => s !== null),
+    }));
+    return {
+      weekNumber: w.weekNumber,
+      phase: w.phase,
+      microWeek: w.microWeek,
+      summary: {
+        totalCardioMinutes: w.targetCardioMinutes,
+        totalMileage: 0,
+        zoneDistribution: { ...w.zoneTargets },
+      },
+      days,
+      ...(w.raceDay ? { raceDay: w.raceDay } : {}),
+    };
+  });
+  return { generatedAt: new Date().toISOString(), weeks };
 }

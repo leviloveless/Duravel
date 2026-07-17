@@ -136,6 +136,9 @@ export function sessionTypeLabel(session: Session): string {
   if (session.kind === "lift") return `${LIFT_TYPE_LABEL[session.liftType]} lift`;
   if (session.kind === "hybrid") return session.simulation ? "Race Simulation" : "Hybrid (HYROX)";
   if (session.kind === "cardio") return "Zone 1–2 cardio";
+  if (session.kind === "swim") return `${session.sessionType.replace(/_/g, " ")} swim`;
+  if (session.kind === "bike") return `${session.sessionType.replace(/_/g, " ")} ride`;
+  if (session.kind === "brick") return "Brick (bike→run)";
   return `${session.priority} race`;
 }
 
@@ -146,7 +149,15 @@ export function sessionPace(session: Session): string {
 
 /** HR-zone column value, or "—" when zone doesn't apply. */
 export function sessionZone(session: Session): string {
-  if (session.kind === "run" || session.kind === "hybrid" || session.kind === "cardio") return `Zone ${session.goalZone}`;
+  if (
+    session.kind === "run" ||
+    session.kind === "hybrid" ||
+    session.kind === "cardio" ||
+    session.kind === "swim" ||
+    session.kind === "bike" ||
+    session.kind === "brick"
+  )
+    return `Zone ${session.goalZone}`;
   return "—";
 }
 

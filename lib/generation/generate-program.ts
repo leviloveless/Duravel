@@ -20,6 +20,8 @@ import {
 } from "@/lib/schemas";
 import type { PhaseName, ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
+import { getSport } from "@/lib/engine/sports";
+import { buildTriProgramData } from "@/lib/engine/sports/triathlon";
 import { generateChunk } from "@/lib/ai/generate-week";
 import { assembleArgsFromInput, assembleProgram, verifyProgram } from "./assemble";
 
@@ -107,6 +109,14 @@ export async function generateProgram(
     // Rebuild the skeleton from the saved inputs so a recalculate always
     // reflects the current engine rules and any starting-volume overrides.
     const skeleton = buildSkeleton(toEngineInput(input, row.start_date ?? undefined));
+
+    // Triathlon assembles deterministically from the skeleton (no AI fill): the
+    // skeleton slots already carry per-session durations, zones, and types.
+    if (getSport(input.sport).family === "triathlon") {
+      const program = buildTriProgramData(skeleton);
+      await persist(supabase, programId, program, skeleton);
+      return { ok: true, status: "ready", issues: [] };
+    }
 
     // Fan out Haiku calls, one per batch (≤ MAX_WEEKS_PER_CALL weeks) so no
     // response is large enough to truncate. Batches are independent given the

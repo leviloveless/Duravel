@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { EngineInput } from "../types";
 import { buildSkeleton } from "../skeleton";
+import { ProgramDataSchema } from "@/lib/schemas";
 import { getSport } from "./index";
-import { tri_70_3, tri_140_6 } from "./triathlon";
+import { tri_70_3, tri_140_6, buildTriProgramData } from "./triathlon";
 
 function triInput(sport: EngineInput["sport"], o: Partial<EngineInput> = {}): EngineInput {
   return {
@@ -81,5 +82,16 @@ describe("Triathlon", () => {
     const full = buildSkeleton(triInput("tri_140_6"));
     const peak = (s: typeof half) => Math.max(...s.weeks.map((w) => w.targetCardioMinutes));
     expect(peak(full)).toBeGreaterThan(peak(half));
+  });
+
+  it("assembles deterministic ProgramData (no AI) that passes the schema", () => {
+    const data = buildTriProgramData(buildSkeleton(triInput("tri_140_6")));
+    expect(ProgramDataSchema.safeParse(data).success).toBe(true);
+    const kinds = new Set<string>();
+    for (const w of data.weeks) for (const d of w.days) for (const s of d.sessions) kinds.add(s.kind);
+    expect(kinds.has("swim")).toBe(true);
+    expect(kinds.has("bike")).toBe(true);
+    expect(kinds.has("run")).toBe(true);
+    expect(kinds.has("brick")).toBe(true);
   });
 });

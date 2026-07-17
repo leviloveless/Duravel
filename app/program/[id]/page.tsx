@@ -47,8 +47,14 @@ const SPORT_LABEL: Record<string, string> = {
   deka_strong: "DEKA STRONG",
   deka_atlas: "DEKA ATLAS",
   deka_ultra: "DEKA ULTRA",
+  tri_70_3: "Ironman 70.3",
+  tri_140_6: "Ironman 140.6",
   general_fitness: "General Fitness",
 };
+
+/** Triathlon programs are assembled deterministically; the AI-refill weekly
+ *  adaptation isn't wired for swim/bike/brick yet, so its review is hidden. */
+const NO_ADAPT_SPORTS = new Set(["tri_70_3", "tri_140_6"]);
 
 // A program still 'generating' this long after its last generation run started
 // was almost certainly killed mid-flight (the route's maxDuration is 60s) before
@@ -187,11 +193,13 @@ export default async function ProgramPage({
     };
 
     let reviewWeek: number | null = null;
-    for (let w = maxReviewable; w >= 1; w--) {
-      if (reviewed.has(w)) continue;
-      if (w <= elapsed || isFullyLogged(w)) {
-        reviewWeek = w;
-        break;
+    if (!NO_ADAPT_SPORTS.has(sport)) {
+      for (let w = maxReviewable; w >= 1; w--) {
+        if (reviewed.has(w)) continue;
+        if (w <= elapsed || isFullyLogged(w)) {
+          reviewWeek = w;
+          break;
+        }
       }
     }
 
