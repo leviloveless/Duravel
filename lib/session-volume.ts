@@ -31,6 +31,16 @@ export const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]
 export const HYBRID_MIN_WORK = 25;
 export const HYBRID_MAX_WORK = 60;
 
+/**
+ * Fixed total length of a strength session (Tasks addition #4: all strength
+ * workouts are 60 minutes). Split into a 10-min warmup, 45-min working block,
+ * and 5-min cooldown so the displayed estimate and the weekly time tracker both
+ * read a flat 60 minutes regardless of set count.
+ */
+export const STRENGTH_SESSION_MIN = 60;
+const STRENGTH_WARMUP = 10;
+const STRENGTH_COOLDOWN = 5;
+
 const DEFAULT_HYBRID_RUN_MILES = 1000 / METERS_PER_MILE; // 1000 m per hybrid run
 
 /** Parse a distance ("1000m", "1 km", "0.6 mi") to miles, or null. */
@@ -74,9 +84,14 @@ export function sessionTiming(session: Session): SessionTiming {
     return { warmup, work, cooldown, total: warmup + work + cooldown };
   }
   if (session.kind === "lift") {
-    const sets = session.movements.reduce((n, m) => n + m.sets, 0);
-    const work = sets > 0 ? Math.round(sets * 2.5) : 40;
-    return { warmup: 10, work, cooldown: 5, total: 10 + work + 5 };
+    // Strength sessions are a fixed 60 minutes (Tasks addition #4).
+    const work = STRENGTH_SESSION_MIN - STRENGTH_WARMUP - STRENGTH_COOLDOWN;
+    return {
+      warmup: STRENGTH_WARMUP,
+      work,
+      cooldown: STRENGTH_COOLDOWN,
+      total: STRENGTH_SESSION_MIN,
+    };
   }
   if (session.kind === "hybrid") {
     const work = clamp(Math.round(session.elements.length * 5), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
@@ -139,4 +154,58 @@ export function weekMileage(week: { days: { sessions: Session[] }[] }): number {
     for (const s of day.sessions) miles += sessionMiles(s);
   }
   return Math.round(miles * 10) / 10;
+}
+
+/**
+ * Weekly training-time breakdown in minutes (Tasks addition #3).
+ *   - metcon: hybrid ("HYROX/DEKA-style") workout time
+ *   - strength: weightlifting time
+ *   - running: run time
+ *   - nonRunningCardio: everything else aerobic (cardio blocks, swim, bike, brick)
+ *   - total: sum of the four above (strength + metcon + running + non-running cardio)
+ * Race days contribute nothing (event day).
+ */
+export interface WeekTimeBreakdown {
+  metcon: number;
+  strength: number;
+  running: number;
+  nonRunningCardio: number;
+  total: number;
+}
+
+export function weekTimeByCategory(week: { days: { sessions: Session[] }[] }): WeekTimeBreakdown {
+  const out: WeekTimeBreakdown = {
+    metcon: 0,
+    strength: 0,
+    running: 0,
+    nonRunningCardio: 0,
+    total: 0,
+  };
+  for (const day of week.days) {
+    for (const s of day.sessions) {
+      const t = sessionTiming(s).total;
+      if (t <= 0) continue;
+      switch (s.kind) {
+        case "hybrid":
+          out.metcon += t;
+          break;
+        case "lift":
+          out.strength += t;
+          break;
+        case "run":
+          out.running += t;
+          break;
+        case "cardio":
+        case "swim":
+        case "bike":
+        case "brick":
+          out.nonRunningCardio += t;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  out.total = out.metcon + out.strength + out.running + out.nonRunningCardio;
+  return out;
 }

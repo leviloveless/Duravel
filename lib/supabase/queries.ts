@@ -146,3 +146,24 @@ export async function getProgramReadiness(programId: string): Promise<ReadinessC
     .order("week_number", { ascending: true });
   return (data as ReadinessCheckinRow[] | null) ?? [];
 }
+
+export type DailyMetricRow = {
+  date: string; // "YYYY-MM-DD"
+  resting_hr: number | null;
+  hrv: number | null;
+};
+
+/** All daily resting-HR/HRV rows for the signed-in user (Tasks addition #7). */
+export async function getDailyMetrics(): Promise<DailyMetricRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("daily_metrics")
+    .select("date, resting_hr, hrv")
+    .eq("user_id", user.id)
+    .order("date", { ascending: true });
+  return (data as DailyMetricRow[] | null) ?? [];
+}

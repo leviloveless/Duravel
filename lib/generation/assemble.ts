@@ -253,7 +253,7 @@ function buildWeek(
   // session, 90-min run cap) and a non-running Zone 1–2 cardio block absorbs the
   // remaining cardio time. The summary is then read back from the reconciled
   // sessions, so the header can never disagree with the workouts.
-  reconcileWeekVolume(days, skel.targetMileage, skel.targetCardioMinutes, paces, runningExp);
+  reconcileWeekVolume(days, skel.targetMileage, skel.targetCardioMinutes, paces, runningExp, skel.weekNumber);
 
   return {
     weekNumber: skel.weekNumber,

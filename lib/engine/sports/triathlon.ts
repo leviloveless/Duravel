@@ -225,6 +225,24 @@ function distanceKey(sport: string): string {
   return sport === "tri_140_6" ? "140_6" : "70_3";
 }
 
+// --- long-ride model (Tasks addition #11) -----------------------------------
+// Race bike leg in miles, and the assumed steady long-ride speed used to turn a
+// distance cap into a duration cap. Long rides are capped at 75% of the race
+// bike distance: 140.6 → 0.75×112 = 84 mi (~5h @ 16 mph), 70.3 → 0.75×56 = 42 mi
+// (~2.6h). Base/build long rides stay in the "standard" 2.5–3.5h band; peak
+// weeks open up to the full 75%-distance cap (5–6h for 140.6).
+const RACE_BIKE_MILES: Record<string, number> = { "70_3": 56, "140_6": 112 };
+const LONG_RIDE_MPH = 16; // steady Z2 long-ride pace incl. terrain/stops
+const LONG_RIDE_STANDARD_MAX_MIN = 210; // 3.5h ceiling through base + build
+
+/** Duration cap (min) for the long ride: 75% of race bike distance, phase-gated. */
+function longRideCapMin(cfg: SportConfig, phase: PhaseName): number {
+  const miles = RACE_BIKE_MILES[distanceKey(cfg.id)] ?? 112;
+  const distanceCapMin = Math.round(((0.75 * miles) / LONG_RIDE_MPH) * 60);
+  // Hold base/build to the standard band; let peak reach the full distance cap.
+  return phase === "peak" ? distanceCapMin : Math.min(distanceCapMin, LONG_RIDE_STANDARD_MAX_MIN);
+}
+
 function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx: number): SessionSlot[] {
   const bal = BALANCE[phase];
   const swimN = n(cfg.sessionCounts.swim, phase, idx);
@@ -236,6 +254,7 @@ function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx: 
   const swimMin = per(bal.swim, swimN);
   const bikeMin = per(bal.bike, bikeN);
   const runMin = per(bal.run, runN);
+  const longRideCap = longRideCapMin(cfg, phase);
 
   const slots: SessionSlot[] = [];
 
@@ -246,7 +265,10 @@ function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx: 
   for (let k = 0; k < bikeN; k++) {
     const isLong = k === 0;
     const sessionType = isLong ? "endurance" : phase === "build" || phase === "peak" ? "sweet_spot" : "endurance";
-    slots.push({ kind: "bike", goalZone: BIKE_ZONE[sessionType]!, durationMin: isLong ? Math.round(bikeMin * 1.4) : bikeMin, isLong, sessionType });
+    // Long ride grows with weekly volume but is capped at 75% of race bike
+    // distance (and held to the 2.5–3.5h standard band outside the peak phase).
+    const durationMin = isLong ? Math.min(Math.round(bikeMin * 1.4), longRideCap) : bikeMin;
+    slots.push({ kind: "bike", goalZone: BIKE_ZONE[sessionType]!, durationMin, isLong, sessionType });
   }
   for (let k = 0; k < runN; k++) {
     const isLong = k === 0;
@@ -396,26 +418,38 @@ function swimContent(type: string, durationMin: number, a: TriAnchors): string {
   }
 }
 
+/**
+ * Secondary heart-rate cue for a bike effort (% of lactate-threshold HR). Power
+ * is the primary target; HR is a monitor that lags, so it's only a cross-check —
+ * and it's unreliable for short VO₂ reps.
+ */
+function bikeHr(lo: number, hi: number | null): string {
+  if (hi === null) return "HR lags on short reps — ride to power";
+  return `secondary HR ${Math.round(lo * 100)}–${Math.round(hi * 100)}% LTHR`;
+}
+
 /** Bike set built to the prescribed duration, paced off FTP when known. */
 function bikeContent(type: string, durationMin: number, isLong: boolean | undefined, a: TriAnchors): string {
-  const longNote = isLong ? " Rehearse race fuel + hydration on this ride." : "";
+  const longNote = isLong
+    ? " Rehearse race fuel + hydration on this ride. Finish with a short 15–25 min easy run straight off the bike (mini-brick) to rehearse race legs."
+    : "";
   switch (type) {
     case "endurance":
-      return `Steady Zone 2 aerobic ride, ${durationMin} min at ${wattRange(a, 0.56, 0.75)} — the aerobic cornerstone. Keep it conversational and hold aero where you can.${longNote}`;
+      return `Steady Zone 2 aerobic ride, ${durationMin} min at ${wattRange(a, 0.56, 0.75)} (${bikeHr(0.69, 0.83)}) — the aerobic cornerstone. Keep it conversational and hold aero where you can.${longNote}`;
     case "sweet_spot": {
       const reps = clampInt((durationMin - 25) / 13, 2, 5);
-      return `Warm-up 12 min. Main set ${reps}×10 min @ ${wattRange(a, 0.88, 0.94)} (sweet spot) with 4 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
+      return `Warm-up 12 min. Main set ${reps}×10 min @ ${wattRange(a, 0.88, 0.94)} (sweet spot, ${bikeHr(0.88, 0.94)}) with 4 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
     }
     case "threshold": {
       const reps = clampInt((durationMin - 25) / 24, 2, 3);
-      return `Warm-up 15 min. Main set ${reps}×18 min @ ${wattRange(a, 0.95, 1.05)} (threshold) with 6 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
+      return `Warm-up 15 min. Main set ${reps}×18 min @ ${wattRange(a, 0.95, 1.05)} (threshold, ${bikeHr(0.95, 1.05)}) with 6 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
     }
     case "vo2": {
       const reps = clampInt((durationMin - 18) / 6, 4, 6);
-      return `Warm-up 15 min. Main set ${reps}×3 min @ ${wattRange(a, 1.1, 1.2)} (VO₂max) with 3 min easy spin between. Cool-down. ${durationMin} min total.`;
+      return `Warm-up 15 min. Main set ${reps}×3 min @ ${wattRange(a, 1.1, 1.2)} (VO₂max — ${bikeHr(1.1, null)}) with 3 min easy spin between. Cool-down. ${durationMin} min total.`;
     }
     case "recovery":
-      return `Easy recovery spin, ${durationMin} min fully aerobic (${wattRange(a, 0, 0.55)}), high cadence and light.`;
+      return `Easy recovery spin, ${durationMin} min fully aerobic (${wattRange(a, 0, 0.55)}, ${bikeHr(0, 0.68)}), high cadence and light.`;
     default:
       return `${durationMin} min aerobic ride.`;
   }
