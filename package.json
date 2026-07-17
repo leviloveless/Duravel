@@ -45,7 +45,7 @@
     "lint-staged": "^15",
     "prettier": "^3",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^3.2.7"
   },
   "lint-staged": {
