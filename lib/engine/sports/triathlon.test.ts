@@ -106,6 +106,17 @@ describe("Triathlon", () => {
     expect(triVolumeLevel({ ...base, swimLevel: "advanced", bikeLevel: "advanced" })).toBe("intermediate");
   });
 
+  it("explicit swim/bike experience selectors override the CSS/FTP-derived level", () => {
+    // Explicit advanced swim + bike set via EngineInput.swimLevel/bikeLevel
+    // (toEngineInput fills these from profile.swimExp/bikeExp when present).
+    const withExplicit = triInput("tri_70_3", { runningExp: "beginner", swimLevel: "advanced", bikeLevel: "advanced" });
+    const withoutExplicit = triInput("tri_70_3", { runningExp: "beginner" });
+    const peak = (i: typeof withExplicit) =>
+      Math.max(...buildSkeleton(i).weeks.map((w) => w.targetCardioMinutes));
+    // A stronger explicit swim/bike tier raises peak volume vs. run-only beginner.
+    expect(peak(withExplicit)).toBeGreaterThan(peak(withoutExplicit));
+  });
+
   it("assembles deterministic ProgramData (no AI) that passes the schema", () => {
     const data = buildTriProgramData(buildSkeleton(triInput("tri_140_6")));
     expect(ProgramDataSchema.safeParse(data).success).toBe(true);

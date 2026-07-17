@@ -105,6 +105,10 @@ export const ProfileSchema = z.object({
   runningExp: ExperienceLevel,
   hybridExp: ExperienceLevel,
   liftingExp: ExperienceLevel,
+  /** Triathlon per-discipline experience — sets the swim/bike volume tier when
+   *  provided (else derived from CSS/FTP benchmarks). Optional for other sports. */
+  swimExp: ExperienceLevel.optional(),
+  bikeExp: ExperienceLevel.optional(),
   trainingClass: TrainingClass,
   trainingDays: z.array(TrainingDay).min(3),
   benchmarks: BenchmarksSchema.optional(),

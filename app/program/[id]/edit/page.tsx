@@ -81,6 +81,8 @@ export default async function EditProgramPage({
     startMileage: snap.startMileage,
     startCardioMinutes: snap.startCardioMinutes,
     benchmarks: (p.benchmarks as Record<string, string | number | undefined> | undefined) ?? undefined,
+    swimExp: (p as { swimExp?: string }).swimExp,
+    bikeExp: (p as { bikeExp?: string }).bikeExp,
   };
 
   return (

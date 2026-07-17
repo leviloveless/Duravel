@@ -31,6 +31,22 @@ const EXPERIENCE_DEFS = {
       { value: "advanced", label: "Advanced", def: "Lifting consistently for >5 years" },
     ],
   },
+  swim: {
+    label: "Swim experience",
+    options: [
+      { value: "beginner", label: "Beginner", def: "Can't swim the race distance continuously, or CSS slower than 2:00/100m" },
+      { value: "intermediate", label: "Intermediate", def: "Swims the distance continuously; CSS 1:35–2:00/100m" },
+      { value: "advanced", label: "Advanced", def: "CSS faster than 1:35/100m; open-water comfortable" },
+    ],
+  },
+  bike: {
+    label: "Bike experience",
+    options: [
+      { value: "beginner", label: "Beginner", def: "FTP under 2.9 W/kg (M) / 2.4 (F); can't hold aero long" },
+      { value: "intermediate", label: "Intermediate", def: "FTP 2.9–3.6 (M) / 2.4–3.0 (F) W/kg; holds aero most of the race" },
+      { value: "advanced", label: "Advanced", def: "FTP over 3.6 (M) / 3.0 (F) W/kg; holds target power in aero" },
+    ],
+  },
 } as const;
 
 const DAYS = [
@@ -140,6 +156,9 @@ export type EditInitial = {
   startMileage?: number;
   startCardioMinutes?: number;
   benchmarks?: Record<string, string | number | undefined>;
+  /** Triathlon per-discipline experience (edit-mode pre-fill). */
+  swimExp?: string;
+  bikeExp?: string;
 };
 
 const inputClass = "rounded-md border border-zinc-300 px-3 py-2 focus:border-black focus:outline-none";
@@ -567,6 +586,28 @@ export default function OnboardingForm({
             </fieldset>
           );
         })}
+
+        {/* Triathlon adds explicit swim + bike experience — these directly set the
+            per-discipline volume tier (they override the CSS/FTP-derived guess). */}
+        {isTriathlon &&
+          (["swim", "bike"] as const).map((key) => {
+            const group = EXPERIENCE_DEFS[key];
+            const fieldName = `${key}Exp`;
+            return (
+              <fieldset key={key} className="flex flex-col gap-2 text-sm">
+                <legend className="mb-1 font-medium">{group.label}</legend>
+                {group.options.map((opt) => (
+                  <label key={opt.value} className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2">
+                    <input type="radio" name={fieldName} value={opt.value} defaultChecked={(initial?.[`${key}Exp`] ?? "intermediate") === opt.value} className="mt-1" />
+                    <span>
+                      <span className="font-medium">{opt.label}</span>
+                      <span className="block text-xs text-zinc-500">{opt.def}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            );
+          })}
 
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">Training classification</legend>

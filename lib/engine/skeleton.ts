@@ -330,12 +330,15 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     runningExp: input.profile.runningExp,
     hybridExp: input.profile.hybridExp,
     liftingExp: input.profile.liftingExp,
-    swimLevel: swimLevelFromCss(input.profile.benchmarks?.cssPace),
-    bikeLevel: bikeLevelFromFtp(
-      input.profile.benchmarks?.ftpWatts,
-      toKg(input.profile.bodyWeight, input.profile.weightUnit),
-      input.profile.sex,
-    ),
+    // Explicit per-discipline experience wins; else derive from CSS / FTP anchors.
+    swimLevel: input.profile.swimExp ?? swimLevelFromCss(input.profile.benchmarks?.cssPace),
+    bikeLevel:
+      input.profile.bikeExp ??
+      bikeLevelFromFtp(
+        input.profile.benchmarks?.ftpWatts,
+        toKg(input.profile.bodyWeight, input.profile.weightUnit),
+        input.profile.sex,
+      ),
     programType: input.programType,
     durationWeeks,
     trainingDays: input.profile.trainingDays,

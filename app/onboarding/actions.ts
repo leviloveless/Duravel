@@ -120,6 +120,8 @@ function parseGenerationInput(
       runningExp: formData.get("runningExp"),
       hybridExp: formData.get("hybridExp"),
       liftingExp: formData.get("liftingExp"),
+      swimExp: str(formData, "swimExp"),
+      bikeExp: str(formData, "bikeExp"),
       trainingClass: formData.get("trainingClass"),
       trainingDays,
       benchmarks,
