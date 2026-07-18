@@ -1,0 +1,65 @@
+/* ==================================================================
+   Duravel — Dark theme / white-flash prevention CSS
+   ------------------------------------------------------------------
+   Duravel is dark-branded (#0B0B0F). White flashes happen at seams:
+     • before the web app's own CSS loads,
+     • during page/route transitions,
+     • when the webview is created (its default bg is white),
+     • on scroll overscroll (handled here + in webview-behavior.ts).
+
+   This file locks the background dark at the DOM layer. It works together with:
+     • LaunchScreen.storyboard  (native first frame is dark)
+     • capacitor.config webView backgroundColor (Part 1 — see README)
+     • Info.plist status bar style
+   so every layer from launch → webview → DOM is the same dark color.
+   ================================================================== */
+
+/* Base: force dark at the root regardless of system appearance. Duravel does
+   not follow the OS light/dark setting — it is always dark. */
+html {
+  background-color: #0B0B0F;
+  color-scheme: dark; /* makes form controls, scrollbars render dark */
+}
+
+html,
+body {
+  background-color: #0B0B0F;
+}
+
+/* The webview root Capacitor mounts into (usually #root / #__next). Keep it
+   dark so route-level suspense fallbacks never expose white. */
+#root,
+#__next,
+#app {
+  background-color: #0B0B0F;
+  min-height: 100%;
+}
+
+/* Kill the white overscroll "glow"/gap at the top & bottom of the scroll area.
+   Paints the same dark behind the content when it bounces. */
+html.duravel-native body::before,
+html.duravel-native body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: #0B0B0F;
+  z-index: -1;
+  pointer-events: none;
+}
+html.duravel-native body::before { top: -100vh; }
+html.duravel-native body::after  { bottom: -100vh; }
+
+/* If the app ever renders inside an <ion-*> or custom shell wrapper, keep it dark. */
+html.duravel-native ion-app,
+html.duravel-native .capacitor-root {
+  --background: #0B0B0F;
+  background-color: #0B0B0F;
+}
+
+/* Selection + tap highlight tuned for dark (avoid the default translucent-black
+   flash on tap that reads as a gray blink on dark UIs). */
+html.duravel-native * {
+  -webkit-tap-highlight-color: transparent;
+}

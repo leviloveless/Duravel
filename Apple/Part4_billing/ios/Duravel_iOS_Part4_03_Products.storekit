@@ -1,0 +1,69 @@
+{
+  "identifier" : "DURAVEL-STOREKIT-CONFIG",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "DURAVEL_PLACEHOLDER_APP_ID",
+    "_developerTeamID" : "DURAVEL_PLACEHOLDER_TEAM_ID",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "DURAVEL_MEMBERSHIP_GROUP",
+      "localizations" : [],
+      "name" : "Duravel Membership",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "DURAVEL_MONTHLY_INTERNAL",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full Duravel membership, billed monthly.",
+              "displayName" : "Duravel Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.duravel.membership.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Duravel Monthly",
+          "subscriptionGroupID" : "DURAVEL_MEMBERSHIP_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "119.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "DURAVEL_ANNUAL_INTERNAL",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full Duravel membership, billed annually (save vs monthly).",
+              "displayName" : "Duravel Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.duravel.membership.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Duravel Annual",
+          "subscriptionGroupID" : "DURAVEL_MEMBERSHIP_GROUP",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

@@ -1,0 +1,1544 @@
+From ca995f9af17bb03869cf2c00a7c38871d5706fc6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 17 Jul 2026 16:17:15 +0000
+Subject: [PATCH] Tasks batch 2026-07-17: multi-sport engine, summary table,
+ HR/HRV, plans
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Implements the Tasks.md additions:
+
+- #3 Weekly time tracker (metcon/strength/total) via weekTimeByCategory;
+  surfaced in the weekly summary table.
+- #4 Strength sessions fixed at 60 min (sessionTiming lift branch).
+- #5 Long-run progression: redistribution-only enforceLongRun ramps the
+  long run toward the 90-min cap and >=1.5x the easy runs (mileage-exact,
+  golden HYROX untouched).
+- #6 Actual Miles / Actual Cardio Time columns from workout logs.
+- #7 Daily resting HR + HRV: migration 0026 (daily_metrics), schema,
+  query, POST /api/daily-metrics, DailyMetricsForm, weekly averages
+  (weeklyRecoveryAverages) shown as Recovery avg columns.
+- #8 Swim + bike training zones always shown (%FTP / effort fallbacks).
+- #9 Bike workouts FTP-based with secondary HR (%LTHR) cue; swim CSS-paced.
+- #10 Weekly summary table moved full-width; no horizontal scroll.
+- #11 Cycling long ride capped at 75% of race bike distance (phase-gated,
+  2.5-3.5h base/build, up to ~5h peak for 140.6) + short easy brick run.
+- #1/#2 Apple App Store + Stripe plans under docs/plans/.
+
+Gates: tsc clean, vitest 446 passing (golden HYROX green), next build OK.
+Migration 0026 is NOT applied — Levi applies it in Supabase.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Hrvjv73fKLi3fuHRCAkQkq
+---
+ app/api/daily-metrics/route.ts             |  47 +++++
+ app/program/[id]/page.tsx                  |   9 +-
+ components/program/daily-metrics-form.tsx  |  90 +++++++++
+ components/program/program-view.tsx        |  63 +++---
+ components/program/tri-zones-card.tsx      |  89 +++++----
+ components/program/week-summary-table.tsx  | 214 +++++++++++++++------
+ docs/plans/apple-app-store-plan.md         |  53 +++++
+ docs/plans/stripe-payments-plan.md         |  32 +++
+ lib/daily-metrics.test.ts                  |  37 ++++
+ lib/daily-metrics.ts                       |  66 +++++++
+ lib/engine/sports/triathlon.ts             |  48 ++++-
+ lib/engine/tri-zones.test.ts               |  31 ++-
+ lib/engine/tri-zones.ts                    | 137 ++++++++-----
+ lib/generation/assemble.ts                 |   2 +-
+ lib/generation/reconcile.ts                |  50 +++++
+ lib/schemas.ts                             |  14 ++
+ lib/session-volume.ts                      |  75 +++++++-
+ lib/supabase/queries.ts                    |  21 ++
+ supabase/migrations/0026_daily_metrics.sql |  30 +++
+ 19 files changed, 917 insertions(+), 191 deletions(-)
+ create mode 100644 app/api/daily-metrics/route.ts
+ create mode 100644 components/program/daily-metrics-form.tsx
+ create mode 100644 docs/plans/apple-app-store-plan.md
+ create mode 100644 docs/plans/stripe-payments-plan.md
+ create mode 100644 lib/daily-metrics.test.ts
+ create mode 100644 lib/daily-metrics.ts
+ create mode 100644 supabase/migrations/0026_daily_metrics.sql
+
+diff --git a/app/api/daily-metrics/route.ts b/app/api/daily-metrics/route.ts
+new file mode 100644
+index 0000000..26acf75
+--- /dev/null
++++ b/app/api/daily-metrics/route.ts
+@@ -0,0 +1,47 @@
++import { NextResponse } from "next/server";
++import { createClient } from "@/lib/supabase/server";
++import { DailyMetricInputSchema } from "@/lib/schemas";
++
++/**
++ * POST /api/daily-metrics — upsert one day's resting HR + HRV (Tasks addition #7).
++ *
++ * Keyed on (user, date). Program-agnostic daily data; the program view rolls it
++ * up into a weekly average resting HR / HRV. Free (no AI).
++ */
++export async function POST(request: Request) {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) {
++    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
++  }
++
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
++  }
++  const parsed = DailyMetricInputSchema.safeParse(body);
++  if (!parsed.success) {
++    const first = parsed.error.issues[0];
++    return NextResponse.json({ error: `${first?.path.join(".")}: ${first?.message}` }, { status: 400 });
++  }
++  const input = parsed.data;
++
++  const { error } = await supabase.from("daily_metrics").upsert(
++    {
++      user_id: user.id,
++      date: input.date,
++      resting_hr: input.restingHr ?? null,
++      hrv: input.hrv ?? null,
++      updated_at: new Date().toISOString(),
++    },
++    { onConflict: "user_id,date" },
++  );
++  if (error) {
++    return NextResponse.json({ error: error.message }, { status: 500 });
++  }
++  return NextResponse.json({ ok: true });
++}
+diff --git a/app/program/[id]/page.tsx b/app/program/[id]/page.tsx
+index 919ffeb..1af5fb0 100644
+--- a/app/program/[id]/page.tsx
++++ b/app/program/[id]/page.tsx
+@@ -2,7 +2,8 @@ import Link from "next/link";
+ import { redirect } from "next/navigation";
+ import { createClient } from "@/lib/supabase/server";
+ import type { ProgramData, WorkoutLog } from "@/lib/schemas";
+-import { getProgramAdaptations, getProgramLogs, getProgramReadiness } from "@/lib/supabase/queries";
++import { getProgramAdaptations, getProgramLogs, getProgramReadiness, getDailyMetrics } from "@/lib/supabase/queries";
++import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
+ import { weekStartDate, type ZoneBands } from "@/components/program/format";
+ import { resolveHrModel, type Sex } from "@/lib/zones";
+ import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
+@@ -10,6 +11,7 @@ import PacingCard from "@/components/program/pacing-card";
+ import DekaPacingCard from "@/components/program/deka-pacing-card";
+ import TriZonesCard from "@/components/program/tri-zones-card";
+ import ReadinessForm from "@/components/program/readiness-form";
++import DailyMetricsForm from "@/components/program/daily-metrics-form";
+ import { computePacingPlan } from "@/lib/engine/pacing";
+ import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
+ import { computeTriZones } from "@/lib/engine/tri-zones";
+@@ -174,11 +176,12 @@ export default async function ProgramPage({
+   if (status === "ready" && data) {
+     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
+     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
+-    const [logRows, adaptations, readinessRows, syncData] = await Promise.all([
++    const [logRows, adaptations, readinessRows, syncData, dailyMetrics] = await Promise.all([
+       getProgramLogs(program.id),
+       getProgramAdaptations(program.id),
+       getProgramReadiness(program.id),
+       getProgramSyncData(program.id),
++      getDailyMetrics(),
+     ]);
+     const logs: WorkoutLog[] = logRows.map((r) => ({
+       weekNumber: r.week_number,
+@@ -238,6 +241,7 @@ export default async function ProgramPage({
+         .filter((a) => a.decision === "applied" && a.rule_applied !== "none")
+         .map((a) => a.target_week),
+       reviewWeek,
++      recoveryByWeek: weeklyRecoveryAverages(dailyMetrics, program.start_date, program.duration_weeks),
+     };
+ 
+     const readinessWeek = Math.min(
+@@ -258,6 +262,7 @@ export default async function ProgramPage({
+         {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
+         {triZones && <TriZonesCard zones={triZones} />}
+         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
++        <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />
+         <ProgramView
+           program={data}
+           meta={{
+diff --git a/components/program/daily-metrics-form.tsx b/components/program/daily-metrics-form.tsx
+new file mode 100644
+index 0000000..4b1dedf
+--- /dev/null
++++ b/components/program/daily-metrics-form.tsx
+@@ -0,0 +1,90 @@
++"use client";
++
++import { useState } from "react";
++import { usePostAction } from "@/lib/hooks/use-post-action";
++import { Button } from "@/components/ui/button";
++
++/**
++ * Daily resting HR + HRV entry (Tasks addition #7). Defaults to today; the
++ * athlete can back-date. Averages roll up into the weekly summary table's
++ * "Recovery avg" columns.
++ */
++export default function DailyMetricsForm({ today }: { today: string }) {
++  const { run, pending, error } = usePostAction("/api/daily-metrics");
++  const [date, setDate] = useState(today);
++  const [restingHr, setRestingHr] = useState("");
++  const [hrv, setHrv] = useState("");
++  const [saved, setSaved] = useState(false);
++
++  async function save() {
++    const body: Record<string, unknown> = { date };
++    if (restingHr.trim()) body.restingHr = Number(restingHr);
++    if (hrv.trim()) body.hrv = Number(hrv);
++    const r = await run(body);
++    if (r?.ok) {
++      setSaved(true);
++      setRestingHr("");
++      setHrv("");
++    }
++  }
++
++  return (
++    <section className="rounded-xl border border-zinc-200 bg-white p-5">
++      <div className="flex flex-wrap items-baseline justify-between gap-2">
++        <h2 className="text-lg font-semibold">Daily resting HR &amp; HRV</h2>
++        <span className="text-xs text-zinc-400">Log on waking · weekly averages show in the summary</span>
++      </div>
++
++      <div className="mt-3 flex flex-wrap items-end gap-4">
++        <label className="flex flex-col gap-1 text-sm">
++          Date
++          <input
++            type="date"
++            value={date}
++            max={today}
++            onChange={(e) => {
++              setDate(e.target.value);
++              setSaved(false);
++            }}
++            className="rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
++          />
++        </label>
++        <label className="flex flex-col gap-1 text-sm">
++          Resting HR
++          <input
++            type="number"
++            min={25}
++            max={150}
++            value={restingHr}
++            onChange={(e) => {
++              setRestingHr(e.target.value);
++              setSaved(false);
++            }}
++            placeholder="bpm"
++            className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
++          />
++        </label>
++        <label className="flex flex-col gap-1 text-sm">
++          HRV
++          <input
++            type="number"
++            min={1}
++            max={400}
++            value={hrv}
++            onChange={(e) => {
++              setHrv(e.target.value);
++              setSaved(false);
++            }}
++            placeholder="ms"
++            className="w-28 rounded-md border border-zinc-300 px-2 py-1 focus:border-black focus:outline-none"
++          />
++        </label>
++        <Button variant="primary" size="sm" onClick={save} disabled={pending}>
++          {pending ? "Saving…" : "Save"}
++        </Button>
++        {saved && !error && <span className="text-sm text-green-600">Saved</span>}
++        {error && <span className="text-sm text-red-600">{error}</span>}
++      </div>
++    </section>
++  );
++}
+diff --git a/components/program/program-view.tsx b/components/program/program-view.tsx
+index a361211..01778d9 100644
+--- a/components/program/program-view.tsx
++++ b/components/program/program-view.tsx
+@@ -5,7 +5,7 @@ import type { SyncSuggestion, SyncActivitySummary } from "@/lib/wearables/sugges
+ import PhaseTimeline from "./phase-timeline";
+ import WeekNav from "./week-nav";
+ import WeekCard from "./week-card";
+-import WeekSummaryTable from "./week-summary-table";
++import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
+ import AdaptReview from "./adapt-review";
+ import SyncSuggestions from "./sync-suggestions";
+ import RegenerateButton from "@/app/program/[id]/regenerate-button";
+@@ -30,6 +30,8 @@ export interface ProgramActivity {
+   adaptedWeeks: number[];
+   /** The week awaiting review, if any. */
+   reviewWeek: number | null;
++  /** Weekly average resting HR + HRV by week number (Tasks addition #7). */
++  recoveryByWeek?: Map<number, WeekRecovery>;
+ }
+ 
+ const PROGRAM_TYPE_LABEL: Record<string, string> = {
+@@ -101,34 +103,37 @@ export default function ProgramView({
+ 
+       <WeekNav weeks={program.weeks} />
+ 
+-      {/* Weeks + sticky summary sidebar */}
+-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+-        <div className="flex min-w-0 flex-1 flex-col gap-6">
+-          {program.weeks.map((w) => (
+-            <WeekCard
+-              key={w.weekNumber}
+-              week={w}
+-              startDate={meta.startDate}
+-              maxHR={meta.maxHR}
+-              zoneBands={meta.zoneBands}
+-              logging={
+-                activity
+-                  ? {
+-                      programId: meta.programId,
+-                      logs: logsByWeek.get(w.weekNumber) ?? [],
+-                      frozen: activity.frozenWeeks.includes(w.weekNumber),
+-                      adapted: activity.adaptedWeeks.includes(w.weekNumber),
+-                      linkableActivities: linking?.linkableActivities ?? [],
+-                      linkedBySession: linking?.linkedBySession ?? {},
+-                    }
+-                  : undefined
+-              }
+-            />
+-          ))}
+-        </div>
+-        <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:block lg:w-72 lg:self-start print:hidden">
+-          <WeekSummaryTable weeks={program.weeks} />
+-        </aside>
++      {/* Full-width weekly summary (extended so the whole table is visible
++          without horizontal scroll — Tasks addition #10). */}
++      <WeekSummaryTable
++        weeks={program.weeks}
++        logsByWeek={logsByWeek}
++        recoveryByWeek={activity?.recoveryByWeek}
++      />
++
++      {/* Week cards */}
++      <div className="flex flex-col gap-6">
++        {program.weeks.map((w) => (
++          <WeekCard
++            key={w.weekNumber}
++            week={w}
++            startDate={meta.startDate}
++            maxHR={meta.maxHR}
++            zoneBands={meta.zoneBands}
++            logging={
++              activity
++                ? {
++                    programId: meta.programId,
++                    logs: logsByWeek.get(w.weekNumber) ?? [],
++                    frozen: activity.frozenWeeks.includes(w.weekNumber),
++                    adapted: activity.adaptedWeeks.includes(w.weekNumber),
++                    linkableActivities: linking?.linkableActivities ?? [],
++                    linkedBySession: linking?.linkedBySession ?? {},
++                  }
++                : undefined
++            }
++          />
++        ))}
+       </div>
+     </div>
+   );
+diff --git a/components/program/tri-zones-card.tsx b/components/program/tri-zones-card.tsx
+index b67e3d9..4ef8c3a 100644
+--- a/components/program/tri-zones-card.tsx
++++ b/components/program/tri-zones-card.tsx
+@@ -1,6 +1,18 @@
+ import type { TriZones, ZoneRow } from "@/lib/engine/tri-zones";
+ 
+-function ZoneTable({ title, anchor, rows }: { title: string; anchor: string; rows: ZoneRow[] }) {
++function ZoneTable({
++  title,
++  anchor,
++  rows,
++  note,
++  showHr,
++}: {
++  title: string;
++  anchor: string;
++  rows: ZoneRow[];
++  note?: string;
++  showHr?: boolean;
++}) {
+   return (
+     <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+       <div className="flex items-baseline justify-between gap-2">
+@@ -14,57 +26,56 @@ function ZoneTable({ title, anchor, rows }: { title: string; anchor: string; row
+               <span className="mr-1 font-medium text-zinc-400">{r.zone}</span>
+               {r.label}
+             </span>
+-            <span className="font-medium tabular-nums text-zinc-900">{r.range}</span>
++            <span className="text-right">
++              <span className="font-medium tabular-nums text-zinc-900">{r.range}</span>
++              {showHr && r.hr && (
++                <span className="block text-[11px] font-normal tabular-nums text-zinc-400">{r.hr}</span>
++              )}
++            </span>
+           </li>
+         ))}
+       </ul>
++      {note && <p className="mt-2 text-[11px] text-zinc-400">{note}</p>}
+     </div>
+   );
+ }
+ 
+ /**
+- * Per-discipline training zones for triathlon. Shows only the disciplines the
+- * athlete supplied an anchor for (CSS / FTP / a run time), with a nudge for any
+- * missing anchor so they know how to unlock it.
++ * Per-discipline training zones for triathlon. Swim and bike are always shown
++ * (with % of FTP / effort-based ranges when the athlete hasn't entered CSS / FTP
++ * yet); the run table appears once a run benchmark yields a VDOT. Bike zones
++ * carry a secondary heart-rate target (% of LTHR) beneath each power band.
+  */
+ export default function TriZonesCard({ zones }: { zones: TriZones }) {
+-  const any = zones.swim || zones.bike || zones.run;
+-
+-  const missing: string[] = [];
+-  if (!zones.swim) missing.push("swim CSS pace");
+-  if (!zones.bike) missing.push("bike FTP");
+-  if (!zones.run) missing.push("a run time (mile / 5K / 10K)");
+-
+   return (
+     <section className="rounded-xl border border-zinc-200 bg-white p-5">
+       <h2 className="text-lg font-semibold">Training zones by discipline</h2>
+-      {!any && (
+-        <p className="mt-1 text-sm text-zinc-600">
+-          Add your swim CSS pace, bike FTP, and a run time in your profile to get personalized pace and
+-          power zones for each discipline.
+-        </p>
+-      )}
+-      {any && (
+-        <>
+-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+-            {zones.swim && (
+-              <ZoneTable title="Swim" anchor={`CSS ${zones.swim.cssPer100}/100m`} rows={zones.swim.zones} />
+-            )}
+-            {zones.bike && (
+-              <ZoneTable title="Bike" anchor={`FTP ${zones.bike.ftpWatts}W`} rows={zones.bike.zones} />
+-            )}
+-            {zones.run && (
+-              <ZoneTable title="Run" anchor={`VDOT ${zones.run.vdot}`} rows={zones.run.zones} />
+-            )}
+-          </div>
+-          {missing.length > 0 && (
+-            <p className="mt-3 text-xs text-zinc-400">
+-              Add {missing.join(", ")} in your profile to unlock the remaining discipline
+-              {missing.length > 1 ? "s" : ""}.
+-            </p>
+-          )}
+-        </>
+-      )}
++      <p className="mt-1 text-xs text-zinc-500">
++        Bike is paced off power (watts / % FTP) with heart rate as a secondary monitor. Swim is paced off CSS,
++        run off your VDOT threshold.
++      </p>
++      <div className="mt-3 grid gap-3 sm:grid-cols-3">
++        {zones.swim && (
++          <ZoneTable
++            title="Swim"
++            anchor={zones.swim.cssPer100 ? `CSS ${zones.swim.cssPer100}/100m` : "by effort"}
++            rows={zones.swim.zones}
++            note={zones.swim.note}
++          />
++        )}
++        {zones.bike && (
++          <ZoneTable
++            title="Bike"
++            anchor={zones.bike.ftpWatts ? `FTP ${zones.bike.ftpWatts}W` : "% of FTP"}
++            rows={zones.bike.zones}
++            note={zones.bike.note}
++            showHr
++          />
++        )}
++        {zones.run && (
++          <ZoneTable title="Run" anchor={`VDOT ${zones.run.vdot}`} rows={zones.run.zones} />
++        )}
++      </div>
+     </section>
+   );
+ }
+diff --git a/components/program/week-summary-table.tsx b/components/program/week-summary-table.tsx
+index 086e41e..fef0ddb 100644
+--- a/components/program/week-summary-table.tsx
++++ b/components/program/week-summary-table.tsx
+@@ -1,6 +1,9 @@
+-import type { ProgramData } from "@/lib/schemas";
++import type { ProgramData, Session, WorkoutLog } from "@/lib/schemas";
++import { weekTimeByCategory } from "@/lib/session-volume";
+ import { zoneEntries } from "./format";
+ 
++type TrainingDay = WorkoutLog["day"];
++
+ /** Microcycle label + pill styling for the weekly summary "Cycle" column. */
+ const MICRO_TAG: Record<string, { label: string; className: string }> = {
+   increase: { label: "Increase", className: "bg-emerald-100 text-emerald-700" },
+@@ -10,75 +13,168 @@ const MICRO_TAG: Record<string, { label: string; className: string }> = {
+   race: { label: "Race", className: "bg-red-100 text-red-700" },
+ };
+ 
++/** Weekly average resting HR + HRV (Tasks addition #7), aligned to program weeks. */
++export interface WeekRecovery {
++  restingHr: number | null;
++  hrv: number | null;
++}
++
++/** Cardio-type session kinds (weightlifting is excluded from cardio time). */
++const CARDIO_KINDS = new Set<Session["kind"]>(["run", "hybrid", "cardio", "swim", "bike", "brick"]);
++
++/** Actual (logged) miles + cardio minutes for a week, from its workout logs. */
++function weekActuals(week: ProgramData["weeks"][number], logs: WorkoutLog[]) {
++  const sessionsByDay = new Map<TrainingDay, Session[]>();
++  for (const d of week.days) sessionsByDay.set(d.day, d.sessions);
++  let miles = 0;
++  let cardioMin = 0;
++  let hasMiles = false;
++  let hasCardio = false;
++  for (const log of logs) {
++    const a = log.actuals;
++    if (!a) continue;
++    const session = sessionsByDay.get(log.day)?.[log.sessionIndex];
++    if (typeof a.distanceMiles === "number") {
++      miles += a.distanceMiles;
++      hasMiles = true;
++    }
++    if (typeof a.durationMin === "number" && session && CARDIO_KINDS.has(session.kind)) {
++      cardioMin += a.durationMin;
++      hasCardio = true;
++    }
++  }
++  return {
++    miles: hasMiles ? Math.round(miles * 10) / 10 : null,
++    cardioMin: hasCardio ? Math.round(cardioMin) : null,
++  };
++}
++
++function Cell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
++  return <td className={`px-2 py-2 text-right tabular-nums ${className}`}>{children}</td>;
++}
++
+ /**
+- * Compact per-week summary table (Tasks addition #5): microcycle type, total
+- * cardio time, total mileage, and the HR-zone distribution for each week.
+- * Rendered inside a sticky sidebar on the program view so it follows the screen
+- * while scrolling.
++ * Per-week summary table. Shows the microcycle, planned vs. actual cardio time
++ * and mileage (Tasks addition #6), the weekly training-time breakdown —
++ * metcon / strength / total (Tasks addition #3), weekly average resting HR + HRV
++ * (Tasks addition #7), and the HR-zone distribution. Rendered full-width so the
++ * whole table is visible without horizontal scrolling (Tasks addition #10).
+  */
+-export default function WeekSummaryTable({ weeks }: { weeks: ProgramData["weeks"] }) {
++export default function WeekSummaryTable({
++  weeks,
++  logsByWeek,
++  recoveryByWeek,
++}: {
++  weeks: ProgramData["weeks"];
++  logsByWeek?: Map<number, WorkoutLog[]>;
++  recoveryByWeek?: Map<number, WeekRecovery>;
++}) {
+   return (
+     <div className="rounded-xl border border-zinc-200 bg-white">
+       <div className="border-b border-zinc-100 px-4 py-3">
+         <h2 className="text-sm font-semibold">Weekly summary</h2>
+-        <p className="text-xs text-zinc-500">Cardio time · mileage · zone mix</p>
++        <p className="text-xs text-zinc-500">
++          Planned vs. actual cardio &amp; mileage · training-time breakdown · recovery · zone mix
++        </p>
+       </div>
+-      <div className="max-h-[70vh] overflow-y-auto">
+-        <table className="w-full text-xs">
+-          <thead className="sticky top-0 bg-zinc-50 text-zinc-500">
+-            <tr>
+-              <th className="px-3 py-2 text-left font-medium">Wk</th>
+-              <th className="px-2 py-2 text-left font-medium">Cycle</th>
+-              <th className="px-2 py-2 text-right font-medium">Cardio</th>
+-              <th className="px-2 py-2 text-right font-medium">Miles</th>
+-              <th className="px-3 py-2 text-left font-medium">Zones</th>
++      <div className="max-h-[70vh] overflow-x-auto overflow-y-auto">
++        <table className="w-full min-w-[46rem] text-xs">
++          <thead className="sticky top-0 z-10 bg-zinc-50 text-zinc-500">
++            <tr className="text-[10px] uppercase tracking-wide">
++              <th className="px-3 py-1.5 text-left font-medium" rowSpan={2}>
++                Wk
++              </th>
++              <th className="px-2 py-1.5 text-left font-medium" rowSpan={2}>
++                Cycle
++              </th>
++              <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={2}>
++                Cardio time
++              </th>
++              <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={2}>
++                Miles
++              </th>
++              <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={3}>
++                Training time
++              </th>
++              <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={2}>
++                Recovery avg
++              </th>
++              <th className="border-l border-zinc-200 px-3 py-1.5 text-left font-medium" rowSpan={2}>
++                Zones
++              </th>
++            </tr>
++            <tr className="text-[10px]">
++              <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Plan</th>
++              <th className="px-2 py-1 text-right font-medium">Act</th>
++              <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Plan</th>
++              <th className="px-2 py-1 text-right font-medium">Act</th>
++              <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Metcon</th>
++              <th className="px-2 py-1 text-right font-medium">Strength</th>
++              <th className="px-2 py-1 text-right font-medium">Total</th>
++              <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">RHR</th>
++              <th className="px-2 py-1 text-right font-medium">HRV</th>
+             </tr>
+           </thead>
+           <tbody>
+-            {weeks.map((w) => (
+-              <tr key={w.weekNumber} className="border-t border-zinc-100">
+-                <td className="px-3 py-2">
+-                  <a href={`#week-${w.weekNumber}`} className="font-medium text-zinc-800 hover:underline">
+-                    {w.weekNumber}
+-                  </a>
+-                  {w.raceDay && (
+-                    <span className="ml-1 text-red-600" role="img" aria-label={`${w.raceDay.priority} race`}>
+-                      ●
+-                    </span>
+-                  )}
+-                </td>
+-                <td className="px-2 py-2">
+-                  {(() => {
+-                    const tag = MICRO_TAG[w.microWeek];
+-                    return tag ? (
+-                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${tag.className}`}>
+-                        {tag.label}
++            {weeks.map((w) => {
++              const logs = logsByWeek?.get(w.weekNumber) ?? [];
++              const actuals = weekActuals(w, logs);
++              const time = weekTimeByCategory(w);
++              const rec = recoveryByWeek?.get(w.weekNumber);
++              return (
++                <tr key={w.weekNumber} className="border-t border-zinc-100">
++                  <td className="px-3 py-2">
++                    <a href={`#week-${w.weekNumber}`} className="font-medium text-zinc-800 hover:underline">
++                      {w.weekNumber}
++                    </a>
++                    {w.raceDay && (
++                      <span className="ml-1 text-red-600" role="img" aria-label={`${w.raceDay.priority} race`}>
++                        ●
+                       </span>
+-                    ) : null;
+-                  })()}
+-                </td>
+-                <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalCardioMinutes}m</td>
+-                <td className="px-2 py-2 text-right tabular-nums">{w.summary.totalMileage}</td>
+-                <td className="px-3 py-2">
+-                  <div
+-                    className="flex h-2 w-24 overflow-hidden rounded-full"
+-                    role="img"
+-                    aria-label={`Zone mix: ${zoneEntries(w.summary.zoneDistribution)
+-                      .map((e) => `${e.label} ${e.pct}%`)
+-                      .join(", ")}`}
+-                  >
+-                    {zoneEntries(w.summary.zoneDistribution).map((e) => (
+-                      <div
+-                        key={e.zone}
+-                        className={e.barClass}
+-                        style={{ width: `${e.pct}%` }}
+-                        title={`${e.label}: ${e.pct}%`}
+-                      />
+-                    ))}
+-                  </div>
+-                </td>
+-              </tr>
+-            ))}
++                    )}
++                  </td>
++                  <td className="px-2 py-2">
++                    {(() => {
++                      const tag = MICRO_TAG[w.microWeek];
++                      return tag ? (
++                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${tag.className}`}>
++                          {tag.label}
++                        </span>
++                      ) : null;
++                    })()}
++                  </td>
++                  <Cell className="border-l border-zinc-100">{w.summary.totalCardioMinutes}m</Cell>
++                  <Cell className="text-zinc-500">{actuals.cardioMin != null ? `${actuals.cardioMin}m` : "—"}</Cell>
++                  <Cell className="border-l border-zinc-100">{w.summary.totalMileage}</Cell>
++                  <Cell className="text-zinc-500">{actuals.miles != null ? actuals.miles : "—"}</Cell>
++                  <Cell className="border-l border-zinc-100">{time.metcon}m</Cell>
++                  <Cell>{time.strength}m</Cell>
++                  <Cell className="font-medium text-zinc-800">{time.total}m</Cell>
++                  <Cell className="border-l border-zinc-100 text-zinc-500">
++                    {rec?.restingHr != null ? rec.restingHr : "—"}
++                  </Cell>
++                  <Cell className="text-zinc-500">{rec?.hrv != null ? rec.hrv : "—"}</Cell>
++                  <td className="border-l border-zinc-100 px-3 py-2">
++                    <div
++                      className="flex h-2 w-24 overflow-hidden rounded-full"
++                      role="img"
++                      aria-label={`Zone mix: ${zoneEntries(w.summary.zoneDistribution)
++                        .map((e) => `${e.label} ${e.pct}%`)
++                        .join(", ")}`}
++                    >
++                      {zoneEntries(w.summary.zoneDistribution).map((e) => (
++                        <div
++                          key={e.zone}
++                          className={e.barClass}
++                          style={{ width: `${e.pct}%` }}
++                          title={`${e.label}: ${e.pct}%`}
++                        />
++                      ))}
++                    </div>
++                  </td>
++                </tr>
++              );
++            })}
+           </tbody>
+         </table>
+       </div>
+diff --git a/docs/plans/apple-app-store-plan.md b/docs/plans/apple-app-store-plan.md
+new file mode 100644
+index 0000000..1f13c56
+--- /dev/null
++++ b/docs/plans/apple-app-store-plan.md
+@@ -0,0 +1,53 @@
++# Getting Duravel onto the Apple App Store — step plan
++
++_Tasks addition #1. Written July 2026. Duravel is today a Next.js web app on Vercel (duravel.app) selling a $19.99/mo · $159.99/yr subscription with a 14‑day no‑card trial, billed through Stripe. This plan takes it to a shippable iOS app and flags the one decision that dominates the economics: how in‑app subscriptions are paid for._
++
++## The decision that shapes everything: payments
++
++Apple's Guideline 3.1.1 requires that unlocking digital content/subscriptions inside an iOS app use Apple's In‑App Purchase (StoreKit), on which Apple takes 15% (Small Business Program, under $1M/yr — which is where Duravel starts) or 30%. That commission comes straight off Duravel's margin.
++
++As of 2026 there is a second path in the **US** only: following the 2025 court ruling in Epic v. Apple, US App Store apps may include **external purchase links** that send the user to the web (e.g. Duravel's existing Stripe checkout) to pay, and Apple takes **no commission** on those web purchases. Outside the US, external links fall under Apple's StoreKit External Purchase entitlement and Apple still charges an alternative‑payment fee (~12–27%), so most non‑US markets are effectively "IAP or pay a similar fee."
++
++Recommendation for Duravel: **launch US‑first with an external purchase link to the existing Stripe subscription** (keeps 100% of revenue, reuses billing that's already live), and add **StoreKit IAP as a fallback** before expanding internationally. This keeps the single source of subscription truth in Stripe for now (see the Stripe plan doc) and defers IAP complexity until it's actually needed. Whichever path, the entitlement writer stays server‑side.
++
++## Phase 0 — Prerequisites (½ day)
++
++1. Enroll in the **Apple Developer Program** ($99/yr). Enroll as **Duravel LLC** (needs the EIN and a D‑U‑N‑S number for the organization account — the D‑U‑N‑S request is free but can take 1–2 weeks, so start it now; it's already on the Mercury/Apple chain in memory).
++2. Create the app record in **App Store Connect** (name "Duravel", primary category Health & Fitness, bundle ID e.g. `app.duravel.ios`).
++3. Confirm a Mac with Xcode is available for builds and submission (or a CI Mac / EAS build service if going the Expo route).
++
++## Phase 1 — Choose the app architecture (½ day decision, then build)
++
++Duravel is a working responsive web app, so the fastest credible route is a **native wrapper**, not a rewrite:
++
++- **Recommended: Capacitor** (or Expo + WebView). Wrap duravel.app in a native shell, add a splash screen, app icon, push‑notification capability, and native hooks where they matter (HealthKit, notifications). Fastest path from "web app" to "App Store app."
++- **Alternative: React Native / Expo rewrite** of the core flows. Much larger effort; only worth it if the app needs deep native UX. Not recommended for a first submission.
++- **Not viable alone: a bare WebView** with no native value — Apple rejects apps that are "just a website" (Guideline 4.2). The wrapper must add native capability (offline, notifications, HealthKit, Sign in with Apple) to clear that bar.
++
++Deliverable of this phase: a Capacitor project that loads the app, plus a list of the native capabilities to add in Phase 2.
++
++## Phase 2 — Make it feel native enough to pass review (1–2 weeks)
++
++4. **App icon + launch screen + adaptive light/dark** assets.
++5. **Sign in with Apple** — required by Guideline 4.8 whenever other third‑party/social logins are offered; also just good iOS UX. Wire it into Supabase Auth.
++6. **Push notifications** (APNs) for training reminders / streaks — a concrete native reason for the app to exist. Ties into the lifecycle‑email work conceptually but is a separate channel.
++7. **HealthKit** (optional but high‑value for an endurance app): read workouts, resting HR, HRV. This is a strong "native value" signal for review **and** directly feeds the new daily resting‑HR/HRV tracker (Tasks #7) and the Strava/Garmin sync surface.
++8. **Payments wiring** per the decision above: US external‑link‑out to Stripe checkout using the StoreKit External Purchase Link entitlement, with the server (Stripe webhook) remaining the sole entitlement writer. Build the IAP/StoreKit path second.
++
++## Phase 3 — Compliance & store listing (2–3 days)
++
++9. **Privacy**: complete App Privacy "nutrition labels" (data collected: email, health/fitness, usage), publish a privacy policy URL (duravel.app/privacy) and terms, and add an in‑app **account deletion** path (Guideline 5.1.1(v) requires it for accounts).
++10. **Store listing**: screenshots for required device sizes, app description, keywords, support URL, and a marketing subtitle consistent with the "coach‑quality personalization at a fraction of the price" positioning.
++11. **Subscription metadata** (only if using IAP): create the auto‑renewable subscription products, group, localized descriptions, and the required "subscription terms" text.
++
++## Phase 4 — Beta, submit, iterate (1–2 weeks incl. review latency)
++
++12. **TestFlight** internal + external beta; dogfood the full onboarding → program → logging loop on a real device.
++13. Submit for **App Review**. Budget for at least one rejection round — the most common for a subscription app is 3.1.1 (payments) and 4.2 (minimum functionality); the external‑link and native‑capability work above is what pre‑empts those.
++14. On approval, **phased release**, monitor crash/analytics, and fast‑follow fixes.
++
++## Sequencing note
++
++The App Store push is independent of the current top priority (trial‑conversion lifecycle emails + distribution). It's a multi‑week effort with external lead times (D‑U‑N‑S, App Review), so the pragmatic move is to **start Phase 0 now** (enrollment + D‑U‑N‑S are just waiting) and schedule the build work after the lifecycle‑email go‑live. HealthKit in Phase 2 is the highest‑leverage native feature because it compounds with the sync and recovery‑tracking work already in the product.
++
++Sources: [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [StoreKit External Purchase](https://developer.apple.com/documentation/storekit/external-purchase), [RevenueCat — app‑to‑web external purchases](https://www.revenuecat.com/blog/engineering/app-to-web-purchase-guidelines), [Apple alternative‑payment fees in 2026 (Neon)](https://www.neonpay.com/blog/apple-app-store-alternative-payment-fees-what-developers-pay-in-2026).
+diff --git a/docs/plans/stripe-payments-plan.md b/docs/plans/stripe-payments-plan.md
+new file mode 100644
+index 0000000..3161a70
+--- /dev/null
++++ b/docs/plans/stripe-payments-plan.md
+@@ -0,0 +1,32 @@
++# Stripe payments + payment page — plan and current state
++
++_Tasks addition #2. Written July 2026._
++
++## Status: already implemented and LIVE
++
++Stripe was integrated and went live on 2026‑07‑14. This document records the architecture, confirms the payment page exists, and lists the hardening/next steps rather than proposing a build from scratch — the core of the task is done.
++
++### What's already in place
++
++- **Payment page** — `app/pricing/page.tsx` + `app/pricing/pricing-plans.tsx`. Shows the two plans ($19.99/month, $159.99/year — "about $13.33/mo"), a 14‑day no‑card free trial, the feature list, and a checkout button. Returning subscribers see a manage‑subscription state instead.
++- **Checkout** — `POST /api/stripe/checkout` creates a Stripe Checkout Session in subscription mode for the signed‑in user, reusing an existing Stripe customer when present, and stamps `client_reference_id` + `subscription_data.metadata.user_id` so webhook events map back to a Duravel user with no extra lookup. Prices resolve from `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL`.
++- **Billing portal** — `app/api/stripe/portal` opens the Stripe Customer Portal so users self‑serve upgrades, downgrades, payment‑method changes, and cancellation.
++- **Webhook** — `app/api/stripe/webhook` is the **sole entitlement writer**: it listens to Stripe subscription lifecycle events and writes the `subscriptions` table (status, plan, customer id, period). The app never grants access from the client. `BILLING_ENABLED=true` gates the flow.
++- **Supporting libs** — `lib/stripe.ts` (client), `lib/subscription.ts` (Plan type + entitlement helpers), `lib/env.ts` (validates the Stripe env vars).
++- **Pricing** — Stripe holds the Price objects; annual moved to $159.99 on 2026‑07‑17 and `STRIPE_PRICE_ANNUAL` points at it. Existing annual subscribers keep $149 until they resubscribe.
++
++### Architecture principle (keep this)
++
++The server‑side webhook is the single source of subscription truth. Every future payment surface (the iOS app, promo codes, an annual‑upgrade flow) must route entitlement through that webhook, never write access directly from a client. This is what keeps billing correct across web and, later, mobile.
++
++## Remaining / hardening steps
++
++1. **Dunning + failed payments** — confirm the webhook handles `invoice.payment_failed` and `customer.subscription.past_due` (soft‑lock the account, prompt to update card). This overlaps the lifecycle‑email work (a payment‑failed email is one of the planned triggers).
++2. **Proration / plan switching** — verify monthly↔annual switches proration behavior through the portal matches intent.
++3. **Tax** — enable Stripe Tax if selling into jurisdictions that require sales tax/VAT on digital subscriptions.
++4. **Receipts** — wire the receipt email (already a built lifecycle template) to the Stripe `invoice.paid` event when email goes live.
++5. **Entity update** — when the Mercury business account opens, repoint Stripe payouts and update the Stripe business entity to Duravel LLC + EIN (this is the commingling‑closing step already tracked in the Mercury post‑approval checklist).
++
++## Interaction with the App Store plan (#1)
++
++On the web, Stripe stays the payment rail with 0% platform fee. Inside a future iOS app, Apple's rules apply: launch US‑first with an **external purchase link** to this same Stripe checkout (no Apple commission as of the 2025 ruling), and add StoreKit IAP as a fallback before international expansion. Either way, entitlement continues to be written server‑side by the Stripe webhook — the iOS app just triggers the same checkout. See `apple-app-store-plan.md`.
+diff --git a/lib/daily-metrics.test.ts b/lib/daily-metrics.test.ts
+new file mode 100644
+index 0000000..df1858d
+--- /dev/null
++++ b/lib/daily-metrics.test.ts
+@@ -0,0 +1,37 @@
++import { describe, it, expect } from "vitest";
++import { weeklyRecoveryAverages } from "./daily-metrics";
++import type { DailyMetricRow } from "@/lib/supabase/queries";
++
++// Program starts Mon 2026-07-06 → week 1 = 07-06..07-12, week 2 = 07-13..07-19.
++const START = "2026-07-06";
++
++describe("weeklyRecoveryAverages", () => {
++  it("averages resting HR and HRV within each program week", () => {
++    const rows: DailyMetricRow[] = [
++      { date: "2026-07-06", resting_hr: 50, hrv: 80 },
++      { date: "2026-07-08", resting_hr: 54, hrv: 70 },
++      { date: "2026-07-13", resting_hr: 48, hrv: 90 },
++    ];
++    const m = weeklyRecoveryAverages(rows, START, 12);
++    expect(m.get(1)).toEqual({ restingHr: 52, hrv: 75 }); // (50+54)/2, (80+70)/2
++    expect(m.get(2)).toEqual({ restingHr: 48, hrv: 90 });
++  });
++
++  it("averages HR and HRV independently (a day may have only one)", () => {
++    const rows: DailyMetricRow[] = [
++      { date: "2026-07-06", resting_hr: 50, hrv: null },
++      { date: "2026-07-07", resting_hr: null, hrv: 60 },
++    ];
++    expect(weeklyRecoveryAverages(rows, START, 12).get(1)).toEqual({ restingHr: 50, hrv: 60 });
++  });
++
++  it("ignores readings outside the program's weeks", () => {
++    const rows: DailyMetricRow[] = [
++      { date: "2026-06-01", resting_hr: 99, hrv: 10 }, // before week 1
++      { date: "2026-07-06", resting_hr: 50, hrv: 80 },
++    ];
++    const m = weeklyRecoveryAverages(rows, START, 12);
++    expect(m.has(1)).toBe(true);
++    expect([...m.keys()]).toEqual([1]);
++  });
++});
+diff --git a/lib/daily-metrics.ts b/lib/daily-metrics.ts
+new file mode 100644
+index 0000000..3baf16e
+--- /dev/null
++++ b/lib/daily-metrics.ts
+@@ -0,0 +1,66 @@
++/**
++ * Roll up daily resting-HR / HRV readings into a per-program-week average
++ * (Tasks addition #7). Week alignment matches components/program/format.ts
++ * (`weekStartDate` / `mondayOf`): week 1 is the Monday-anchored week containing
++ * the program start date, and each subsequent week is the next Mon–Sun block.
++ */
++import type { DailyMetricRow } from "@/lib/supabase/queries";
++
++export interface RecoveryAvg {
++  restingHr: number | null;
++  hrv: number | null;
++}
++
++const MS_PER_DAY = 24 * 60 * 60 * 1000;
++
++function parseISODate(iso: string): Date {
++  const [y, m, d] = iso.split("-").map(Number);
++  return new Date(y!, (m ?? 1) - 1, d ?? 1);
++}
++
++/** Monday (local) on or before the given date. */
++function mondayOf(date: Date): Date {
++  const weekdayFromMon = (date.getDay() + 6) % 7;
++  const r = new Date(date);
++  r.setDate(date.getDate() - weekdayFromMon);
++  return r;
++}
++
++/**
++ * Average resting HR + HRV per program week. Days outside the program's weeks
++ * are ignored; a week with no readings is simply absent from the map. HR and HRV
++ * are averaged independently, so a day with only one of the two still counts.
++ */
++export function weeklyRecoveryAverages(
++  rows: DailyMetricRow[],
++  startISO: string,
++  durationWeeks: number,
++): Map<number, RecoveryAvg> {
++  const wk1Monday = mondayOf(parseISODate(startISO)).getTime();
++  const acc = new Map<number, { hrSum: number; hrN: number; hrvSum: number; hrvN: number }>();
++
++  for (const r of rows) {
++    const monday = mondayOf(parseISODate(r.date)).getTime();
++    const week = Math.floor((monday - wk1Monday) / (7 * MS_PER_DAY)) + 1;
++    if (week < 1 || week > durationWeeks) continue;
++    const a = acc.get(week) ?? { hrSum: 0, hrN: 0, hrvSum: 0, hrvN: 0 };
++    if (typeof r.resting_hr === "number") {
++      a.hrSum += r.resting_hr;
++      a.hrN += 1;
++    }
++    if (typeof r.hrv === "number") {
++      a.hrvSum += r.hrv;
++      a.hrvN += 1;
++    }
++    acc.set(week, a);
++  }
++
++  const out = new Map<number, RecoveryAvg>();
++  for (const [week, a] of acc) {
++    out.set(week, {
++      restingHr: a.hrN > 0 ? Math.round(a.hrSum / a.hrN) : null,
++      hrv: a.hrvN > 0 ? Math.round((a.hrvSum / a.hrvN) * 10) / 10 : null,
++    });
++  }
++  return out;
++}
+diff --git a/lib/engine/sports/triathlon.ts b/lib/engine/sports/triathlon.ts
+index 091f3a9..ce9b17d 100644
+--- a/lib/engine/sports/triathlon.ts
++++ b/lib/engine/sports/triathlon.ts
+@@ -225,6 +225,24 @@ function distanceKey(sport: string): string {
+   return sport === "tri_140_6" ? "140_6" : "70_3";
+ }
+ 
++// --- long-ride model (Tasks addition #11) -----------------------------------
++// Race bike leg in miles, and the assumed steady long-ride speed used to turn a
++// distance cap into a duration cap. Long rides are capped at 75% of the race
++// bike distance: 140.6 → 0.75×112 = 84 mi (~5h @ 16 mph), 70.3 → 0.75×56 = 42 mi
++// (~2.6h). Base/build long rides stay in the "standard" 2.5–3.5h band; peak
++// weeks open up to the full 75%-distance cap (5–6h for 140.6).
++const RACE_BIKE_MILES: Record<string, number> = { "70_3": 56, "140_6": 112 };
++const LONG_RIDE_MPH = 16; // steady Z2 long-ride pace incl. terrain/stops
++const LONG_RIDE_STANDARD_MAX_MIN = 210; // 3.5h ceiling through base + build
++
++/** Duration cap (min) for the long ride: 75% of race bike distance, phase-gated. */
++function longRideCapMin(cfg: SportConfig, phase: PhaseName): number {
++  const miles = RACE_BIKE_MILES[distanceKey(cfg.id)] ?? 112;
++  const distanceCapMin = Math.round(((0.75 * miles) / LONG_RIDE_MPH) * 60);
++  // Hold base/build to the standard band; let peak reach the full distance cap.
++  return phase === "peak" ? distanceCapMin : Math.min(distanceCapMin, LONG_RIDE_STANDARD_MAX_MIN);
++}
++
+ function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx: number): SessionSlot[] {
+   const bal = BALANCE[phase];
+   const swimN = n(cfg.sessionCounts.swim, phase, idx);
+@@ -236,6 +254,7 @@ function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx:
+   const swimMin = per(bal.swim, swimN);
+   const bikeMin = per(bal.bike, bikeN);
+   const runMin = per(bal.run, runN);
++  const longRideCap = longRideCapMin(cfg, phase);
+ 
+   const slots: SessionSlot[] = [];
+ 
+@@ -246,7 +265,10 @@ function triSessions(phase: PhaseName, totalMin: number, cfg: SportConfig, idx:
+   for (let k = 0; k < bikeN; k++) {
+     const isLong = k === 0;
+     const sessionType = isLong ? "endurance" : phase === "build" || phase === "peak" ? "sweet_spot" : "endurance";
+-    slots.push({ kind: "bike", goalZone: BIKE_ZONE[sessionType]!, durationMin: isLong ? Math.round(bikeMin * 1.4) : bikeMin, isLong, sessionType });
++    // Long ride grows with weekly volume but is capped at 75% of race bike
++    // distance (and held to the 2.5–3.5h standard band outside the peak phase).
++    const durationMin = isLong ? Math.min(Math.round(bikeMin * 1.4), longRideCap) : bikeMin;
++    slots.push({ kind: "bike", goalZone: BIKE_ZONE[sessionType]!, durationMin, isLong, sessionType });
+   }
+   for (let k = 0; k < runN; k++) {
+     const isLong = k === 0;
+@@ -396,26 +418,38 @@ function swimContent(type: string, durationMin: number, a: TriAnchors): string {
+   }
+ }
+ 
++/**
++ * Secondary heart-rate cue for a bike effort (% of lactate-threshold HR). Power
++ * is the primary target; HR is a monitor that lags, so it's only a cross-check —
++ * and it's unreliable for short VO₂ reps.
++ */
++function bikeHr(lo: number, hi: number | null): string {
++  if (hi === null) return "HR lags on short reps — ride to power";
++  return `secondary HR ${Math.round(lo * 100)}–${Math.round(hi * 100)}% LTHR`;
++}
++
+ /** Bike set built to the prescribed duration, paced off FTP when known. */
+ function bikeContent(type: string, durationMin: number, isLong: boolean | undefined, a: TriAnchors): string {
+-  const longNote = isLong ? " Rehearse race fuel + hydration on this ride." : "";
++  const longNote = isLong
++    ? " Rehearse race fuel + hydration on this ride. Finish with a short 15–25 min easy run straight off the bike (mini-brick) to rehearse race legs."
++    : "";
+   switch (type) {
+     case "endurance":
+-      return `Steady Zone 2 aerobic ride, ${durationMin} min at ${wattRange(a, 0.56, 0.75)} — the aerobic cornerstone. Keep it conversational and hold aero where you can.${longNote}`;
++      return `Steady Zone 2 aerobic ride, ${durationMin} min at ${wattRange(a, 0.56, 0.75)} (${bikeHr(0.69, 0.83)}) — the aerobic cornerstone. Keep it conversational and hold aero where you can.${longNote}`;
+     case "sweet_spot": {
+       const reps = clampInt((durationMin - 25) / 13, 2, 5);
+-      return `Warm-up 12 min. Main set ${reps}×10 min @ ${wattRange(a, 0.88, 0.94)} (sweet spot) with 4 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
++      return `Warm-up 12 min. Main set ${reps}×10 min @ ${wattRange(a, 0.88, 0.94)} (sweet spot, ${bikeHr(0.88, 0.94)}) with 4 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
+     }
+     case "threshold": {
+       const reps = clampInt((durationMin - 25) / 24, 2, 3);
+-      return `Warm-up 15 min. Main set ${reps}×18 min @ ${wattRange(a, 0.95, 1.05)} (threshold) with 6 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
++      return `Warm-up 15 min. Main set ${reps}×18 min @ ${wattRange(a, 0.95, 1.05)} (threshold, ${bikeHr(0.95, 1.05)}) with 6 min easy between. Cool-down. ${durationMin} min total.${longNote}`;
+     }
+     case "vo2": {
+       const reps = clampInt((durationMin - 18) / 6, 4, 6);
+-      return `Warm-up 15 min. Main set ${reps}×3 min @ ${wattRange(a, 1.1, 1.2)} (VO₂max) with 3 min easy spin between. Cool-down. ${durationMin} min total.`;
++      return `Warm-up 15 min. Main set ${reps}×3 min @ ${wattRange(a, 1.1, 1.2)} (VO₂max — ${bikeHr(1.1, null)}) with 3 min easy spin between. Cool-down. ${durationMin} min total.`;
+     }
+     case "recovery":
+-      return `Easy recovery spin, ${durationMin} min fully aerobic (${wattRange(a, 0, 0.55)}), high cadence and light.`;
++      return `Easy recovery spin, ${durationMin} min fully aerobic (${wattRange(a, 0, 0.55)}, ${bikeHr(0, 0.68)}), high cadence and light.`;
+     default:
+       return `${durationMin} min aerobic ride.`;
+   }
+diff --git a/lib/engine/tri-zones.test.ts b/lib/engine/tri-zones.test.ts
+index c3dc564..d8bb7f1 100644
+--- a/lib/engine/tri-zones.test.ts
++++ b/lib/engine/tri-zones.test.ts
+@@ -2,11 +2,22 @@ import { describe, it, expect } from "vitest";
+ import { computeTriZones } from "./tri-zones";
+ 
+ describe("Triathlon per-discipline zones", () => {
+-  it("returns nothing when no anchors are supplied", () => {
++  it("always shows swim and bike zones, with effort/%FTP fallbacks when anchors are missing", () => {
+     const z = computeTriZones({});
+-    expect(z.swim).toBeUndefined();
+-    expect(z.bike).toBeUndefined();
+-    expect(z.run).toBeUndefined();
++    // Swim + bike are always present so the UI can show every discipline.
++    expect(z.swim).toBeDefined();
++    expect(z.bike).toBeDefined();
++    expect(z.run).toBeUndefined(); // run still needs a running benchmark for VDOT
++    // No anchors → no exact numbers, effort/%FTP ranges + a nudge instead.
++    expect(z.swim!.cssPer100).toBeUndefined();
++    expect(z.swim!.note).toBeTruthy();
++    expect(z.swim!.zones).toHaveLength(5);
++    expect(z.bike!.ftpWatts).toBeUndefined();
++    expect(z.bike!.note).toBeTruthy();
++    // Bike bands fall back to % of FTP and carry a secondary HR (% LTHR) target.
++    const bikeEndurance = z.bike!.zones.find((r) => r.label.includes("Endurance"))!;
++    expect(bikeEndurance.range).toContain("% FTP");
++    expect(bikeEndurance.hr).toContain("LTHR");
+   });
+ 
+   it("builds swim zones from CSS with threshold band around CSS", () => {
+@@ -38,10 +49,18 @@ describe("Triathlon per-discipline zones", () => {
+     for (const r of z.run!.zones) expect(r.range).toMatch(/\d:\d\d\/mi/);
+   });
+ 
+-  it("returns only the disciplines with anchors", () => {
++  it("uses exact watts for bike when FTP is given, effort fallback for swim without CSS", () => {
+     const z = computeTriZones({ ftpWatts: 220 });
+     expect(z.bike).toBeDefined();
+-    expect(z.swim).toBeUndefined();
++    expect(z.bike!.ftpWatts).toBe(220);
++    // Swim still shown (effort-based) even without a CSS anchor; run needs a benchmark.
++    expect(z.swim).toBeDefined();
++    expect(z.swim!.cssPer100).toBeUndefined();
+     expect(z.run).toBeUndefined();
+   });
++
++  it("adds a secondary heart-rate target (% LTHR) to bike power bands", () => {
++    const z = computeTriZones({ ftpWatts: 250 });
++    for (const r of z.bike!.zones) expect(r.hr).toBeTruthy();
++  });
+ });
+diff --git a/lib/engine/tri-zones.ts b/lib/engine/tri-zones.ts
+index 9a874ef..61745e6 100644
+--- a/lib/engine/tri-zones.ts
++++ b/lib/engine/tri-zones.ts
+@@ -4,28 +4,40 @@
+  * Triathlon can't be paced off a single VDOT the way a run race can — each
+  * discipline has its own threshold anchor and its own zone currency:
+  *   - Swim: CSS (critical swim speed) → pace bands per 100 m (Ginn/Swim Smooth).
+- *   - Bike: FTP (functional threshold power) → Coggan power zones (watts).
++ *   - Bike: FTP (functional threshold power) → Coggan power zones (watts), with
++ *           heart rate (% of lactate-threshold HR) as a SECONDARY monitor.
+  *   - Run:  VDOT threshold → Daniels pace bands (reuses paces.ts).
+  *
+- * All pure + deterministic. Each discipline is optional: a zone table is only
+- * returned when the athlete supplied the anchoring benchmark, so the UI can show
+- * exactly the disciplines the athlete has data for and nudge for the rest.
++ * All pure + deterministic. Swim and bike zones are ALWAYS returned so the UI
++ * can show every discipline: when the athlete supplied the anchoring benchmark
++ * (CSS / FTP) the ranges are exact (pace / watts); otherwise they fall back to
++ * % of FTP and effort descriptors, with a nudge to add the anchor for exact
++ * numbers. Run zones need a running benchmark (5K etc.) to compute a VDOT.
+  */
+ import { computePaces, formatPace, parseTimeToSeconds, type RaceInput } from "./paces";
+ 
+ export interface ZoneRow {
+   zone: string;
+   label: string;
++  /** Primary target for the discipline (pace, watts, or % of threshold). */
+   range: string;
++  /** Secondary monitor (currently heart rate, % of LTHR) — bike only for now. */
++  hr?: string;
+ }
+ 
+ export interface SwimZones {
+-  cssPer100: string;
++  /** CSS pace per 100 m when known ("m:ss"); undefined when the athlete has none. */
++  cssPer100?: string;
+   zones: ZoneRow[];
++  /** Nudge shown when CSS is missing (ranges are effort-based until then). */
++  note?: string;
+ }
+ export interface BikeZones {
+-  ftpWatts: number;
++  /** FTP in watts when known; undefined when the athlete has none. */
++  ftpWatts?: number;
+   zones: ZoneRow[];
++  /** Nudge shown when FTP is missing (ranges are % of FTP until then). */
++  note?: string;
+ }
+ export interface RunZones {
+   vdot: number;
+@@ -53,48 +65,80 @@ function fmtSwim(sec: number): string {
+   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+ }
+ 
++/** Five swim bands: label, CSS offset (sec/100 m), and an effort fallback. */
++const SWIM_BANDS: {
++  zone: string;
++  label: string;
++  from: number;
++  to: number | null;
++  open?: "slow" | "fast";
++  effort: string;
++}[] = [
++  { zone: "Z1", label: "Recovery", from: 12, to: null, open: "slow", effort: "Very easy — recovery, technique focus" },
++  { zone: "Z2", label: "Aerobic / endurance", from: 6, to: 11, effort: "Easy, steady aerobic — long, relaxed stroke" },
++  { zone: "Z3", label: "Tempo", from: 3, to: 5, effort: "Moderately hard, controlled and smooth" },
++  { zone: "Z4", label: "Threshold (CSS)", from: -2, to: 2, effort: "Hard — ~1 hr race effort (your CSS)" },
++  { zone: "Z5", label: "Speed / VO₂", from: -3, to: null, open: "fast", effort: "Very hard — short, fast reps" },
++];
++
+ /**
+  * Swim zones as pace bands relative to CSS (seconds slower per 100 m). Faster
+  * (smaller) pace = harder. Bands from Swim Smooth / CSS training practice.
++ * Always returns a table: without a CSS anchor the ranges are effort-based.
+  */
+-function swimZones(cssPace?: string): SwimZones | undefined {
++function swimZones(cssPace?: string): SwimZones {
+   const css = cssPace ? parseTimeToSeconds(cssPace) : null;
+-  if (css === null || css <= 0) return undefined;
+-  // Offsets (sec/100 m) from CSS: [slower bound, faster bound]. Zone 1 is
+-  // open-ended slow; zone 5 is open-ended fast.
+-  const rows: { zone: string; label: string; from: number; to: number | null; open?: "slow" | "fast" }[] = [
+-    { zone: "Z1", label: "Recovery", from: 12, to: null, open: "slow" },
+-    { zone: "Z2", label: "Aerobic / endurance", from: 6, to: 11 },
+-    { zone: "Z3", label: "Tempo", from: 3, to: 5 },
+-    { zone: "Z4", label: "Threshold (CSS)", from: -2, to: 2 },
+-    { zone: "Z5", label: "Speed / VO₂", from: -3, to: null, open: "fast" },
+-  ];
+-  const zones: ZoneRow[] = rows.map((r) => {
+-    if (r.open === "slow") return { zone: r.zone, label: r.label, range: `${fmtSwim(css + r.from)}+ /100m` };
+-    if (r.open === "fast") return { zone: r.zone, label: r.label, range: `${fmtSwim(css + r.from)} or faster` };
++  const hasCss = css !== null && css > 0;
++  const zones: ZoneRow[] = SWIM_BANDS.map((r) => {
++    if (!hasCss) return { zone: r.zone, label: r.label, range: r.effort };
++    if (r.open === "slow") return { zone: r.zone, label: r.label, range: `${fmtSwim(css! + r.from)}+ /100m` };
++    if (r.open === "fast") return { zone: r.zone, label: r.label, range: `${fmtSwim(css! + r.from)} or faster /100m` };
+     // Faster pace is the smaller number → show fast–slow.
+-    return { zone: r.zone, label: r.label, range: `${fmtSwim(css + r.to!)}–${fmtSwim(css + r.from)} /100m` };
++    return { zone: r.zone, label: r.label, range: `${fmtSwim(css! + r.to!)}–${fmtSwim(css! + r.from)} /100m` };
+   });
+-  return { cssPer100: fmtSwim(css), zones };
++  return {
++    cssPer100: hasCss ? fmtSwim(css!) : undefined,
++    zones,
++    note: hasCss ? undefined : "Add your swim CSS pace to convert these into exact per-100 m targets.",
++  };
+ }
+ 
+-/** Coggan power zones (% FTP), collapsed to five bands, expressed in watts. */
+-function bikeZones(ftpWatts?: number): BikeZones | undefined {
+-  if (!ftpWatts || ftpWatts <= 0) return undefined;
+-  const w = (frac: number) => Math.round(ftpWatts * frac);
+-  const rows: { zone: string; label: string; lo: number; hi: number | null }[] = [
+-    { zone: "Z1", label: "Active recovery", lo: 0, hi: 0.55 },
+-    { zone: "Z2", label: "Endurance", lo: 0.56, hi: 0.75 },
+-    { zone: "Z3", label: "Tempo / sweet spot", lo: 0.76, hi: 0.9 },
+-    { zone: "Z4", label: "Threshold (FTP)", lo: 0.91, hi: 1.05 },
+-    { zone: "Z5", label: "VO₂max", lo: 1.06, hi: null },
+-  ];
+-  const zones: ZoneRow[] = rows.map((r) =>
+-    r.hi === null
+-      ? { zone: r.zone, label: r.label, range: `${w(r.lo)}W+` }
+-      : { zone: r.zone, label: r.label, range: `${w(r.lo)}–${w(r.hi)}W` },
+-  );
+-  return { ftpWatts, zones };
++/**
++ * Five Coggan power bands, expressed in watts (when FTP known) or % of FTP.
++ * Each band also carries a secondary heart-rate target as % of lactate-threshold
++ * HR (LTHR) — HR lags power, so it's a monitor, not the primary target, and is
++ * unreliable in Z5 where efforts are too short for HR to respond.
++ */
++const BIKE_BANDS: {
++  zone: string;
++  label: string;
++  lo: number;
++  hi: number | null;
++  pct: string;
++  hr: string;
++}[] = [
++  { zone: "Z1", label: "Active recovery", lo: 0, hi: 0.55, pct: "≤55% FTP", hr: "<68% LTHR" },
++  { zone: "Z2", label: "Endurance", lo: 0.56, hi: 0.75, pct: "56–75% FTP", hr: "69–83% LTHR" },
++  { zone: "Z3", label: "Tempo / sweet spot", lo: 0.76, hi: 0.9, pct: "76–90% FTP", hr: "84–94% LTHR" },
++  { zone: "Z4", label: "Threshold (FTP)", lo: 0.91, hi: 1.05, pct: "91–105% FTP", hr: "95–105% LTHR" },
++  { zone: "Z5", label: "VO₂max", lo: 1.06, hi: null, pct: "106%+ FTP", hr: ">106% LTHR (HR lags — use power)" },
++];
++
++function bikeZones(ftpWatts?: number): BikeZones {
++  const hasFtp = !!ftpWatts && ftpWatts > 0;
++  const w = (frac: number) => Math.round(ftpWatts! * frac);
++  const zones: ZoneRow[] = BIKE_BANDS.map((r) => {
++    let range: string;
++    if (!hasFtp) range = r.pct;
++    else if (r.hi === null) range = `${w(r.lo)}W+`;
++    else range = `${w(r.lo)}–${w(r.hi)}W`;
++    return { zone: r.zone, label: r.label, range, hr: r.hr };
++  });
++  return {
++    ftpWatts: hasFtp ? ftpWatts : undefined,
++    zones,
++    note: hasFtp ? undefined : "Add your bike FTP (watts) to convert these into exact power targets.",
++  };
+ }
+ 
+ /** Run zones from VDOT (Daniels), expressed as pace ranges per mile. */
+@@ -110,14 +154,17 @@ function runZones(benchmarks?: RaceInput): RunZones | undefined {
+   return { vdot: p.vdot, zones };
+ }
+ 
+-/** Compute whichever per-discipline zone tables the athlete has anchors for. */
++/**
++ * Compute per-discipline zone tables. Swim and bike are always present (with
++ * effort / % of FTP fallbacks when the CSS / FTP anchor is missing); run is
++ * present when a running benchmark yields a VDOT.
++ */
+ export function computeTriZones(input: TriZoneInput): TriZones {
+-  const out: TriZones = {};
+-  const swim = swimZones(input.cssPace);
+-  const bike = bikeZones(input.ftpWatts);
++  const out: TriZones = {
++    swim: swimZones(input.cssPace),
++    bike: bikeZones(input.ftpWatts),
++  };
+   const run = runZones(input.benchmarks);
+-  if (swim) out.swim = swim;
+-  if (bike) out.bike = bike;
+   if (run) out.run = run;
+   return out;
+ }
+diff --git a/lib/generation/assemble.ts b/lib/generation/assemble.ts
+index cf48c8a..b8b77f2 100644
+--- a/lib/generation/assemble.ts
++++ b/lib/generation/assemble.ts
+@@ -253,7 +253,7 @@ function buildWeek(
+   // session, 90-min run cap) and a non-running Zone 1–2 cardio block absorbs the
+   // remaining cardio time. The summary is then read back from the reconciled
+   // sessions, so the header can never disagree with the workouts.
+-  reconcileWeekVolume(days, skel.targetMileage, skel.targetCardioMinutes, paces, runningExp);
++  reconcileWeekVolume(days, skel.targetMileage, skel.targetCardioMinutes, paces, runningExp, skel.weekNumber);
+ 
+   return {
+     weekNumber: skel.weekNumber,
+diff --git a/lib/generation/reconcile.ts b/lib/generation/reconcile.ts
+index 255a974..8ae9930 100644
+--- a/lib/generation/reconcile.ts
++++ b/lib/generation/reconcile.ts
+@@ -38,6 +38,15 @@ const MIN_CARDIO_TOTAL = 45; // every cardio session ≥ 45 min
+ const EASY_LONG_MIN_MI = 3;
+ const MIN_RUN_MILES = 0.3;
+ 
++// Long-run progression (Tasks addition #5). The long run should be clearly
++// longer than the easy runs in the same week and grow week over week toward the
++// 90-min cap. These control a redistribution-only pass: miles are pulled from
++// the easy runs into the long run (weekly mileage stays exact), so the long run
++// reaches a week-ramped duration target without changing the prescribed volume.
++const LONG_RUN_BASE_WORK = 50; // week-1 long-run work-minutes target
++const LONG_RUN_STEP_WORK = 4; // added work-minutes per subsequent week
++const LONG_RUN_DOMINANCE = 1.5; // long run ≥ 1.5× the longest easy run
++
+ /** Relative distance share by run type when spreading remaining miles. */
+ const TYPE_WEIGHT: Record<RunType, number> = {
+   long: 2.0, progression: 1.3, fartlek: 1.2, tempo: 1.1, threshold: 1.1, interval: 1.0, easy: 1.0, hybrid_run: 1.0,
+@@ -100,6 +109,7 @@ export function reconcileWeekVolume(
+   targetCardioMinutes: number,
+   paces: RunPaces | null,
+   runningExp: ExperienceLevel,
++  weekNumber = 1,
+ ): void {
+   if (!paces) return; // no 5K → can't apply formula paces
+   const hasRace = days.some((d) => d.sessions.some((s) => s.kind === "race"));
+@@ -144,6 +154,7 @@ export function reconcileWeekVolume(
+     if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp));
+   } else {
+     sizeRuns(runs, RM, days, paces, runningExp, added);
++    enforceLongRun(runs, weekNumber);
+     for (const r of runs) writeRun(r, paces);
+   }
+ 
+@@ -229,6 +240,45 @@ function sizeRuns(
+   }
+ }
+ 
++/**
++ * Make the week's long run clearly dominant and progressive (Tasks addition #5).
++ * Redistribution only: miles are shifted from the easy runs into the long run,
++ * so the week's total mileage is unchanged. The long run is grown toward a
++ * week-ramped work-minute target (up to the 90-min cap) and to at least
++ * LONG_RUN_DOMINANCE× the longest easy run, limited by how much spare distance
++ * the easy runs have above their minimums.
++ */
++function enforceLongRun(runs: RunEntry[], weekNumber: number): void {
++  const long = runs.find((r) => r.type === "long");
++  if (!long || runs.length < 2) return;
++  const others = runs.filter((r) => r !== long);
++  if (others.length === 0) return;
++
++  // Week-ramped duration target, expressed in miles at the long-run pace, capped
++  // by the per-run 90-min ceiling (long.max already encodes the cap).
++  const targetWork = Math.min(
++    MAX_RUN_TOTAL - long.overhead,
++    LONG_RUN_BASE_WORK + LONG_RUN_STEP_WORK * Math.max(0, weekNumber - 1),
++  );
++  const targetMiles = targetWork / long.paceMin;
++  const maxEasyMiles = others.reduce((m, r) => Math.max(m, r.miles), 0);
++
++  let want = Math.max(long.miles, targetMiles, LONG_RUN_DOMINANCE * maxEasyMiles);
++  want = Math.min(want, long.max); // never exceed the 90-min cap
++  let need = want - long.miles;
++  if (need <= 0.05) return;
++
++  // Pull spare miles from the easy/quality runs (biggest first), never below min.
++  for (const r of [...others].sort((a, b) => b.miles - a.miles)) {
++    if (need <= 0.05) break;
++    const spare = Math.max(0, r.miles - r.min);
++    const take = Math.min(spare, need);
++    r.miles -= take;
++    long.miles += take;
++    need -= take;
++  }
++}
++
+ function writeRun(r: RunEntry, paces: RunPaces): void {
+   const miles = Math.max(MIN_RUN_MILES, round1(r.miles));
+   let work = Math.round(miles * r.paceMin);
+diff --git a/lib/schemas.ts b/lib/schemas.ts
+index 5487d2d..f63cf12 100644
+--- a/lib/schemas.ts
++++ b/lib/schemas.ts
+@@ -414,6 +414,20 @@ export const ReadinessCheckinInputSchema = z.object({
+ });
+ export type ReadinessCheckinInput = z.infer<typeof ReadinessCheckinInputSchema>;
+ 
++/** Body of POST /api/daily-metrics — one day's resting HR + HRV (Tasks #7). */
++export const DailyMetricInputSchema = z
++  .object({
++    /** ISO date "YYYY-MM-DD" the reading was taken (usually on waking). */
++    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
++    restingHr: z.number().int().min(25).max(150).optional(),
++    hrv: z.number().min(1).max(400).optional(),
++  })
++  .refine((v) => v.restingHr !== undefined || v.hrv !== undefined, {
++    message: "Enter a resting HR and/or HRV",
++    path: ["restingHr"],
++  });
++export type DailyMetricInput = z.infer<typeof DailyMetricInputSchema>;
++
+ export type LogActuals = z.infer<typeof LogActualsSchema>;
+ export type WorkoutLogInput = z.infer<typeof WorkoutLogInputSchema>;
+ 
+diff --git a/lib/session-volume.ts b/lib/session-volume.ts
+index 601f28c..a17032c 100644
+--- a/lib/session-volume.ts
++++ b/lib/session-volume.ts
+@@ -31,6 +31,16 @@ export const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]
+ export const HYBRID_MIN_WORK = 25;
+ export const HYBRID_MAX_WORK = 60;
+ 
++/**
++ * Fixed total length of a strength session (Tasks addition #4: all strength
++ * workouts are 60 minutes). Split into a 10-min warmup, 45-min working block,
++ * and 5-min cooldown so the displayed estimate and the weekly time tracker both
++ * read a flat 60 minutes regardless of set count.
++ */
++export const STRENGTH_SESSION_MIN = 60;
++const STRENGTH_WARMUP = 10;
++const STRENGTH_COOLDOWN = 5;
++
+ const DEFAULT_HYBRID_RUN_MILES = 1000 / METERS_PER_MILE; // 1000 m per hybrid run
+ 
+ /** Parse a distance ("1000m", "1 km", "0.6 mi") to miles, or null. */
+@@ -74,9 +84,14 @@ export function sessionTiming(session: Session): SessionTiming {
+     return { warmup, work, cooldown, total: warmup + work + cooldown };
+   }
+   if (session.kind === "lift") {
+-    const sets = session.movements.reduce((n, m) => n + m.sets, 0);
+-    const work = sets > 0 ? Math.round(sets * 2.5) : 40;
+-    return { warmup: 10, work, cooldown: 5, total: 10 + work + 5 };
++    // Strength sessions are a fixed 60 minutes (Tasks addition #4).
++    const work = STRENGTH_SESSION_MIN - STRENGTH_WARMUP - STRENGTH_COOLDOWN;
++    return {
++      warmup: STRENGTH_WARMUP,
++      work,
++      cooldown: STRENGTH_COOLDOWN,
++      total: STRENGTH_SESSION_MIN,
++    };
+   }
+   if (session.kind === "hybrid") {
+     const work = clamp(Math.round(session.elements.length * 5), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
+@@ -140,3 +155,57 @@ export function weekMileage(week: { days: { sessions: Session[] }[] }): number {
+   }
+   return Math.round(miles * 10) / 10;
+ }
++
++/**
++ * Weekly training-time breakdown in minutes (Tasks addition #3).
++ *   - metcon: hybrid ("HYROX/DEKA-style") workout time
++ *   - strength: weightlifting time
++ *   - running: run time
++ *   - nonRunningCardio: everything else aerobic (cardio blocks, swim, bike, brick)
++ *   - total: sum of the four above (strength + metcon + running + non-running cardio)
++ * Race days contribute nothing (event day).
++ */
++export interface WeekTimeBreakdown {
++  metcon: number;
++  strength: number;
++  running: number;
++  nonRunningCardio: number;
++  total: number;
++}
++
++export function weekTimeByCategory(week: { days: { sessions: Session[] }[] }): WeekTimeBreakdown {
++  const out: WeekTimeBreakdown = {
++    metcon: 0,
++    strength: 0,
++    running: 0,
++    nonRunningCardio: 0,
++    total: 0,
++  };
++  for (const day of week.days) {
++    for (const s of day.sessions) {
++      const t = sessionTiming(s).total;
++      if (t <= 0) continue;
++      switch (s.kind) {
++        case "hybrid":
++          out.metcon += t;
++          break;
++        case "lift":
++          out.strength += t;
++          break;
++        case "run":
++          out.running += t;
++          break;
++        case "cardio":
++        case "swim":
++        case "bike":
++        case "brick":
++          out.nonRunningCardio += t;
++          break;
++        default:
++          break;
++      }
++    }
++  }
++  out.total = out.metcon + out.strength + out.running + out.nonRunningCardio;
++  return out;
++}
+diff --git a/lib/supabase/queries.ts b/lib/supabase/queries.ts
+index 67c58f0..3463b96 100644
+--- a/lib/supabase/queries.ts
++++ b/lib/supabase/queries.ts
+@@ -146,3 +146,24 @@ export async function getProgramReadiness(programId: string): Promise<ReadinessC
+     .order("week_number", { ascending: true });
+   return (data as ReadinessCheckinRow[] | null) ?? [];
+ }
++
++export type DailyMetricRow = {
++  date: string; // "YYYY-MM-DD"
++  resting_hr: number | null;
++  hrv: number | null;
++};
++
++/** All daily resting-HR/HRV rows for the signed-in user (Tasks addition #7). */
++export async function getDailyMetrics(): Promise<DailyMetricRow[]> {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) return [];
++  const { data } = await supabase
++    .from("daily_metrics")
++    .select("date, resting_hr, hrv")
++    .eq("user_id", user.id)
++    .order("date", { ascending: true });
++  return (data as DailyMetricRow[] | null) ?? [];
++}
+diff --git a/supabase/migrations/0026_daily_metrics.sql b/supabase/migrations/0026_daily_metrics.sql
+new file mode 100644
+index 0000000..7df4a24
+--- /dev/null
++++ b/supabase/migrations/0026_daily_metrics.sql
+@@ -0,0 +1,30 @@
++-- Daily resting HR + HRV log (Tasks addition #7). One row per (user, date),
++-- entered manually by the athlete. The program view rolls these up into a
++-- weekly average resting HR and HRV per program week. Distinct from
++-- readiness_checkins (weekly, per-program) and wearable_daily (sync-only,
++-- service-role writes): this is user-writable, program-agnostic daily data.
++
++create table if not exists daily_metrics (
++  id uuid primary key default gen_random_uuid(),
++  user_id uuid not null references profiles(id) on delete cascade,
++  date date not null,
++  resting_hr int check (resting_hr is null or resting_hr between 25 and 150),
++  hrv numeric check (hrv is null or hrv between 1 and 400),
++  created_at timestamptz not null default now(),
++  updated_at timestamptz not null default now(),
++  unique (user_id, date)
++);
++
++create index if not exists daily_metrics_user_date_idx
++  on daily_metrics (user_id, date desc);
++
++alter table daily_metrics enable row level security;
++
++create policy "daily_metrics: select own" on daily_metrics
++  for select using (auth.uid() = user_id);
++create policy "daily_metrics: insert own" on daily_metrics
++  for insert with check (auth.uid() = user_id);
++create policy "daily_metrics: update own" on daily_metrics
++  for update using (auth.uid() = user_id);
++create policy "daily_metrics: delete own" on daily_metrics
++  for delete using (auth.uid() = user_id);
+-- 
+2.43.0
+

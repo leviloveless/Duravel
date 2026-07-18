@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Duravel iOS — Part 3
+  Info.plist additions.
+
+  MERGE these keys into ios/App/App/Info.plist (inside the top-level <dict>).
+  Do NOT replace the whole file — Capacitor generates the rest.
+
+  What's here:
+    - CFBundleURLTypes: registers the custom scheme "duravel://" so links like
+      duravel://auth/callback launch the app. This is the fallback path used
+      by Supabase OAuth redirects and any place a Universal Link can't be used.
+    - LSApplicationQueriesSchemes: lets us probe whether native apps are present
+      (optional; keep only if you deep-link OUT to these).
+    - NSUserActivityTypes: declares we handle the Universal Link browsing
+      activity (helps some link-continuation edge cases).
+-->
+<dict>
+
+    <!-- Custom URL scheme: duravel:// -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>app.duravel</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>duravel</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- We handle the Universal Link continuation activity. -->
+    <key>NSUserActivityTypes</key>
+    <array>
+        <string>NSUserActivityTypeBrowsingWeb</string>
+    </array>
+
+    <!-- Optional: only needed if Duravel opens OTHER apps by scheme. -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>https</string>
+    </array>
+
+</dict>

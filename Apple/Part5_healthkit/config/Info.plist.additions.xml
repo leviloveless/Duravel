@@ -1,0 +1,25 @@
+<!--
+  Duravel iOS — Part 5
+  Info.plist additions for HealthKit.
+
+  Paste the two <key>/<string> pairs below INSIDE the top-level <dict> of
+  ios/App/App/Info.plist (do NOT paste the <plist>/<dict> wrapper — this file
+  shows context only). Both strings are REQUIRED: HealthKit crashes on first
+  access if the relevant usage description is missing.
+
+  NSHealthShareUsageDescription  -> shown when requesting READ access.
+  NSHealthUpdateUsageDescription -> shown when requesting WRITE access.
+    Duravel v1 is read-only, but the write string is included so a future
+    "save workout to Apple Health" feature needs no Info.plist change.
+-->
+<plist version="1.0">
+<dict>
+
+  <key>NSHealthShareUsageDescription</key>
+  <string>Duravel reads your workouts, heart rate, HRV, VO2 max, resting heart rate, and calories from Apple Health so your training and recovery show up automatically and your coach can tailor your plan. Your health data stays private, is only used to power your Duravel training, and is never sold.</string>
+
+  <key>NSHealthUpdateUsageDescription</key>
+  <string>Duravel can save the workouts you complete in the app back to Apple Health, so all of your training lives in one place. You choose exactly what Duravel is allowed to write.</string>
+
+</dict>
+</plist>

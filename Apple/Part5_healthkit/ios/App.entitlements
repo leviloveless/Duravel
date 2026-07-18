@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Duravel iOS — Part 5
+  Reference entitlements for the App target (ios/App/App/App.entitlements).
+
+  Xcode normally manages this file when you add the "HealthKit" capability in
+  Signing & Capabilities. Use this as the source of truth for what MUST be
+  present. After editing, re-run automatic signing (or regenerate provisioning
+  profiles) so the profile carries the HealthKit capability.
+
+  Keys:
+    com.apple.developer.healthkit
+        -> enables HealthKit at all. Required.
+    com.apple.developer.healthkit.background-delivery
+        -> allows HKObserverQuery callbacks + enableBackgroundDelivery() to
+           wake the app for new samples while backgrounded/suspended. Required
+           for automatic Apple Watch workout sync.
+
+  NOT included (intentionally):
+    com.apple.developer.healthkit.access
+        -> only needed for Clinical Health Records, which Duravel does not use.
+           Adding it triggers extra App Review scrutiny.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.background-delivery</key>
+	<true/>
+</dict>
+</plist>

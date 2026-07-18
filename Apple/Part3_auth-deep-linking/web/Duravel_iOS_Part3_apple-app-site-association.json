@@ -1,0 +1,43 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.app.duravel"],
+        "components": [
+          {
+            "/": "/auth/*",
+            "comment": "Supabase email confirm + password reset callback links"
+          },
+          {
+            "/": "/reset-password*",
+            "comment": "Password reset landing"
+          },
+          {
+            "/": "/confirm*",
+            "comment": "Signup confirmation landing"
+          },
+          {
+            "/": "/workout/*",
+            "comment": "Shared workout deep links"
+          },
+          {
+            "/": "/program/*",
+            "comment": "Shared program deep links"
+          },
+          {
+            "/": "/invite/*",
+            "comment": "Invite / referral links"
+          },
+          {
+            "/": "*",
+            "comment": "Fallback: open every other app.duravel.app path in-app",
+            "exclude": false
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.app.duravel"]
+  }
+}

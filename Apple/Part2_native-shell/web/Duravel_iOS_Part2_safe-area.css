@@ -1,0 +1,79 @@
+/* ==================================================================
+   Duravel — Safe-area + native-feel CSS
+   ------------------------------------------------------------------
+   Injected into the hosted web app when running inside the iOS shell.
+
+   TWO WAYS TO SHIP THIS:
+   1. PREFERRED — add these rules to the web app's global stylesheet
+      (hyroxai/) and gate the .duravel-native rules on a class the shell adds
+      to <html> (see Duravel_iOS_Part2_webview-behavior.ts → tagNativePlatform()).
+   2. FALLBACK — inject at runtime from the native shell via
+      injectSafeAreaCSS() in Duravel_iOS_Part2_native-bridge.ts.
+
+   The env(safe-area-inset-*) values require this meta tag in the web app's
+   <head> (add it if not already present):
+     <meta name="viewport"
+       content="width=device-width, initial-scale=1, viewport-fit=cover,
+                maximum-scale=1, user-scalable=no">
+   `viewport-fit=cover` is what makes env(safe-area-inset-*) resolve to real
+   notch / home-indicator values instead of 0.
+   ================================================================== */
+
+:root {
+  /* Expose insets as custom props so app code can reference them anywhere.
+     max(0px, …) keeps them sane on browsers that don't support env(). */
+  --duravel-safe-top: env(safe-area-inset-top, 0px);
+  --duravel-safe-right: env(safe-area-inset-right, 0px);
+  --duravel-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --duravel-safe-left: env(safe-area-inset-left, 0px);
+  --duravel-bg: #0B0B0F;
+}
+
+/* Only apply native chrome adjustments inside the app shell. On the web,
+   .duravel-native is absent and the site renders exactly as before. */
+
+/* Paint the brand color into the notch / home-indicator regions so they never
+   flash white and blend with the app background. */
+html.duravel-native,
+html.duravel-native body {
+  background-color: var(--duravel-bg);
+}
+
+/* Top chrome: push fixed headers / nav below the status bar + notch. */
+html.duravel-native .app-header,
+html.duravel-native [data-safe-top],
+html.duravel-native header[role="banner"] {
+  padding-top: calc(var(--duravel-safe-top) + var(--header-pad, 0px));
+}
+
+/* Bottom chrome: lift tab bars / sticky CTAs above the home indicator. */
+html.duravel-native .tab-bar,
+html.duravel-native .bottom-nav,
+html.duravel-native [data-safe-bottom],
+html.duravel-native footer[role="contentinfo"] {
+  padding-bottom: calc(var(--duravel-safe-bottom) + var(--footer-pad, 0px));
+}
+
+/* Full-height scroll containers should respect left/right insets in landscape. */
+html.duravel-native [data-safe-x] {
+  padding-left: var(--duravel-safe-left);
+  padding-right: var(--duravel-safe-right);
+}
+
+/* Utility classes the web app can opt into directly. */
+html.duravel-native .u-safe-top    { padding-top: var(--duravel-safe-top); }
+html.duravel-native .u-safe-bottom { padding-bottom: var(--duravel-safe-bottom); }
+html.duravel-native .u-safe-x {
+  padding-left: var(--duravel-safe-left);
+  padding-right: var(--duravel-safe-right);
+}
+html.duravel-native .u-safe-all {
+  padding: var(--duravel-safe-top) var(--duravel-safe-right)
+           var(--duravel-safe-bottom) var(--duravel-safe-left);
+}
+
+/* Modals / bottom sheets that go edge-to-edge still keep content readable. */
+html.duravel-native .sheet,
+html.duravel-native .modal-content {
+  padding-bottom: max(var(--duravel-safe-bottom), 12px);
+}

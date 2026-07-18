@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!--
+  Duravel iOS — Standalone offline / error screen
+  ------------------------------------------------------------------
+  Fully self-contained (no external CSS/JS/fonts). Two uses:
+
+  1. BUNDLED FALLBACK: copy into the native app bundle (e.g. as a local file the
+     shell can navigate to) so that if the remote shell (https://app.duravel.app)
+     can't be reached at all on launch, the user sees this instead of a blank
+     WKWebView. Wire it as the load-error fallback in AppDelegate (see README).
+
+  2. TEST HARNESS: open in any browser to preview / tweak the offline visuals.
+
+  The runtime overlay in Duravel_iOS_Part2_network.ts mirrors this markup — keep
+  them visually in sync. This standalone version adds an auto-retry loop using
+  navigator.onLine so it can recover on its own.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0B0B0F" />
+  <title>Duravel — Offline</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; height: 100%;
+      background: #0B0B0F; color: #F5F5F7;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      -webkit-user-select: none; user-select: none;
+    }
+    .wrap {
+      min-height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px
+               calc(env(safe-area-inset-bottom, 0px) + 24px);
+    }
+    .badge {
+      width: 76px; height: 76px; border-radius: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(232, 255, 89, 0.10);
+      margin-bottom: 26px;
+    }
+    .badge svg { width: 36px; height: 36px; }
+    h1 { margin: 0 0 10px; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+    p  { margin: 0 0 30px; max-width: 300px; font-size: 15px; line-height: 1.5; color: #A1A1AA; }
+    button {
+      appearance: none; border: none; cursor: pointer;
+      background: #E8FF59; color: #0B0B0F; font-weight: 600; font-size: 16px;
+      padding: 14px 34px; border-radius: 14px; min-width: 190px;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+    button:active { transform: scale(0.97); }
+    button[disabled] { opacity: 0.6; cursor: default; }
+    .status { margin-top: 18px; font-size: 13px; color: #71717A; min-height: 16px; }
+    .spinner {
+      display: none; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px;
+      border: 2px solid rgba(11,11,15,0.35); border-top-color: #0B0B0F; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap" role="alertdialog" aria-live="assertive" aria-label="No connection">
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#E8FF59" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22"/>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"/>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>Duravel needs a connection to sync your training. Check your Wi-Fi or cellular and try again.</p>
+    <button id="retry" type="button">
+      <span class="spinner" id="spinner"></span><span id="retry-label">Try again</span>
+    </button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    (function () {
+      var RETRY_URL = 'https://app.duravel.app';   // hosted shell entry point
+      var btn = document.getElementById('retry');
+      var label = document.getElementById('retry-label');
+      var spinner = document.getElementById('spinner');
+      var status = document.getElementById('status');
+
+      function setBusy(busy) {
+        btn.disabled = busy;
+        spinner.style.display = busy ? 'inline-block' : 'none';
+        label.textContent = busy ? 'Reconnecting…' : 'Try again';
+      }
+
+      function attempt() {
+        setBusy(true);
+        status.textContent = '';
+        // Prefer the Capacitor Network plugin if the bridge is present.
+        var CapNetwork = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Network;
+        if (CapNetwork && CapNetwork.getStatus) {
+          CapNetwork.getStatus().then(function (s) {
+            if (s && s.connected) { go(); } else { fail(); }
+          }).catch(fail);
+        } else if (navigator.onLine) {
+          go();
+        } else {
+          fail();
+        }
+      }
+
+      function go() { window.location.replace(RETRY_URL); }
+
+      function fail() {
+        setBusy(false);
+        status.textContent = 'Still no connection';
+      }
+
+      btn.addEventListener('click', attempt);
+
+      // Auto-recover: when the browser/webview reports it's back online, retry.
+      window.addEventListener('online', function () {
+        status.textContent = 'Connection found — reconnecting…';
+        setTimeout(attempt, 400);
+      });
+    })();
+  </script>
+</body>
+</html>
