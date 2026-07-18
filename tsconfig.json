@@ -34,5 +34,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "_phase3_draft"]
+  "exclude": ["node_modules", "_phase3_draft", "Apple"]
 }
