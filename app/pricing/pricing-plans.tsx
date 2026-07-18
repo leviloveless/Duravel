@@ -6,7 +6,7 @@ type Plan = "monthly" | "annual";
 
 const PRICES: Record<Plan, { label: string; price: string; per: string; sub: string }> = {
   monthly: { label: "Monthly", price: "$19.99", per: "/month", sub: "billed monthly" },
-  annual: { label: "Annual", price: "$159.99", per: "/year", sub: "about $13.33/mo — billed yearly" },
+  annual: { label: "Annual", price: "$119.99", per: "/year", sub: "about $10/mo — billed yearly" },
 };
 
 const FEATURES = [
@@ -87,7 +87,7 @@ export default function PricingPlans({
                   selected === p ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
                 }`}
               >
-                Save 38%
+                Save 50%
               </span>
             )}
           </button>
