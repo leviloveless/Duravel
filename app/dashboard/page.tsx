@@ -5,6 +5,7 @@ import { getCurrentProfile, getUserPrograms, type ProgramSummaryRow } from "@/li
 import { signOut } from "@/app/login/actions";
 import ThisWeekCard from "@/components/dashboard/this-week-card";
 import TrialBanner from "@/components/trial-banner";
+import Walkthrough from "@/components/onboarding/walkthrough";
 import RenameProgram from "./rename-program";
 import DeleteProgram from "./delete-program";
 
@@ -43,11 +44,14 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">
           {profile ? `Welcome back, ${profile.first_name}` : "Your programs"}
         </h1>
-        <form action={signOut}>
-          <button type="submit" className="text-sm text-zinc-500 underline">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Walkthrough autoStart={programs.length === 0} />
+          <form action={signOut}>
+            <button type="submit" className="text-sm text-zinc-500 underline">
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
 
       <TrialBanner />
