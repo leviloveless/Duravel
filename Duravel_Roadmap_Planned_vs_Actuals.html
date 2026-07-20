@@ -139,7 +139,7 @@
         <li><span class="tag g">LIVE</span><b>Lifecycle email is live (2026-07-20).</b> Resend/Svix webhook, one-click unsubscribe, preference center, and welcome/onboarding-nudge/receipt flows wired; <code>EMAIL_ENABLED=true</code> in prod with welcome verified delivered. <code>profiles.email</code> now mirrors auth email (mig <code>0028</code> + trigger).</li>
         <li><span class="tag g">DONE</span><b>Growth-loop result cards shipped (2026-07-20).</b> In-app studio + one-tap Share that auto-prefills a card straight from any logged workout — first shippable piece of the growth loop.</li>
         <li><span class="tag b">BLOCKED</span><b>Garmin Dev Program is PAUSED to new applicants (2026-07-18)</b> — no reopen date. Pivoted wearables to <b>Oura + WHOOP + Apple Health</b> (Aura dropped — no API). <b>Apple/D-U-N-S is now the top long-lead gate</b> — fire it now.</li>
-        <li><span class="tag b">NOT STARTED</span><b>iOS Parts 1–7 are generated but not integrated</b> into <code>hyroxai/ios</code>. Growth loop: <b>result-card studio + logged-workout auto-prefill shipped 2026-07-20</b>; Strava branded-write still not started.</li>
+        <li><span class="tag b">NOT STARTED</span><b>iOS Parts 1–7 are generated but not integrated</b> into <code>hyroxai/ios</code>. Growth loop: <b>result-card studio + logged-workout auto-prefill + Web Share shipped; Strava branded-write built (gated) 2026-07-20.</b></li>
       </ul>
     </div>
     <div class="card">
@@ -149,7 +149,7 @@
         <li><b>2.</b> Confirm <b>D-U-N-S</b> + start <b>Apple Developer</b> org enrollment — now the top long-lead gate; blocks the whole iOS lane.</li>
         <li><b>3.</b> <s>Commit + push the $119.99 copy fix</s> — ✅ done 2026-07-18 (live).</li>
         <li><b>4.</b> <s>Wire the result-card generator into completed-session flows</s> — ✅ done 2026-07-20 (studio + logged-workout auto-prefill live). Remaining growth loop: <b>Strava branded activity-write</b> + race/PR card auto-prefill. No approvals needed.</li>
-        <li><b>5.</b> Build the <b>shared ingestion pipeline</b> (canonical <code>sessions</code> + <code>wellness_daily</code>) — the foundation both Garmin and iOS HealthKit plug into.</li>
+        <li><b>5.</b> <s>Build the shared ingestion pipeline</s> — ✅ <b>built 2026-07-20</b> (canonical schema mig <code>0029</code>, cross-source dedup, normalize/adherence/readiness, Apple Health backend adapter; 39 unit tests). Go-live = <code>git push</code> + apply <code>0029</code>. Garmin + iOS HealthKit now plug in as thin adapters.</li>
         <li><b>6.</b> <s>Flip lifecycle emails on</s> — ✅ <b>LIVE 2026-07-20</b> (<code>EMAIL_ENABLED=true</code>, welcome delivered; webhook + unsubscribe + preference center wired).</li>
       </ul>
     </div>
@@ -194,9 +194,9 @@
     {group:"Lifecycle email", label:"Go-live wiring + EMAIL_ENABLED", note:"LIVE 2026-07-20 — Resend/Svix webhook, one-click unsubscribe, preference center, welcome + onboarding-nudge + receipt flows; EMAIL_ENABLED=true in prod, welcome verified delivered. profiles.email mirrored (mig 0028 + trigger). Ahead of the Aug plan.", ps:"2026-07-20", pe:"2026-08-10", pct:1, status:"ahead"},
 
     // ---- SHARED FOUNDATION ----
-    {group:"Shared ingestion foundation", label:"Canonical schema (sessions, wellness_daily)", note:"Partial — wearables tables + daily_metrics (0026) exist", ps:"2026-07-13", pe:"2026-07-27", pct:0.4, status:"prog"},
-    {group:"Shared ingestion foundation", label:"Normalize + adherence + readiness recalc", note:"Readiness + daily-metrics live; unify pending", ps:"2026-07-20", pe:"2026-08-03", pct:0.4, status:"prog"},
-    {group:"Shared ingestion foundation", label:"Refactor Strava onto pipeline + dedup", note:"Strava import live; cross-provider dedup not done", ps:"2026-07-27", pe:"2026-08-10", pct:0.25, status:"prog"},
+    {group:"Shared ingestion foundation", label:"Canonical schema (sessions, wellness_daily)", note:"2026-07-20 — migration 0029 written: canonical wearable_daily cols (sleep stages, readiness/recovery, resp rate, VO2max) + dedupe_group/is_primary + wearable_oauth_states + whoop/apple_health providers. Committed; APPLY 0029 to finish.", ps:"2026-07-13", pe:"2026-07-27", pct:0.9, status:"ahead"},
+    {group:"Shared ingestion foundation", label:"Normalize + adherence + readiness recalc", note:"2026-07-20 — normalize.ts (per-metric cross-provider source priority), adherence.ts (planned vs completed + volume), readiness-recalc.ts (baseline-relative objective prefill); readiness-prefill route upgraded. 39 unit tests green.", ps:"2026-07-20", pe:"2026-08-03", pct:1, status:"ahead"},
+    {group:"Shared ingestion foundation", label:"Refactor Strava onto pipeline + dedup", note:"2026-07-20 — pipeline.ts cross-source dedup (fuzzy start/dur/dist + family, source-priority canonical) + shared ingestActivities; Strava + Oura refactored onto it; unit-tested. Live after push + apply 0029.", ps:"2026-07-27", pe:"2026-08-10", pct:1, status:"ahead"},
 
     // ---- GARMIN (gated) ----
     {group:"Garmin (PAUSED — program closed to new apps)", label:"PKCE OAuth connect + tokens", note:"Adapter stubs exist; blocked on approval", ps:"2026-07-27", pe:"2026-08-03", pct:0.15, status:"block"},
@@ -215,12 +215,12 @@
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Multi-source integration spec (Apple/Whoop/Oura/Aura)", note:"docs/future-phases/20-… shipped 2026-07-18", ps:"2026-07-13", pe:"2026-07-20", pct:1, status:"done"},
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Oura — OAuth + HRV/sleep/readiness", note:"LIVE 2026-07-19 — migration 0027 applied, deployed, connect working end-to-end. Shipped well ahead of the Aug plan. (Webhooks/reconciliation poll still to add.)", ps:"2026-08-03", pe:"2026-08-24", pct:1, status:"ahead"},
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"WHOOP — OAuth + recovery/sleep", note:"TABLED 2026-07-19 — dev account requires a WHOOP device (none yet). App answers + public UX preview done; resume when device acquired", ps:"2026-08-17", pe:"2026-09-14", pct:0.2, status:"block"},
-    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Apple Health (HealthKit) reader", note:"On-device; ships WITH iOS app; needs custom Capacitor plugin", ps:"2026-08-17", pe:"2026-09-14", pct:0.05, status:"not"},
+    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Apple Health (HealthKit) reader", note:"2026-07-20 — BACKEND adapter shipped: /api/ingest/healthkit + apple-health.ts normalizer onto the shared dedupe pipeline (unit-tested). Native Swift plugin generated (Part5); needs Xcode/Apple dev to compile + ship with the iOS app.", ps:"2026-08-17", pe:"2026-09-14", pct:0.45, status:"prog"},
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Aura", note:"Assessed 2026-07-18 — no public API (data sink); Strava covers it → DROPPED", ps:"2026-07-13", pe:"2026-07-20", pct:1, status:"done"},
 
     // ---- GROWTH LOOP ----
-    {group:"Growth loop (no approvals needed)", label:"Strava activity-write branding", note:"Only import exists; branded write not started", ps:"2026-07-13", pe:"2026-08-03", pct:0, status:"not"},
-    {group:"Growth loop (no approvals needed)", label:"Result cards → web session/race flows", note:"2026-07-20 — in-app result-card studio live (4 types × story/square, PNG export); auto-prefill from a logged workout wired into every completed session (mobile + desktop) + the program-done header. Race/PR auto-prefill still to wire.", ps:"2026-07-13", pe:"2026-07-27", pct:0.75, status:"prog"},
+    {group:"Growth loop (no approvals needed)", label:"Strava activity-write branding", note:"2026-07-20 — built: branding.ts (idempotent branded description) + PUT updateActivityDescription + brand route, gated STRAVA_WRITE_ENABLED. Scope now requests activity:write (users must reconnect). Wire the UI 'Share to Strava' button + flip flag to ship.", ps:"2026-07-13", pe:"2026-08-03", pct:0.85, status:"ahead"},
+    {group:"Growth loop (no approvals needed)", label:"Result cards → web session/race flows", note:"2026-07-20 — in-app result-card studio live (4 types × story/square, PNG export); auto-prefill from a logged workout wired into every completed session (mobile + desktop) + program-done header; Web Share sheet added. Race/PR auto-prefill still to wire (no data source yet).", ps:"2026-07-13", pe:"2026-07-27", pct:0.85, status:"prog"},
     {group:"Growth loop (no approvals needed)", label:"Cards → iOS share sheet", note:"Waits on iOS app", ps:"2026-09-14", pe:"2026-09-28", pct:0, status:"not"},
 
     // ---- PRODUCT / TRAINING ENGINE ----
