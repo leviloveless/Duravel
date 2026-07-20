@@ -22,6 +22,7 @@ import GenerateTrigger from "./generate-trigger";
 
 /** Snapshot profile fields we read for HR personalization (new-additions #2, #3). */
 type SnapshotProfile = {
+  firstName?: string;
   age?: number;
   sex?: Sex;
   maxHr?: number;
@@ -274,6 +275,7 @@ export default async function ProgramPage({
             sport,
             maxHR,
             zoneBands,
+            athleteName: snapshotProfile?.firstName ?? undefined,
           }}
           activity={activity}
           suggestions={syncData.suggestions}

@@ -9,6 +9,7 @@ import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
 import AdaptReview from "./adapt-review";
 import SyncSuggestions from "./sync-suggestions";
 import RegenerateButton from "@/app/program/[id]/regenerate-button";
+import ResultCardLauncher from "./result-card-launcher";
 
 export interface ProgramMeta {
   programId: string;
@@ -21,6 +22,8 @@ export interface ProgramMeta {
   sport?: string;
   /** Custom HR zone bands (new-additions #3); omit for the standard bands. */
   zoneBands?: ZoneBands;
+  /** Athlete first name for shareable result cards. */
+  athleteName?: string;
 }
 
 /** Phase 2 logging/adaptation state, assembled by the program page. */
@@ -68,6 +71,13 @@ export default function ProgramView({
     list.push(l);
     logsByWeek.set(l.weekNumber, list);
   }
+  const totalSessions = program.weeks.reduce(
+    (n, w) => n + w.days.reduce((m, d) => m + d.sessions.filter((se) => se.kind !== "race").length, 0),
+    0,
+  );
+  const completedSessions = (activity?.logs ?? []).filter((l) => l.status === "completed").length;
+  const progStat1 = totalSessions > 0 ? `${completedSessions} / ${totalSessions}` : "";
+
   const isTriathlon = (meta.sport ?? "").startsWith("tri_");
   return (
     <div className="flex flex-col gap-6">
@@ -88,6 +98,14 @@ export default function ProgramView({
               Edit inputs
             </Link>
             <RegenerateButton programId={meta.programId} />
+            <ResultCardLauncher
+              initial={{
+                type: "program",
+                progName: meta.name,
+                progStat1,
+                athlete: meta.athleteName ?? "",
+              }}
+            />
             <Link href="/dashboard" className="text-sm underline">
               Dashboard
             </Link>
