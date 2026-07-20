@@ -113,7 +113,7 @@
   <div class="eyebrow">Living Build Roadmap</div>
   <h1>Duravel — Planned vs Actuals</h1>
   <p class="sub">One combined master sequence across every lane: external approvals, the shared ingestion foundation, Garmin, the iOS app, the growth loop, and the training-engine product. <b>Dashed bars = the Planned timeline</b> carried over from the prior roadmaps; <b>solid bars = Actual progress</b> reconciled against the real repo. The lime line is <b>today</b>.</p>
-  <div class="asof">As of <b>Sat, Jul 18 2026</b> · update this file each session</div>
+  <div class="asof">As of <b>Sun, Jul 19 2026</b> · update this file each session</div>
 
   <div class="stats" id="stats"></div>
 
@@ -123,7 +123,7 @@
     <span class="k"><span class="sw done"></span> Done</span>
     <span class="k"><span class="sw ahead"></span> Done — ahead of plan</span>
     <span class="k"><span class="sw block"></span> Not started / blocked</span>
-    <span class="k"><span class="todaykey"></span> Today (Jul 18)</span>
+    <span class="k"><span class="todaykey"></span> Today (Jul 19)</span>
   </div>
 
   <div class="chart" id="chart"></div>
@@ -135,6 +135,7 @@
         <li><span class="tag g">AHEAD</span><b>Triathlon is already built.</b> Ironman 70.3 + 140.6 ship on <code>main</code> (deterministic engine, per-discipline zones, volume tiering, weekly adaptation) — the old timeline had this starting mid-Sep.</li>
         <li><span class="tag g">AHEAD</span><b>9-sport engine is live</b> (HYROX + 5 DEKA + 2 triathlon + General Fitness), gated by the byte-identical golden-HYROX test.</li>
         <li><span class="tag g">DONE</span><b>$119.99 pricing is live</b> — copy fix committed, pushed & deployed 2026-07-18; site shows $119.99 / "$10/mo" / "Save 50%".</li>
+        <li><span class="tag g">BUILT</span><b>Oura integration built &amp; pushed (2026-07-19).</b> OAuth connect/sync + recovery→readiness on the shared pipeline; <code>OURA_CLIENT_ID/SECRET</code> set in Vercel &amp; deployed. Left: apply migration <code>0027</code> + register the Oura OAuth app. <b>WHOOP tabled</b> — dev account needs a physical WHOOP device.</li>
         <li><span class="tag b">BLOCKED</span><b>Garmin Dev Program is PAUSED to new applicants (2026-07-18)</b> — no reopen date. Pivoted wearables to <b>Oura + WHOOP + Apple Health</b> (Aura dropped — no API). <b>Apple/D-U-N-S is now the top long-lead gate</b> — fire it now.</li>
         <li><span class="tag b">NOT STARTED</span><b>iOS Parts 1–7 are generated but not integrated</b> into <code>hyroxai/ios</code>; the growth loop (Strava-write, result-card wiring) is designed but not shipped.</li>
       </ul>
@@ -142,8 +143,8 @@
     <div class="card">
       <h3>Do-now, highest leverage</h3>
       <ul>
-        <li><b>1.</b> <b>Build the Oura integration first</b> (self-serve OAuth; richest HRV/sleep/readiness) on the shared pipeline — the near-term win now that Garmin is paused. Spec: <code>docs/future-phases/20-…</code></li>
-        <li><b>2.</b> Confirm <b>D-U-N-S</b> + start <b>Apple Developer</b> org enrollment — now the top gate; blocks the whole iOS lane.</li>
+        <li><b>1.</b> <s>Build the Oura integration first</s> — ✅ <b>BUILT + pushed 2026-07-19</b> (OAuth connect/sync, recovery→readiness). Env set + deployed. Left: apply migration <code>0027</code>, register the Oura OAuth app, watch the first Vercel build.</li>
+        <li><b>2.</b> Confirm <b>D-U-N-S</b> + start <b>Apple Developer</b> org enrollment — now the top long-lead gate; blocks the whole iOS lane.</li>
         <li><b>3.</b> <s>Commit + push the $119.99 copy fix</s> — ✅ done 2026-07-18 (live).</li>
         <li><b>4.</b> Ship the <b>growth loop</b>: Strava branded activity-write + wire the result-card generator into the completed-session / race flows. No approvals needed.</li>
         <li><b>5.</b> Build the <b>shared ingestion pipeline</b> (canonical <code>sessions</code> + <code>wellness_daily</code>) — the foundation both Garmin and iOS HealthKit plug into.</li>
@@ -174,7 +175,7 @@
    ============================================================ */
   const AXIS_START = "2026-07-13";
   const AXIS_END   = "2026-12-06";
-  const TODAY      = "2026-07-18";
+  const TODAY      = "2026-07-19";
   const WEEKS      = 21; // for the faint weekly grid
 
   const ROWS = [
@@ -210,8 +211,8 @@
 
     // ---- WEARABLE SOURCES (multi-provider pivot) ----
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Multi-source integration spec (Apple/Whoop/Oura/Aura)", note:"docs/future-phases/20-… shipped 2026-07-18", ps:"2026-07-13", pe:"2026-07-20", pct:1, status:"done"},
-    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Oura — OAuth + HRV/sleep/readiness", note:"Self-serve open API; recommended FIRST; spec ready", ps:"2026-08-03", pe:"2026-08-24", pct:0.1, status:"prog"},
-    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"WHOOP — OAuth + recovery/sleep", note:"Self-serve but 10-user cap until app approval; resolve ToS retention first; start approval early", ps:"2026-08-17", pe:"2026-09-14", pct:0.05, status:"not"},
+    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Oura — OAuth + HRV/sleep/readiness", note:"BUILT + pushed 2026-07-19 (connect/sync, recovery→readiness); env set + deployed. Left: apply migration 0027, register Oura app, verify Vercel build", ps:"2026-08-03", pe:"2026-08-24", pct:0.85, status:"prog"},
+    {group:"Wearable sources (multi-provider pivot from Garmin)", label:"WHOOP — OAuth + recovery/sleep", note:"TABLED 2026-07-19 — dev account requires a WHOOP device (none yet). App answers + public UX preview done; resume when device acquired", ps:"2026-08-17", pe:"2026-09-14", pct:0.2, status:"block"},
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Apple Health (HealthKit) reader", note:"On-device; ships WITH iOS app; needs custom Capacitor plugin", ps:"2026-08-17", pe:"2026-09-14", pct:0.05, status:"not"},
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Aura", note:"Assessed 2026-07-18 — no public API (data sink); Strava covers it → DROPPED", ps:"2026-07-13", pe:"2026-07-20", pct:1, status:"done"},
 
