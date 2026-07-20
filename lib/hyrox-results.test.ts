@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatMs, normalizeSearchResults, normalizeResult } from "./hyrox-results";
+import { formatMs, normalizeSearchResults, normalizeResult, normalizeSplits } from "./hyrox-results";
 
 describe("formatMs", () => {
   it("formats h:mm:ss and m:ss, null-safe", () => {
@@ -49,15 +49,63 @@ describe("normalizeSearchResults (real API shape)", () => {
   });
 });
 
-describe("normalizeResult (splits endpoint, later use)", () => {
-  it("reads total time + station splits defensively", () => {
-    const r = normalizeResult("r1", {
-      display_name: "Alex Morgan",
-      total_time_ms: 3878000,
-      splits: { skiErg_time_ms: 281000, wallBalls_time_ms: 302000 },
-    });
-    expect(r.finishTime).toBe("1:04:38");
-    expect(r.splits.map((s) => s.station)).toContain("SkiErg");
-    expect(r.splits.find((s) => s.station === "SkiErg")!.time).toBe("4:41");
+// The exact shape returned by GET /api/v1/athletes/{id}/splits (real response,
+// trimmed to a representative subset: two run legs, two stations, roxzone + totals).
+const REAL_SPLITS = {
+  data: [
+    { canonical_key: "run1_time", label_original: "Running 1", order_index: 0, time_ms: 400000, time_text: "00:06:40", place: null, result_id: 744979 },
+    { canonical_key: "skiErg_time", label_original: "1000m SkiErg", order_index: 1, time_ms: 241000, time_text: "00:04:01", place: 364, result_id: 744979 },
+    { canonical_key: "run2_time", label_original: "Running 2", order_index: 2, time_ms: 333000, time_text: "00:05:33", place: null, result_id: 744979 },
+    { canonical_key: "wallBalls_time", label_original: "Wall Balls", order_index: 15, time_ms: 261000, time_text: "00:04:21", place: 360, result_id: 744979 },
+    { canonical_key: "roxzone_time", label_original: "Roxzone Time", order_index: 16, time_ms: 424000, time_text: "00:07:04", place: 436, result_id: 744979 },
+    { canonical_key: "run_time", label_original: "Run Total", order_index: 17, time_ms: 3104000, time_text: "00:51:44", place: 698, result_id: 744979 },
+    { canonical_key: "best_run_lap_time", label_original: "Best Run Lap", order_index: 18, time_ms: 333000, time_text: "00:05:33", place: 677, result_id: 744979 },
+  ],
+  meta: { data_source: "database" },
+  errors: null,
+};
+
+describe("normalizeSplits (real /athletes/{id}/splits shape)", () => {
+  const splits = normalizeSplits(REAL_SPLITS);
+
+  it("keeps every timed row, in race order, with API labels", () => {
+    expect(splits).toHaveLength(7);
+    expect(splits.map((s) => s.order)).toEqual([...splits.map((s) => s.order)].sort((a, b) => a - b));
+    const run1 = splits.find((s) => s.key === "run1_time")!;
+    expect(run1.label).toBe("Running 1");
+    expect(run1.time).toBe("6:40");
+  });
+
+  it("classifies runs, stations, roxzone, and aggregate rows", () => {
+    const kind = (k: string) => splits.find((s) => s.key === k)!.kind;
+    expect(kind("run1_time")).toBe("run");
+    expect(kind("skiErg_time")).toBe("station");
+    expect(kind("wallBalls_time")).toBe("station");
+    expect(kind("roxzone_time")).toBe("roxzone");
+    expect(kind("run_time")).toBe("summary");
+    expect(kind("best_run_lap_time")).toBe("summary");
+  });
+
+  it("carries the field placing when present, null otherwise", () => {
+    expect(splits.find((s) => s.key === "skiErg_time")!.place).toBe(364);
+    expect(splits.find((s) => s.key === "run1_time")!.place).toBeNull();
+  });
+
+  it("falls back to a prettified label when the API omits one", () => {
+    const [s] = normalizeSplits({ data: [{ canonical_key: "sledPush_time", time_ms: 107000, order_index: 3 }] });
+    expect(s!.label).toBe("Sled Push");
+    expect(s!.kind).toBe("station");
+  });
+});
+
+describe("normalizeResult (splits endpoint)", () => {
+  it("wraps the ordered splits; name/total stay null (splits carry neither)", () => {
+    const r = normalizeResult("r1", REAL_SPLITS);
+    expect(r.id).toBe("r1");
+    expect(r.name).toBeNull();
+    expect(r.totalTimeMs).toBeNull();
+    expect(r.finishTime).toBe("");
+    expect(r.splits).toHaveLength(7);
+    expect(r.splits.filter((s) => s.kind === "run")).toHaveLength(2);
   });
 });

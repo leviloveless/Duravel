@@ -44,8 +44,9 @@ export async function searchAthletes(first: string, last: string): Promise<Hyrox
   return normalizeSearchResults(json);
 }
 
-/** Fetch one athlete's station splits (later enhancement; not used by the lookup
- *  today since search already returns the finish time). */
+/** Fetch one athlete's segment breakdown (individual run legs + station/roxzone
+ *  times) for a result id from the search. Used by `/api/hyrox-splits` when the
+ *  athlete picks their result. Returns splits only — name/finish come from search. */
 export async function getAthleteResult(id: string): Promise<HyroxResult> {
   const json = await apiGet(`/athletes/${encodeURIComponent(id)}/splits`);
   return normalizeResult(id, json);
