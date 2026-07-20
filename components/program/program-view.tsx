@@ -107,6 +107,7 @@ export default function ProgramView({
           without horizontal scroll — Tasks addition #10). */}
       <WeekSummaryTable
         weeks={program.weeks}
+        startDate={meta.startDate}
         logsByWeek={logsByWeek}
         recoveryByWeek={activity?.recoveryByWeek}
       />

@@ -8,6 +8,9 @@ import { signOut } from "@/app/login/actions";
  * Sign out button; signed-out users see Pricing + a single Log in button. The
  * Log in button is hidden entirely once a user is authenticated (new-additions #1).
  * Profile, wearable Connections, and Billing live under the Settings hub.
+ *
+ * Sticky at the top of the viewport so it's always visible while scrolling long
+ * program pages (Tasks addition #12).
  */
 export default async function NavBar() {
   const supabase = await createClient();
@@ -16,7 +19,7 @@ export default async function NavBar() {
   } = await supabase.auth.getUser();
 
   return (
-    <header className="border-b border-zinc-200 bg-white/90 backdrop-blur print:hidden">
+    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur print:hidden">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Duravel

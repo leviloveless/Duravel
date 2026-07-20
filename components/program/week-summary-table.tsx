@@ -1,6 +1,6 @@
 import type { ProgramData, Session, WorkoutLog } from "@/lib/schemas";
 import { weekTimeByCategory } from "@/lib/session-volume";
-import { zoneEntries } from "./format";
+import { zoneEntries, weekStartDate } from "./format";
 
 type TrainingDay = WorkoutLog["day"];
 
@@ -21,6 +21,14 @@ export interface WeekRecovery {
 
 /** Cardio-type session kinds (weightlifting is excluded from cardio time). */
 const CARDIO_KINDS = new Set<Session["kind"]>(["run", "hybrid", "cardio", "swim", "bike", "brick"]);
+
+/** Compact week-start date label (e.g. "Jul 14") for the Dates column (Tasks addition #2). */
+function weekDateLabel(startDate: string, weekNumber: number): string {
+  return weekStartDate(startDate, weekNumber).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 /** Actual (logged) miles + cardio minutes for a week, from its workout logs. */
 function weekActuals(week: ProgramData["weeks"][number], logs: WorkoutLog[]) {
@@ -54,18 +62,21 @@ function Cell({ children, className = "" }: { children: React.ReactNode; classNa
 }
 
 /**
- * Per-week summary table. Shows the microcycle, planned vs. actual cardio time
- * and mileage (Tasks addition #6), the weekly training-time breakdown —
- * metcon / strength / total (Tasks addition #3), weekly average resting HR + HRV
- * (Tasks addition #7), and the HR-zone distribution. Rendered full-width so the
- * whole table is visible without horizontal scrolling (Tasks addition #10).
+ * Per-week summary table. Shows the week's calendar start date (Tasks addition #2),
+ * the microcycle, planned vs. actual cardio time and mileage (Tasks addition #6),
+ * the weekly training-time breakdown — metcon / strength / total (Tasks addition #3),
+ * weekly average resting HR + HRV (Tasks addition #7), and the HR-zone distribution.
+ * Rendered full-width so the whole table is visible without horizontal scrolling
+ * (Tasks addition #10).
  */
 export default function WeekSummaryTable({
   weeks,
+  startDate,
   logsByWeek,
   recoveryByWeek,
 }: {
   weeks: ProgramData["weeks"];
+  startDate: string;
   logsByWeek?: Map<number, WorkoutLog[]>;
   recoveryByWeek?: Map<number, WeekRecovery>;
 }) {
@@ -74,7 +85,7 @@ export default function WeekSummaryTable({
       <div className="border-b border-zinc-100 px-4 py-3">
         <h2 className="text-sm font-semibold">Weekly summary</h2>
         <p className="text-xs text-zinc-500">
-          Planned vs. actual cardio &amp; mileage · training-time breakdown · recovery · zone mix
+          Dates · planned vs. actual cardio &amp; mileage · training-time breakdown · recovery · zone mix
         </p>
       </div>
       <div className="max-h-[70vh] overflow-x-auto overflow-y-auto">
@@ -83,6 +94,9 @@ export default function WeekSummaryTable({
             <tr className="text-[10px] uppercase tracking-wide">
               <th className="px-3 py-1.5 text-left font-medium" rowSpan={2}>
                 Wk
+              </th>
+              <th className="px-2 py-1.5 text-left font-medium" rowSpan={2}>
+                Dates
               </th>
               <th className="px-2 py-1.5 text-left font-medium" rowSpan={2}>
                 Cycle
@@ -132,6 +146,9 @@ export default function WeekSummaryTable({
                         ●
                       </span>
                     )}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-left text-zinc-500 tabular-nums">
+                    {weekDateLabel(startDate, w.weekNumber)}
                   </td>
                   <td className="px-2 py-2">
                     {(() => {
