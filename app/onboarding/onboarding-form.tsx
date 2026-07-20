@@ -3,8 +3,29 @@
 import { startTransition, useActionState, useRef, useState, type KeyboardEvent } from "react";
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
+import HyroxLookup from "@/components/onboarding/hyrox-lookup";
 
 const initialState: OnboardingState = { error: null };
+
+/** Equipment options (Tasks #17) — keys must match the Equipment enum in schemas. */
+const EQUIPMENT_OPTIONS: { key: string; label: string }[] = [
+  { key: "barbell", label: "Barbell" },
+  { key: "dumbbells", label: "Dumbbells" },
+  { key: "kettlebells", label: "Kettlebells" },
+  { key: "pull_up_bar", label: "Pull-up bar" },
+  { key: "bench", label: "Bench" },
+  { key: "squat_rack", label: "Squat rack" },
+  { key: "rower", label: "Rower" },
+  { key: "ski_erg", label: "SkiErg" },
+  { key: "assault_bike", label: "Assault/Echo bike" },
+  { key: "sled", label: "Sled" },
+  { key: "wall_ball", label: "Wall ball" },
+  { key: "sandbag", label: "Sandbag" },
+  { key: "jump_rope", label: "Jump rope" },
+  { key: "treadmill", label: "Treadmill" },
+  { key: "running_outdoor", label: "Outdoor running" },
+  { key: "bodyweight_only", label: "Bodyweight only" },
+];
 
 const EXPERIENCE_DEFS = {
   running: {
@@ -216,6 +237,8 @@ export default function OnboardingForm({
   );
   const [duration, setDuration] = useState(initial?.durationWeeks ?? 12);
   const [startDate, setStartDate] = useState<string>(initial?.startDate ?? new Date().toISOString().slice(0, 10));
+  // HYROX result lookup (#17) fills this uncontrolled goal-time input on pick.
+  const goalTimeRef = useRef<HTMLInputElement>(null);
 
   const showRaces = programType === "goal_event" || programType === "fixed_duration";
   const showDuration = programType !== "goal_event";
@@ -480,6 +503,7 @@ export default function OnboardingForm({
               <label className="flex flex-1 flex-col gap-1 text-sm">
                 Goal finish time <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
                 <input
+                  ref={goalTimeRef}
                   name="goalFinishTime"
                   type="text"
                   defaultValue={profile?.goal_finish_time ?? ""}
@@ -492,6 +516,23 @@ export default function OnboardingForm({
               Division sets the sled / carry / lunge / wall-ball race loads your hybrid sessions build toward.
               A goal time drives your race pacing plan — leave it blank and we predict one from your benchmarks.
             </p>
+            {/* #17: pull your finish time from official HYROX results to seed the goal. */}
+            <details className="rounded-lg border border-zinc-200 p-3">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-700">
+                Look up my HYROX result
+              </summary>
+              <div className="mt-3">
+                <HyroxLookup
+                  defaultFirst={profile?.first_name ?? ""}
+                  onPick={(r) => {
+                    if (goalTimeRef.current && r.finishTime) goalTimeRef.current.value = r.finishTime;
+                  }}
+                />
+                <p className="mt-2 text-xs text-zinc-500">
+                  Picking a result fills your goal finish time above (you can still edit it).
+                </p>
+              </div>
+            </details>
           </>
         )}
 
@@ -648,6 +689,51 @@ export default function OnboardingForm({
           <legend className="mb-1 font-medium">Training days (pick at least 3)</legend>
           <DayPills options={DAYS} selected={days} namePrefix="day" onToggle={toggleDay} />
           <span className="text-xs text-zinc-500">{days.length} selected</span>
+        </fieldset>
+
+        {/* How many days/week they CURRENTLY train (Tasks #17) — a starting-fitness
+            signal, distinct from the days they'll train above. */}
+        <label className="flex flex-col gap-1 text-sm sm:max-w-xs">
+          <span className="font-medium">
+            Days per week you currently train{" "}
+            <span className="text-xs font-normal text-zinc-400">(optional)</span>
+          </span>
+          <input
+            name="currentDaysPerWeek"
+            type="number"
+            min={0}
+            max={7}
+            defaultValue={profile?.current_days_per_week ?? ""}
+            placeholder="e.g. 4"
+            className={inputClass}
+          />
+          <span className="text-xs text-zinc-500">
+            Helps us pitch your starting volume to where you are now.
+          </span>
+        </label>
+
+        {/* Equipment available (Tasks #17). */}
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <legend className="mb-1 font-medium">
+            Equipment you have <span className="text-xs font-normal text-zinc-400">(optional)</span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {EQUIPMENT_OPTIONS.map((e) => {
+              const checked = profile?.equipment?.includes(e.key) ?? false;
+              return (
+                <label
+                  key={e.key}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 has-[:checked]:border-black has-[:checked]:bg-black has-[:checked]:text-white"
+                >
+                  <input type="checkbox" name={`equip_${e.key}`} defaultChecked={checked} className="sr-only" />
+                  {e.label}
+                </label>
+              );
+            })}
+          </div>
+          <span className="text-xs text-zinc-500">
+            Tell us what you can train with — we&apos;ll factor it in as this feature rolls out.
+          </span>
         </fieldset>
 
         {/* Day-placement preferences (new-additions #4) */}

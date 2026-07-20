@@ -36,6 +36,27 @@ export type SportId = z.infer<typeof Sport>;
 export const SubGoal = z.enum(["balanced", "recomp", "general_strength", "general_endurance"]);
 export type SubGoalKey = z.infer<typeof SubGoal>;
 
+/** Equipment the athlete has available (Tasks #17) — captured for session tailoring. */
+export const Equipment = z.enum([
+  "barbell",
+  "dumbbells",
+  "kettlebells",
+  "pull_up_bar",
+  "bench",
+  "squat_rack",
+  "rower",
+  "ski_erg",
+  "assault_bike",
+  "sled",
+  "wall_ball",
+  "sandbag",
+  "jump_rope",
+  "treadmill",
+  "running_outdoor",
+  "bodyweight_only",
+]);
+export type EquipmentKey = z.infer<typeof Equipment>;
+
 // Time/benchmark strings are short ("mm:ss" / "h:mm:ss"). Cap them so a large
 // value can't inflate prompt token cost or become a prompt-injection payload —
 // several of these are embedded verbatim into the generation prompt.
@@ -128,6 +149,11 @@ export const ProfileSchema = z.object({
   hrZones: HrZonesSchema.optional(),
   /** Optional day-placement preferences (long-run day, preferred rest days). */
   dayPreferences: DayPreferencesSchema.optional(),
+  /** Equipment the athlete has available (Tasks #17). Empty/absent = no constraint. */
+  equipment: z.array(Equipment).optional(),
+  /** How many days per week the athlete CURRENTLY trains (Tasks #17) — a fitness
+   *  context signal, distinct from trainingDays (the days they WILL train). */
+  currentDaysPerWeek: z.number().int().min(0).max(7).optional(),
 });
 
 export const RaceSchema = z.object({

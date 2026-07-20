@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { GenerationInputSchema, type GenerationInput } from "@/lib/schemas";
+import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/schemas";
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
@@ -83,6 +83,11 @@ function parseGenerationInput(
   const restDays = DAY_KEYS.filter((d) => formData.get(`restday_${d}`) === "on");
   const liftDays = DAY_KEYS.filter((d) => formData.get(`liftday_${d}`) === "on");
   const hybridDays = DAY_KEYS.filter((d) => formData.get(`hybridday_${d}`) === "on");
+
+  // Equipment available + current training frequency (Tasks #17).
+  const equipmentSel = Equipment.options.filter((k) => formData.get(`equip_${k}`) === "on");
+  const equipment = equipmentSel.length > 0 ? equipmentSel : undefined;
+  const currentDaysPerWeek = num(formData, "currentDaysPerWeek");
   const dayPreferences =
     longRunDay || restDays.length > 0 || liftDays.length > 0 || hybridDays.length > 0
       ? {
@@ -132,6 +137,8 @@ function parseGenerationInput(
       goalFinishTime,
       hrZones,
       dayPreferences,
+      equipment,
+      currentDaysPerWeek,
     },
     sport: sportVal,
     subGoal: isGenFit ? (str(formData, "subGoal") ?? "balanced") : undefined,
@@ -189,6 +196,8 @@ function profileUpsertRow(userId: string, input: GenerationInput, email: string 
     goal_finish_time: input.profile.goalFinishTime ?? null,
     hr_zones: input.profile.hrZones ?? null,
     day_preferences: input.profile.dayPreferences ?? null,
+    equipment: input.profile.equipment ?? null,
+    current_days_per_week: input.profile.currentDaysPerWeek ?? null,
     updated_at: new Date().toISOString(),
   };
 }

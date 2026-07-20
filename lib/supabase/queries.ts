@@ -34,6 +34,10 @@ export type ProfileRow = {
     liftDays?: string[];
     hybridDays?: string[];
   } | null;
+  /** Equipment the athlete has available (Tasks #17). */
+  equipment: string[] | null;
+  /** How many days per week they currently train (Tasks #17). */
+  current_days_per_week: number | null;
   created_at: string;
   updated_at: string;
 };
