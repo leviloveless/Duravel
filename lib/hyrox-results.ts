@@ -2,14 +2,12 @@
  * HYROX Result API — PURE parsing/formatting helpers (#17), unit-testable.
  *
  * Source: hyroxresultapi.com (official API, Bearer auth, base
- * `https://hyroxresultapi.com/api/v1`). HYROX ONLY — DEKA / Ironman are not
- * covered by this API and stay manual-entry.
+ * `https://hyroxresultapi.com/api/v1`). HYROX ONLY.
  *
- * Flow: search by name → `{ id (race id), person_ref }` hits → fetch each hit's
- * result (splits endpoint) → finish time + station splits. These helpers are
- * defensive about exact field names (the live schema should be confirmed once,
- * then any renames are a one-line change) so a small API shape change degrades
- * gracefully rather than crashing the lookup.
+ * The `/athletes/search` response ALREADY carries the finish time + name + event
+ * for each hit (under `data`), so a search alone yields usable results — no
+ * per-hit follow-up call. The `/athletes/{id}/splits` endpoint is only needed for
+ * station-by-station splits (a later enhancement).
  */
 
 const num = (v: unknown): number | null =>
@@ -17,7 +15,6 @@ const num = (v: unknown): number | null =>
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.length > 0 ? v : null;
 
-/** Read the first present numeric field from a list of candidate keys. */
 function pickNum(o: Record<string, unknown>, keys: string[]): number | null {
   for (const k of keys) {
     const v = num(o[k]);
@@ -44,42 +41,6 @@ export function formatMs(ms: number | null): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-export interface SearchHit {
-  /** Race id (unique per race entry). */
-  id: string;
-  /** Person reference (stable across an athlete's races). */
-  personRef: string | null;
-  /** Display name if the search returns it (may be absent → filled by the result fetch). */
-  name: string | null;
-}
-
-/** Normalize the /athletes/search response into hits. Tolerates `{results:[…]}`,
- *  `{data:[…]}`, `{athletes:[…]}`, or a bare array. */
-export function normalizeSearchHits(json: unknown): SearchHit[] {
-  const arr = Array.isArray(json)
-    ? json
-    : Array.isArray((json as { results?: unknown[] })?.results)
-      ? (json as { results: unknown[] }).results
-      : Array.isArray((json as { data?: unknown[] })?.data)
-        ? (json as { data: unknown[] }).data
-        : Array.isArray((json as { athletes?: unknown[] })?.athletes)
-          ? (json as { athletes: unknown[] }).athletes
-          : [];
-  const out: SearchHit[] = [];
-  for (const raw of arr) {
-    if (!raw || typeof raw !== "object") continue;
-    const o = raw as Record<string, unknown>;
-    const id = pickStr(o, ["id", "race_id", "raceId"]) ?? (num(o.id) != null ? String(o.id) : null);
-    if (!id) continue;
-    out.push({
-      id,
-      personRef: pickStr(o, ["person_ref", "personRef", "athlete_id", "athleteId"]),
-      name: pickStr(o, ["name", "full_name", "fullName"]),
-    });
-  }
-  return out;
-}
-
 export interface HyroxResult {
   id: string;
   name: string | null;
@@ -88,9 +49,55 @@ export interface HyroxResult {
   season: string | null;
   /** Total finish time in ms. */
   totalTimeMs: number | null;
-  /** Formatted finish, e.g. "1:04:38". */
+  /** Formatted finish, e.g. "1:25:44". */
   finishTime: string;
   splits: { station: string; timeMs: number; time: string }[];
+}
+
+/** Pull the hit array out of the response envelope (`{data:[…]}`, `{results:[…]}`,
+ *  `{athletes:[…]}`, or a bare array). */
+function pickArray(json: unknown): unknown[] {
+  if (Array.isArray(json)) return json;
+  for (const key of ["data", "results", "athletes"] as const) {
+    const v = (json as Record<string, unknown> | null)?.[key];
+    if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+/** Parse a season number out of an event slug like "season-8-hd-…". */
+function seasonFromSlug(slug: string | null): string | null {
+  if (!slug) return null;
+  const m = /season-(\d+)/i.exec(slug);
+  return m ? `Season ${m[1]}` : null;
+}
+
+/**
+ * Normalize the /athletes/search response into results. Each hit already has the
+ * finish time, name, and event, so this is all the lookup needs.
+ */
+export function normalizeSearchResults(json: unknown): HyroxResult[] {
+  const out: HyroxResult[] = [];
+  for (const raw of pickArray(json)) {
+    if (!raw || typeof raw !== "object") continue;
+    const o = raw as Record<string, unknown>;
+    const id = pickStr(o, ["id", "race_id", "raceId"]);
+    if (!id) continue;
+    const totalTimeMs = pickNum(o, ["total_time_ms", "totalTimeMs", "finish_time_ms", "total_time"]);
+    out.push({
+      id,
+      name: pickStr(o, ["display_name", "name", "full_name", "fullName"]),
+      division: pickStr(o, ["division", "division_key", "divisionKey", "age_group"]),
+      event: pickStr(o, ["event_name", "eventName", "event", "race"]),
+      season:
+        pickStr(o, ["season", "season_name"]) ??
+        seasonFromSlug(pickStr(o, ["event_slug", "eventSlug"])),
+      totalTimeMs,
+      finishTime: formatMs(totalTimeMs),
+      splits: [],
+    });
+  }
+  return out;
 }
 
 /** Human labels for the known HYROX station split keys (best-effort). */
@@ -129,15 +136,16 @@ function extractSplits(o: Record<string, unknown>): HyroxResult["splits"] {
   return out;
 }
 
-/** Normalize an /athletes/{id}/splits (result) response into a HyroxResult. */
+/** Normalize an /athletes/{id}/splits response into a HyroxResult (for the later
+ *  station-splits enhancement). */
 export function normalizeResult(id: string, json: unknown): HyroxResult {
   const o = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
   const totalTimeMs = pickNum(o, ["total_time_ms", "totalTimeMs", "finish_time_ms", "total_time"]);
   return {
     id,
-    name: pickStr(o, ["name", "full_name", "fullName"]),
+    name: pickStr(o, ["display_name", "name", "full_name", "fullName"]),
     division: pickStr(o, ["division", "division_key", "divisionKey"]),
-    event: pickStr(o, ["event", "event_name", "eventName", "race"]),
+    event: pickStr(o, ["event_name", "eventName", "event", "race"]),
     season: pickStr(o, ["season", "season_name"]),
     totalTimeMs,
     finishTime: formatMs(totalTimeMs),

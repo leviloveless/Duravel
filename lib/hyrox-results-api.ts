@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { normalizeSearchHits, normalizeResult, type SearchHit, type HyroxResult } from "./hyrox-results";
+import { normalizeSearchResults, normalizeResult, type HyroxResult } from "./hyrox-results";
 
 /**
  * HYROX Result API network client (#17). Bearer auth against
@@ -22,6 +22,7 @@ async function apiGet(path: string): Promise<unknown> {
     headers: { Authorization: `Bearer ${env.HYRESULT_API_KEY}`, Accept: "application/json" },
   });
   if (res.status === 429) throw new Error("hyresult_rate_limited");
+  // Surface the upstream status in the error so the route can report it.
   if (!res.ok) throw new Error(`hyresult_error_${res.status}`);
   return res.json();
 }
@@ -30,16 +31,21 @@ async function apiGet(path: string): Promise<unknown> {
 // (e.g. https://hyroxresultapi.com/api/v1) — so the endpoint is `/athletes/search`,
 // NOT `/v1/athletes/search`, which would double the version segment (→ 404).
 
-/** Search athletes by given name + surname. */
-export async function searchAthletes(first: string, last: string): Promise<SearchHit[]> {
+/**
+ * Search athletes by given name + surname. The search response already carries
+ * each hit's finish time + name + event, so this returns full results in ONE call
+ * (no per-hit follow-up — that was both slower and rate-limit-hungry).
+ */
+export async function searchAthletes(first: string, last: string): Promise<HyroxResult[]> {
   const p = new URLSearchParams();
   if (last.trim()) p.set("q", last.trim());
   if (first.trim()) p.set("first", first.trim());
   const json = await apiGet(`/athletes/search?${p.toString()}`);
-  return normalizeSearchHits(json);
+  return normalizeSearchResults(json);
 }
 
-/** Fetch one athlete's race result (splits endpoint accepts race id / person ref). */
+/** Fetch one athlete's station splits (later enhancement; not used by the lookup
+ *  today since search already returns the finish time). */
 export async function getAthleteResult(id: string): Promise<HyroxResult> {
   const json = await apiGet(`/athletes/${encodeURIComponent(id)}/splits`);
   return normalizeResult(id, json);
