@@ -167,9 +167,10 @@ function parseGenerationInput(
 }
 
 /** The `profiles` upsert row derived from a validated GenerationInput. */
-function profileUpsertRow(userId: string, input: GenerationInput) {
+function profileUpsertRow(userId: string, input: GenerationInput, email: string | null) {
   return {
     id: userId,
+    email,
     first_name: input.profile.firstName,
     age: input.profile.age,
     body_weight: input.profile.bodyWeight,
@@ -229,7 +230,7 @@ export async function submitOnboarding(
   const skeleton = buildSkeleton(engineInput);
   const programName = parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
 
-  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input));
+  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input, user.email ?? null));
   if (profileError) return { error: profileError.message };
 
   const { data: program, error: programError } = await supabase
@@ -295,7 +296,7 @@ export async function updateProgramInputs(
   const skeleton = buildSkeleton(engineInput);
   const programName = parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
 
-  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input));
+  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input, user.email ?? null));
   if (profileError) return { error: profileError.message };
 
   const { error: updateError } = await supabase
