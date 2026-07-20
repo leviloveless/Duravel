@@ -66,6 +66,8 @@ export default async function EditProgramPage({
     goal_finish_time: p.goalFinishTime ?? null,
     hr_zones: p.hrZones ?? null,
     day_preferences: p.dayPreferences ?? null,
+    equipment: p.equipment ?? null,
+    current_days_per_week: p.currentDaysPerWeek ?? null,
     created_at: "",
     updated_at: "",
   };
