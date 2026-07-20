@@ -123,6 +123,39 @@ export function movementScheme(
   return { sets: b.sets, repRange: b.repRange, intensityPct, rir: b.rir, emphasis };
 }
 
+// --- A/B exercise variation (Tasks #10) --------------------------------------
+//
+// Each movement PATTERN carries two interchangeable exercise variants — an "A"
+// and a "B". The engine alternates them by week so the athlete isn't grinding
+// the identical lift every session (a common overuse driver); both variants
+// train the same pattern with slightly different mechanics, so periodization and
+// emphasis are unchanged. Variant A on odd program weeks, B on even.
+
+export type ABExercise = readonly [a: string, b: string];
+
+/** A (odd weeks) / B (even weeks) exercise per movement pattern. */
+export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
+  squat: ["Back Squat", "Front Squat"],
+  hip_hinge: ["Conventional Deadlift", "Romanian Deadlift"],
+  lunge: ["Walking Lunge", "Reverse Lunge"],
+  horizontal_press: ["Barbell Bench Press", "Dumbbell Bench Press"],
+  vertical_press: ["Standing Overhead Press", "Push Press"],
+  horizontal_pull: ["Barbell Bent-Over Row", "Chest-Supported Row"],
+  vertical_pull: ["Pull-Up", "Lat Pulldown"],
+};
+
+/**
+ * The specific exercise for a pattern on a given program week. Odd weeks → the A
+ * variant, even weeks → B, so consecutive weeks never repeat the same exercise
+ * for a pattern. Falls back to a spaced pattern name if a pattern is ever missing
+ * from the library (defensive; the record is exhaustive today).
+ */
+export function pickExercise(pattern: LiftPattern, weekNumber: number): string {
+  const pair = EXERCISE_AB[pattern];
+  if (!pair) return pattern.replace(/_/g, " ");
+  return weekNumber % 2 === 1 ? pair[0] : pair[1];
+}
+
 // --- suggested working weight from a 5RM benchmark ---------------------------
 
 /** Which 5RM benchmark (if any) maps to a movement pattern. */

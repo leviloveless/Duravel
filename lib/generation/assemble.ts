@@ -28,7 +28,7 @@ import { runDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
 import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
-import { movementScheme, powerElementFor, suggestedWeight } from "@/lib/engine/strength";
+import { movementScheme, powerElementFor, suggestedWeight, pickExercise } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
   stationPrescription,
@@ -384,6 +384,9 @@ export function applyStrengthSchemes(
         m.rir = scheme.rir;
         m.emphasis = scheme.emphasis;
         m.suggestedWeight = suggestedWeight(scheme, m.pattern, benchmarks, weightUnit);
+        // Tasks #10: name a specific A/B exercise for the pattern, alternating by
+        // week so consecutive weeks don't repeat the identical lift (overuse).
+        m.exercise = pickExercise(m.pattern, week.weekNumber);
       }
       const power = powerElementFor(week.phase, week.microWeek, liftIndex);
       if (power) session.power = power;

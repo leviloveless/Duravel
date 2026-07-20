@@ -213,6 +213,10 @@ export const LiftSessionSchema = z.object({
   movements: z.array(
     z.object({
       pattern: MovementPattern,
+      /** Specific exercise name for this pattern (Tasks #10). Alternates A/B by
+       *  week so the athlete isn't repeating identical lifts week after week
+       *  (overuse). Set deterministically at assembly; optional for back-compat. */
+      exercise: z.string().optional(),
       sets: z.number().int(),
       repRange: z.string(),
       suggestedWeight: z.string().optional(),

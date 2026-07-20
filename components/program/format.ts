@@ -101,9 +101,11 @@ const EMPHASIS_LABEL: Record<string, string> = {
   endurance: "Muscular endurance",
 };
 
-/** `Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR) · Max strength` */
+/** `Back Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR) · Max strength`.
+ *  Leads with the specific A/B exercise (Tasks #10) when present, else the
+ *  movement pattern (programs generated before exercises were named). */
 export function movementLine(m: Movement): string {
-  let line = `${patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
+  let line = `${m.exercise ?? patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
   if (m.suggestedWeight) line += ` — ${m.suggestedWeight}`;
   if (m.emphasis && EMPHASIS_LABEL[m.emphasis]) line += ` · ${EMPHASIS_LABEL[m.emphasis]}`;
   return line;
