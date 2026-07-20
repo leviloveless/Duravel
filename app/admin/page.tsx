@@ -36,6 +36,9 @@ export default async function AdminPage() {
           <Link href="/admin/metrics" className="text-sm text-zinc-500 underline">
             Generation cost
           </Link>
+          <Link href="/admin/impact" className="text-sm text-zinc-500 underline">
+            Impact tracker
+          </Link>
           <span className="text-xs text-zinc-500">{admin.email}</span>
         </div>
       </div>
