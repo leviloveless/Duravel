@@ -189,11 +189,14 @@ export function dedupeActivities<T extends DedupeActivity>(activities: T[]): Ded
   const parent = activities.map((_, i) => i);
   const find = (i: number): number => {
     let r = i;
-    while (parent[r] !== r) r = parent[r];
-    while (parent[i] !== r) {
-      const next = parent[i];
-      parent[i] = r;
-      i = next;
+    // parent is densely populated for every index 0..n-1, so the reads are safe;
+    // the `!` satisfies noUncheckedIndexedAccess.
+    while (parent[r]! !== r) r = parent[r]!;
+    let cur = i;
+    while (parent[cur]! !== r) {
+      const next = parent[cur]!;
+      parent[cur] = r;
+      cur = next;
     }
     return r;
   };

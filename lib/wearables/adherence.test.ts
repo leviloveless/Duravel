@@ -48,8 +48,8 @@ describe("computeAdherence", () => {
     expect(w1.loggedMinutes).toBe(62);
     // (1 + 0.5·1) / 2 = 0.75
     expect(w1.completionRate).toBeCloseTo(0.75, 5);
-    expect(a.byKind.run.completed).toBe(1);
-    expect(a.byKind.lift.completed).toBe(0);
+    expect(a.byKind.run!.completed).toBe(1);
+    expect(a.byKind.lift!.completed).toBe(0);
   });
 
   it("respects throughWeek so future weeks don't count as missed", () => {
