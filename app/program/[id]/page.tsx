@@ -20,6 +20,7 @@ import type { SportId } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import { getEntitlement } from "@/lib/subscription";
 import { gateProgramWeeks } from "@/lib/program-access";
+import ProgramGlossary from "@/components/program/program-glossary";
 import GenerateTrigger from "./generate-trigger";
 
 /** Snapshot profile fields we read for HR personalization (new-additions #2, #3). */
@@ -293,6 +294,7 @@ export default async function ProgramPage({
           }}
           lock={gate.previewing ? { lockedWeeks: gate.lockedWeeks } : undefined}
         />
+        <ProgramGlossary />
       </main>
     );
   }
