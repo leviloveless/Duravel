@@ -7,8 +7,14 @@ import type { NormalizedActivity } from "./types";
 
 export const STRAVA_OAUTH_BASE = "https://www.strava.com/oauth";
 export const STRAVA_API_BASE = "https://www.strava.com/api/v3";
-/** Scopes we request: read profile + all activities (incl. private). */
-export const STRAVA_SCOPE = "read,activity:read_all";
+/**
+ * Scopes we request: read profile + all activities (incl. private) + WRITE.
+ * `activity:write` powers the opt-in branded activity-description write (see
+ * `branding.ts`). Adding a scope requires the user to RE-AUTHORIZE — existing
+ * connections keep their old (read-only) grant until they reconnect, and the
+ * brand route degrades gracefully (403) if write isn't granted.
+ */
+export const STRAVA_SCOPE = "read,activity:read_all,activity:write";
 
 /** Build the Strava authorize URL the user is redirected to. */
 export function stravaAuthorizeUrl(clientId: string, redirectUri: string, state: string): string {
@@ -21,6 +27,15 @@ export function stravaAuthorizeUrl(clientId: string, redirectUri: string, state:
     state,
   });
   return `${STRAVA_OAUTH_BASE}/authorize?${p.toString()}`;
+}
+
+/** True if the granted scope string includes activity write permission. */
+export function hasWriteScope(scope: string | null | undefined): boolean {
+  if (!scope) return false;
+  return scope
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .includes("activity:write");
 }
 
 /** True if the token is absent or expires within the next 60 seconds. */

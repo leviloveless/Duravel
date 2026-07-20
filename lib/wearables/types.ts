@@ -1,8 +1,14 @@
-/** Wearable integration shared types (Phase 1). */
+/** Wearable integration shared types (Phase 1 + multi-source expansion). */
 
-export type WearableProvider = "strava" | "garmin" | "oura";
+export type WearableProvider = "strava" | "garmin" | "oura" | "whoop" | "apple_health";
 
-export const WEARABLE_PROVIDERS: WearableProvider[] = ["strava", "garmin", "oura"];
+export const WEARABLE_PROVIDERS: WearableProvider[] = [
+  "strava",
+  "garmin",
+  "oura",
+  "whoop",
+  "apple_health",
+];
 
 /** Full connection row incl. OAuth tokens — SERVER ONLY (never sent to client). */
 export type WearableConnection = {
@@ -34,13 +40,28 @@ export type NormalizedActivity = {
   avgHr: number | null;
   maxHr: number | null;
   raw: unknown;
+  /** True for user-entered (vs device-recorded) activities — demotes dedupe priority. */
+  manualEntry?: boolean;
 };
 
-/** Provider-agnostic daily recovery metric (feeds readiness). */
+/**
+ * Provider-agnostic daily recovery metric (feeds readiness). Extended to the
+ * canonical shape (spec §1.1): the original resting-HR/HRV/sleep-score fields
+ * plus sleep stages, readiness/recovery score, respiratory rate, and VO2max.
+ * Every field is nullable — a provider fills only what it reports.
+ */
 export type NormalizedDaily = {
   date: string; // YYYY-MM-DD
   restingHr: number | null;
   hrv: number | null;
   sleepScore: number | null;
+  sleepTotalMin?: number | null;
+  sleepDeepMin?: number | null;
+  sleepRemMin?: number | null;
+  sleepLightMin?: number | null;
+  sleepAwakeMin?: number | null;
+  readinessScore?: number | null;
+  respiratoryRate?: number | null;
+  vo2max?: number | null;
   raw: unknown;
 };

@@ -54,6 +54,11 @@ const EnvSchema = z.object({
   // Oura (multi-source health integrations, spec docs/future-phases/20). Confidential-client OAuth.
   OURA_CLIENT_ID: z.string().optional(),
   OURA_CLIENT_SECRET: z.string().optional(),
+  // Set to "true" to enable the opt-in Strava branded activity-description write
+  // (requires the activity:write scope — users authorized before it must reconnect).
+  STRAVA_WRITE_ENABLED: z.string().optional(),
+  // Set to "true" to accept Apple Health (HealthKit) ingestion from the iOS app.
+  HEALTHKIT_ENABLED: z.string().optional(),
   // --- Lifecycle email (Resend). All optional so the app boots before email is
   //     configured; sendEmail() no-ops while EMAIL_ENABLED is unset. ---
   RESEND_API_KEY: z.string().optional(),
@@ -84,6 +89,8 @@ const rawEnv = {
   GARMIN_CLIENT_SECRET: process.env.GARMIN_CLIENT_SECRET,
   OURA_CLIENT_ID: process.env.OURA_CLIENT_ID,
   OURA_CLIENT_SECRET: process.env.OURA_CLIENT_SECRET,
+  STRAVA_WRITE_ENABLED: process.env.STRAVA_WRITE_ENABLED,
+  HEALTHKIT_ENABLED: process.env.HEALTHKIT_ENABLED,
 
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,

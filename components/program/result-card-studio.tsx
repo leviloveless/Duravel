@@ -163,6 +163,20 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
   const [format, setFormat] = useState<CardFormat>("story");
   const [fields, setFields] = useState<StudioFields>(() => seedFields(initial));
   const [busy, setBusy] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [canShareFiles, setCanShareFiles] = useState(false);
+
+  // Detect Web Share w/ files (mobile Safari/Chrome) so we can offer a native
+  // share sheet — the real growth-loop action — with download as the fallback.
+  useEffect(() => {
+    try {
+      const probe = new File([new Blob()], "probe.png", { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d?: { files?: File[] }) => boolean };
+      setCanShareFiles(typeof nav.canShare === "function" && nav.canShare({ files: [probe] }));
+    } catch {
+      setCanShareFiles(false);
+    }
+  }, []);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -256,28 +270,75 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
     };
   }, [open, onClose]);
 
-  async function download() {
+  /** Rasterize the full-size card to a PNG canvas (clears the preview transform
+   *  around capture, exactly like the generator). Shared by download + share. */
+  async function rasterize(): Promise<HTMLCanvasElement | null> {
     const node = cardRef.current;
-    if (!node) return;
-    setBusy(true);
+    if (!node) return null;
     const prevTransform = node.style.transform;
     node.style.transform = "none";
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(node, {
+      return await html2canvas(node, {
         width: 1080,
         height: previewHeight,
         scale: 1,
         backgroundColor: "#0a0e14",
         useCORS: true,
       });
+    } finally {
+      node.style.transform = prevTransform;
+    }
+  }
+
+  const fileName = `duravel_${type}_${format}.png`;
+
+  async function download() {
+    setBusy(true);
+    try {
+      const canvas = await rasterize();
+      if (!canvas) return;
       const a = document.createElement("a");
-      a.download = `duravel_${type}_${format}.png`;
+      a.download = fileName;
       a.href = canvas.toDataURL("image/png");
       a.click();
     } finally {
-      node.style.transform = prevTransform;
       setBusy(false);
+    }
+  }
+
+  /** Native share sheet with the PNG attached; falls back to download if the
+   *  user's browser can't share files or cancels with an error. */
+  async function share() {
+    setSharing(true);
+    try {
+      const canvas = await rasterize();
+      if (!canvas) return;
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/png"),
+      );
+      if (!blob) return;
+      const file = new File([blob], fileName, { type: "image/png" });
+      const nav = navigator as Navigator & {
+        canShare?: (d?: { files?: File[] }) => boolean;
+        share?: (d: { files?: File[]; title?: string; text?: string }) => Promise<void>;
+      };
+      if (nav.share && nav.canShare?.({ files: [file] })) {
+        await nav.share({
+          files: [file],
+          title: "Duravel",
+          text: "My session on Duravel — duravel.app",
+        });
+      } else {
+        await download();
+      }
+    } catch (err) {
+      // AbortError = user dismissed the share sheet; anything else → fall back.
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        await download();
+      }
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -436,9 +497,26 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
             )}
           </div>
 
-          <Button variant="primary" onClick={() => void download()} disabled={busy} className="w-full">
-            {busy ? "Rendering…" : "⬇ Download PNG"}
-          </Button>
+          <div className="flex flex-col gap-2">
+            {canShareFiles && (
+              <Button
+                variant="primary"
+                onClick={() => void share()}
+                disabled={sharing || busy}
+                className="w-full"
+              >
+                {sharing ? "Preparing…" : "↗ Share"}
+              </Button>
+            )}
+            <Button
+              variant={canShareFiles ? "secondary" : "primary"}
+              onClick={() => void download()}
+              disabled={busy || sharing}
+              className="w-full"
+            >
+              {busy ? "Rendering…" : "⬇ Download PNG"}
+            </Button>
+          </div>
         </div>
 
         {/* Live preview */}

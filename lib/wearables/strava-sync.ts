@@ -1,13 +1,15 @@
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getConnection, upsertConnection, setLastSync } from "./connections";
 import { refreshAccessToken, fetchRecentActivities } from "./strava-api";
 import { isTokenExpired, expiresAtIso } from "./strava";
-import { afterEpochFromLastSync, activityToRow } from "./ingest";
+import { afterEpochFromLastSync } from "./ingest";
+import { ingestActivities } from "./activity-ingest";
 
 /**
- * Sync recent Strava activities into `wearable_activities` (service role).
- * Refreshes the access token first if it's expired, upserts by (user, provider,
- * external_id) so re-syncs are idempotent, and stamps last_sync_at.
+ * Sync recent Strava activities into the SHARED ingestion pipeline. Refreshes
+ * the access token first if it's expired, then hands the normalized activities
+ * to `ingestActivities`, which upserts idempotently by (user, provider,
+ * external_id) AND runs cross-source dedupe against Oura / Apple Health rows in
+ * the same time window (spec §1.4). Stamps last_sync_at.
  */
 export async function syncStrava(userId: string): Promise<{ imported: number }> {
   const conn = await getConnection(userId, "strava");
@@ -31,17 +33,8 @@ export async function syncStrava(userId: string): Promise<{ imported: number }> 
   const after = afterEpochFromLastSync(conn.last_sync_at);
   const activities = await fetchRecentActivities(accessToken, after);
 
-  if (activities.length > 0) {
-    const admin = createAdminClient();
-    const rows = activities
-      .filter((a) => a.externalId.length > 0)
-      .map((a) => activityToRow(userId, "strava", a));
-    const { error } = await admin
-      .from("wearable_activities")
-      .upsert(rows, { onConflict: "user_id,provider,external_id" });
-    if (error) throw new Error(`Failed to store activities: ${error.message}`);
-  }
+  const result = await ingestActivities(userId, "strava", activities);
 
   await setLastSync(userId, "strava", new Date().toISOString());
-  return { imported: activities.length };
+  return result;
 }

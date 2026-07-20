@@ -4,6 +4,10 @@ import type { WearableProvider } from "./types";
 /**
  * A synced activity plus its link status (which planned session, if any, it's
  * linked to). Powers the Activity dashboard. Reads are RLS-scoped to the caller.
+ *
+ * Only CANONICAL rows are returned (`is_primary`) so a session that arrived from
+ * multiple sources (e.g. Strava + Apple Health) shows once — the cross-source
+ * dedupe writer (lib/wearables/pipeline) picks the primary per cluster.
  */
 export type ActivityRow = {
   id: string;
@@ -28,6 +32,7 @@ export async function getUserActivities(limit = 200): Promise<ActivityRow[]> {
     .from("wearable_activities")
     .select("id, provider, type, start_time, duration_s, distance_m, avg_hr")
     .eq("user_id", user.id)
+    .eq("is_primary", true)
     .order("start_time", { ascending: false })
     .limit(limit);
   const activities =

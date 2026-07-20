@@ -8,8 +8,9 @@ import {
 } from "./strava";
 
 /**
- * Strava — network I/O (token exchange/refresh, activity fetch). Kept separate
- * from the pure helpers in `strava.ts` so those stay unit-testable without env.
+ * Strava — network I/O (token exchange/refresh, activity fetch, description
+ * write). Kept separate from the pure helpers in `strava.ts` so those stay
+ * unit-testable without env.
  */
 
 function credentials(): { clientId: string; clientSecret: string } {
@@ -67,4 +68,44 @@ export async function fetchRecentActivities(
   if (!res.ok) throw new Error(`Strava activities fetch failed (${res.status})`);
   const arr = (await res.json()) as unknown;
   return Array.isArray(arr) ? arr.map((a) => normalizeStravaActivity(a as Record<string, unknown>)) : [];
+}
+
+/** Fetch a single activity's current name + description (to brand it without
+ *  clobbering the athlete's own text). */
+export async function fetchActivityDetail(
+  accessToken: string,
+  activityId: string,
+): Promise<{ id: string; name: string | null; description: string | null }> {
+  const res = await fetch(`${STRAVA_API_BASE}/activities/${activityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Strava activity fetch failed (${res.status})`);
+  const a = (await res.json()) as { id?: number | string; name?: string; description?: string };
+  return {
+    id: a.id != null ? String(a.id) : activityId,
+    name: typeof a.name === "string" ? a.name : null,
+    description: typeof a.description === "string" ? a.description : null,
+  };
+}
+
+/**
+ * Write a new description onto a Strava activity (`PUT /activities/{id}`).
+ * Requires the `activity:write` scope; a 403 means the connection was authorized
+ * before we added write (the caller should surface a "reconnect Strava" prompt).
+ */
+export async function updateActivityDescription(
+  accessToken: string,
+  activityId: string,
+  description: string,
+): Promise<void> {
+  const res = await fetch(`${STRAVA_API_BASE}/activities/${activityId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ description }),
+  });
+  if (res.status === 403) throw new Error("strava_write_forbidden");
+  if (!res.ok) throw new Error(`Strava activity update failed (${res.status})`);
 }
