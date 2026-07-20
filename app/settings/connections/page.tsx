@@ -30,6 +30,7 @@ export default async function ConnectionsPage({
       <ConnectionsPanel
         statuses={statuses}
         stravaConfigured={!!env.STRAVA_CLIENT_ID}
+        ouraConfigured={!!env.OURA_CLIENT_ID}
         flashConnected={sp.connected ?? null}
         flashError={sp.error ?? null}
       />

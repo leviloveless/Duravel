@@ -1,8 +1,8 @@
 /** Wearable integration shared types (Phase 1). */
 
-export type WearableProvider = "strava" | "garmin";
+export type WearableProvider = "strava" | "garmin" | "oura";
 
-export const WEARABLE_PROVIDERS: WearableProvider[] = ["strava", "garmin"];
+export const WEARABLE_PROVIDERS: WearableProvider[] = ["strava", "garmin", "oura"];
 
 /** Full connection row incl. OAuth tokens — SERVER ONLY (never sent to client). */
 export type WearableConnection = {

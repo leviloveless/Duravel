@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { deleteConnection } from "@/lib/wearables/connections";
+import { WEARABLE_PROVIDERS, type WearableProvider } from "@/lib/wearables/types";
 
 /**
  * Disconnect a wearable (removes the stored OAuth connection). Used as a form
@@ -12,7 +13,9 @@ import { deleteConnection } from "@/lib/wearables/connections";
  */
 export async function disconnectProvider(formData: FormData) {
   const provider = formData.get("provider");
-  if (provider !== "strava" && provider !== "garmin") return;
+  if (typeof provider !== "string" || !WEARABLE_PROVIDERS.includes(provider as WearableProvider)) {
+    return;
+  }
 
   const supabase = await createClient();
   const {
@@ -20,6 +23,6 @@ export async function disconnectProvider(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  await deleteConnection(user.id, provider);
+  await deleteConnection(user.id, provider as WearableProvider);
   revalidatePath("/settings/connections");
 }

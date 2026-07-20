@@ -51,6 +51,9 @@ const EnvSchema = z.object({
   STRAVA_CLIENT_SECRET: z.string().optional(),
   GARMIN_CLIENT_ID: z.string().optional(),
   GARMIN_CLIENT_SECRET: z.string().optional(),
+  // Oura (multi-source health integrations, spec docs/future-phases/20). Confidential-client OAuth.
+  OURA_CLIENT_ID: z.string().optional(),
+  OURA_CLIENT_SECRET: z.string().optional(),
   // --- Lifecycle email (Resend). All optional so the app boots before email is
   //     configured; sendEmail() no-ops while EMAIL_ENABLED is unset. ---
   RESEND_API_KEY: z.string().optional(),
@@ -79,6 +82,8 @@ const rawEnv = {
   STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET,
   GARMIN_CLIENT_ID: process.env.GARMIN_CLIENT_ID,
   GARMIN_CLIENT_SECRET: process.env.GARMIN_CLIENT_SECRET,
+  OURA_CLIENT_ID: process.env.OURA_CLIENT_ID,
+  OURA_CLIENT_SECRET: process.env.OURA_CLIENT_SECRET,
 
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
