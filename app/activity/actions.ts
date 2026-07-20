@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ProgramData } from "@/lib/schemas";
+import { fetchStravaEffort } from "@/lib/wearables/strava-effort";
 
 const METERS_PER_MILE = 1609.344;
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -59,13 +60,15 @@ export async function linkActivityToSession(input: LinkInput): Promise<LinkResul
   // --- The activity must exist and belong to the caller (RLS-scoped) ---
   const { data: activity } = await supabase
     .from("wearable_activities")
-    .select("id, provider, duration_s, distance_m, avg_hr")
+    .select("id, provider, external_id, duration_s, distance_m, avg_hr")
     .eq("id", input.activityId)
     .eq("user_id", user.id)
     .maybeSingle();
   if (!activity) return { ok: false, error: "Activity not found." };
   const provider = activity.provider as string;
-  if (provider !== "strava" && provider !== "garmin") {
+  // Any provider that flows through the shared pipeline can be linked. Only
+  // Strava carries an athlete RPE/feel to import today (#12).
+  if (!["strava", "garmin", "oura", "apple_health"].includes(provider)) {
     return { ok: false, error: "Unsupported activity source." };
   }
 
@@ -96,6 +99,22 @@ export async function linkActivityToSession(input: LinkInput): Promise<LinkResul
     return { ok: false, error: "This week has already been reviewed — its logs are locked." };
   }
 
+  // --- Capture any manual RPE/note already on the TARGET position BEFORE we
+  //     touch anything, so an auto-imported RPE (#12) never clobbers what the
+  //     athlete typed. (Read now: the delete below can remove this very row if
+  //     the activity was previously linked here.) ---
+  const { data: existingLog } = await supabase
+    .from("workout_logs")
+    .select("rpe, note")
+    .eq("user_id", user.id)
+    .eq("program_id", input.programId)
+    .eq("week_number", input.weekNumber)
+    .eq("day", input.day)
+    .eq("session_index", input.sessionIndex)
+    .maybeSingle();
+  const existingRpe = (existingLog as { rpe?: number | null } | null)?.rpe ?? null;
+  const existingNote = (existingLog as { note?: string | null } | null)?.note ?? null;
+
   // --- Clear any prior link of THIS activity (keeps the unique index happy and
   //     prevents the same workout counting on two sessions) ---
   await supabase
@@ -103,6 +122,19 @@ export async function linkActivityToSession(input: LinkInput): Promise<LinkResul
     .delete()
     .eq("user_id", user.id)
     .eq("wearable_activity_id", input.activityId);
+
+  // --- Import the athlete's RPE + "how it felt" from the source (#12), only to
+  //     fill gaps: explicit input wins, then an existing manual value, then the
+  //     synced value. Best-effort — never blocks the link. ---
+  let importedRpe: number | null = null;
+  let importedFeel: string | null = null;
+  if (provider === "strava" && typeof activity.external_id === "string") {
+    const effort = await fetchStravaEffort(user.id, activity.external_id);
+    importedRpe = effort.rpe;
+    importedFeel = effort.feel;
+  }
+  const finalRpe = rpe ?? existingRpe ?? importedRpe ?? undefined;
+  const finalNote = existingNote ?? importedFeel ?? undefined;
 
   // --- Actuals from the activity ---
   const actuals: { durationMin?: number; distanceMiles?: number; avgHr?: number } = {};
@@ -131,7 +163,8 @@ export async function linkActivityToSession(input: LinkInput): Promise<LinkResul
     actuals: Object.keys(actuals).length ? actuals : null,
     updated_at: new Date().toISOString(),
   };
-  if (rpe !== undefined) payload.rpe = rpe;
+  if (finalRpe !== undefined) payload.rpe = finalRpe;
+  if (finalNote !== undefined) payload.note = finalNote;
 
   const { error } = await supabase
     .from("workout_logs")

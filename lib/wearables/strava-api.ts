@@ -70,21 +70,36 @@ export async function fetchRecentActivities(
   return Array.isArray(arr) ? arr.map((a) => normalizeStravaActivity(a as Record<string, unknown>)) : [];
 }
 
-/** Fetch a single activity's current name + description (to brand it without
- *  clobbering the athlete's own text). */
+/** Fetch a single activity's detail: name + description (for branding, without
+ *  clobbering the athlete's text) AND perceived_exertion + private_note (for the
+ *  RPE/feel import, #12) — both only present on the detail endpoint. */
 export async function fetchActivityDetail(
   accessToken: string,
   activityId: string,
-): Promise<{ id: string; name: string | null; description: string | null }> {
+): Promise<{
+  id: string;
+  name: string | null;
+  description: string | null;
+  perceived_exertion: number | null;
+  private_note: string | null;
+}> {
   const res = await fetch(`${STRAVA_API_BASE}/activities/${activityId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error(`Strava activity fetch failed (${res.status})`);
-  const a = (await res.json()) as { id?: number | string; name?: string; description?: string };
+  const a = (await res.json()) as {
+    id?: number | string;
+    name?: string;
+    description?: string;
+    perceived_exertion?: number;
+    private_note?: string;
+  };
   return {
     id: a.id != null ? String(a.id) : activityId,
     name: typeof a.name === "string" ? a.name : null,
     description: typeof a.description === "string" ? a.description : null,
+    perceived_exertion: typeof a.perceived_exertion === "number" ? a.perceived_exertion : null,
+    private_note: typeof a.private_note === "string" ? a.private_note : null,
   };
 }
 

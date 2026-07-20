@@ -18,6 +18,8 @@ import { computeTriZones } from "@/lib/engine/tri-zones";
 import { getSport } from "@/lib/engine/sports";
 import type { SportId } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
+import { getEntitlement } from "@/lib/subscription";
+import { gateProgramWeeks } from "@/lib/program-access";
 import GenerateTrigger from "./generate-trigger";
 
 /** Snapshot profile fields we read for HR personalization (new-additions #2, #3). */
@@ -177,13 +179,18 @@ export default async function ProgramPage({
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
-    const [logRows, adaptations, readinessRows, syncData, dailyMetrics] = await Promise.all([
+    const [logRows, adaptations, readinessRows, syncData, dailyMetrics, entitlement] = await Promise.all([
       getProgramLogs(program.id),
       getProgramAdaptations(program.id),
       getProgramReadiness(program.id),
       getProgramSyncData(program.id),
       getDailyMetrics(),
+      getEntitlement(),
     ]);
+
+    // #18: unsubscribed users (trial ended, no live sub) preview only the first
+    // couple weeks. Truncate server-side so locked weeks never reach the client.
+    const gate = gateProgramWeeks(data, entitlement.entitled);
     const logs: WorkoutLog[] = logRows.map((r) => ({
       weekNumber: r.week_number,
       day: r.day,
@@ -241,7 +248,8 @@ export default async function ProgramPage({
       adaptedWeeks: adaptations
         .filter((a) => a.decision === "applied" && a.rule_applied !== "none")
         .map((a) => a.target_week),
-      reviewWeek,
+      // Locked-preview users can't act on hidden weeks → no review banner.
+      reviewWeek: gate.previewing ? null : reviewWeek,
       recoveryByWeek: weeklyRecoveryAverages(dailyMetrics, program.start_date, program.duration_weeks),
     };
 
@@ -265,7 +273,7 @@ export default async function ProgramPage({
         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
         <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />
         <ProgramView
-          program={data}
+          program={gate.program}
           meta={{
             programId: program.id,
             name: program.name ?? "Your training program",
@@ -283,6 +291,7 @@ export default async function ProgramPage({
             linkableActivities: syncData.linkableActivities,
             linkedBySession: syncData.linkedBySession,
           }}
+          lock={gate.previewing ? { lockedWeeks: gate.lockedWeeks } : undefined}
         />
       </main>
     );

@@ -53,6 +53,7 @@ export default function ProgramView({
   activity,
   suggestions,
   linking,
+  lock,
 }: {
   program: ProgramData;
   meta: ProgramMeta;
@@ -64,6 +65,8 @@ export default function ProgramView({
     linkableActivities: SyncActivitySummary[];
     linkedBySession: Record<string, SyncActivitySummary>;
   };
+  /** Paywall preview (#18): set when weeks are hidden behind a subscription. */
+  lock?: { lockedWeeks: number };
 }) {
   const logsByWeek = new Map<number, WorkoutLog[]>();
   for (const l of activity?.logs ?? []) {
@@ -158,6 +161,25 @@ export default function ProgramView({
             }
           />
         ))}
+
+        {lock && lock.lockedWeeks > 0 && (
+          <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-center">
+            <span aria-hidden className="text-2xl">🔒</span>
+            <h2 className="text-lg font-semibold">
+              {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"} in this plan
+            </h2>
+            <p className="max-w-md text-sm text-zinc-600">
+              You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the full
+              periodized program — every week through race day, plus weekly adaptation and readiness.
+            </p>
+            <Link
+              href="/pricing"
+              className="mt-1 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            >
+              Unlock the full program
+            </Link>
+          </section>
+        )}
       </div>
     </div>
   );
