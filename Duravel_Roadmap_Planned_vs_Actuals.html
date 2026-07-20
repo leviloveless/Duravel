@@ -113,7 +113,7 @@
   <div class="eyebrow">Living Build Roadmap</div>
   <h1>Duravel — Planned vs Actuals</h1>
   <p class="sub">One combined master sequence across every lane: external approvals, the shared ingestion foundation, Garmin, the iOS app, the growth loop, and the training-engine product. <b>Dashed bars = the Planned timeline</b> carried over from the prior roadmaps; <b>solid bars = Actual progress</b> reconciled against the real repo. The lime line is <b>today</b>.</p>
-  <div class="asof">As of <b>Sun, Jul 19 2026</b> · update this file each session</div>
+  <div class="asof">As of <b>Mon, Jul 20 2026</b> · update this file each session</div>
 
   <div class="stats" id="stats"></div>
 
@@ -123,7 +123,7 @@
     <span class="k"><span class="sw done"></span> Done</span>
     <span class="k"><span class="sw ahead"></span> Done — ahead of plan</span>
     <span class="k"><span class="sw block"></span> Not started / blocked</span>
-    <span class="k"><span class="todaykey"></span> Today (Jul 19)</span>
+    <span class="k"><span class="todaykey"></span> Today (Jul 20)</span>
   </div>
 
   <div class="chart" id="chart"></div>
@@ -175,7 +175,7 @@
    ============================================================ */
   const AXIS_START = "2026-07-13";
   const AXIS_END   = "2026-12-06";
-  const TODAY      = "2026-07-19";
+  const TODAY      = "2026-07-20";
   const WEEKS      = 21; // for the faint weekly grid
 
   const ROWS = [
@@ -224,7 +224,7 @@
     // ---- PRODUCT / TRAINING ENGINE ----
     {group:"Training engine (product)", label:"HYROX credible full", note:"LIVE on main; byte-identical gate green", ps:"2026-07-27", pe:"2026-08-24", pct:1, status:"ahead"},
     {group:"Training engine (product)", label:"Triathlon thin MVP (70.3 + 140.6)", note:"LIVE on main — deterministic end-to-end", ps:"2026-08-24", pe:"2026-09-14", pct:1, status:"ahead"},
-    {group:"Training engine (product)", label:"Triathlon full MVP", note:"Zones/volume/adaptation done; full UX + live QA left", ps:"2026-09-14", pe:"2026-10-19", pct:0.7, status:"prog"},
+    {group:"Training engine (product)", label:"Triathlon full MVP", note:"2026-07-20: standalone Ironman engine — periodized strength, swim/bike/run/lift time trackers, long-run caps, discrete brick, A/B/C race periodization. Full UX + live QA left", ps:"2026-09-14", pe:"2026-10-19", pct:0.9, status:"prog"},
     {group:"Training engine (product)", label:"Multi-sport strength + cardio specs → repo", note:"Drafted (v4 / v2); not yet in repo", ps:"2026-08-03", pe:"2026-08-24", pct:0.2, status:"prog"},
     {group:"Training engine (product)", label:"Self-validation (race season)", note:"Season clock; not started", ps:"2026-10-19", pe:"2026-12-06", pct:0, status:"not"},
   ];
