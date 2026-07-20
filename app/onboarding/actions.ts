@@ -54,6 +54,16 @@ function parseGenerationInput(
     ftpWatts: num(formData, "ftpWatts"),
     ohpEnduranceReps: num(formData, "ohpEnduranceReps"),
     glycolyticTestSec: str(formData, "glycolyticTestSec"),
+    hyroxSkiErg: str(formData, "hyroxSkiErg"),
+    hyroxSledPush: str(formData, "hyroxSledPush"),
+    hyroxSledPull: str(formData, "hyroxSledPull"),
+    hyroxBurpeeBroadJump: str(formData, "hyroxBurpeeBroadJump"),
+    hyroxRow: str(formData, "hyroxRow"),
+    hyroxFarmersCarry: str(formData, "hyroxFarmersCarry"),
+    hyroxSandbagLunge: str(formData, "hyroxSandbagLunge"),
+    hyroxWallBalls: str(formData, "hyroxWallBalls"),
+    hyroxRunTotal: str(formData, "hyroxRunTotal"),
+    hyroxRoxzone: str(formData, "hyroxRoxzone"),
   };
   const hasBenchmark = Object.values(benchmarksRaw).some((v) => v !== undefined);
   const benchmarks = hasBenchmark ? benchmarksRaw : undefined;

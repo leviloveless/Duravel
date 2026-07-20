@@ -27,6 +27,34 @@ const EQUIPMENT_OPTIONS: { key: string; label: string }[] = [
   { key: "bodyweight_only", label: "Bodyweight only" },
 ];
 
+// #17: HYROX result-lookup split keys -> the benchmark field each one fills.
+const HYROX_SPLIT_FIELD: Record<string, string> = {
+  skiErg_time: "hyroxSkiErg",
+  sledPush_time: "hyroxSledPush",
+  sledPull_time: "hyroxSledPull",
+  burpeeBroadJump_time: "hyroxBurpeeBroadJump",
+  row_time: "hyroxRow",
+  farmersCarry_time: "hyroxFarmersCarry",
+  sandbagLunges_time: "hyroxSandbagLunge",
+  wallBalls_time: "hyroxWallBalls",
+  run_time: "hyroxRunTotal",
+  roxzone_time: "hyroxRoxzone",
+};
+
+// The HYROX event-split inputs shown on the Benchmarks step, in race order.
+const HYROX_SPLIT_INPUTS: { name: string; label: string }[] = [
+  { name: "hyroxSkiErg", label: "SkiErg (1000m)" },
+  { name: "hyroxSledPush", label: "Sled Push (50m)" },
+  { name: "hyroxSledPull", label: "Sled Pull (50m)" },
+  { name: "hyroxBurpeeBroadJump", label: "Burpee Broad Jump (80m)" },
+  { name: "hyroxRow", label: "Row (1000m)" },
+  { name: "hyroxFarmersCarry", label: "Farmers Carry (200m)" },
+  { name: "hyroxSandbagLunge", label: "Sandbag Lunges (100m)" },
+  { name: "hyroxWallBalls", label: "Wall Balls" },
+  { name: "hyroxRunTotal", label: "Run total (8x1km)" },
+  { name: "hyroxRoxzone", label: "Roxzone (transitions)" },
+];
+
 const EXPERIENCE_DEFS = {
   running: {
     label: "Running experience",
@@ -239,6 +267,8 @@ export default function OnboardingForm({
   const [startDate, setStartDate] = useState<string>(initial?.startDate ?? new Date().toISOString().slice(0, 10));
   // HYROX result lookup (#17) fills this uncontrolled goal-time input on pick.
   const goalTimeRef = useRef<HTMLInputElement>(null);
+  // HYROX event-split inputs (Benchmarks step) that a result-lookup pick fills.
+  const hyroxSplitRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const showRaces = programType === "goal_event" || programType === "fixed_duration";
   const showDuration = programType !== "goal_event";
@@ -526,10 +556,16 @@ export default function OnboardingForm({
                   defaultFirst={profile?.first_name ?? ""}
                   onPick={(r) => {
                     if (goalTimeRef.current && r.finishTime) goalTimeRef.current.value = r.finishTime;
+                    for (const s of r.splits) {
+                      const field = HYROX_SPLIT_FIELD[s.key];
+                      const input = field ? hyroxSplitRefs.current[field] : null;
+                      if (input && s.time) input.value = s.time;
+                    }
                   }}
                 />
                 <p className="mt-2 text-xs text-zinc-500">
-                  Picking a result fills your goal finish time above (you can still edit it).
+                  Picking a result fills your goal finish time above and your event splits on the
+                  Benchmarks step (you can still edit them).
                 </p>
               </div>
             </details>
@@ -913,6 +949,33 @@ export default function OnboardingForm({
             </label>
           ))}
         </div>
+
+        {sport === "hyrox" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-500">
+              <span className="font-medium text-zinc-700">HYROX event splits</span> &mdash; your per-station
+              times from a previous race. Use &ldquo;Look up my HYROX result&rdquo; on the Schedule &amp; goal
+              step to fill these automatically, or type them in. They sharpen the generator&apos;s read on which
+              stations are your strengths and weaknesses.
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {HYROX_SPLIT_INPUTS.map(({ name, label }) => (
+                <label key={name} className="flex flex-col gap-1">
+                  {label} (mm:ss)
+                  <input
+                    ref={(el) => {
+                      hyroxSplitRefs.current[name] = el;
+                    }}
+                    name={name}
+                    type="text"
+                    defaultValue={initial?.benchmarks?.[name] ?? ""}
+                    className={inputClass}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isAtlas && (
           <div className="flex flex-col gap-3">

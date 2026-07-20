@@ -80,6 +80,18 @@ export const BenchmarksSchema = z.object({
   ohpEnduranceReps: z.number().int().positive().max(200).optional(),
   /** DEKA ATLAS anchor: benchmark glycolytic couplet time (21-15-9), "mm:ss". */
   glycolyticTestSec: z.string().max(TIME_STRING_MAX).optional(),
+  /** HYROX event splits from an official result lookup (#17) — per-station,
+   *  running-total and transition times as "mm:ss". Reference + generator context. */
+  hyroxSkiErg: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxSledPush: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxSledPull: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxBurpeeBroadJump: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxRow: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxFarmersCarry: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxSandbagLunge: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxWallBalls: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxRunTotal: z.string().max(TIME_STRING_MAX).optional(),
+  hyroxRoxzone: z.string().max(TIME_STRING_MAX).optional(),
 });
 
 /**

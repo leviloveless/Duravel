@@ -108,6 +108,18 @@ function profileBlock(input: GenerationInput): string {
     if (b.ski2kTime) bench.push(`2k ski ${b.ski2kTime}`);
     if (b.row2kTime) bench.push(`2k row ${b.row2kTime}`);
     if (b.bike20MinCals) bench.push(`20-min bike ${b.bike20MinCals} cal`);
+    const hx: string[] = [];
+    if (b.hyroxSkiErg) hx.push(`ski ${b.hyroxSkiErg}`);
+    if (b.hyroxSledPush) hx.push(`sled push ${b.hyroxSledPush}`);
+    if (b.hyroxSledPull) hx.push(`sled pull ${b.hyroxSledPull}`);
+    if (b.hyroxBurpeeBroadJump) hx.push(`burpee broad jump ${b.hyroxBurpeeBroadJump}`);
+    if (b.hyroxRow) hx.push(`row ${b.hyroxRow}`);
+    if (b.hyroxFarmersCarry) hx.push(`farmers carry ${b.hyroxFarmersCarry}`);
+    if (b.hyroxSandbagLunge) hx.push(`sandbag lunges ${b.hyroxSandbagLunge}`);
+    if (b.hyroxWallBalls) hx.push(`wall balls ${b.hyroxWallBalls}`);
+    if (b.hyroxRunTotal) hx.push(`run total ${b.hyroxRunTotal}`);
+    if (b.hyroxRoxzone) hx.push(`roxzone ${b.hyroxRoxzone}`);
+    if (hx.length) lines.push(`HYROX race splits (per station; target the slowest relative to the field): ${hx.join(", ")}`);
     if (bench.length) lines.push(`Benchmarks: ${bench.join(", ")}`);
   } else {
     lines.push("Benchmarks: none provided — prescribe by zone/effort with reasonable pace estimates.");

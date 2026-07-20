@@ -96,6 +96,8 @@ export default function HyroxLookup({
           const withSplits = { ...c, splits: data.splits as HyroxSplit[] };
           // Guard against a late response after the user searched again / re-picked.
           setPicked((cur) => (cur && cur.id === c.id ? withSplits : cur));
+          // Re-emit with splits so a parent (onboarding) can fill its event-split inputs.
+          onPick?.(withSplits);
         }
       } catch {
         // Splits are a nice-to-have; the finish time already shows.
