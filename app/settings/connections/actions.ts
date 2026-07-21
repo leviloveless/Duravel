@@ -26,3 +26,17 @@ export async function disconnectProvider(formData: FormData) {
   await deleteConnection(user.id, provider as WearableProvider);
   revalidatePath("/settings/connections");
 }
+
+/**
+ * Toggle auto-posting completed workouts to Strava (opt-out; default ON).
+ * Called from the Connections settings switch; updates the caller's profile.
+ */
+export async function setStravaAutopost(enabled: boolean): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("profiles").update({ strava_autopost: enabled }).eq("id", user.id);
+  revalidatePath("/settings/connections");
+}

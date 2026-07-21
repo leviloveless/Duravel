@@ -54,6 +54,7 @@ export default function ProgramView({
   suggestions,
   linking,
   lock,
+  hideSummary,
 }: {
   program: ProgramData;
   meta: ProgramMeta;
@@ -67,6 +68,9 @@ export default function ProgramView({
   };
   /** Paywall preview (#18): set when weeks are hidden behind a subscription. */
   lock?: { lockedWeeks: number };
+  /** In the tabbed program view, hide the internal weekly summary (it becomes
+   *  its own tab). */
+  hideSummary?: boolean;
 }) {
   const logsByWeek = new Map<number, WorkoutLog[]>();
   for (const l of activity?.logs ?? []) {
@@ -129,13 +133,15 @@ export default function ProgramView({
 
       {/* Full-width weekly summary (extended so the whole table is visible
           without horizontal scroll — Tasks addition #10). */}
-      <WeekSummaryTable
-        weeks={program.weeks}
-        startDate={meta.startDate}
-        isTriathlon={isTriathlon}
-        logsByWeek={logsByWeek}
-        recoveryByWeek={activity?.recoveryByWeek}
-      />
+      {!hideSummary && (
+        <WeekSummaryTable
+          weeks={program.weeks}
+          startDate={meta.startDate}
+          isTriathlon={isTriathlon}
+          logsByWeek={logsByWeek}
+          recoveryByWeek={activity?.recoveryByWeek}
+        />
+      )}
 
       {/* Week cards */}
       <div className="flex flex-col gap-6">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { WorkoutLogInputSchema, type ProgramData } from "@/lib/schemas";
 import { resolveActualDay } from "@/lib/wearables/link";
+import { autoPostSessionToStrava } from "@/lib/wearables/strava-autopost";
 
 /**
  * POST /api/logs — upsert one session log (Phase 2, phase2-spec.md §6).
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   // RLS scopes to the caller's rows; also confirms the session position exists.
   const { data: program } = await supabase
     .from("programs")
-    .select("id, status, program_data")
+    .select("id, status, program_data, name")
     .eq("id", input.programId)
     .single();
   if (!program) {
@@ -93,5 +94,18 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  // Best-effort Strava auto-post (opt-out; never blocks or fails the log).
+  if (input.status === "completed" || input.status === "partial") {
+    await autoPostSessionToStrava(supabase, user.id, {
+      session,
+      status: input.status,
+      rpe: input.rpe ?? null,
+      actualDurationMin: input.actuals?.durationMin,
+      actualDistanceMiles: input.actuals?.distanceMiles,
+      programName: (program as { name?: string | null }).name ?? null,
+      weekNumber: input.weekNumber,
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }

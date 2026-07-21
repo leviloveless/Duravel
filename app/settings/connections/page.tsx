@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 import { getConnectionStatuses } from "@/lib/wearables/connections";
 import ConnectionsPanel from "@/components/settings/connections-panel";
+import StravaAutopostToggle from "@/components/settings/strava-autopost-toggle";
 
 export default async function ConnectionsPage({
   searchParams,
@@ -17,6 +18,17 @@ export default async function ConnectionsPage({
   if (!user) redirect("/login");
 
   const [statuses, sp] = await Promise.all([getConnectionStatuses(user.id), searchParams]);
+
+  const stravaWrite = env.STRAVA_WRITE_ENABLED === "true" && !!env.STRAVA_CLIENT_ID;
+  let stravaAutopost = true;
+  if (stravaWrite) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("strava_autopost")
+      .eq("id", user.id)
+      .maybeSingle();
+    stravaAutopost = prof?.strava_autopost ?? true;
+  }
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
@@ -34,6 +46,8 @@ export default async function ConnectionsPage({
         flashConnected={sp.connected ?? null}
         flashError={sp.error ?? null}
       />
+
+      {stravaWrite && <StravaAutopostToggle initial={stravaAutopost} />}
 
       <Link href="/settings" className="text-sm underline">
         Back to settings

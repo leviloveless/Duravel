@@ -124,3 +124,45 @@ export async function updateActivityDescription(
   if (res.status === 403) throw new Error("strava_write_forbidden");
   if (!res.ok) throw new Error(`Strava activity update failed (${res.status})`);
 }
+
+export interface ManualActivityInput {
+  name: string;
+  /** Strava sport_type, e.g. "Run" | "Ride" | "Swim" | "WeightTraining" | "Workout" | "Crossfit". */
+  sportType: string;
+  /** ISO local start time. */
+  startLocalIso: string;
+  elapsedSeconds: number;
+  description?: string;
+  distanceMeters?: number;
+}
+
+/**
+ * Create a NEW manual Strava activity (`POST /activities`). Requires the
+ * `activity:write` scope; a 403 means the connection predates write (surface a
+ * reconnect prompt). Returns the new activity id.
+ */
+export async function createManualActivity(
+  accessToken: string,
+  a: ManualActivityInput,
+): Promise<{ id: number }> {
+  const body = new URLSearchParams({
+    name: a.name,
+    sport_type: a.sportType,
+    start_date_local: a.startLocalIso,
+    elapsed_time: String(Math.max(1, Math.round(a.elapsedSeconds))),
+  });
+  if (a.description) body.set("description", a.description);
+  if (a.distanceMeters && a.distanceMeters > 0) body.set("distance", String(Math.round(a.distanceMeters)));
+  const res = await fetch(`${STRAVA_API_BASE}/activities`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  if (res.status === 403) throw new Error("strava_write_forbidden");
+  if (!res.ok) throw new Error(`Strava activity create failed (${res.status})`);
+  const j = (await res.json()) as { id?: number };
+  return { id: j.id ?? 0 };
+}

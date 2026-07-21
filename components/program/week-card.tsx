@@ -139,6 +139,14 @@ function MobileDayList({
               <span className="text-sm font-semibold">{DAY_LABEL[dayKey]}</span>
               <span className="text-xs text-zinc-400">{dateLabel}</span>
               {sessions.length === 0 && <span className="ml-auto text-xs text-zinc-400">Rest</span>}
+              {sessions.length > 0 && logging && (
+                <a
+                  href={`/program/${logging.programId}/workout/${week.weekNumber}/${dayKey}`}
+                  className="ml-auto rounded-full bg-black px-2.5 py-1 text-[11px] font-medium text-white"
+                >
+                  Workout view
+                </a>
+              )}
             </div>
             {sessions.map((s, si) => {
               const t = sessionTiming(s);

@@ -22,6 +22,9 @@ import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
 import { computeTriZones } from "@/lib/engine/tri-zones";
 import { getSport } from "@/lib/engine/sports";
 import TimeBudgetCard from "@/components/program/time-budget-card";
+import ProgramTabs, { type ProgramTab } from "@/components/program/program-tabs";
+import SessionTracker, { groupLogsByWeek } from "@/components/program/session-tracker";
+import WeekSummaryTable from "@/components/program/week-summary-table";
 import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import { getEntitlement } from "@/lib/subscription";
@@ -342,37 +345,101 @@ export default async function ProgramPage({
           </span>
         </div>
         <CoachingNotesView notes={coachNotes} />
-        {/* The pacing plan is HYROX race-format specific; hidden for other sports. */}
-        {sport === "hyrox" && <PacingCard plan={pacingPlan} />}
-        {sport === "hyrox" && reforecastResult && reforecastResult.perEvent.length > 0 && (
-          <ProjectionCard reforecast={reforecastResult} />
-        )}
-        {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
-        {triZones && <TriZonesCard zones={triZones} />}
-        {weeklyHours && <TimeBudgetCard sport={sport} band={weeklyHours} data={data} />}
-        {runPaces && <VdotCard paces={runPaces} />}
-        <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
-        <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />
-        <ProgramView
-          program={gate.program}
-          meta={{
-            programId: program.id,
-            name: program.name ?? "Your training program",
-            durationWeeks: program.duration_weeks,
-            programType: program.program_type,
-            startDate: program.start_date,
-            sport,
-            maxHR,
-            zoneBands,
-            athleteName: snapshotProfile?.firstName ?? undefined,
-          }}
-          activity={activity}
-          suggestions={syncData.suggestions}
-          linking={{
-            linkableActivities: syncData.linkableActivities,
-            linkedBySession: syncData.linkedBySession,
-          }}
-          lock={gate.previewing ? { lockedWeeks: gate.lockedWeeks } : undefined}
+        <ProgramTabs
+          tabs={
+            [
+              {
+                id: "program",
+                label: "Program",
+                content: (
+                  <ProgramView
+                    program={gate.program}
+                    meta={{
+                      programId: program.id,
+                      name: program.name ?? "Your training program",
+                      durationWeeks: program.duration_weeks,
+                      programType: program.program_type,
+                      startDate: program.start_date,
+                      sport,
+                      maxHR,
+                      zoneBands,
+                      athleteName: snapshotProfile?.firstName ?? undefined,
+                    }}
+                    activity={activity}
+                    suggestions={syncData.suggestions}
+                    linking={{
+                      linkableActivities: syncData.linkableActivities,
+                      linkedBySession: syncData.linkedBySession,
+                    }}
+                    lock={gate.previewing ? { lockedWeeks: gate.lockedWeeks } : undefined}
+                    hideSummary
+                  />
+                ),
+              },
+              {
+                id: "tracker",
+                label: "Tracker",
+                content: (
+                  <SessionTracker weeks={gate.program.weeks} logs={logs} startDate={program.start_date} />
+                ),
+              },
+              sport === "hyrox" || dekaPlan || triZones
+                ? {
+                    id: "pace",
+                    label: "Pace plan",
+                    content: (
+                      <div className="flex flex-col gap-6">
+                        {sport === "hyrox" && <PacingCard plan={pacingPlan} />}
+                        {sport === "hyrox" &&
+                          reforecastResult &&
+                          reforecastResult.perEvent.length > 0 && (
+                            <ProjectionCard reforecast={reforecastResult} />
+                          )}
+                        {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
+                        {triZones && <TriZonesCard zones={triZones} />}
+                      </div>
+                    ),
+                  }
+                : null,
+              runPaces ? { id: "vdot", label: "VDOT", content: <VdotCard paces={runPaces} /> } : null,
+              {
+                id: "readiness",
+                label: "Readiness",
+                content: (
+                  <ReadinessForm
+                    programId={program.id}
+                    weekNumber={readinessWeek}
+                    existing={existingReadiness}
+                  />
+                ),
+              },
+              {
+                id: "daily",
+                label: "Daily HR/HRV",
+                content: <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />,
+              },
+              {
+                id: "summary",
+                label: "Weekly summary",
+                content: (
+                  <WeekSummaryTable
+                    weeks={gate.program.weeks}
+                    startDate={program.start_date}
+                    isTriathlon={sport.startsWith("tri_")}
+                    logsByWeek={groupLogsByWeek(logs)}
+                    recoveryByWeek={activity.recoveryByWeek}
+                  />
+                ),
+              },
+              weeklyHours
+                ? {
+                    id: "budget",
+                    label: "Budget",
+                    content: <TimeBudgetCard sport={sport} band={weeklyHours} data={data} />,
+                  }
+                : null,
+            ].filter(Boolean) as ProgramTab[]
+          }
         />
         <ProgramGlossary />
       </main>
