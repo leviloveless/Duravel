@@ -73,7 +73,6 @@ export default function SessionTracker({
       const day = w.days.find((d) => d.day === dayKey);
       if (!day) continue;
       day.sessions.forEach((s, si) => {
-        if (s.kind === "rest") return;
         total++;
         const log = logMap.get(`${w.weekNumber}:${dayKey}:${si}`);
         let status: Status;

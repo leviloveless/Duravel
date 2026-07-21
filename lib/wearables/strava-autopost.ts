@@ -63,7 +63,6 @@ export async function autoPostSessionToStrava(
 ): Promise<{ posted: boolean }> {
   try {
     if (env.STRAVA_WRITE_ENABLED !== "true") return { posted: false };
-    if (ctx.session.kind === "rest") return { posted: false };
 
     // Cheapest checks first: skip the profile read entirely when not connected.
     const conn = await getConnection(userId, "strava");

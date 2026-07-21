@@ -25,6 +25,8 @@ import TimeBudgetCard from "@/components/program/time-budget-card";
 import ProgramTabs, { type ProgramTab } from "@/components/program/program-tabs";
 import SessionTracker, { groupLogsByWeek } from "@/components/program/session-tracker";
 import WeekSummaryTable from "@/components/program/week-summary-table";
+import GuardrailCard from "@/components/program/guardrail-card";
+import { analyzeGuardrails } from "@/lib/engine/guardrails";
 import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import { getEntitlement } from "@/lib/subscription";
@@ -382,6 +384,11 @@ export default async function ProgramPage({
                 content: (
                   <SessionTracker weeks={gate.program.weeks} logs={logs} startDate={program.start_date} />
                 ),
+              },
+              {
+                id: "safety",
+                label: "Safety",
+                content: <GuardrailCard report={analyzeGuardrails(data)} />,
               },
               sport === "hyrox" || dekaPlan || triZones
                 ? {

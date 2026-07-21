@@ -220,7 +220,7 @@ export default function WorkoutView({
 }) {
   const native = useIsNative();
 
-  const trackable = sessions.filter((s) => s.kind !== "rest");
+  const trackable = sessions;
 
   if (!native) {
     return (
@@ -249,18 +249,16 @@ export default function WorkoutView({
 
   return (
     <div className="flex flex-col gap-4">
-      {sessions.map((s, si) =>
-        s.kind === "rest" ? null : (
-          <SessionBlock
-            key={si}
-            programId={programId}
-            weekNumber={weekNumber}
-            day={day}
-            sessionIndex={si}
-            session={s}
-          />
-        ),
-      )}
+      {sessions.map((s, si) => (
+        <SessionBlock
+          key={si}
+          programId={programId}
+          weekNumber={weekNumber}
+          day={day}
+          sessionIndex={si}
+          session={s}
+        />
+      ))}
     </div>
   );
 }
