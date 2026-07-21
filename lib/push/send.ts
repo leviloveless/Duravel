@@ -56,25 +56,33 @@ export function pushConfigured(): boolean {
 
 let cachedWebPush: WebPushLike | null = null;
 
-/** Lazily import + configure web-push. Returns null if unavailable. */
-async function getWebPush(): Promise<WebPushLike | null> {
-  if (!pushConfigured()) return null;
-  if (cachedWebPush) return cachedWebPush;
+/** Lazily import + configure web-push. Returns { mod } on success, or { error }
+ * describing why it's unavailable — never throws (a malformed VAPID key makes
+ * setVapidDetails throw, which would otherwise 500 the route with no reason). */
+async function getWebPush(): Promise<{ mod: WebPushLike | null; error?: string }> {
+  if (!pushConfigured()) return { mod: null, error: "VAPID keys not configured" };
+  if (cachedWebPush) return { mod: cachedWebPush };
   let mod: WebPushLike;
   try {
     // Static specifier so Next's output-file tracing bundles web-push into the
     // serverless function (a variable specifier is NOT traced -> missing in prod).
     mod = (await import("web-push")) as unknown as WebPushLike;
-  } catch {
-    return null; // not installed yet
+  } catch (e) {
+    return { mod: null, error: `web-push not installed (${(e as Error)?.message ?? "import failed"})` };
   }
-  mod.setVapidDetails(
-    env.VAPID_SUBJECT || "mailto:support@duravel.app",
-    env.VAPID_PUBLIC_KEY!,
-    env.VAPID_PRIVATE_KEY!,
-  );
+  try {
+    mod.setVapidDetails(
+      env.VAPID_SUBJECT || "mailto:support@duravel.app",
+      env.VAPID_PUBLIC_KEY!,
+      env.VAPID_PRIVATE_KEY!,
+    );
+  } catch (e) {
+    // Almost always a malformed key (stray whitespace/newline/quote) or a bad
+    // VAPID_SUBJECT (must be a mailto: or https: URL).
+    return { mod: null, error: `VAPID setup failed: ${(e as Error)?.message ?? "invalid keys"}` };
+  }
   cachedWebPush = mod;
-  return mod;
+  return { mod };
 }
 
 type SubRow = {
@@ -93,8 +101,8 @@ export async function sendPushToUser(
   userId: string,
   payload: PushPayload,
 ): Promise<PushResult> {
-  const webpush = await getWebPush();
-  if (!webpush) return { sent: 0, pruned: 0, skipped: "web-push unavailable" };
+  const { mod: webpush, error: cfgError } = await getWebPush();
+  if (!webpush) return { sent: 0, pruned: 0, skipped: cfgError ?? "web-push unavailable" };
 
   const admin = createAdminClient();
   const { data, error } = await admin
