@@ -14,7 +14,10 @@ import TriZonesCard from "@/components/program/tri-zones-card";
 import ReadinessForm from "@/components/program/readiness-form";
 import DailyMetricsForm from "@/components/program/daily-metrics-form";
 import { computePacingPlan } from "@/lib/engine/pacing";
-import { projectTimes, type ExperienceLevel, type RaceType } from "@/lib/engine/progression";
+import { projectTimes, parseClock, type ExperienceLevel, type RaceType } from "@/lib/engine/progression";
+import { reforecast, type Reforecast } from "@/lib/engine/reforecast";
+import type { HyroxEventKey } from "@/lib/engine/hyrox-standards";
+import { computeAdherence } from "@/lib/wearables/adherence";
 import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
 import { computeTriZones } from "@/lib/engine/tri-zones";
 import { getSport } from "@/lib/engine/sports";
@@ -248,6 +251,36 @@ export default async function ProgramPage({
     // right away, without waiting for the calendar.
     const reviewed = new Set(adaptations.map((a) => a.week_number));
     const elapsed = elapsedWeeks(program.start_date);
+
+    // Mid-program re-forecast (#17 §4): walk the baseline projection with real
+    // adherence + any fresh per-event measurements (profile splits changed since build).
+    let reforecastResult: Reforecast | null = null;
+    if (sport === "hyrox" && projection && projection.perEvent.length > 0) {
+      const kWeek = Math.min(elapsed, program.duration_weeks);
+      const adherence = computeAdherence(data, logs, kWeek).overall.completionRate;
+      const { data: curProfile } = await supabase
+        .from("profiles")
+        .select("benchmarks")
+        .eq("id", user.id)
+        .maybeSingle();
+      const curBench = (curProfile?.benchmarks ?? null) as
+        | Record<string, string | number | undefined>
+        | null;
+      const measurements: Partial<Record<HyroxEventKey, number>> = {};
+      for (const e of projection.perEvent) {
+        const m = parseClock(curBench?.[e.key]);
+        if (m != null && Math.abs(m - e.currentSec) > 2) measurements[e.key] = m;
+      }
+      reforecastResult = reforecast(projection, {
+        weeksW: program.duration_weeks,
+        weekK: kWeek,
+        adherence,
+        measurements,
+        sex: snapshotProfile?.sex,
+        division: snapshotProfile?.division,
+        age: snapshotProfile?.age,
+      });
+    }
     const maxReviewable = program.duration_weeks - 1; // must have a following week
 
     const loggedByWeek = new Map<number, Set<string>>();
@@ -308,8 +341,8 @@ export default async function ProgramPage({
         <CoachingNotesView notes={coachNotes} />
         {/* The pacing plan is HYROX race-format specific; hidden for other sports. */}
         {sport === "hyrox" && <PacingCard plan={pacingPlan} />}
-        {sport === "hyrox" && projection && projection.perEvent.length > 0 && (
-          <ProjectionCard projection={projection} />
+        {sport === "hyrox" && reforecastResult && reforecastResult.perEvent.length > 0 && (
+          <ProjectionCard reforecast={reforecastResult} />
         )}
         {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
         {triZones && <TriZonesCard zones={triZones} />}
