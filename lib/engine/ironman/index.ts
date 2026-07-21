@@ -63,13 +63,15 @@ const DELOAD = 0.65;
 const SWIM_ZONE: Record<string, number> = { technique: 2, css: 4, threshold: 4, endurance: 2, open_water: 2 };
 const BIKE_ZONE: Record<string, number> = { endurance: 2, sweet_spot: 3, threshold: 4, vo2: 5, recovery: 1 };
 
-/** Distance key used to look up per-level hours ("70_3" | "140_6"). */
+/** Distance key used to look up per-level hours ("olympic" | "70_3" | "140_6"). */
 function distanceKey(sport: string): string {
-  return sport === "tri_140_6" ? "140_6" : "70_3";
+  if (sport === "tri_140_6") return "140_6";
+  if (sport === "tri_olympic") return "olympic";
+  return "70_3";
 }
 
 // --- long-ride model (75% of race bike distance, phase-gated) ---------------
-const RACE_BIKE_MILES: Record<string, number> = { "70_3": 56, "140_6": 112 };
+const RACE_BIKE_MILES: Record<string, number> = { olympic: 24.8, "70_3": 56, "140_6": 112 };
 const LONG_RIDE_MPH = 16; // steady Z2 long-ride pace incl. terrain/stops
 const LONG_RIDE_STANDARD_MAX_MIN = 210; // 3.5h ceiling through base + build
 
@@ -87,6 +89,8 @@ function longRideCapMin(cfg: SportConfig, phase: PhaseName): number {
 const LONG_RUN_CAP: Record<string, { peak: number; standard: number }> = {
   "140_6": { peak: 150, standard: 135 },
   "70_3": { peak: 120, standard: 105 },
+  // Olympic run is 10 km — long runs stay modest (short-course, report §6.5).
+  olympic: { peak: 75, standard: 60 },
 };
 function longRunCapMin(cfg: SportConfig, phase: PhaseName): number {
   const c = LONG_RUN_CAP[distanceKey(cfg.id)] ?? LONG_RUN_CAP["70_3"]!;

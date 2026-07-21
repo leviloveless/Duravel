@@ -150,6 +150,7 @@ function parseGenerationInput(
       dayPreferences,
       equipment,
       currentDaysPerWeek,
+      weeklyHours: str(formData, "weeklyHours"),
     },
     sport: sportVal,
     subGoal: isGenFit ? (str(formData, "subGoal") ?? "balanced") : undefined,
@@ -166,6 +167,13 @@ function parseGenerationInput(
     return { error: parsed.error.issues[0]?.message ?? "Please check your answers and try again." };
   }
   const input = parsed.data;
+
+  // Weekly training-time budget is REQUIRED for new/edited programs (it sets the
+  // program's volume). Kept optional in the schema so legacy input snapshots
+  // still parse on recalc and the golden-HYROX path is unaffected.
+  if (!input.profile.weeklyHours) {
+    return { error: "Select how much time you can train each week." };
+  }
 
   // Only HYROX and DEKA Fit require a 5K (their run prescriptions are paced off
   // it). Every other sport treats all benchmarks as optional.

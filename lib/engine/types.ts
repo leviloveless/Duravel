@@ -20,7 +20,7 @@ import {
   RunType as RunTypeEnum,
 } from "@/lib/schemas";
 import type { NeedsAnalysis } from "./needs";
-import type { SportId } from "@/lib/schemas";
+import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 
 // Engine string-union types are DERIVED from the canonical Zod enums (roadmap
 // #2.5) so the schema and the engine can never drift out of sync.
@@ -46,6 +46,10 @@ export interface EngineRace {
 export interface EngineInput {
   /** Target sport (multi-sport expansion). Omitted → HYROX. */
   sport?: SportId;
+  /** Weekly training-time budget (volume-vs-intensity research). Omitted → legacy
+   *  experience-derived volume (keeps golden-HYROX byte-identical). Consumed by
+   *  volume/zone scaling in a later phase; carried through at P0 but unused. */
+  weeklyHours?: WeeklyHoursBand;
   /** General-fitness sub-goal (biases the emphasis rotation). Omitted → balanced. */
   subGoal?: string;
   trainingClass: TrainingClassName;

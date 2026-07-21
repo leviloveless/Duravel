@@ -324,6 +324,10 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
 
   return {
     sport: input.sport ?? "hyrox",
+    // Carried through at P0 (unconsumed) so the band reaches the engine when
+    // volume/zone scaling is wired in a later phase. buildSkeleton ignores it
+    // today, so HYROX output stays byte-identical.
+    weeklyHours: input.profile.weeklyHours,
     subGoal: input.subGoal,
     trainingClass: input.profile.trainingClass,
     age: input.profile.age,

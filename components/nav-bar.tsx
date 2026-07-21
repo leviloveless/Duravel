@@ -3,20 +3,44 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 
 /**
- * Global top navigation bar (Tasks addition #6). Lets the user move between the
- * main pages from anywhere. Auth-aware: signed-in users see the app links plus a
- * Sign out button; signed-out users see Pricing + a single Log in button. The
- * Log in button is hidden entirely once a user is authenticated (new-additions #1).
- * Profile, wearable Connections, and Billing live under the Settings hub.
+ * Global top navigation bar (Tasks addition #6; expanded for full-site nav).
+ * Auth-aware: signed-in users get the app links (Dashboard, New program,
+ * Activity, Settings) plus Science; signed-out users get the public marketing
+ * links (Science, Tools, Coaching, Impact, Pricing) plus a Log in button.
  *
- * Sticky at the top of the viewport so it's always visible while scrolling long
- * program pages (Tasks addition #12).
+ * Desktop shows an inline row; on small screens the links collapse into a
+ * pure-HTML <details> disclosure so this stays a server component (no client
+ * JS). Sticky at the top so it's always visible on long program pages.
  */
+
+const linkClass =
+  "rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black";
+
+/** Marketing pages shown to everyone. */
+const PUBLIC_LINKS = [
+  { href: "/science", label: "Science" },
+  { href: "/tools", label: "Tools" },
+  { href: "/coaching", label: "Coaching" },
+  { href: "/impact", label: "Impact" },
+  { href: "/pricing", label: "Pricing" },
+] as const;
+
+/** App pages shown once signed in. */
+const APP_LINKS = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/onboarding", label: "New program" },
+  { href: "/activity", label: "Activity" },
+  { href: "/science", label: "Science" },
+  { href: "/settings", label: "Settings" },
+] as const;
+
 export default async function NavBar() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const links = user ? APP_LINKS : PUBLIC_LINKS;
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur print:hidden">
@@ -24,47 +48,54 @@ export default async function NavBar() {
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Duravel
         </Link>
-        <div className="flex items-center gap-1 text-sm">
-          {user && (
-            <>
-              <Link href="/dashboard" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                Dashboard
+
+        {/* Desktop links */}
+        <div className="hidden items-center gap-1 text-sm md:flex">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} className={linkClass}>
+              {l.label}
+            </Link>
+          ))}
+          {user ? (
+            <form action={signOut}>
+              <button type="submit" className={linkClass}>
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
+            >
+              Log in
+            </Link>
+          )}
+        </div>
+
+        {/* Mobile disclosure (no client JS — native <details>) */}
+        <details className="relative md:hidden">
+          <summary className="flex cursor-pointer list-none items-center rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden">
+            Menu
+          </summary>
+          <div className="absolute right-0 mt-2 flex w-56 flex-col rounded-lg border border-zinc-200 bg-white p-1 text-sm shadow-lg">
+            {links.map((l) => (
+              <Link key={l.href} href={l.href} className={linkClass}>
+                {l.label}
               </Link>
-              <Link href="/onboarding" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                New program
-              </Link>
-              <Link href="/activity" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                Activity
-              </Link>
-              <Link href="/settings" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                Settings
-              </Link>
+            ))}
+            {user ? (
               <form action={signOut}>
-                <button
-                  type="submit"
-                  className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black"
-                >
+                <button type="submit" className={`${linkClass} w-full text-left`}>
                   Sign out
                 </button>
               </form>
-            </>
-          )}
-          {/* Log in button — shown only when signed out; it disappears once the
-              user is authenticated (new-additions #1). */}
-          {!user && (
-            <>
-              <Link href="/pricing" className="rounded-md px-3 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black">
-                Pricing
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
-              >
+            ) : (
+              <Link href="/login" className={linkClass}>
                 Log in
               </Link>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        </details>
       </nav>
     </header>
   );

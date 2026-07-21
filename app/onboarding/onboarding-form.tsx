@@ -173,6 +173,7 @@ const SPORT_OPTIONS = [
   { value: "deka_strong", label: "DEKA STRONG", blurb: "10 zones back-to-back, no running — strength-endurance" },
   { value: "deka_atlas", label: "DEKA ATLAS", blurb: "10 heavy barbell/DB zones, no running — strength-led" },
   { value: "deka_ultra", label: "DEKA ULTRA", blurb: "5× DEKA FIT — 25km + 50 zones (endurance)" },
+  { value: "tri_olympic", label: "Olympic Triathlon", blurb: "1.5km swim / 40km bike / 10km run" },
   { value: "tri_70_3", label: "Ironman 70.3", blurb: "Half — 1.9km swim / 90km bike / 21.1km run" },
   { value: "tri_140_6", label: "Ironman 140.6", blurb: "Full — 3.8km swim / 180km bike / 42.2km run" },
   { value: "general_fitness", label: "General Fitness", blurb: "No race — rotating strength + cardio blocks for all-round fitness" },
@@ -184,6 +185,89 @@ const SUBGOAL_OPTIONS = [
   { value: "general_endurance", label: "Build endurance" },
   { value: "recomp", label: "Fat loss / recomposition" },
 ] as const;
+
+/** Weekly-time-budget question (volume-vs-intensity research). Bands mirror the
+ *  `WeeklyHours` schema enum; per-sport captions come from report tables 6.3–6.7. */
+const BUDGET_BANDS = [
+  { value: "h0_5", label: "0–5 hours / week" },
+  { value: "h5_10", label: "5–10 hours / week" },
+  { value: "h10_20", label: "10–20 hours / week" },
+  { value: "h20_30", label: "20–30 hours / week" },
+  { value: "h30_40", label: "30–40 hours / week" },
+] as const;
+
+type BudgetCopy = { level: string; tradeoff: string };
+
+/** Fallback used for sports without a bespoke research table (e.g. DEKA
+ *  ATLAS/ULTRA — intentionally not yet modelled). */
+const GENERIC_BUDGET: Record<string, BudgetCopy> = {
+  h0_5: { level: "Time-crunched", tradeoff: "Concentrated, higher-intensity work — efficient, but limits aerobic-base depth." },
+  h5_10: { level: "Committed amateur", tradeoff: "A well-rounded base with room for quality sessions." },
+  h10_20: { level: "Advanced / sub-elite", tradeoff: "Full base plus durability; little left on the table." },
+  h20_30: { level: "Elite / full-time", tradeoff: "Maximal aerobic depth; returns start to diminish." },
+  h30_40: { level: "Pro peak-block", tradeoff: "Camp-level volume; not sustainable long-term for most." },
+};
+
+/** Sport → band → athlete level + tradeoff (research report §6.3–6.7). Sports
+ *  not listed fall back to GENERIC_BUDGET. */
+const TIME_BUDGET_COPY: Record<string, Record<string, BudgetCopy>> = {
+  hyrox: {
+    h0_5: { level: "Recreational; competitive Open finisher", tradeoff: "Builds VO₂max, threshold & station efficiency; gives up running durability and aerobic-base depth." },
+    h5_10: { level: "Advanced age-grouper; Pro-qualifier attainable", tradeoff: "Adds race-specific durability; sacrifices only the last few % of aerobic base." },
+    h10_20: { level: "Elite / Pro", tradeoff: "Full durability, aerobic base and race simulation; sacrifices little." },
+    h20_30: { level: "Full-time Pro only", tradeoff: "Maximal durability; returns diminish and impact-injury risk becomes the limiter." },
+    h30_40: { level: "Pro peak-block only; not sustainable", tradeoff: "No added benefit beyond 20–30h for most; camp/peak use only." },
+  },
+  deka_fit: {
+    h0_5: { level: "Recreational → competitive", tradeoff: "Builds glycolytic power, zone efficiency & VO₂max; little lost for FIT." },
+    h5_10: { level: "Competitive age-grouper", tradeoff: "Race-specific power-endurance + aerobic support; gives up back-end aerobic base." },
+    h10_20: { level: "Elite", tradeoff: "Everything DEKA FIT rewards; sacrifices little." },
+    h20_30: { level: "Over-prescribed for DEKA; Pro only", tradeoff: "Aerobic ceiling well past DEKA's demands; strong diminishing returns." },
+    h30_40: { level: "Not recommended for DEKA", tradeoff: "Volume exceeds event demand." },
+  },
+  deka_mile: {
+    h0_5: { level: "Recreational → competitive", tradeoff: "Power & speed emphasis; a short, sharp event needs little aerobic volume." },
+    h5_10: { level: "Competitive → elite", tradeoff: "Ample for MILE's power-endurance demands." },
+    h10_20: { level: "Elite (beyond MILE's needs)", tradeoff: "More aerobic volume than the event rewards." },
+    h20_30: { level: "Over-prescribed for MILE", tradeoff: "Diminishing returns." },
+    h30_40: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
+  },
+  deka_strong: {
+    h0_5: { level: "Recreational → competitive (fully sufficient)", tradeoff: "Strength-endurance & glycolytic power; no running, minimal aerobic volume needed." },
+    h5_10: { level: "Elite", tradeoff: "More than enough for a ~10–14 min strength-endurance sprint." },
+    h10_20: { level: "Over-prescribed for STRONG", tradeoff: "Excess aerobic volume for the event." },
+    h20_30: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
+    h30_40: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
+  },
+  tri_olympic: {
+    h0_5: { level: "Recreational; sprint-focused", tradeoff: "VO₂max, threshold & race pace; gives up aerobic base and swim-technique volume." },
+    h5_10: { level: "Competitive age-grouper", tradeoff: "Competitive readiness; sacrifices only marginal base." },
+    h10_20: { level: "Sub-elite / elite", tradeoff: "Base, economy, threshold & durability; sacrifices little." },
+    h20_30: { level: "Elite / Pro", tradeoff: "Elite aerobic depth; diminishing returns for Olympic distance." },
+    h30_40: { level: "Pro peak-block only", tradeoff: "No Olympic-specific return beyond 20–30h." },
+  },
+  tri_70_3: {
+    h0_5: { level: "Survival-only; back-of-pack finisher", tradeoff: "Threshold/VO₂max & finishing fitness; gives up durability, fat oxidation, fuelling practice & run robustness." },
+    h5_10: { level: "Competitive age-grouper", tradeoff: "Credible mid-pack 70.3; sacrifices late-race durability depth." },
+    h10_20: { level: "Kona-70.3 qualifier / elite", tradeoff: "Durability, fat oxidation, GI tolerance & competitive readiness; sacrifices little." },
+    h20_30: { level: "Elite / Pro", tradeoff: "Elite durability and metabolic depth; approaching diminishing returns." },
+    h30_40: { level: "Pro only", tradeoff: "Marginal returns over 20–30h; recovery-support dependent." },
+  },
+  tri_140_6: {
+    h0_5: { level: "Not advised except to finish", tradeoff: "Central fitness only; sacrifices nearly all durability, fuelling & structural prep — high blow-up/injury risk." },
+    h5_10: { level: "Determined age-grouper; execution-dependent", tradeoff: "A realistic finish; sacrifices durability depth, GI robustness & injury margin." },
+    h10_20: { level: "Kona qualifier / strong age-grouper", tradeoff: "Durability, fat oxidation & GI tolerance — genuine competitiveness; near the amateur optimum." },
+    h20_30: { level: "Pro / full-time athlete", tradeoff: "Maximal durability and metabolic depth for 8h+ racing; overtraining risk without full-time recovery." },
+    h30_40: { level: "Pro peak-block only", tradeoff: "Volume-gated ceiling for the longest events; net-negative without pro recovery infrastructure." },
+  },
+  general_fitness: {
+    h0_5: { level: "Time-crunched", tradeoff: "Efficient, higher-intensity mix; comfortably hits health & fitness floors." },
+    h5_10: { level: "Well-rounded", tradeoff: "Comfortable balance of strength and cardio." },
+    h10_20: { level: "High-volume enthusiast", tradeoff: "Plenty of room for both emphases." },
+    h20_30: { level: "Very high volume", tradeoff: "More than most general-fitness goals require." },
+    h30_40: { level: "Athlete-level volume", tradeoff: "Beyond general-fitness needs." },
+  },
+};
 
 type ProgramType = "goal_event" | "fixed_duration" | "general_fitness";
 type Race = { date: string; priority: "A" | "B" | "C" };
@@ -204,6 +288,7 @@ export type EditInitial = {
   programName: string;
   startMileage?: number;
   startCardioMinutes?: number;
+  weeklyHours?: string;
   benchmarks?: Record<string, string | number | undefined>;
   /** Triathlon per-discipline experience (edit-mode pre-fill). */
   swimExp?: string;
@@ -235,11 +320,14 @@ export default function OnboardingForm({
   const [stepError, setStepError] = useState<string | null>(null);
   const [sport, setSport] = useState<string>(initial?.sport ?? "hyrox");
   const [subGoal, setSubGoal] = useState<string>(initial?.subGoal ?? "balanced");
+  // Weekly training-time budget (required for new programs) — volume-vs-intensity research.
+  const [weeklyHours, setWeeklyHours] = useState<string>(initial?.weeklyHours ?? "");
+  const budgetCopy = TIME_BUDGET_COPY[sport] ?? GENERIC_BUDGET;
   const sportBlurb = SPORT_OPTIONS.find((s) => s.value === sport)?.blurb ?? "";
   const isGeneralFitness = sport === "general_fitness";
   const isDeka = sport.startsWith("deka_");
   const isAtlas = sport === "deka_atlas";
-  const isTriathlon = sport === "tri_70_3" || sport === "tri_140_6";
+  const isTriathlon = sport === "tri_olympic" || sport === "tri_70_3" || sport === "tri_140_6";
   // Only HYROX and DEKA Fit prescribe runs paced off a 5K, so only they require it.
   const requiresFiveK = sport === "hyrox" || sport === "deka_fit";
 
@@ -340,6 +428,7 @@ export default function OnboardingForm({
     }
     if (current === 2) {
       if (days.length < 3) return "Pick at least 3 training days.";
+      if (!weeklyHours) return "Select how much time you can train each week.";
       if (showRaces && programType === "goal_event") {
         if (races.length === 0 || races.some((r) => !r.date)) return "Add a date for each race.";
         if (!races.some((r) => r.priority === "A")) return "Mark your main race as an A race.";
@@ -735,6 +824,45 @@ export default function OnboardingForm({
           <legend className="mb-1 font-medium">Training days (pick at least 3)</legend>
           <DayPills options={DAYS} selected={days} namePrefix="day" onToggle={toggleDay} />
           <span className="text-xs text-zinc-500">{days.length} selected</span>
+        </fieldset>
+
+        {/* Weekly training-time budget (required) — sets the program's total
+            volume. Per-sport athlete-level + tradeoff copy from the
+            volume-vs-intensity research (report §6.3–6.7). */}
+        <fieldset className="flex flex-col gap-2 text-sm">
+          <legend className="mb-1 font-medium">How much time can you train each week?</legend>
+          <p className="text-xs text-zinc-500">
+            Your program&apos;s total volume scales with this. There&apos;s no wrong answer — pick what&apos;s
+            realistic and we&apos;ll get the most out of the time you have.
+          </p>
+          <div className="flex flex-col gap-2">
+            {BUDGET_BANDS.map((b) => {
+              const c = budgetCopy[b.value];
+              const selected = weeklyHours === b.value;
+              return (
+                <label
+                  key={b.value}
+                  className={`flex cursor-pointer flex-col gap-1 rounded-lg border px-4 py-3 transition-colors ${
+                    selected ? "border-black bg-zinc-50" : "border-zinc-300 hover:border-zinc-400"
+                  }`}
+                >
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <input
+                      type="radio"
+                      name="weeklyHours"
+                      value={b.value}
+                      checked={selected}
+                      onChange={() => setWeeklyHours(b.value)}
+                      className="accent-black"
+                    />
+                    <span className="font-medium">{b.label}</span>
+                    {c?.level && <span className="text-xs text-zinc-500">· {c.level}</span>}
+                  </span>
+                  {c?.tradeoff && <span className="pl-6 text-xs text-zinc-500">{c.tradeoff}</span>}
+                </label>
+              );
+            })}
+          </div>
         </fieldset>
 
         {/* How many days/week they CURRENTLY train (Tasks #17) — a starting-fitness

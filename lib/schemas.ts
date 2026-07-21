@@ -26,11 +26,32 @@ export const Sport = z.enum([
   "deka_strong",
   "deka_atlas",
   "deka_ultra",
+  "tri_olympic",
   "tri_70_3",
   "tri_140_6",
   "general_fitness",
 ]);
 export type SportId = z.infer<typeof Sport>;
+
+/**
+ * Weekly training-time budget (research: volume-vs-intensity report, tables
+ * 6.3–6.7). Drives total volume and — in a later phase — the intensity
+ * distribution. OPTIONAL in the schema so existing programs / input snapshots
+ * stay valid and the golden-HYROX byte-identical path is unaffected; the
+ * onboarding form makes it REQUIRED for new programs (see app/onboarding).
+ */
+export const WeeklyHours = z.enum(["h0_5", "h5_10", "h10_20", "h20_30", "h30_40"]);
+export type WeeklyHoursBand = z.infer<typeof WeeklyHours>;
+
+/** Midpoint weekly hours used by the volume math when a band is consumed
+ *  (engine consumption lands in a later phase; unused at P0). */
+export const WEEKLY_HOURS_MIDPOINT: Record<WeeklyHoursBand, number> = {
+  h0_5: 4,
+  h5_10: 8,
+  h10_20: 15,
+  h20_30: 25,
+  h30_40: 35,
+};
 
 /** General-fitness sub-goal — biases the emphasis rotation (balanced default). */
 export const SubGoal = z.enum(["balanced", "recomp", "general_strength", "general_endurance"]);
@@ -169,6 +190,10 @@ export const ProfileSchema = z.object({
   /** How many days per week the athlete CURRENTLY trains (Tasks #17) — a fitness
    *  context signal, distinct from trainingDays (the days they WILL train). */
   currentDaysPerWeek: z.number().int().min(0).max(7).optional(),
+  /** Weekly training-time budget (volume-vs-intensity research). Optional here
+   *  for back-compat + golden-HYROX safety; REQUIRED by the onboarding form for
+   *  new programs. Drives volume (and, later, intensity distribution). */
+  weeklyHours: WeeklyHours.optional(),
 });
 
 export const RaceSchema = z.object({

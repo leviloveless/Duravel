@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Load, Volume & Intensity — Duravel Research Report</title>
+<style>
+  :root {
+    --bg: #f6f7f5;
+    --surface: #ffffff;
+    --surface-2: #eef1ee;
+    --ink: #1a2420;
+    --ink-soft: #46534c;
+    --ink-faint: #6b7770;
+    --line: #dde2dd;
+    --accent: #0f766e;      /* deep teal */
+    --accent-2: #ea7317;    /* amber */
+    --accent-soft: #e5f0ee;
+    --hi: #fff8ec;          /* highlight for prescription tables */
+    --hi-line: #f0d9b5;
+    --maxw: 820px;
+    --nav-w: 290px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10130f;
+      --surface: #171b16;
+      --surface-2: #1e231c;
+      --ink: #e7ece7;
+      --ink-soft: #b3bdb5;
+      --ink-faint: #8b968d;
+      --line: #2b322a;
+      --accent: #4bb5a7;
+      --accent-2: #f0913c;
+      --accent-soft: #14201d;
+      --hi: #221c12;
+      --hi-line: #4a3a20;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 18px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  .layout { display: flex; gap: 0; max-width: 1240px; margin: 0 auto; }
+
+  /* Sidebar nav */
+  aside {
+    width: var(--nav-w); flex: 0 0 var(--nav-w);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 28px 20px 40px 24px; border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .brand { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 800;
+    letter-spacing: .14em; text-transform: uppercase; font-size: 13px; color: var(--accent); }
+  .brand small { display:block; letter-spacing: .04em; text-transform: none; font-weight:600;
+    color: var(--ink-faint); font-size: 11px; margin-top: 6px; }
+  nav { margin-top: 22px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-link {
+    font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13.5px; line-height: 1.35;
+    color: var(--ink-soft); text-decoration: none; padding: 7px 10px; border-radius: 7px;
+    border-left: 2px solid transparent;
+  }
+  .nav-link:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-link.active { background: var(--accent-soft); color: var(--accent);
+    border-left-color: var(--accent); font-weight: 600; }
+
+  /* Main */
+  main { flex: 1 1 auto; min-width: 0; padding: 0 clamp(20px, 5vw, 64px) 120px; }
+  .hero { padding: 56px 0 30px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .kicker { font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; font-weight:700;
+    letter-spacing:.16em; text-transform:uppercase; color: var(--accent-2); }
+  .hero h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.12; margin: 14px 0 10px; letter-spacing: -0.01em; }
+  .hero p.sub { font-size: 18px; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+  .hero .meta { font-family:"Helvetica Neue",Arial,sans-serif; font-size: 13px; color: var(--ink-faint);
+    margin-top: 20px; display:flex; gap: 18px; flex-wrap: wrap; }
+  .hero .meta span { display:inline-flex; align-items:center; gap:6px; }
+
+  .content { max-width: var(--maxw); }
+  .content > section { scroll-margin-top: 20px; }
+  h1 { font-weight: 800; }
+  .content h1 { display: none; }          /* hide pandoc doc title (we have hero) */
+  .content > section.level2 > h2:first-of-type {}
+  h2 { font-size: 25px; line-height: 1.2; margin: 46px 0 14px; letter-spacing:-0.01em;
+    padding-top: 10px; }
+  section.level2 > h2 { color: var(--ink); border-top: 1px solid var(--line); padding-top: 34px; }
+  /* Part headings pop */
+  h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 750; }
+  h3 { font-family:"Helvetica Neue",Arial,sans-serif; font-size: 18.5px; font-weight: 700;
+    color: var(--accent); margin: 32px 0 8px; letter-spacing: .01em; }
+  p { margin: 0 0 16px; }
+  strong { font-weight: 700; }
+  em { }
+  a { color: var(--accent); }
+  ul, ol { padding-left: 22px; margin: 0 0 18px; }
+  li { margin: 6px 0; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
+  section.level2 > hr:first-child { display:none; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin: 20px 0 26px; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--surface); -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px;
+    font-family: "Helvetica Neue", Arial, sans-serif; }
+  thead th { background: var(--surface-2); color: var(--ink); text-align: left;
+    font-weight: 700; font-size: 12.5px; letter-spacing: .01em; padding: 11px 13px;
+    border-bottom: 2px solid var(--line); position: sticky; top: 0; }
+  tbody td { padding: 10px 13px; border-bottom: 1px solid var(--line); vertical-align: top;
+    color: var(--ink-soft); line-height: 1.45; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { font-weight: 700; color: var(--ink); white-space: nowrap; }
+  tbody tr:hover td { background: var(--surface-2); }
+
+  /* Prescription tables (7-col) get amber accent header */
+  .rx table thead th { background: var(--hi); border-bottom-color: var(--hi-line); }
+  .rx .table-wrap { border-color: var(--hi-line); }
+
+  blockquote { border-left: 3px solid var(--accent); background: var(--accent-soft);
+    margin: 20px 0; padding: 12px 18px; border-radius: 0 8px 8px 0; color: var(--ink-soft); }
+
+  .backtop { position: fixed; bottom: 22px; right: 22px; background: var(--accent); color:#fff;
+    border:none; width: 44px; height: 44px; border-radius: 50%; font-size: 18px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2); opacity: 0; pointer-events:none; transition: opacity .25s; }
+  .backtop.show { opacity: .92; pointer-events:auto; }
+
+  .mobile-nav { display:none; }
+
+  @media (max-width: 900px) {
+    aside { display: none; }
+    .mobile-nav { display:block; position: sticky; top:0; z-index: 20; background: var(--surface);
+      border-bottom: 1px solid var(--line); padding: 10px 16px; }
+    .mobile-nav select { width:100%; padding:10px; font-size:15px; border-radius:8px;
+      border:1px solid var(--line); background: var(--surface); color: var(--ink); }
+    main { padding: 0 18px 90px; }
+    body { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="mobile-nav">
+  <select onchange="if(this.value)location.hash=this.value">
+    <option value="">Jump to section…</option>
+    <option value="executive-summary">Executive Summary</option>    <option value="introduction-and-scope">1 · Introduction &amp; Scope</option>    <option value="part-i-quantifying-training-load-the-common-currency-and-what-it-hides">Part I · Quantifying Load</option>    <option value="part-ii-the-volumeintensity-dose-response-where-substitution-holds-and-where-it-breaks">Part II · Dose-Response</option>    <option value="part-iii-intensity-distribution-and-how-it-must-scale-with-volume">Part III · Intensity Distribution</option>    <option value="part-iv-what-volume-uniquely-buys-and-the-costs-of-trading-it-for-intensity">Part IV · What Volume Buys</option>    <option value="part-v-sport-specific-demands-and-the-concurrent-training-constraint">Part V · Sport Demands</option>    <option value="part-vi-the-prescriptive-framework-load-and-intensity-by-sport-and-time-budget">Part VI · Prescriptions</option>    <option value="part-vii-engine-integration-operationalizing-the-framework-in-duravel">Part VII · Engine Integration</option>    <option value="part-viii-limitations-and-evidence-gaps">Part VIII · Limitations</option>    <option value="references">References</option>
+  </select>
+</div>
+<div class="layout">
+  <aside>
+    <div class="brand">Duravel · Research<small>Sport Science Brief · July 2026</small></div>
+    <nav>
+      <a href="#executive-summary" class="nav-link" data-target="executive-summary">Executive Summary</a>
+      <a href="#introduction-and-scope" class="nav-link" data-target="introduction-and-scope">1 · Introduction &amp; Scope</a>
+      <a href="#part-i-quantifying-training-load-the-common-currency-and-what-it-hides" class="nav-link" data-target="part-i-quantifying-training-load-the-common-currency-and-what-it-hides">Part I · Quantifying Load</a>
+      <a href="#part-ii-the-volumeintensity-dose-response-where-substitution-holds-and-where-it-breaks" class="nav-link" data-target="part-ii-the-volumeintensity-dose-response-where-substitution-holds-and-where-it-breaks">Part II · Dose-Response</a>
+      <a href="#part-iii-intensity-distribution-and-how-it-must-scale-with-volume" class="nav-link" data-target="part-iii-intensity-distribution-and-how-it-must-scale-with-volume">Part III · Intensity Distribution</a>
+      <a href="#part-iv-what-volume-uniquely-buys-and-the-costs-of-trading-it-for-intensity" class="nav-link" data-target="part-iv-what-volume-uniquely-buys-and-the-costs-of-trading-it-for-intensity">Part IV · What Volume Buys</a>
+      <a href="#part-v-sport-specific-demands-and-the-concurrent-training-constraint" class="nav-link" data-target="part-v-sport-specific-demands-and-the-concurrent-training-constraint">Part V · Sport Demands</a>
+      <a href="#part-vi-the-prescriptive-framework-load-and-intensity-by-sport-and-time-budget" class="nav-link" data-target="part-vi-the-prescriptive-framework-load-and-intensity-by-sport-and-time-budget">Part VI · Prescriptions</a>
+      <a href="#part-vii-engine-integration-operationalizing-the-framework-in-duravel" class="nav-link" data-target="part-vii-engine-integration-operationalizing-the-framework-in-duravel">Part VII · Engine Integration</a>
+      <a href="#part-viii-limitations-and-evidence-gaps" class="nav-link" data-target="part-viii-limitations-and-evidence-gaps">Part VIII · Limitations</a>
+      <a href="#references" class="nav-link" data-target="references">References</a>
+    </nav>
+  </aside>
+  <main>
+    <header class="hero">
+      <div class="kicker">Evidence Review &amp; Prescriptive Framework</div>
+      <h1>Training Load, Volume &amp; Intensity in Hybrid and Endurance Sport</h1>
+      <p class="sub">How athletes can hold training load across different volumes by modifying intensity — the tradeoffs involved, and load-and-intensity prescriptions for HYROX, DEKA, Olympic triathlon, half-Ironman, and Ironman at 5, 10, 20, 30, and 40 hours per week.</p>
+      <div class="meta">
+        <span>◆ ~11,000 words</span>
+        <span>◆ 40+ peer-reviewed sources</span>
+        <span>◆ 5 sports × 5 time budgets</span>
+      </div>
+    </header>
+    <div class="content">
+<section
+id="training-load-volume-and-intensity-in-hybrid-and-endurance-sport"
+class="level1">
+<h1>Training Load, Volume, and Intensity in Hybrid and Endurance
+Sport</h1>
+<section
+id="an-evidence-review-and-prescriptive-framework-for-hyrox-deka-olympic-triathlon-half-ironman-and-ironman"
+class="level2">
+<h2>An Evidence Review and Prescriptive Framework for HYROX, DEKA,
+Olympic Triathlon, Half-Ironman, and Ironman</h2>
+<p><em>Prepared for Duravel · July 2026</em></p>
+<hr />
+</section>
+<section id="executive-summary" class="level2">
+<h2>Executive Summary</h2>
+<p>The central question this report answers is deceptively simple:
+<strong>can an athlete achieve the same training effect from ten hours a
+week as from forty, by training harder in the time available?</strong>
+The honest, evidence-based answer is <em>partly</em> — and the
+boundaries of that “partly” are the most important thing a programming
+engine can encode.</p>
+<p>Three findings organize everything that follows.</p>
+<p><strong>First, training load is not a single fungible number, even
+though we treat it like one.</strong> Every load metric in use —
+Banister’s TRIMP, Foster’s session-RPE load, Coggan’s Training Stress
+Score (TSS), Skiba’s running stress score — reduces a session to
+intensity × duration, with intensity raised to a power (an exponential
+of heart-rate reserve in TRIMP; a fourth power of normalized power in
+TSS). That non-linear weighting is exactly why a short, hard session can
+<em>numerically</em> equal a long, easy one. But the equality is a
+bookkeeping convenience, not a physiological identity. Two sessions with
+identical load scores can drive different adaptations, because the body
+responds to the <em>pattern</em> of the stimulus, not just its
+integral.</p>
+<p><strong>Second, intensity substitutes for volume for some adaptations
+and not others.</strong> For maximal oxygen uptake (VO₂max) and general
+cardiometabolic health, the substitution is remarkably strong:
+controlled trials show that roughly 90% of endurance training volume can
+be removed and, if the remaining ~10% is performed at near-maximal
+intensity, VO₂max and mitochondrial adaptations are largely preserved
+(Gibala, Burgomaster, Gillen). One study reproduced a full 50-minute
+moderate session’s VO₂peak gain with about <em>one minute</em> of hard
+work per session. But when total work is held constant, higher intensity
+produces <em>superior</em> mitochondrial adaptation (MacInnis 2017),
+while capillary density, plasma volume, cardiac remodeling,
+fat-oxidation capacity, connective-tissue robustness, and — above all —
+<em>durability</em> (resistance to physiological drift over hours) are
+driven by accumulated low-intensity volume and cannot be bought with
+intensity at any price.</p>
+<p><strong>Third, the losses from trading volume for intensity scale
+with event duration and athlete training age.</strong> For a two-minute
+CrossFit metcon or a general-fitness goal, intensity is nearly a full
+substitute for volume. For a five-to-seventeen-hour Ironman, it is not:
+long-course performance correlates with <em>accumulated low-intensity
+volume</em> at roughly r = −0.9 (Muñoz 2014), because the race is won on
+fat oxidation, durability, and structural resilience — all volume-gated.
+And the well-trained athlete has already harvested the fast,
+intensity-driven gains; further progress requires the slow,
+volume-driven adaptations that most low-volume HIIT studies (conducted
+in untrained subjects) never measured.</p>
+<p>The practical synthesis is a <strong>load-and-distribution
+framework</strong> that does three things at each weekly-time budget (5,
+10, 20, 30, and 40 hours): it sets a realistic weekly load target, it
+prescribes an intensity distribution that shifts systematically from
+threshold/pyramidal at low volume toward strongly polarized at high
+volume, and it names explicitly what each budget <em>cannot</em> buy —
+so the athlete (and the engine) makes an informed trade rather than an
+invisible one. The report closes with complete 5-sport × 5-budget
+prescription matrices and a specification for encoding this logic in
+Duravel’s programming engine.</p>
+<p>A note on confidence: the quantitative core of this report is drawn
+from peer-reviewed primary sources, and claims are flagged where the
+evidence is a single small study, a coaching consensus, or a figure that
+could not be verified to primary source. HYROX physiology in particular
+rests on a single N=11 study (Brandt 2025), and no laboratory study of
+DEKA yet exists; those prescriptions lean more on transferable
+physiology and coaching judgment than on direct evidence, and are
+labeled as such.</p>
+<hr />
+</section>
+<section id="introduction-and-scope" class="level2">
+<h2>1. Introduction and Scope</h2>
+<p>Endurance and hybrid athletes face a resource-allocation problem
+before they face a physiological one. Time is the binding constraint for
+almost everyone below the professional ranks, and the market of training
+advice offers two competing answers to what to do with a limited budget:
+accumulate volume (the “miles make champions” tradition of distance
+running, rowing, and cycling), or concentrate intensity (the low-volume
+HIIT movement, popularized from the Gibala laboratory and adopted
+enthusiastically by time-crunched athletes and the CrossFit world).</p>
+<p>Both camps are partly right, and the disagreement persists because
+they are often measuring different outcomes in different populations
+over different timeframes. This report resolves the disagreement into a
+single coherent model by asking three linked questions:</p>
+<ol type="1">
+<li><strong>How do we quantify training load</strong> such that a
+volume-heavy week and an intensity-heavy week can be compared on a
+common scale — and what does that scale hide?</li>
+<li><strong>Where along the volume–intensity trade-off does each
+physiological adaptation live</strong> — which respond to intensity,
+which require volume, and which plateau?</li>
+<li><strong>Given a fixed weekly time budget, what is the
+load-and-intensity prescription</strong> that maximizes performance for
+a specific event, and what does that prescription knowingly
+sacrifice?</li>
+</ol>
+<p>The events in scope span a wide duration range, and duration turns
+out to be the master variable that determines how the volume–intensity
+trade resolves:</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Event</th>
+<th>Typical elite duration</th>
+<th>Dominant energy contribution</th>
+<th>Volume-dependence of performance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>DEKA STRONG</td>
+<td>~10–14 min</td>
+<td>Glycolytic / muscular-endurance</td>
+<td>Low</td>
+</tr>
+<tr class="even">
+<td>DEKA MILE</td>
+<td>~16–22 min</td>
+<td>Mixed power-endurance</td>
+<td>Low–Moderate</td>
+</tr>
+<tr class="odd">
+<td>DEKA FIT</td>
+<td>~28–37 min</td>
+<td>Glycolytic-oxidative</td>
+<td>Moderate</td>
+</tr>
+<tr class="even">
+<td>HYROX</td>
+<td>~52–90 min</td>
+<td>Aerobic-dominant (~70–80% of race) with repeated supra-threshold
+spikes</td>
+<td>Moderate–High</td>
+</tr>
+<tr class="odd">
+<td>Olympic triathlon</td>
+<td>~1:45–2:15</td>
+<td>Aerobic-dominant, threshold-rich</td>
+<td>High</td>
+</tr>
+<tr class="even">
+<td>Half-Ironman (70.3)</td>
+<td>~3:45–5:30</td>
+<td>Aerobic, sub-threshold</td>
+<td>High</td>
+</tr>
+<tr class="odd">
+<td>Ironman (140.6)</td>
+<td>~8:00–17:00</td>
+<td>Aerobic, fat-oxidation and durability limited</td>
+<td>Very high</td>
+</tr>
+</tbody>
+</table></div>
+<p>The report treats CrossFit as a reference point on the
+short/glycolytic end of the spectrum rather than as a prescription
+target, per the requested scope. A recurring theme is that the same
+weekly-hour budget produces very different optimal programs across this
+table: five hours a week is a <em>complete</em> training solution for
+DEKA STRONG and a <em>survival-only</em> dose for Ironman.</p>
+<p>A terminology note used throughout: unless stated otherwise,
+<strong>“Zone 1 / Z1”</strong> means below the first lactate or
+ventilatory threshold (LT1/VT1) — genuinely easy, conversational,
+fat-oxidation-dominant work. This corresponds to what popular culture
+calls “Zone 2 training.” <strong>“Zone 2 / Z2”</strong> here means the
+<em>threshold</em> band between LT1 and LT2 (the “gray zone” / tempo /
+sweet spot). <strong>“Zone 3 / Z3”</strong> means above the second
+threshold (LT2/VT2/critical power) — hard intervals and race-pace work.
+This is the three-zone model used in the sport-science
+intensity-distribution literature (Seiler), and getting it straight is
+essential to reading the prescriptions correctly.</p>
+<hr />
+</section>
+<section
+id="part-i-quantifying-training-load-the-common-currency-and-what-it-hides"
+class="level2">
+<h2>Part I — Quantifying Training Load: The Common Currency and What It
+Hides</h2>
+<section id="the-load-metrics-and-their-mathematics" class="level3">
+<h3>1.1 The load metrics and their mathematics</h3>
+<p>Every attempt to compare a volume-heavy week against an
+intensity-heavy week depends on a metric that collapses a session into a
+single number. All the metrics in serious use share one architecture —
+<strong>internal load = f(intensity) × duration</strong> — and differ
+only in how they weight intensity. Understanding that weighting is the
+key to understanding why “short and hard” can equal “long and easy” on
+paper.</p>
+<p><strong>Banister’s TRIMP (Training Impulse).</strong> The original
+impulse metric. TRIMP = D × ΔHR × Y, where D is duration in minutes, ΔHR
+is the fraction of heart-rate reserve [(HR_ex − HR_rest)/(HR_max −
+HR_rest)], and Y is a non-linear weighting factor derived from the
+blood-lactate profile: Y = 0.64·e^(1.92·ΔHR) for men and
+0.86·e^(1.67·ΔHR) for women (Banister 1991; Morton, Fitz-Clarke &amp;
+Banister 1990). The <em>exponential</em> term is the crucial feature —
+each unit of heart-rate reserve at high intensity is worth
+disproportionately more than the same unit at low intensity, mirroring
+the exponential rise of blood lactate with intensity.</p>
+<p><strong>Foster’s session-RPE (sRPE) load.</strong> The most practical
+and modality-agnostic metric: Load (arbitrary units, AU) = session RPE
+(0–10 CR-10 scale) × session duration in minutes (Foster et al. 2001).
+Its great virtue for a hybrid platform is that it works identically for
+a run, a swim, a barbell session, or a HYROX station simulation —
+anywhere a heart-rate or power model breaks down, RPE still applies. It
+validates well against HR-based TRIMP across sports (r ≈ 0.5–0.9). Two
+derived constructs matter for injury/overtraining monitoring:
+<strong>training monotony</strong> = weekly mean daily load ÷ its
+standard deviation, and <strong>training strain</strong> = weekly total
+load × monotony (Foster 1998).</p>
+<p><strong>Coggan’s Training Stress Score (TSS).</strong> The cycling
+standard, now extended to running (rTSS). TSS = (t × NP × IF)/(FTP ×
+3600) × 100, which reduces to TSS = (t_seconds × IF²)/3600 × 100, so
+that <strong>100 TSS = one hour at functional threshold power</strong>.
+The intensity factor IF = NP/FTP, and Normalized Power (NP) is itself a
+fourth-power rolling average — 30-second rolling power values are raised
+to the fourth power, averaged, and the fourth root taken. Like TRIMP’s
+exponential, this fourth-power weighting deliberately inflates the
+contribution of high-intensity surges.</p>
+<p><strong>Edwards’ and Lucia’s summated heart-rate-zone
+TRIMPs.</strong> Simpler, linear alternatives. Edwards (1993) assigns
+integer weights 1–5 to five %HRmax zones and sums minutes × weight.
+Lucia et al. (2003) use three zones bounded by ventilatory thresholds
+with weights 1, 2, 3. Both are transparent but <em>linear</em>, and
+therefore systematically under-credit very high intensity relative to
+the exponential/fourth-power metrics — a subtle but important bias when
+comparing polarized against threshold programs.</p>
+<p><strong>Skiba’s GOVSS / running stress.</strong> For running without
+a power meter, Skiba (2006) built an analogue to TSS using a
+lactate-normalized power derived from velocity and grade, with the
+empirically fitted relationship %Lactate = (%Power at threshold)^3.52
+(R² = 0.865). The ~3.5 exponent is the running-specific version of the
+same non-linear intensity weighting.</p>
+<p>The takeaway for the engine: <strong>the choice of metric changes the
+answer.</strong> A polarized program (lots of easy plus a little
+very-hard) accrues more load under exponential metrics (TRIMP, TSS) than
+under linear ones (Edwards, Lucia), because the exponential metrics
+reward the very-hard fraction disproportionately. Duravel should
+standardize on one internal metric — session-RPE load is recommended for
+its cross-modal validity — and treat cross-modality equivalence as a
+planning heuristic, not a physiological law.</p>
+</section>
+<section
+id="the-fitnessfatigue-model-why-more-load-is-not-monotonically-better"
+class="level3">
+<h3>1.2 The fitness–fatigue model: why more load is not monotonically
+better</h3>
+<p>Load is an input; performance is the output, and the mapping between
+them is not linear. The dominant model is Banister’s impulse-response
+(fitness-fatigue) system (Calvert, Banister et al. 1976), in which
+performance is the <em>difference</em> of two exponentially decaying
+traces driven by the same load impulses:</p>
+<p>Performance(t) = p₀ + k₁·Σ w(i)·e^(−(t−i)/τ₁) − k₂·Σ
+w(i)·e^(−(t−i)/τ₂)</p>
+<p>where w(i) is the daily load, τ₁ is the fitness decay time constant
+(~45–50 days), τ₂ is the fatigue decay constant (~11–15 days), and
+typically k₂ &gt; k₁ (fatigue is larger in magnitude but shorter-lived
+than fitness). This structure explains three things a programming engine
+must respect:</p>
+<ul>
+<li><strong>Fatigue masks fitness.</strong> Adding load raises fitness
+<em>and</em> fatigue; because fatigue is the larger term short-term,
+piling on load can <em>lower</em> measured performance until the load is
+reduced. This is the quantitative basis for tapering — cut load and
+fatigue decays faster than fitness, so performance rises. The tapering
+meta-analysis (Bosquet 2007; 2023 update) confirms the optimal taper
+reduces volume 41–60% over 8–14 days <em>while maintaining
+intensity</em>, improving time-trial performance by a moderate-to-large
+effect (SMD ≈ −0.5 to −1.5).</li>
+<li><strong>Diminishing returns are structural.</strong> Adaptation
+saturates as fitness rises; the same absolute load yields progressively
+less adaptation in a fitter athlete (baseline fitness is the single
+strongest predictor of how much an athlete will gain from a given
+stimulus — Mølmen 2025). Doubling load never doubles adaptation.</li>
+<li><strong>The operational instantiation is CTL/ATL/TSB.</strong>
+TrainingPeaks’ Performance Management Chart is Banister’s model in
+production: Chronic Training Load (42-day exponentially weighted load)
+as “fitness,” Acute Training Load (7-day) as “fatigue,” and Training
+Stress Balance (CTL − ATL) as “form.” Duravel’s engine can adopt the
+same two-time-constant structure natively.</li>
+</ul>
+</section>
+<section
+id="the-acutechronic-workload-ratio-a-monitoring-heuristic-not-a-law"
+class="level3">
+<h3>1.3 The acute:chronic workload ratio — a monitoring heuristic, not a
+law</h3>
+<p>Because load drives both adaptation and injury, the <em>rate of
+change</em> of load matters. Gabbett’s acute:chronic workload ratio
+(ACWR = 1-week load ÷ 4-week rolling average load) proposes a “sweet
+spot” of 0.80–1.30 and a “danger zone” above 1.50, where injury risk in
+the following week rises sharply (often cited as 2–4× at ACWR &gt; 1.5).
+The framework’s enduring insight — the “training-injury prevention
+paradox” — is that <strong>high chronic load is protective</strong>: a
+large aerobic base raises the denominator and buffers the athlete
+against the spikes that actually cause injury. An all-intensity,
+low-volume program is structurally dangerous precisely because it keeps
+the chronic base low, so any hard week is a relative spike.</p>
+<p>The caveat, and it is a serious one, is that ACWR has been
+methodologically challenged: Lolli et al. (2019) showed the coupled
+ratio is mathematically self-correlated (the acute period is part of the
+chronic period), inflating apparent associations, and Impellizzeri et
+al. (2020) catalogued further artefacts of the ratio construction and
+arbitrary time windows. The engine should therefore treat ACWR as a
+<em>soft guardrail for flagging risky load progressions</em> — an
+uncoupled or exponentially-weighted version is preferable — not as a
+causal target to optimize.</p>
+<hr />
+</section>
+</section>
+<section
+id="part-ii-the-volumeintensity-dose-response-where-substitution-holds-and-where-it-breaks"
+class="level2">
+<h2>Part II — The Volume–Intensity Dose-Response: Where Substitution
+Holds and Where It Breaks</h2>
+<section
+id="the-strong-case-for-substitution-low-volume-high-intensity-training"
+class="level3">
+<h3>2.1 The strong case for substitution: low-volume, high-intensity
+training</h3>
+<p>The evidence that intensity can replace a large fraction of volume —
+for specific outcomes — is genuinely striking, and it is the empirical
+engine behind the entire time-crunched training movement.</p>
+<p>The foundational results come from the Gibala and Burgomaster
+laboratories. Burgomaster et al. (2005) had subjects perform just six
+sessions of sprint-interval training (4–7 × 30-second all-out cycling
+sprints) over two weeks and saw muscle citrate synthase (a mitochondrial
+marker) rise ~38% and cycle endurance capacity roughly double. Gibala et
+al. (2006) then showed that a sprint-interval group performing about
+<strong>90% less total work</strong> than an endurance group matched it
+on muscle oxidative capacity and time-trial performance. Burgomaster et
+al. (2008) extended this to six weeks and confirmed comparable
+oxidative-enzyme increases and substrate-use adaptations between
+low-volume sprint training and traditional endurance training at roughly
+a tenth of the volume.</p>
+<p>The single most vivid demonstration is Gillen &amp; Gibala (2016):
+twelve weeks comparing sprint-interval training (three 20-second all-out
+efforts inside a ten-minute session — about one minute of genuinely hard
+work) against moderate continuous training (45 minutes at ~70% HRmax).
+<strong>Both raised VO₂peak by ~19%</strong>, with similar improvements
+in insulin sensitivity and mitochondrial content, at a fivefold
+difference in time and volume. Reduced-exertion protocols (REHIT —
+Metcalfe, Vollaard) push the minimum dose even lower, improving VO₂max
+~15% on two 10–20-second sprints per session.</p>
+<p>The mechanism is that VO₂max and mitochondrial signaling respond
+strongly to the <em>metabolic disturbance</em> that intense work
+produces efficiently — high recruitment of muscle fibers, large swings
+in calcium, AMP:ATP ratio, and reactive oxygen species that trigger
+PGC-1α and mitochondrial biogenesis. Per hour invested, intense work is
+roughly 3–4× more efficient than endurance work for mitochondrial
+content (Mølmen 2025 meta-regression). For an athlete whose binding
+constraint is time, and whose goal is aerobic power or metabolic health,
+<strong>this is a real and large substitution effect.</strong></p>
+</section>
+<section id="the-limits-of-substitution-where-the-model-breaks"
+class="level3">
+<h3>2.2 The limits of substitution: where the model breaks</h3>
+<p>The substitution story has three important boundaries, and a
+programming engine that ignores them will systematically mis-serve
+long-course athletes.</p>
+<p><strong>Boundary 1 — At matched work, intensity and volume drive
+<em>different</em> adaptations, and neither is a full
+substitute.</strong> The cleanest experiment is MacInnis et al. (2017),
+a within-subject single-leg cycling study where one leg trained with
+intervals and the other with continuous work <em>matched for total
+work</em>. The interval leg gained far more mitochondrial adaptation
+(citrate synthase +39% vs +11%; respiration +22% vs −9%). So intensity
+is not merely a time-efficient route to the same endpoint — at equal
+load it produces a <em>different, larger</em> mitochondrial response.
+Conversely, capillarization runs the other way: endurance/volume
+training produces the largest capillary-density gains, exceeding HIIT
+and sprint training by ~5–13% (Mølmen 2025), because capillary growth
+responds to <em>sustained shear stress</em> that only duration provides.
+A single “load” number cannot capture both facts. Load is fungible
+<em>within</em> an adaptive pathway, not across all of them.</p>
+<p><strong>Boundary 2 — The low-volume HIIT literature is dominated by
+untrained subjects over short timeframes.</strong> This is the most
+important caveat for a platform serving committed athletes. The dramatic
+“90% less volume, same result” findings were overwhelmingly obtained in
+previously untrained or recreationally active people over 2–12 weeks.
+Mølmen’s 2025 meta-regression found that <strong>baseline fitness is the
+single strongest predictor of adaptation magnitude</strong>, and that in
+well-trained individuals, mitochondrial content moved <em>only</em> with
+sprint training while capillarization did not increase further at all.
+In other words, the trained athlete has already banked the fast,
+intensity-driven gains; the remaining performance to be won lives in the
+slow, volume-driven adaptations. VO₂max gains across modalities cluster
+around 9–12% and then plateau; endurance’s advantage in the trained
+state is the <em>durability and long-lasting nature</em> of the
+adaptation, not a higher peak.</p>
+<p><strong>Boundary 3 — Total load itself is volume-dominated, so
+“load-matching” a low-volume week is arithmetically impossible past a
+point.</strong> Consider session-RPE load (RPE × minutes). A 20-hour
+polarized week accumulates on the order of 5,000 AU; to match that in 5
+hours (300 minutes) would require an average session RPE above 16 on a
+10-point scale — a physical impossibility. The honest framing is not
+“you can get the same load in less time by going harder” but “you can
+get the same <em>specific fast-adapting outcomes</em> (VO₂max,
+mitochondrial content) in less time by going harder, while accumulating
+a fraction of the total load and forgoing the volume-gated adaptations.”
+The engine should represent this as <strong>partial, outcome-specific
+substitution with a hard ceiling</strong>, not linear fungibility.</p>
+</section>
+<section
+id="diminishing-returns-and-the-non-linearity-of-the-dose-response"
+class="level3">
+<h3>2.3 Diminishing returns and the non-linearity of the
+dose-response</h3>
+<p>The dose-response curve of adaptation to load is saturating, not
+linear. Early and untrained gains are large; each additional increment
+of load yields less. Mølmen’s finding that untrained subjects gained
+6–20% more than trained subjects from the same protocols is the
+empirical signature of this curve. The per-hour efficiency of volume
+falls as volume rises, which is precisely why elite endurance athletes
+accumulate enormous volumes at very low intensity — they are operating
+far out on the flat part of the curve, where the <em>only</em> remaining
+lever is more low-cost volume, because more intensity would exceed their
+recovery ceiling (Part IV).</p>
+<p>This produces a counter-intuitive but well-supported conclusion that
+the prescriptions in Part VI encode: <strong>the optimal intensity
+distribution is not fixed — it must scale with volume.</strong> At low
+volume, the athlete is on the steep part of the curve and intensity is
+the efficient lever. At high volume, intensity is capped by recovery and
+the marginal hour must be easy. The next section makes this
+quantitative.</p>
+<hr />
+</section>
+</section>
+<section
+id="part-iii-intensity-distribution-and-how-it-must-scale-with-volume"
+class="level2">
+<h2>Part III — Intensity Distribution and How It Must Scale With
+Volume</h2>
+<section id="the-four-distribution-models" class="level3">
+<h3>3.1 The four distribution models</h3>
+<p>Given a total load, how should it be spread across the intensity
+zones? The literature defines four canonical patterns on the three-zone
+model:</p>
+<ul>
+<li><strong>Polarized (POL):</strong> roughly 75–80% Z1, ≤5% Z2, 15–20%
+Z3. A bimodal “lots of easy, meaningful hard, little middle” pattern.
+Seiler’s shorthand is “80/20.”</li>
+<li><strong>Pyramidal (PYR):</strong> volume decreases as intensity
+rises, e.g. ~80% Z1, ~15% Z2, ~5% Z3 — more threshold work than the
+polarized model, and Z2 is <em>not</em> minimized. This is what most
+elite endurance athletes actually do in base/preparation phases.</li>
+<li><strong>Threshold (THR):</strong> a heavy concentration of work in
+Z2 (the classic “sweet spot” / tempo emphasis), e.g. ~45–55% Z2.</li>
+<li><strong>High-intensity (HIIT):</strong> disproportionate Z3, minimal
+Z2, and reduced total volume — the low-volume model of Part II.</li>
+</ul>
+<p>The descriptive foundation is Seiler &amp; Kjerland (2006), who
+tracked elite cross-country skiers and found ~75% of work clearly below
+the first threshold, only ~6–8% in the threshold zone, and ~15–20%
+high-intensity, regardless of whether measured by heart rate, RPE, or
+blood lactate. Fiskerstrand &amp; Seiler’s (2004) thirty-year
+retrospective of Olympic-medalist rowers found that, over three decades,
+low-intensity volume <em>rose</em> while high-intensity volume
+<em>fell</em> — and VO₂max and performance improved ~10–12%. Elites got
+better by adding easy volume and cutting hard volume.</p>
+</section>
+<section id="what-the-controlled-trials-show" class="level3">
+<h3>3.2 What the controlled trials show</h3>
+<p>The interventional evidence modestly favors polarized training for
+aerobic power, but is more equivocal for race performance:</p>
+<ul>
+<li><strong>Stöggl &amp; Sperlich (2014)</strong>, a four-arm trial in
+well-trained endurance athletes, found polarized training produced the
+largest gains in VO₂peak (+11.7%), time-to-exhaustion (+17.4%), and peak
+power — beating threshold, high-volume, and HIIT models. The important
+confound is that the polarized arm was not volume-matched to the others
+(it carried both more total volume <em>and</em> meaningful high
+intensity).</li>
+<li><strong>Neal et al. (2013)</strong>, a within-subject crossover in
+trained cyclists, found polarized (80/0/20) beat threshold (57/43/0) on
+peak power (+8% vs +3%), lactate threshold (+9% vs +2%), and
+high-intensity capacity (+85% vs +37%) — even though the threshold arm
+did slightly more hours.</li>
+<li><strong>Muñoz et al. (2014)</strong> in runners found both polarized
+and threshold-heavy training improved 10 km time, with polarized
+superior specifically among the best-adhering athletes.</li>
+<li>The <strong>meta-analytic verdict</strong> is narrower than the
+enthusiasm suggests. Silva Oliveira et al. (2024) found polarized
+superior for VO₂peak (SMD 0.24, larger in highly-trained athletes and
+short blocks) but <strong>statistically equivalent to
+pyramidal/threshold for time-trial performance</strong> (SMD −0.01).
+Rosenblat et al. (2019) found a moderate polarized advantage over
+threshold for time-trial performance (ES −0.66) but from only three
+small trials.</li>
+</ul>
+<p>The honest synthesis: <strong>intensity distribution is a fine-tuning
+lever, not the master switch.</strong> Total volume and training
+frequency are the primary drivers (Seiler’s “hierarchy of endurance
+training needs” places frequency/volume above intensity distribution);
+polarized organization extracts modestly more aerobic power from a given
+volume, especially in trained athletes, but pyramidal remains what most
+elites actually do in base phases and is not meaningfully inferior for
+race outcomes.</p>
+</section>
+<section id="the-governing-principle-distribution-scales-with-volume"
+class="level3">
+<h3>3.3 The governing principle: distribution scales with volume</h3>
+<p>The single most useful organizing idea for a programming engine is
+this: <strong>the absolute amount of high-intensity (Z3) work an athlete
+can absorb and recover from is limited and only weakly related to total
+hours.</strong> It is set by recovery capacity — roughly two to four
+quality sessions per week, a few hours at most. Therefore, as total
+volume rises, that fixed hard-work quantity becomes a <em>smaller
+percentage</em>, and the distribution migrates automatically from
+threshold/pyramidal toward polarized. Conversely, at low volume you
+cannot fill the week with easy work and still get an adequate stimulus,
+so the mix must skew toward more Z2/Z3.</p>
+<p>This yields a volume-dependent distribution schedule (a
+coaching-consensus heuristic grounded in the mechanistic data, to be
+read as such):</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Weekly hours</th>
+<th>Practical model</th>
+<th>Approx. Z1 / Z2 / Z3</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3–5 h (time-crunched)</td>
+<td>Threshold-leaning <strong>pyramidal</strong>; 2–3 quality
+sessions</td>
+<td>~60–75 / 15–25 / 10–15</td>
+<td>Too few hours to justify mostly-easy work; stimulus must be
+concentrated. Intensity substitutes for missing volume (Part II).</td>
+</tr>
+<tr class="even">
+<td>6–9 h (committed amateur)</td>
+<td><strong>Pyramidal</strong>, 2 quality sessions</td>
+<td>~75–80 / 12–18 / 5–10</td>
+<td>Enough base to protect easy volume; threshold work still
+present.</td>
+</tr>
+<tr class="odd">
+<td>10–15 h (sub-elite)</td>
+<td><strong>Pyramidal</strong> base → <strong>polarized</strong>
+build</td>
+<td>~80–85 / 5–12 / 8–15</td>
+<td>Base grows; hard work stays ~2–3 sessions so its share falls;
+minimize gray zone near competition.</td>
+</tr>
+<tr class="even">
+<td>20–30+ h (elite)</td>
+<td>Strongly <strong>polarized</strong>, huge Z1 base</td>
+<td>~85–90 / 2–5 / 8–12</td>
+<td>Tolerable Z3 is capped by recovery; the remaining hours
+<em>must</em> be easy. Matches Seiler/Fiskerstrand elite data.</td>
+</tr>
+</tbody>
+</table></div>
+<p>A periodization overlay sits on top: even within one athlete, base
+phases run more pyramidal (more threshold work) and competition-specific
+phases move toward polarized (sharpen Z3, minimize the gray zone). The
+best runner evidence suggests a <em>sequence</em> — pyramidal base then
+polarized sharpening — maximizes gains.</p>
+</section>
+<section
+id="the-maintenance-asymmetry-the-one-variable-you-must-not-cut"
+class="level3">
+<h3>3.4 The maintenance asymmetry: the one variable you must not
+cut</h3>
+<p>A final, decisive piece of evidence tells the engine how to handle
+time-reduced weeks. The classic Hickson studies (1981, 1982, 1985)
+dissociated the three training variables in trained subjects: cutting
+<strong>frequency</strong> (from 6 to 2–4 days/week) or
+<strong>duration</strong> (from 40 to 13 minutes) for 15 weeks
+<em>maintained</em> VO₂max, but cutting <strong>intensity</strong> by a
+third or two-thirds <em>reduced</em> VO₂max and endurance. Houmard et
+al. (1990) confirmed that a ~70% volume reduction, with intensity
+maintained, held VO₂max and 5 km race time in runners for three weeks.
+The tapering meta-analysis reaches the same conclusion: reduce volume
+41–60%, <em>maintain intensity</em>, and performance improves.</p>
+<p>The rule the engine should encode: <strong>when time collapses,
+protect intensity and cut volume — never the reverse.</strong> A
+maintained-intensity program of one to two quality sessions per week on
+~50–70% reduced volume holds VO₂max and threshold for roughly two to
+four months. Beyond that horizon, and for the base traits (LT1, fat
+oxidation, economy, durability, capillarization), volume must return —
+which is the subject of Part IV.</p>
+<hr />
+</section>
+</section>
+<section
+id="part-iv-what-volume-uniquely-buys-and-the-costs-of-trading-it-for-intensity"
+class="level2">
+<h2>Part IV — What Volume Uniquely Buys, and the Costs of Trading It for
+Intensity</h2>
+<p>If intensity can hold VO₂max and mitochondrial content on little
+volume, why do the best endurance athletes in the world train 20–40
+hours a week, most of it easy? Because a set of performance-decisive
+adaptations are <em>volume-gated</em> — they respond to accumulated
+time, not to intensity — and because high intensity carries systemic
+costs that cap how much of it any athlete can absorb. This section is
+the counterweight to Part II, and it is what makes the low-volume trade
+a genuine trade rather than a free lunch.</p>
+<section id="the-volume-gated-adaptations" class="level3">
+<h3>4.1 The volume-gated adaptations</h3>
+<p><strong>Capillarization.</strong> The density of capillaries
+surrounding muscle fibers governs oxygen and substrate delivery and
+metabolite clearance. It responds to sustained shear stress, and in the
+meta-regression evidence endurance training produces the largest gains
+(~13%), exceeding HIIT and especially sprint training; in well-trained
+athletes, short high-intensity work does not increase it further at all
+(Mølmen 2025). This is a duration-dependent adaptation that intensity
+cannot reproduce.</p>
+<p><strong>Total mitochondrial content.</strong> Although intensity is
+more efficient <em>per hour</em> for mitochondrial signaling,
+<em>total</em> content is driven by total volume and frequency (6 &gt; 4
+&gt; 2 sessions/week), and Bishop’s position — supported by the
+meta-regression — is that “training volume is more important than
+training intensity to promote increases in mitochondrial content.”
+Critically, these adaptations <em>reverse</em> when volume is withdrawn
+(Granata &amp; Bishop 2016): they must be maintained by ongoing volume,
+not banked once.</p>
+<p><strong>Fat-oxidation capacity.</strong> Maximal fat oxidation and
+the intensity at which it occurs rise with accumulated low-intensity
+(“Zone 1”) volume, tied to the mitochondrial and capillary adaptations
+above. For any event lasting more than ~90 minutes, the ability to spare
+glycogen by oxidizing fat is performance-decisive, and it is built by
+hours, not intervals.</p>
+<p><strong>Cardiac remodeling and plasma volume.</strong> Eccentric
+left-ventricular enlargement and the associated rise in stroke volume
+develop slowly over many months of accumulated endurance training
+(Arbab-Zadeh 2014, a one-year progressive study). Plasma-volume
+expansion (~10%) raises cardiac filling and aids thermoregulation. Both
+are volume-and-duration-sensitive central adaptations that brief intense
+work does not produce.</p>
+<p><strong>Exercise economy.</strong> Economy — the oxygen or energy
+cost of a given pace — is a stronger discriminator of performance among
+athletes with similar VO₂max than VO₂max itself, and it improves slowly
+over years of sport-specific volume through neuromuscular and
+elastic-tissue refinement. It is an exposure-dependent, largely
+volume-driven adaptation.</p>
+<p><strong>Connective tissue — the slow tissue.</strong> Tendon,
+ligament, and bone remodel far more slowly than muscle or myocardium
+(Kjaer &amp; Magnusson 2009): gross tendon adaptation requires very
+prolonged loading, and bone remodels on a multi-month cycle. This
+creates a <em>capacity-mismatch window</em> — the cardiovascular and
+muscular systems can absorb an intensity jump within weeks, but the
+tendons and bones cannot, which is the biomechanical basis for
+tendinopathy and bone-stress injury when intensity is added faster than
+tissue remodels. Structural robustness must be <em>accumulated</em>; it
+cannot be bought with intensity.</p>
+<p><strong>Durability — the fourth parameter.</strong> The most
+important recent addition to endurance science is <em>durability</em>:
+the resistance to deterioration of physiological characteristics
+(economy, thresholds, VO₂ kinetics) over prolonged exercise (Maunder,
+Seiler et al. 2021; Jones 2024). Critical power can fall ~10%
+(individual range 1–31%) after prolonged work, with significant decline
+appearing only after ~120 minutes. Durability is distinct from any
+fresh-state measurement — it is what separates athletes in the final
+third of a long race — and the emerging consensus is that it is built
+largely by <em>accumulated volume and time-in-zone</em>. This is the
+single trait most responsible for why Ironman rewards volume: the race
+is decided by who drifts least over eight-plus hours, and that
+resilience is a volume adaptation.</p>
+</section>
+<section id="the-systemic-costs-of-intensity" class="level3">
+<h3>4.2 The systemic costs of intensity</h3>
+<p>Intensity is not merely less efficient at building these traits; it
+actively consumes the recovery capacity needed to sustain training, and
+it does so disproportionately.</p>
+<p><strong>Autonomic and overtraining cost.</strong> Seiler’s central
+argument is that high-intensity work switches on a large sympathetic
+stress response that must be “repaid” in recovery, whereas low-intensity
+volume stays “under the stress radar.” Heart-rate-variability research
+(Plews &amp; Buchheit 2013) shows that progressive parasympathetic
+suppression flags maladaptation, and that functionally overreached
+athletes show blunted post-exercise parasympathetic reactivation.
+Seiler’s warning — “one of the best ways to overtrain an organism is to
+subject it to daily stress at the same level” — identifies
+<em>monotonous intensity</em>, not volume, as the primary overtraining
+driver. This is why the highest-volume athletes in the world are also
+the most polarized: keeping intensity to ~20% of sessions is how they
+protect recovery while accumulating huge loads.</p>
+<p><strong>Injury.</strong> Beyond the ACWR-spike risk of Part I,
+intensity carries a distinct biomechanical injury signature. Nielsen’s
+large prospective cohort (2024, &gt;5,000 runners) found that when a
+single run exceeded the prior 30 days’ longest run by more than 100%,
+injury risk rose 128%; even 10–30% jumps raised risk 64%. Malisoux’s
+work identifies higher-intensity running as an injury factor independent
+of volume. High intensity on an inadequate chronic base is structurally
+the most injurious combination.</p>
+<p><strong>Immune and endocrine cost.</strong> The immune “J-curve”
+(Nieman) shows a 2–6× increase in upper-respiratory-infection risk in
+the week after a marathon or hard competition, with a dose-response to
+training load — an “open window” of immunosuppression that scales with
+intensity and load peaks. Overtraining is accompanied by disrupted
+cortisol, testosterone:cortisol ratio, and blunted hormonal responses to
+stimulation (Cadegiani &amp; Kater 2017).</p>
+<p><strong>Monotony, strain, and adherence.</strong> Foster’s monotony
+(mean load ÷ its variability) and strain (weekly load × monotony)
+metrics predict illness, injury, and plateau; all-intensity or
+same-every-day programs maximize both. High-RPE sessions are also
+psychologically harder to sustain, making all-intensity programs more
+burnout-prone. Polarized structures, by keeping most sessions easy and
+tolerable, are more sustainable — a real-world adherence advantage that
+compounds over a season.</p>
+</section>
+<section id="what-you-lose-by-athlete-level-and-event" class="level3">
+<h3>4.3 What you lose, by athlete level and event</h3>
+<p>The trade is not uniform. The engine should weight it by both
+training age and event duration:</p>
+<ul>
+<li><strong>Untrained/novice athletes</strong> lose the <em>least</em>
+physiologically from choosing intensity over volume — low-volume HIIT
+captures much of their early VO₂max and mitochondrial gain — but lose
+the <em>most</em> in injury terms, because their connective tissue and
+load tolerance are unprepared for intensity and spikes. For them the
+constraint is structural, not metabolic.</li>
+<li><strong>Trained/elite athletes</strong> lose the <em>most</em>
+physiologically — they have hit the HIIT ceiling and forfeit the
+volume-only adaptations (cardiac remodeling, plasma volume, economy,
+capillarization, durability) that actually separate elites.</li>
+<li><strong>Masters/older athletes</strong> lose on <em>recovery and
+tissue tolerance</em> — reduced capacity to absorb intensity strain and
+load spikes makes the volume-for-intensity trade riskier; volume-driven
+vascular and capillary adaptation is where they gain safely.</li>
+<li><strong>By event:</strong> for short, glycolytic events (DEKA
+STRONG/MILE, CrossFit metcons) and general fitness, intensity
+substitutes well and the loss is small. For long-duration endurance
+(HYROX at the margin, and decisively 70.3 and Ironman), the loss is
+large, because these events are won on exactly the volume-gated
+adaptations that intensity cannot replace.</li>
+</ul>
+<hr />
+</section>
+</section>
+<section
+id="part-v-sport-specific-demands-and-the-concurrent-training-constraint"
+class="level2">
+<h2>Part V — Sport-Specific Demands and the Concurrent-Training
+Constraint</h2>
+<section id="hyrox" class="level3">
+<h3>5.1 HYROX</h3>
+<p>HYROX is eight 1-kilometer runs alternated with eight functional
+stations (SkiErg, sled push, sled pull, burpee broad jumps, row, farmers
+carry, sandbag lunges, wall balls), in fixed order. Running is more than
+half the race distance and, because most stations last over two minutes,
+the total oxidative demand is roughly 70–80% of race time — HYROX is
+<strong>aerobic-dominant.</strong> Elite finish times run ~52–57 minutes
+(men’s professional world record 51:59, women’s 54:25 as of 2026);
+recreational finishers commonly take 75–95 minutes.</p>
+<p>The one peer-reviewed physiological study (Brandt et al. 2025, N=11
+recreational) is decisive on the profile even with its small sample:
+athletes spent ~80% of the race at ≥90% HRmax (peak 185 bpm), with blood
+lactate around 8.5 mmol/L — a sustained near-maximal, oxidative-dominant
+effort with repeated supra-threshold spikes. The performance
+correlations are the headline for programming: <strong>VO₂max correlated
+with finish time at ρ = −0.71 and endurance-training volume at ρ =
+−0.68, while maximal strength correlated only weakly.</strong> The
+authors conclude HYROX is “a HIFT modality with an emphasis on endurance
+capacity and moderate to low requirements in terms of maximum strength.”
+The practical implication is that HYROX athletes need a strength/power
+<em>floor</em> to move fixed external loads efficiently, then
+endurance-dominant programming above it — not a strength
+<em>ceiling</em>.</p>
+<p>The signature challenge is <strong>“compromised running”</strong>:
+run splits slow markedly across the race (athletes typically run 20–30
+s/km slower in-race than fresh), a fatigue signature of cumulative
+station load. This is a <em>durability</em> problem, and it is the
+mechanistic justification for keeping heavy and plyometric strength in
+the plan despite the event being endurance-dominant (Section 5.4).</p>
+</section>
+<section id="deka" class="level3">
+<h3>5.2 DEKA</h3>
+<p>DEKA comprises ten functional zones (reverse lunges, row, box
+jump-overs, med-ball sit-up throws, SkiErg, farmers carry, air bike,
+dead-ball overs, sled push/pull, weighted burpees) in three formats that
+sit at very different points on the volume–intensity spectrum:</p>
+<ul>
+<li><strong>DEKA STRONG</strong> — ten zones back-to-back, no running,
+~10–14 minutes: a glycolytic/anaerobic-power sprint.</li>
+<li><strong>DEKA MILE</strong> — zones plus a 160 m run before each (~1
+mile total), ~16–22 minutes: mixed power-endurance.</li>
+<li><strong>DEKA FIT</strong> — zones plus a 500 m run before each (~5
+km total), ~28–37 minutes: glycolytic-oxidative, the closest analogue to
+HYROX but ~40% shorter and therefore run at higher relative
+intensity.</li>
+</ul>
+<p>No laboratory study of DEKA physiology exists — this is a genuine
+evidence gap, and the profiles above are inferred from format and
+duration. The programming consequence is clear regardless: DEKA STRONG
+and MILE invert the HYROX emphasis toward glycolytic power and greater
+strength volume, while DEKA FIT approaches HYROX programming at a
+higher-intensity, lower-total-volume setting.</p>
+</section>
+<section id="crossfit-as-a-reference-point" class="level3">
+<h3>5.3 CrossFit as a reference point</h3>
+<p>CrossFit’s benchmark workouts are near-maximal glycolytic efforts on
+an aerobic base: signature metcons elicit 95–98% HRmax and blood lactate
+of 14–15 mmol/L, yet only 57–66% of VO₂max, because short couplets and
+triplets are power- and glycolytically-limited rather than
+oxygen-limited (Claudino 2018). Performance is predicted more by
+neuromuscular strength and strength-endurance than by aerobic capacity —
+the mirror image of HYROX. This is the clearest illustration of the
+report’s duration thesis: the shorter and more glycolytic the event, the
+more intensity substitutes for volume and the more a strength/power
+emphasis pays.</p>
+</section>
+<section id="the-concurrent-training-interference-constraint"
+class="level3">
+<h3>5.4 The concurrent-training (interference) constraint</h3>
+<p>Hybrid athletes train strength and endurance simultaneously, and the
+two adaptations partly compete. The classic finding (Hickson 1980) was
+that concurrent endurance training blunted strength gains. The modern
+picture is more precise and more reassuring:</p>
+<ul>
+<li><strong>Maximal strength and hypertrophy are largely
+protected</strong> in modern meta-analyses (SMD near zero), but
+<strong>explosive power and rate-of-force-development are reliably
+impaired</strong> (SMD ≈ −0.28). The vulnerable adaptation is power, not
+strength or size.</li>
+<li>The mechanism is <strong>not</strong> simple molecular antagonism
+(AMPK suppressing mTOR); acute human studies often fail to show the
+predicted molecular interference. Coffey &amp; Hawley (2017) locate the
+effect largely in <strong>residual fatigue and competition for
+recovery</strong> — high endurance load consumes the recovery capacity
+needed to express and adapt to strength work.</li>
+<li>Interference <strong>scales with endurance volume and
+intensity</strong> (Fyfe, Bishop &amp; Stepto 2014): very high endurance
+volume is what actually erodes power; moderate endurance does little.
+Running interferes more than cycling, partly through eccentric muscle
+damage.</li>
+</ul>
+<p>The programming implications for hybrid athletes are direct. The
+explosive HYROX/DEKA stations (sleds, jumps, wall balls, weighted
+burpees) are exactly the elements concurrent training threatens, so they
+should be protected with <strong>low-volume, high-quality strength/power
+work</strong> (heavy or ballistic, low sets, far from failure) that
+delivers most of the neural benefit at minimal recovery cost —
+coexisting with high endurance volume far better than high-volume
+hypertrophy blocks. Hard endurance and hard strength should be separated
+by hours or days, and sequenced quality-first. And the
+volume-vs-intensity trade acquires a hybrid-specific dimension: an
+intensity-biased, lower-volume <em>endurance</em> approach can actually
+<em>protect</em> the power stations, while a high-mileage approach
+maximizes running at some risk to power output.</p>
+<p>Crucially, strength training earns its place in an endurance-dominant
+HYROX plan through <strong>durability</strong>, not fresh economy.
+Zanini et al. (2025) found ten weeks of strength-plus-plyometric
+training left fresh running economy unchanged but roughly
+<em>halved</em> the economy decrement over 90 minutes (4.7% → 2.1%) and
+increased fatigued time-to-exhaustion by 35%. That is a direct
+pharmacological-strength answer to HYROX’s compromised-running
+problem.</p>
+</section>
+<section id="triathlon-half-ironman-and-ironman" class="level3">
+<h3>5.5 Triathlon, half-Ironman, and Ironman</h3>
+<p>Long-course triathlon is where volume-dependence is strongest and the
+evidence is cleanest. Elite training volumes scale with event duration:
+world-class Olympic-distance athletes may train ~15 hours/week
+(short-course rewards intensity and economy, so raw hours are lower than
+assumed), while professional Ironman athletes commonly train 25–35
+hours/week, exceeding 40 in camps. Competitive age-group Ironman
+qualifiers typically train ~20 hours/week; mid-pack finishers ~12;
+documented minimalist programs complete Ironman on as little as ~6–10
+hours.</p>
+<p>The intensity distribution is pyramidal-shifting-to-polarized,
+dominated by low-intensity volume: a world-class Olympic athlete logged
+82% Z1 / 7% Z2 / 11% Z3 (Cejuela 2022), and an elite Ironman squad
+averaged ~68% Z1 / 28% Z2 / 4% Z3 (Muñoz 2014). The most important
+single result for long-course programming comes from that Muñoz study:
+<strong>time spent in Zone 1 correlated with faster Ironman finish at r
+≈ −0.92, total volume at r ≈ −0.69, while more Zone 2 (“gray zone”)
+correlated with <em>slower</em> times (r ≈ +0.94).</strong> Accumulated
+low-intensity volume is the strongest trainable correlate of long-course
+performance, and gray-zone overreach is actively counterproductive.</p>
+<p>Two boundary findings complete the picture. First,
+<strong>diminishing returns are real even in long-course:</strong> a
+survey of 99 amateurs found no meaningful finish-time difference between
+those training under 14, 14–20, and over 20 hours/week, and athletes
+reporting unintended weight loss/fatigue (overtraining flags) finished
+slower — suggesting ~14 hours as a practical amateur optimum. Second,
+<strong>minimalist programs reliably deliver <em>finishing</em> but not
+<em>competing</em>:</strong> four beginners completed an Ironman on ~6
+hours/week (all finished, two in the top 15%), but the predictable
+tradeoffs of low volume — late-race durability failure, GI intolerance
+from too few long fueling rehearsals, and musculoskeletal fragility in
+the marathon — are exactly the volume-gated traits of Part IV, and they
+surface in the back half of the race where the event is actually
+decided.</p>
+<hr />
+</section>
+</section>
+<section
+id="part-vi-the-prescriptive-framework-load-and-intensity-by-sport-and-time-budget"
+class="level2">
+<h2>Part VI — The Prescriptive Framework: Load and Intensity by Sport
+and Time Budget</h2>
+<section id="methodology" class="level3">
+<h3>6.1 Methodology</h3>
+<p>The prescriptions below are built from four principles established in
+Parts I–V:</p>
+<ol type="1">
+<li><strong>Total load scales primarily with volume; intensity raises
+per-hour load but cannot close the gap.</strong> Using session-RPE load
+(RPE 0–10 × minutes) with zone anchors of Z1 ≈ 3.5, Z2 ≈ 6.5, Z3 ≈ 8.5,
+and strength/power ≈ 6.5, the realistic weekly load bands are:</li>
+</ol>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Weekly time</th>
+<th>Representative weekly load (session-RPE AU)</th>
+<th>Load relative to 20 h</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>5 h</td>
+<td>~1,500–1,900</td>
+<td>~30%</td>
+</tr>
+<tr class="even">
+<td>10 h</td>
+<td>~2,700–3,200</td>
+<td>~55%</td>
+</tr>
+<tr class="odd">
+<td>20 h</td>
+<td>~5,000–5,600</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>30 h</td>
+<td>~7,000–7,800</td>
+<td>~140%</td>
+</tr>
+<tr class="odd">
+<td>40 h</td>
+<td>~9,000–10,000</td>
+<td>~180%</td>
+</tr>
+</tbody>
+</table></div>
+<p>The five-hour athlete operates at roughly a third of the twenty-hour
+athlete’s total load <em>even when training much harder on average</em>.
+This is the arithmetic reality behind the report’s core message:
+intensity buys back specific fast-adapting outcomes, not total load.</p>
+<ol start="2" type="1">
+<li><p><strong>Intensity distribution shifts from threshold-leaning
+pyramidal at low volume toward strongly polarized at high
+volume</strong> (Section 3.3), because tolerable high-intensity work is
+capped by recovery at roughly 2–4 quality sessions regardless of total
+hours.</p></li>
+<li><p><strong>Substitution is outcome-specific.</strong> Low budgets
+preserve VO₂max, threshold, and neuromuscular quality; they
+progressively sacrifice the volume-gated traits (durability, fat
+oxidation, capillarization, connective-tissue robustness) in rough
+proportion to how far below the event’s “volume demand” they
+fall.</p></li>
+<li><p><strong>The trade’s severity scales with event duration.</strong>
+For DEKA and HYROX, a modest budget captures most of what matters; for
+Ironman, no amount of intensity compensates for missing volume in the
+back half of the race.</p></li>
+</ol>
+<p>Each prescription names the realistic athlete level for that budget,
+because a 40-hour week is professional territory and a 5-hour week is a
+genuine solution only for the shortest events. Modality splits are given
+as approximate share of weekly hours. Strength/power is expressed as
+hours <em>inclusive</em> of the total budget.</p>
+</section>
+<section id="a-note-on-reading-the-tables" class="level3">
+<h3>6.2 A note on reading the tables</h3>
+<p>“Optimizes” is what the budget delivers well; “Sacrifices” is what it
+knowingly leaves on the table versus the event’s ideal volume. “Anchor
+sessions” are the non-negotiable weekly stimuli. Intensity distribution
+is time-in-zone (Z1/Z2/Z3) across the <em>endurance</em> portion;
+strength/power sits outside the zone model.</p>
+<hr />
+</section>
+<section id="hyrox-1" class="level3">
+<h3>6.3 HYROX</h3>
+<p>HYROX is aerobic-dominant with a strength/power floor (Section 5.1).
+Programming centers on running volume and station-specific conditioning
+(“compromised running”), with concentrated, low-volume strength/power to
+protect the explosive stations and build durability. Because the event
+is ~52–90 minutes, the volume demand is moderate — a well-constructed
+10-hour week is genuinely competitive for age-group athletes, and
+returns above ~20 hours are small for all but elites chasing the
+podium.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Budget</th>
+<th>Modality split (approx.)</th>
+<th>Intensity dist. (Z1/Z2/Z3)</th>
+<th>~Weekly load</th>
+<th>Anchor sessions</th>
+<th>Optimizes / Sacrifices</th>
+<th>Realistic level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 h</strong></td>
+<td>Run 45%, stations/compromised-run intervals 30%, strength/power 25%
+(1.25 h)</td>
+<td>55 / 25 / 20</td>
+<td>~1,600</td>
+<td>1 threshold-run + station circuit; 1 VO₂ interval (running or
+SkiErg/row); 1 heavy-strength 30–40 min</td>
+<td>Optimizes VO₂max, threshold, station efficiency, neuromuscular floor
+/ Sacrifices running durability, aerobic-base depth</td>
+<td>Recreational; competitive Open finisher</td>
+</tr>
+<tr class="even">
+<td><strong>10 h</strong></td>
+<td>Run 50%, stations 28%, strength/power 22% (2.2 h)</td>
+<td>70 / 15 / 15</td>
+<td>~2,900</td>
+<td>1 long compromised-run (station-run transitions); 1 threshold; 1
+VO₂; 2 strength (1 heavy, 1 power/plyo)</td>
+<td>Optimizes race-specific durability + all of the above / Sacrifices
+only the last few % of aerobic base</td>
+<td>Advanced age-grouper; Pro-qualifier attainable</td>
+</tr>
+<tr class="odd">
+<td><strong>20 h</strong></td>
+<td>Run 55%, stations 25%, strength/power 20% (4 h)</td>
+<td>80 / 8 / 12</td>
+<td>~5,200</td>
+<td>2 long runs (1 compromised-run simulation), 1 threshold, 2
+VO₂/station-VO₂, 2–3 strength/power, plus easy aerobic volume</td>
+<td>Optimizes durability, aerobic base, full race simulation /
+Sacrifices little for this event</td>
+<td>Elite / Pro</td>
+</tr>
+<tr class="even">
+<td><strong>30 h</strong></td>
+<td>Run 55%, stations 22%, strength/power 18% (5.4 h), aerobic
+cross-training fills remainder</td>
+<td>85 / 4 / 11</td>
+<td>~7,400</td>
+<td>As 20 h plus large easy-aerobic base (run + low-impact
+cross-training to manage impact load)</td>
+<td>Optimizes maximal durability with impact-injury management /
+Diminishing returns; injury/impact risk becomes the limiter</td>
+<td>Full-time Pro only</td>
+</tr>
+<tr class="odd">
+<td><strong>40 h</strong></td>
+<td>Run 50%, stations 20%, strength/power 15% (6 h), cross-training
+15%</td>
+<td>88 / 3 / 9</td>
+<td>~9,200</td>
+<td>Camp-style loading; impact managed via cross-modal aerobic
+volume</td>
+<td>Optimizes nothing beyond 30 h for most; camp/peak-block use</td>
+<td>Pro peak-block only; not sustainable</td>
+</tr>
+</tbody>
+</table></div>
+<p>HYROX-specific guardrail: running impact load, not metabolic load, is
+the binding constraint above ~20 hours. The engine should cap weekly
+running impact and route additional aerobic volume to SkiErg, row, and
+bike to keep building the aerobic base without overloading connective
+tissue.</p>
+<hr />
+</section>
+<section id="deka-fit-mile-strong" class="level3">
+<h3>6.4 DEKA (FIT / MILE / STRONG)</h3>
+<p>DEKA spans the widest internal range of any sport here (Section 5.2).
+STRONG (~10–14 min) is glycolytic-power-dominant and the most
+intensity-substitutable event in the report; FIT (~28–37 min) approaches
+HYROX programming; MILE sits between. The table below is written for
+<strong>DEKA FIT</strong> as the reference format, with explicit
+adjustments for STRONG and MILE beneath it.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Budget</th>
+<th>Modality split (approx.)</th>
+<th>Intensity dist. (Z1/Z2/Z3)</th>
+<th>~Weekly load</th>
+<th>Anchor sessions</th>
+<th>Optimizes / Sacrifices</th>
+<th>Realistic level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 h</strong></td>
+<td>Run 35%, zone/circuit intervals 35%, strength/power 30% (1.5 h)</td>
+<td>45 / 25 / 30</td>
+<td>~1,700</td>
+<td>2 zone-circuit HIIT (race-pace intervals through the 10 zones); 1
+heavy + 1 power strength; 1 threshold run</td>
+<td>Optimizes glycolytic power, zone efficiency, VO₂max / Sacrifices
+little for FIT; nothing meaningful for STRONG</td>
+<td>Recreational → competitive (fully sufficient for STRONG)</td>
+</tr>
+<tr class="even">
+<td><strong>10 h</strong></td>
+<td>Run 40%, zones 32%, strength/power 28% (2.8 h)</td>
+<td>60 / 18 / 22</td>
+<td>~3,000</td>
+<td>2 zone circuits, 1 VO₂, 1 threshold, 1 long aerobic, 2–3
+strength/power</td>
+<td>Optimizes race-specific power-endurance and aerobic support /
+Sacrifices back-end aerobic base for FIT</td>
+<td>Competitive age-grouper; elite for STRONG/MILE</td>
+</tr>
+<tr class="odd">
+<td><strong>20 h</strong></td>
+<td>Run 45%, zones 30%, strength/power 25% (5 h)</td>
+<td>72 / 10 / 18</td>
+<td>~5,300</td>
+<td>Full race simulations, VO₂ blocks, threshold, aerobic base,
+structured strength/power</td>
+<td>Optimizes everything DEKA FIT rewards / Sacrifices little</td>
+<td>Elite (beyond STRONG/MILE needs)</td>
+</tr>
+<tr class="even">
+<td><strong>30 h</strong></td>
+<td>Run 45%, zones 28%, strength/power 22% (6.6 h), cross-training
+remainder</td>
+<td>80 / 6 / 14</td>
+<td>~7,300</td>
+<td>As 20 h plus easy aerobic volume; power maintained</td>
+<td>Optimizes aerobic ceiling well past DEKA’s demands / Strong
+diminishing returns for all formats</td>
+<td>Over-prescribed for DEKA; Pro only</td>
+</tr>
+<tr class="odd">
+<td><strong>40 h</strong></td>
+<td>Not indicated</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>No DEKA-specific rationale; volume exceeds event demand</td>
+<td>Not recommended</td>
+</tr>
+</tbody>
+</table></div>
+<p>DEKA format adjustments: for <strong>STRONG</strong>, shift ~10
+points of Z1 into Z3 and add one strength/power session at every budget
+(it is a strength-endurance sprint); 5 hours is a complete, competitive
+program. For <strong>MILE</strong>, split the difference between STRONG
+and FIT. DEKA is the clearest case where <em>more than ~20 hours has no
+event-specific justification</em>.</p>
+<hr />
+</section>
+<section id="olympic-distance-triathlon" class="level3">
+<h3>6.5 Olympic-Distance Triathlon</h3>
+<p>Olympic distance (~1:45–2:15) is aerobic-dominant but threshold-rich;
+short-course rewards intensity and economy, so even elites train “only”
+~15 hours/week. This makes it the endurance event where intensity
+substitutes best, and where a 10-hour week is highly competitive for
+age-groupers.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Budget</th>
+<th>Modality split (S/B/R + strength)</th>
+<th>Intensity dist. (Z1/Z2/Z3)</th>
+<th>~Weekly load</th>
+<th>Anchor sessions</th>
+<th>Optimizes / Sacrifices</th>
+<th>Realistic level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 h</strong></td>
+<td>S 20% / B 40% / R 30% / strength 10%</td>
+<td>55 / 20 / 25</td>
+<td>~1,650</td>
+<td>2 threshold/VO₂ bricks; 1 hard swim; 1 short long-ride; strength
+maintenance</td>
+<td>Optimizes VO₂max, threshold, race pace / Sacrifices aerobic base,
+swim technique volume</td>
+<td>Recreational; sprint-focused</td>
+</tr>
+<tr class="even">
+<td><strong>10 h</strong></td>
+<td>S 22% / B 42% / R 28% / strength 8%</td>
+<td>70 / 15 / 15</td>
+<td>~2,900</td>
+<td>Weekly long ride + long run; 2 quality (VO₂/threshold) bricks; 2–3
+swims; 1 strength</td>
+<td>Optimizes competitive age-group readiness / Sacrifices only marginal
+base</td>
+<td>Competitive age-grouper</td>
+</tr>
+<tr class="odd">
+<td><strong>20 h</strong></td>
+<td>S 25% / B 45% / R 25% / strength 5%</td>
+<td>80 / 8 / 12</td>
+<td>~5,200</td>
+<td>Large Z1 base across all three; 2–3 quality sessions; full brick
+work</td>
+<td>Optimizes base, economy, threshold, durability / Sacrifices
+little</td>
+<td>Sub-elite / elite</td>
+</tr>
+<tr class="even">
+<td><strong>30 h</strong></td>
+<td>S 25% / B 47% / R 23% / strength 5%</td>
+<td>85 / 5 / 10</td>
+<td>~7,400</td>
+<td>Polarized elite structure; huge easy base; capped quality</td>
+<td>Optimizes elite aerobic depth / Diminishing returns for Olympic
+distance</td>
+<td>Elite / Pro</td>
+</tr>
+<tr class="odd">
+<td><strong>40 h</strong></td>
+<td>S 25% / B 48% / R 22% / strength 5%</td>
+<td>88 / 4 / 8</td>
+<td>~9,200</td>
+<td>Camp/peak-block only</td>
+<td>No Olympic-specific return beyond 30 h</td>
+<td>Pro peak-block only</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</section>
+<section id="half-ironman-70.3" class="level3">
+<h3>6.6 Half-Ironman (70.3)</h3>
+<p>At ~3:45–5:30, 70.3 is decided by sub-threshold aerobic capacity and
+durability. Volume-dependence is high: a 10-hour week produces a solid
+finisher, but competing (holding pace in the back half of the run)
+increasingly requires the volume-gated durability of Part IV.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Budget</th>
+<th>Modality split (S/B/R + strength)</th>
+<th>Intensity dist. (Z1/Z2/Z3)</th>
+<th>~Weekly load</th>
+<th>Anchor sessions</th>
+<th>Optimizes / Sacrifices</th>
+<th>Realistic level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 h</strong></td>
+<td>S 18% / B 45% / R 30% / strength 7%</td>
+<td>50 / 25 / 25</td>
+<td>~1,700</td>
+<td>2 threshold/sweet-spot bricks; 1 hard swim; 1 longest-possible ride;
+minimal long run</td>
+<td>Optimizes threshold, VO₂max, finishing fitness / Sacrifices
+durability, fat oxidation, fueling practice, run robustness</td>
+<td>Survival-only; back-of-pack finisher</td>
+</tr>
+<tr class="even">
+<td><strong>10 h</strong></td>
+<td>S 20% / B 47% / R 28% / strength 5%</td>
+<td>68 / 17 / 15</td>
+<td>~2,900</td>
+<td>Weekly long ride (2.5–3 h) + long run (75–90 min); 2 quality; 2–3
+swims</td>
+<td>Optimizes credible mid-pack 70.3 / Sacrifices late-race durability
+depth</td>
+<td>Competitive age-grouper</td>
+</tr>
+<tr class="odd">
+<td><strong>20 h</strong></td>
+<td>S 22% / B 48% / R 25% / strength 5%</td>
+<td>80 / 8 / 12</td>
+<td>~5,300</td>
+<td>Big Z1 base; long brick; race-nutrition rehearsal; 2 quality</td>
+<td>Optimizes durability, fat oxidation, GI tolerance, competitive
+readiness / Sacrifices little</td>
+<td>Kona-70.3-qualifier / elite</td>
+</tr>
+<tr class="even">
+<td><strong>30 h</strong></td>
+<td>S 22% / B 50% / R 23% / strength 5%</td>
+<td>85 / 5 / 10</td>
+<td>~7,400</td>
+<td>Polarized; very large aerobic base; durability-focused long
+sessions</td>
+<td>Optimizes elite durability and metabolic depth / Approaching
+diminishing returns</td>
+<td>Elite / Pro</td>
+</tr>
+<tr class="odd">
+<td><strong>40 h</strong></td>
+<td>S 20% / B 52% / R 23% / strength 5%</td>
+<td>88 / 4 / 8</td>
+<td>~9,200</td>
+<td>Pro base/camp loading</td>
+<td>Marginal returns over 30 h; recovery-support-dependent</td>
+<td>Pro only</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</section>
+<section id="ironman-140.6" class="level3">
+<h3>6.7 Ironman (140.6)</h3>
+<p>Ironman (~8–17 hours) is the report’s clearest case of
+volume-dominance. Performance correlates with accumulated Zone 1 volume
+at r ≈ −0.9 (Muñoz 2014); the race is won on fat oxidation, durability,
+GI tolerance, and structural resilience — all volume-gated and none
+substitutable by intensity. Low budgets deliver <em>finishing</em>, not
+<em>competing</em>, and the gap widens with every hour of the race.</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Budget</th>
+<th>Modality split (S/B/R + strength)</th>
+<th>Intensity dist. (Z1/Z2/Z3)</th>
+<th>~Weekly load</th>
+<th>Anchor sessions</th>
+<th>Optimizes / Sacrifices</th>
+<th>Realistic level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 h</strong></td>
+<td>S 15% / B 50% / R 30% / strength 5%</td>
+<td>45 / 25 / 30</td>
+<td>~1,750</td>
+<td>2 hard bricks; 1 longest-possible ride; intensity-dense by
+necessity</td>
+<td>Optimizes central fitness only / Sacrifices nearly all durability,
+fat oxidation, fueling, structural prep — high back-half blow-up and
+injury risk</td>
+<td>Not advised except experienced athletes seeking to finish</td>
+</tr>
+<tr class="even">
+<td><strong>10 h</strong></td>
+<td>S 18% / B 52% / R 25% / strength 5%</td>
+<td>65 / 18 / 17</td>
+<td>~2,900</td>
+<td>Weekly long ride (3–4 h) + long run (90–120 min); cycling-fitness
+crossover; sparse quality</td>
+<td>Optimizes a realistic finish (sub-elite executions exist) /
+Sacrifices durability depth, GI robustness, injury margin</td>
+<td>Determined age-grouper; execution-dependent</td>
+</tr>
+<tr class="odd">
+<td><strong>20 h</strong></td>
+<td>S 20% / B 52% / R 23% / strength 5%</td>
+<td>80 / 8 / 12</td>
+<td>~5,300</td>
+<td>Very large Z1 base; long brick with race-nutrition; back-to-back
+long days</td>
+<td>Optimizes durability, fat oxidation, GI tolerance — genuine
+competitiveness / Sacrifices little; near the amateur optimum</td>
+<td>Kona-qualifier / strong age-grouper</td>
+</tr>
+<tr class="even">
+<td><strong>30 h</strong></td>
+<td>S 20% / B 53% / R 22% / strength 5%</td>
+<td>85 / 5 / 10</td>
+<td>~7,400</td>
+<td>Professional polarized base; 5–7 h rides; durability the explicit
+target</td>
+<td>Optimizes maximal durability and metabolic depth for 8+ h racing /
+Overtraining risk real; full-time recovery required</td>
+<td>Pro / full-time athlete</td>
+</tr>
+<tr class="odd">
+<td><strong>40 h</strong></td>
+<td>S 20% / B 54% / R 21% / strength 5%</td>
+<td>88 / 4 / 8</td>
+<td>~9,600</td>
+<td>Camp-block loading; monitored for non-functional overreaching</td>
+<td>Optimizes the volume-gated ceiling for the longest events /
+Net-negative without pro recovery infrastructure; camp-only</td>
+<td>Pro peak-block only</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ironman guardrail: this is the event where the engine must most
+firmly resist the athlete’s instinct to “make up” for low volume with
+intensity. Muñoz’s finding that <em>more Zone 2 correlates with slower
+racing</em> means the low-budget Ironman athlete should still keep the
+majority of their limited hours genuinely easy and accept a durability
+deficit, rather than converting the week into gray-zone work that raises
+cost without buying the traits the race demands.</p>
+<hr />
+</section>
+</section>
+<section
+id="part-vii-engine-integration-operationalizing-the-framework-in-duravel"
+class="level2">
+<h2>Part VII — Engine Integration: Operationalizing the Framework in
+Duravel</h2>
+<p>This section translates the report into implementable logic. It is
+written so the programming engine can consume it directly.</p>
+<section id="adopt-a-single-internal-load-metric" class="level3">
+<h3>7.1 Adopt a single internal load metric</h3>
+<p>Standardize on <strong>session-RPE load</strong> (RPE 0–10 × duration
+in minutes) as the primary internal-load currency, because it is valid
+across every modality Duravel programs — run, bike, swim, barbell, and
+station work — where heart-rate or power models fail or are unavailable.
+Layer heart-rate TRIMP or TSS on top <em>where the data exist</em>
+(structured bike/run sessions with power or HR), but never require them.
+Store per-session load and maintain two rolling aggregates per the
+fitness-fatigue model: a ~42-day exponentially weighted “chronic load”
+(fitness proxy) and a ~7-day “acute load” (fatigue proxy), exposing
+their difference as “form.”</p>
+</section>
+<section id="represent-substitution-as-outcome-specific-not-scalar"
+class="level3">
+<h3>7.2 Represent substitution as outcome-specific, not scalar</h3>
+<p>The engine should model at least three adaptation “buckets,” each
+with its own dose-response to volume vs. intensity, rather than a single
+fitness number:</p>
+<ul>
+<li><strong>Central/aerobic power (VO₂max, mitochondrial
+signaling):</strong> responds efficiently to intensity; maintainable on
+low volume if intensity is preserved. High substitutability.</li>
+<li><strong>Peripheral/base (capillarization, fat oxidation, LT1, plasma
+volume, economy):</strong> responds to accumulated Z1 volume and
+frequency; reverses when volume is withdrawn. Low substitutability.</li>
+<li><strong>Durability &amp; structural (fatigue resistance, tendon/bone
+robustness):</strong> responds only to accumulated time and progressive
+loading cycles; slowest to build, most volume-gated.</li>
+</ul>
+<p>A time-crunched plan should be flagged in the UI for <em>which
+buckets it under-serves</em> given the target event — this is the
+“informed trade” the report argues for.</p>
+</section>
+<section id="scale-intensity-distribution-to-volume-automatically"
+class="level3">
+<h3>7.3 Scale intensity distribution to volume automatically</h3>
+<p>Encode the Section 3.3 schedule as a function of weekly hours and
+phase:</p>
+<ul>
+<li>Compute a target Z3 <em>quantity</em> (not percentage) from recovery
+capacity — default 2–3 quality sessions/week, adjustable by training
+age, age, and HRV/readiness where available. Hold this roughly constant
+as volume changes.</li>
+<li>Fill the remainder with Z1, letting the Z1 <em>percentage</em> rise
+automatically as total volume rises. This reproduces the
+pyramidal-at-low-volume → polarized-at-high-volume migration without a
+separate rule.</li>
+<li>Minimize Z2 (“gray zone”) near competition and for long-course
+athletes specifically (Muñoz: more Z2 → slower Ironman); allow more Z2
+in base phases and at the lowest budgets where stimulus density is
+required.</li>
+<li>Apply a <strong>pyramidal-base → polarized-sharpen</strong>
+periodization across the macrocycle.</li>
+</ul>
+</section>
+<section id="protect-intensity-when-time-collapses" class="level3">
+<h3>7.4 Protect intensity when time collapses</h3>
+<p>When an athlete’s available time drops week-to-week, the engine
+should <strong>cut volume and preserve the quality sessions</strong>
+(Hickson; taper literature), never the reverse. A maintenance week
+should retain 1–2 intensity sessions and shed easy volume. Communicate
+that this holds VO₂max/threshold for ~2–4 months but erodes
+base/durability beyond that.</p>
+</section>
+<section id="guardrails" class="level3">
+<h3>7.5 Guardrails</h3>
+<ul>
+<li><strong>Load-progression guardrail:</strong> flag weekly load
+increases that would push an uncoupled acute:chronic ratio above
+~1.3–1.5, and single-session jumps beyond ~30% of the prior 30-day
+maximum for that modality (Nielsen) — with the strongest weighting on
+running impact.</li>
+<li><strong>Monotony/strain guardrail:</strong> compute Foster monotony
+and strain weekly; flag low-variability, high-strain weeks
+(all-intensity or same-every-day patterns) as overtraining/illness
+risk.</li>
+<li><strong>Concurrent-training guardrail:</strong> cap high-volume
+hypertrophy work for endurance-priority athletes; keep strength/power
+low-volume and high-quality; separate hard strength and hard endurance
+by hours/days; sequence quality-first. Weight the interference penalty
+toward <em>power</em> output, not maximal strength.</li>
+<li><strong>Impact/structural guardrail:</strong> for HYROX and
+running-heavy plans above ~20 h, route incremental aerobic volume to
+low-impact modalities (SkiErg, row, bike) to respect the slow adaptation
+of connective tissue.</li>
+<li><strong>Event-duration weighting:</strong> scale the “volume
+deficit” warning by target-event duration — a 5-hour DEKA plan is
+complete; a 5-hour Ironman plan should carry an explicit
+durability/finishing-risk flag.</li>
+</ul>
+</section>
+<section id="a-worked-example-of-the-substitution-logic" class="level3">
+<h3>7.6 A worked example of the substitution logic</h3>
+<p>An athlete targeting HYROX drops from 10 to 5 available hours. The
+engine should: (1) hold the two quality sessions (1 VO₂, 1
+threshold+station); (2) keep one heavy-strength session for the power
+floor; (3) cut long-run and easy-aerobic volume; (4) raise the Z3 share
+from ~15% to ~20% so stimulus density is preserved; (5) surface a
+message: “This plan maintains your aerobic power and station efficiency
+but will slowly reduce your race durability (compromised-running
+resistance). Expected to hold for ~8–12 weeks.” That message is the
+report’s thesis rendered as product.</p>
+<hr />
+</section>
+</section>
+<section id="part-viii-limitations-and-evidence-gaps" class="level2">
+<h2>Part VIII — Limitations and Evidence Gaps</h2>
+<p>Intellectual honesty requires naming where this framework rests on
+thin or contested evidence:</p>
+<ul>
+<li><strong>HYROX physiology rests on a single small study</strong>
+(Brandt 2025, N=11 recreational athletes). The VO₂max-dominance finding
+is plausible and coheres with the event’s structure, but it has not been
+replicated in elite cohorts, and per-split “compromised running” figures
+are largely coaching data.</li>
+<li><strong>No laboratory study of DEKA exists.</strong> The DEKA
+profiles are inferred from format and duration and should be treated as
+reasoned hypotheses, not measured facts.</li>
+<li><strong>The polarized-training advantage is real but narrow and
+confounded.</strong> The strongest trials (Stöggl, Neal) did not fully
+volume-match their arms, and the cleanest meta-analysis finds
+polarization superior only for VO₂peak, not race performance. The report
+treats intensity distribution as a fine-tuning lever accordingly.</li>
+<li><strong>The ACWR injury framework is methodologically
+contested</strong> (Lolli, Impellizzeri). It is used here only as a soft
+guardrail, not a causal target.</li>
+<li><strong>The low-volume HIIT literature is dominated by untrained
+subjects over short timeframes.</strong> Its dramatic substitution
+findings should not be over-generalized to trained athletes or long
+events — the central caution of Part II.</li>
+<li><strong>Durability is an active research frontier.</strong> Its
+definition is established (Maunder 2021), but the quantitative
+volume→durability dose-response has not been mapped; the claim that
+durability is volume-built is a well-supported inference, not a settled
+dose-response.</li>
+<li><strong>The load-equivalence numbers are illustrative.</strong> The
+weekly session-RPE load bands in Part VI are modeled from representative
+RPE anchors, not measured cohort data; they are intended to convey
+<em>proportions and ceilings</em>, not precise targets.</li>
+<li><strong>Several primary sources were access-limited during
+research</strong> and were verified through reputable secondary
+summaries; exact effect sizes for a handful of classic studies
+(Hickson’s precise percentages, Wilson 2012 interference effect sizes,
+some meta-analytic pooled estimates) should be confirmed against primary
+texts before being used as hard engine parameters.</li>
+</ul>
+<p>None of these gaps overturns the report’s structure. The core claims
+— that load is non-linearly weighted and outcome-specific, that
+intensity substitutes for volume for fast-adapting central traits but
+not for volume-gated peripheral and durability traits, and that the
+trade’s severity scales with event duration and training age — are each
+supported by multiple independent lines of evidence.</p>
+<hr />
+</section>
+<section id="references" class="level2">
+<h2>References</h2>
+<p><em>Grouped by theme. Confidence and access notes from the research
+phase are retained where relevant.</em></p>
+<p><strong>Load quantification and modeling</strong> - Banister EW
+(1991). Modeling elite athletic performance. In <em>Physiological
+Testing of Elite Athletes</em>. Human Kinetics. - Morton RH, Fitz-Clarke
+JR, Banister EW (1990). Modeling human performance in running. <em>J
+Appl Physiol</em> 69:1171–1177. - Foster C (1998). Monitoring training
+in athletes with reference to overtraining syndrome. <em>Med Sci Sports
+Exerc</em> 30(7):1164–1168. - Foster C et al. (2001). A new approach to
+monitoring exercise training. <em>J Strength Cond Res</em>
+15(1):109–115. - Lucia A et al. (2003). Tour de France versus Vuelta a
+España: which is harder? <em>Med Sci Sports Exerc</em> 35(5):872–878. -
+Edwards S (1993). <em>The Heart Rate Monitor Book</em>. Polar Electro. -
+Allen H, Coggan A (2010). <em>Training and Racing with a Power
+Meter</em>. VeloPress. - Skiba PF (2006). Calculation of power output
+and quantification of training stress in distance runners (GOVSS). -
+Calvert TW, Banister EW, Savage MV, Bach T (1976). A systems model of
+the effects of training on physical performance. <em>IEEE Trans Syst Man
+Cybern</em>. - Hellard P et al. (2006). Assessing the limitations of the
+Banister model. <em>J Sports Sci</em> 24(5):509–520.</p>
+<p><strong>Acute:chronic workload and injury</strong> - Gabbett TJ
+(2016). The training-injury prevention paradox. <em>Br J Sports Med</em>
+50(5):273–280. - Hulin BT et al. (2016). <em>Br J Sports Med</em>
+50:231–236. - Lolli L et al. (2019). Mathematical coupling causes
+spurious correlation within the ACWR. <em>Br J Sports Med</em>
+53(15):921–922. - Impellizzeri FM et al. (2020). ACWR: conceptual issues
+and fundamental pitfalls. <em>Int J Sports Physiol Perform</em>
+15(6):907–913. - Nielsen RØ et al. (2014). <em>J Orthop Sports Phys
+Ther</em> 44(10):739–747. - Nielsen RØ et al. (2024). Prospective
+running-injury cohort. <em>Br J Sports Med</em>. - Malisoux L et
+al. (2020). Shoe cushioning and injury risk (RCT). <em>Am J Sports
+Med</em> 48(2):473–480.</p>
+<p><strong>Low-volume HIIT and dose-response</strong> - Burgomaster KA
+et al. (2005). <em>J Appl Physiol</em> 98:1985–1990. - Gibala MJ et
+al. (2006). <em>J Physiol</em> 575:901–911. - Burgomaster KA et
+al. (2008). <em>J Physiol</em> 586(1):151–160. - Gillen JB, Gibala MJ et
+al. (2016). Twelve weeks of SIT vs MICT. <em>PLoS ONE</em>
+11(4):e0154075. - MacInnis MJ et al. (2017). Superior mitochondrial
+adaptations after interval vs continuous single-leg cycling matched for
+work. <em>J Physiol</em> 595(9):2955–2968. - MacInnis MJ, Gibala MJ
+(2017). Physiological adaptations to interval training and the role of
+exercise intensity. <em>J Physiol</em> 595(9):2915–2930. - Metcalfe RS
+et al. (2012). Towards the minimal amount of exercise for improving
+metabolic health. <em>Eur J Appl Physiol</em> 112:2767–2775. -
+Gunnarsson TP, Bangsbo J (2012). The 10-20-30 training concept. <em>J
+Appl Physiol</em> 113:16–24. - Mølmen KS, Almquist NW, Skattebo Ø
+(2025). Volume vs intensity systematic review and meta-regression.
+<em>Sports Medicine</em> 55:115–144. - Granata C, Bishop DJ et
+al. (2016). Mitochondrial adaptations reversed after reduced training
+volume. <em>FASEB J</em> 30(10):3413–3423.</p>
+<p><strong>Intensity distribution</strong> - Seiler S, Kjerland GØ
+(2006). <em>Scand J Med Sci Sports</em> 16:49–56. - Fiskerstrand Å,
+Seiler S (2004). <em>Scand J Med Sci Sports</em> 14:303–310. - Seiler S
+(2010). What is best practice for training intensity and duration
+distribution? <em>Int J Sports Physiol Perform</em> 5(3):276–291. -
+Stöggl T, Sperlich B (2014). <em>Frontiers in Physiology</em> 5:33. -
+Neal CM et al. (2013). <em>J Appl Physiol</em> 114:461–471. - Muñoz I et
+al. (2014). Does polarized training improve performance in recreational
+runners? <em>Int J Sports Physiol Perform</em> 9:265–272. - Rosenblat
+MA, Sethna A, Lyons JL (2019). <em>J Strength Cond Res</em>
+33:3491–3500. - Silva Oliveira R, Boppre G, Fonseca H (2024). Polarized
+vs other TIDs. <em>Sports Medicine</em> 54(8):2071–2095.</p>
+<p><strong>Reduced training / maintenance / taper</strong> - Hickson RC,
+Rosenkoetter MA (1981). <em>Med Sci Sports Exerc</em> 13:13–16. -
+Hickson RC et al. (1982). <em>J Appl Physiol</em> 53:225–229. - Hickson
+RC et al. (1985). <em>J Appl Physiol</em> 58:492–499. - Houmard JA et
+al. (1990). Reduced training maintains performance in distance runners.
+<em>Int J Sports Med</em>. - Bosquet L et al. (2007). Effects of
+tapering on performance: a meta-analysis. <em>Med Sci Sports Exerc</em>
+39(8):1358–1365.</p>
+<p><strong>Volume-gated adaptations and durability</strong> - Holloszy
+JO (1967). <em>J Biol Chem</em> 242:2278–2282. - Kjaer M, Magnusson SP
+et al. (2009). Tendon adaptation to loading. <em>Scand J Med Sci
+Sports</em>. - Arbab-Zadeh A et al. (2014). Cardiac remodeling in
+response to 1 year of endurance training. <em>Circulation</em> 130. -
+Convertino VA (1991). Blood volume: adaptation to endurance training.
+<em>Med Sci Sports Exerc</em> 23(12):1338–1348. - Maunder E, Plews DJ,
+Kilding AE (2018). Maximal fat oxidation determinants. <em>Frontiers in
+Physiology</em> 9:599. - Maunder E, Seiler S, Mildenhall MJ, Kilding AE,
+Plews DJ (2021). Durability. <em>Sports Medicine</em> 51(8):1619–1628. -
+Hunter B et al. (2025). Durability methodological review.
+<em>Experimental Physiology</em> 110(11). - Matomäki P et al. (2023).
+Durability improved by LIT and HIT. <em>Frontiers in Physiology</em> 14.
+- Plews DJ, Laursen PB, Stanley J, Kilding AE, Buchheit M (2013). HRV in
+elite endurance athletes. <em>Sports Medicine</em> 43(9):773–781. -
+Nieman DC et al. (1990). LA Marathon URTI study. <em>J Sports Med Phys
+Fitness</em> 30(3):316–328. - Cadegiani FA, Kater CE (2017). Hormonal
+aspects of overtraining. <em>BMC Sports Sci Med Rehabil</em>.</p>
+<p><strong>HYROX / DEKA / CrossFit / concurrent training</strong> -
+Brandt T, Ebel C, Lebahn C, Schmidt A (2025). Acute physiological
+responses and performance determinants in Hyrox. <em>Frontiers in
+Physiology</em> 16:1519240. - Claudino JG et al. (2018). CrossFit
+overview: systematic review and meta-analysis. <em>Sports
+Medicine-Open</em> 4(1). - Hickson RC (1980). Interference of strength
+development by simultaneously training for strength and endurance.
+<em>Eur J Appl Physiol</em> 45:255–263. - Wilson JM et al. (2012).
+Concurrent training: a meta-analysis. <em>J Strength Cond Res</em>
+26(8):2293–2307. - Coffey VG, Hawley JA (2017). Concurrent exercise
+training: do opposites distract? <em>J Physiol</em> 595(9):2883–2896. -
+Fyfe JJ, Bishop DJ, Stepto NK (2014). Interference between concurrent
+resistance and endurance exercise. <em>Sports Medicine</em> 44:743–762.
+- Schumann M, Rønnestad BR (2019). <em>Concurrent Aerobic and Strength
+Training</em>. Springer. - Zanini M, Folland JP, Wu H, Blagrove RC
+(2025). Strength training and durability of running economy. <em>Med Sci
+Sports Exerc</em> (ahead of print).</p>
+<p><strong>Triathlon / long-course volume</strong> - Cejuela R,
+Sellés-Pérez S (2022). World-class Olympic triathlete case study.
+<em>Frontiers in Physiology</em> 13:835705. - Muñoz I, Cejuela R, Seiler
+S, Larumbe E, Esteve-Lanao J (2014). Training-intensity distribution and
+Ironman performance. <em>Int J Sports Physiol Perform</em> 9(2):332–339.
+- Sellés-Pérez S, Fernández-Sáez J, Cejuela R (2019). Polarized vs
+pyramidal in half-Ironman. <em>J Sports Sci Med</em> 18:708–715. - Friel
+J. <em>The Triathlete’s Training Bible</em> (annual-hours planning
+framework). - Jeukendrup AE. Training the gut for athletes. GSSI Sports
+Science Exchange #178.</p>
+</section>
+</section>
+
+    </div>
+  </main>
+</div>
+<button class="backtop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑</button>
+<script>
+  // Mark prescription tables (7 columns) for amber styling
+  document.querySelectorAll('.table-wrap table').forEach(function(t){
+    var cols = t.querySelectorAll('thead th').length;
+    if (cols >= 7) t.closest('.table-wrap').parentElement && t.closest('.table-wrap').classList.add('rx-inner');
+    if (cols >= 7) { var w = t.closest('.table-wrap'); var d=document.createElement('div'); }
+  });
+  document.querySelectorAll('.table-wrap').forEach(function(w){
+    var th = w.querySelectorAll('thead th').length;
+    if (th >= 7) { w.classList.add('rx'); }
+  });
+  // wrap rx class properly (add to wrapper so header rule applies)
+  document.querySelectorAll('.table-wrap.rx').forEach(function(w){
+    w.style.borderColor='var(--hi-line)';
+    w.querySelectorAll('thead th').forEach(function(h){h.style.background='var(--hi)';h.style.borderBottomColor='var(--hi-line)';});
+  });
+
+  // Scrollspy
+  var links = Array.from(document.querySelectorAll('.nav-link'));
+  var map = {};
+  links.forEach(function(l){ var el=document.getElementById(l.dataset.target); if(el) map[l.dataset.target]=el; });
+  var targets = Object.keys(map);
+  function onScroll(){
+    var y = window.scrollY + 120; var cur = targets[0];
+    targets.forEach(function(id){ if (map[id].offsetTop <= y) cur = id; });
+    links.forEach(function(l){ l.classList.toggle('active', l.dataset.target===cur); });
+    var bt = document.querySelector('.backtop'); bt.classList.toggle('show', window.scrollY > 600);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+</script>
+</body>
+</html>

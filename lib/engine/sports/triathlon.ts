@@ -83,6 +83,50 @@ const bikeCounts: PhaseCountTable = { base: [2, 3, 3], build: [3, 3, 4], peak: [
 const runCounts: PhaseCountTable = { base: [3, 3, 4], build: [3, 4, 4], peak: [3, 3, 4], taper: [2, 2, 3] };
 const brick70: PhaseCountTable = { base: 0, build: 1, peak: 2, taper: 1 };
 const brick140: PhaseCountTable = { base: 0, build: 1, peak: 2, taper: 1 };
+const brickOly: PhaseCountTable = { base: 0, build: 1, peak: 1, taper: 1 };
+
+// --- Olympic-distance (short-course): shorter race → rewards intensity/economy
+// over raw hours (research report §6.5). Distribution leans more threshold/VO2
+// and less bike-dominant than long course; total volume sits below 70.3. ---
+const OLY_ZONES = ZONES(
+  { z1: 22, z2: 60, z3: 10, z4: 5, z5: 3 },
+  { z1: 18, z2: 57, z3: 13, z4: 8, z5: 4 },
+  { z1: 15, z2: 53, z3: 15, z4: 10, z5: 7 },
+  { z1: 18, z2: 57, z3: 13, z4: 8, z5: 4 },
+);
+const OLY_BALANCE: Record<PhaseName, Balance> = {
+  base: { swim: 0.3, bike: 0.4, run: 0.3 },
+  build: { swim: 0.25, bike: 0.42, run: 0.33 },
+  peak: { swim: 0.22, bike: 0.42, run: 0.36 },
+  taper: { swim: 0.25, bike: 0.42, run: 0.33 },
+};
+
+export const tri_olympic: SportConfig = {
+  id: "tri_olympic",
+  family: "triathlon",
+  displayName: "Olympic Triathlon",
+  programType: "race_peaking",
+  modalities: ["swim", "bike", "run", "brick", "rest", "race"],
+  sessionCounts: { swim: swimCounts, bike: bikeCounts, run: runCounts, brick: brickOly },
+  phaseZoneTargets: OLY_ZONES,
+  needsDomains: NEEDS,
+  experienceAxes: [
+    { key: "swim", label: "Swim (CSS)", bands: SWIM_BANDS, needsWeight: 1.0 },
+    { key: "bike", label: "Bike (FTP)", bands: BIKE_BANDS, needsWeight: 1.0 },
+    { key: "run", label: "Run (off the bike)", bands: RUN_BANDS, needsWeight: 1.0 },
+  ],
+  volume: {
+    kind: "per_discipline",
+    // `${distance}:${level}` → [baseHours, peakHours]. Olympic sits below 70.3.
+    hoursPerWeekByLevel: {
+      "olympic:beginner": [4, 8],
+      "olympic:intermediate": [6, 10],
+      "olympic:advanced": [8, 12],
+    },
+    disciplineBalanceByPhase: OLY_BALANCE as unknown as Record<PhaseName, Record<string, number>>,
+  },
+  philosophy: triPhilosophy("expert Olympic-distance triathlon coach"),
+};
 
 export const tri_70_3: SportConfig = {
   id: "tri_70_3",
@@ -148,7 +192,7 @@ export const tri_140_6: SportConfig = {
   },
 };
 
-export const TRI_SPORTS = { tri_70_3, tri_140_6 };
+export const TRI_SPORTS = { tri_olympic, tri_70_3, tri_140_6 };
 
 // --- per-discipline proficiency (from CSS / FTP anchors) --------------------
 
