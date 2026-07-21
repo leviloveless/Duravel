@@ -229,6 +229,12 @@
     {group:"Training engine (product)", label:"Triathlon full MVP", note:"2026-07-20: standalone Ironman engine — periodized strength, swim/bike/run/lift time trackers, long-run caps, discrete brick, A/B/C race periodization. Full UX + live QA left", ps:"2026-09-14", pe:"2026-10-19", pct:0.9, status:"prog"},
     {group:"Training engine (product)", label:"Multi-sport strength + cardio specs → repo", note:"Drafted (v4 / v2); not yet in repo", ps:"2026-08-03", pe:"2026-08-24", pct:0.2, status:"prog"},
     {group:"Training engine (product)", label:"Self-validation (race season)", note:"Season clock; not started", ps:"2026-10-19", pe:"2026-12-06", pct:0, status:"not"},
+
+    // ---- HYROX RACE LOOKUP + PROJECTIONS (#17) ----
+    {group:"HYROX race lookup + projections (#17)", label:"Race-result lookup + splits import", note:"LIVE 2026-07-20 — official hyroxresultapi.com search + /athletes/{id}/splits; individual run + station splits import into profile benchmarks + builder inputs; singles/doubles/relay captured (doubles \u2192 running-only). Ironman/DEKA placeholders.", ps:"2026-07-18", pe:"2026-07-20", pct:1, status:"done"},
+    {group:"HYROX race lookup + projections (#17)", label:"Projected end-of-program times", note:"LIVE 2026-07-20 \u2014 research-backed model (Imax\u00d7trainability\u00d7headroom\u00d7saturation); per-event + finish card on the program page; public F/C benchmark bands; migration 0033. 12 tests.", ps:"2026-07-20", pe:"2026-07-20", pct:1, status:"ahead"},
+    {group:"HYROX race lookup + projections (#17)", label:"Mid-program re-forecast (\u00a74)", note:"LIVE 2026-07-20 \u2014 projection updates from real adherence + fresh measurements (imported\u2192now\u2192target trend, on-track read). Write-back persistence deferred. 7 tests.", ps:"2026-07-20", pe:"2026-07-27", pct:1, status:"ahead"},
+    {group:"HYROX race lookup + projections (#17)", label:"Ironman result lookup (Athlinks)", note:"Pending Athlinks API approval \u2014 wire like HYROX when live", ps:"2026-08-03", pe:"2026-08-17", pct:0, status:"block"},
   ];
 
   const MILESTONES = [
