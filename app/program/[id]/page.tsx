@@ -21,7 +21,8 @@ import { computeAdherence } from "@/lib/wearables/adherence";
 import { computeDekaPacingPlan } from "@/lib/engine/deka-pacing";
 import { computeTriZones } from "@/lib/engine/tri-zones";
 import { getSport } from "@/lib/engine/sports";
-import type { SportId } from "@/lib/schemas";
+import TimeBudgetCard from "@/components/program/time-budget-card";
+import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
 import { getEntitlement } from "@/lib/subscription";
 import { gateProgramWeeks } from "@/lib/program-access";
@@ -121,6 +122,8 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
   const sport = (program.input_snapshot as { sport?: string } | null)?.sport ?? "hyrox";
+  const weeklyHours = (program.input_snapshot as { profile?: { weeklyHours?: WeeklyHoursBand } } | null)?.profile
+    ?.weeklyHours;
   const sportLabel = SPORT_LABEL[sport] ?? "HYROX";
 
   // Recover programs stuck in 'generating' (function killed before its failure
@@ -346,6 +349,7 @@ export default async function ProgramPage({
         )}
         {dekaPlan && <DekaPacingCard plan={dekaPlan} sportLabel={sportLabel} />}
         {triZones && <TriZonesCard zones={triZones} />}
+        {weeklyHours && <TimeBudgetCard sport={sport} band={weeklyHours} data={data} />}
         {runPaces && <VdotCard paces={runPaces} />}
         <ReadinessForm programId={program.id} weekNumber={readinessWeek} existing={existingReadiness} />
         <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />
