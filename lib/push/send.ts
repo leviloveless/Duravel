@@ -36,6 +36,8 @@ export type PushResult = {
   skipped?: string;
   /** Set when the subscription read itself errored. */
   readError?: string;
+  /** Raw push-service rejections (statusCode + body) for failed sends. */
+  sendErrors?: string[];
 };
 
 /** Minimal shape of the parts of `web-push` we use — declared locally so this
@@ -132,6 +134,7 @@ export async function sendPushToUser(
 
   const body = JSON.stringify(payload);
   const dead: string[] = [];
+  const sendErrors: string[] = [];
   let sent = 0;
   let failed = 0;
 
@@ -145,9 +148,24 @@ export async function sendPushToUser(
         );
         sent += 1;
       } catch (err: unknown) {
-        const code = (err as { statusCode?: number })?.statusCode;
-        if (code === 404 || code === 410) dead.push(s.id);
-        else failed += 1;
+        const e = err as { statusCode?: number; body?: string; message?: string };
+        const code = e?.statusCode;
+        if (code === 404 || code === 410) {
+          dead.push(s.id);
+        } else {
+          failed += 1;
+          // Surface the push service's actual response so a persistent failure is
+          // diagnosable (403 = VAPID mismatch, 400 = bad request, etc.).
+          const host = (() => {
+            try {
+              return new URL(s.endpoint).host;
+            } catch {
+              return "?";
+            }
+          })();
+          const detail = String(e?.body || e?.message || "unknown").replace(/\s+/g, " ").slice(0, 180);
+          sendErrors.push(`${host} ${code ?? "?"}: ${detail}`);
+        }
       }
     }),
   );
@@ -156,5 +174,11 @@ export async function sendPushToUser(
     await admin.from("push_subscriptions").delete().in("id", dead);
   }
 
-  return { sent, pruned: dead.length, found: subs.length, failed };
+  return {
+    sent,
+    pruned: dead.length,
+    found: subs.length,
+    failed,
+    sendErrors: sendErrors.length ? sendErrors : undefined,
+  };
 }

@@ -44,7 +44,8 @@ export async function POST() {
         error = `Could not read subscriptions (${result.readError}).`;
         status = 500;
       } else if ((result.found ?? 0) > 0) {
-        error = `Found ${result.found} subscription(s) but all sends failed — check VAPID keys.`;
+        const detail = result.sendErrors?.length ? ` [${result.sendErrors.join(" || ")}]` : "";
+        error = `Found ${result.found} subscription(s) but all sends failed — check VAPID keys.${detail}`;
         status = 502;
       }
       return NextResponse.json({ ok: false, error, ...result }, { status });
