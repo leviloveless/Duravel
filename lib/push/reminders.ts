@@ -103,7 +103,7 @@ export async function runPushRemindersFlow(
   summary.activePrograms = activeByUser.size;
   if (activeByUser.size === 0) return summary;
 
-  const todayKey = DAY_KEYS[new Date(nowMs).getDay()];
+  const todayKey = DAY_KEYS[new Date(nowMs).getDay()]!; // getDay() is always 0-6
   const todayStr = new Date(nowMs).toISOString().slice(0, 10);
 
   // 3. Build the candidate reminders per active program.
