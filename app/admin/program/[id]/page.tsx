@@ -5,6 +5,7 @@ import { getAdminProgram } from "@/lib/admin-data";
 import AdminProgramControls from "@/components/admin/admin-program-controls";
 import CoachingNotes from "@/components/admin/coaching-notes";
 import ProgramEditor from "@/components/admin/program-editor";
+import ProgramFormEditor from "@/components/admin/program-form-editor";
 
 /**
  * Admin program detail (#15) — full review + edit of one athlete's program:
@@ -53,7 +54,15 @@ export default async function AdminProgramPage({ params }: { params: Promise<{ i
       <section className="rounded-2xl border border-zinc-200 p-5">
         <h2 className="mb-3 text-sm font-semibold">Edit program</h2>
         {program.program_data ? (
-          <ProgramEditor programId={program.id} initialJson={JSON.stringify(program.program_data, null, 2)} />
+          <>
+            <ProgramFormEditor programId={program.id} initialData={program.program_data} />
+            <details className="mt-4">
+              <summary className="cursor-pointer text-xs text-zinc-500">Advanced: edit raw JSON</summary>
+              <div className="mt-3">
+                <ProgramEditor programId={program.id} initialJson={JSON.stringify(program.program_data, null, 2)} />
+              </div>
+            </details>
+          </>
         ) : (
           <p className="text-sm text-zinc-500">No program data yet (still generating or failed).</p>
         )}

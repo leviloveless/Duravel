@@ -176,7 +176,7 @@ export function planWeek(
   // runs down to the anchor floor first (the long run + threshold/VO2 anchors are
   // seeded first in buildRunSlots, so they survive); then, for run-dominant
   // sports, shed surplus hybrids down to one. Never touches the research lift dose.
-  if (counts.weeklySessionCap && microWeek !== "race") {
+  if (counts.weeklySessionCap) {
     const cap = counts.weeklySessionCap;
     const runAnchor = counts.anchorRunFloor ?? 3;
     let total = runs + lifts + hybrids;
