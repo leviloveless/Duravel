@@ -35,6 +35,20 @@ function triInput(band: WeeklyHoursBand): EngineInput {
     races: [{ weekNumber: 16, priority: "A" }],
   };
 }
+function dekaFitInput(band: WeeklyHoursBand): EngineInput {
+  return {
+    sport: "deka_fit",
+    weeklyHours: band,
+    trainingClass: "non_highly_trained",
+    runningExp: "intermediate",
+    hybridExp: "intermediate",
+    liftingExp: "intermediate",
+    programType: "goal_event",
+    durationWeeks: 16,
+    trainingDays: ["mon", "tue", "wed", "thu", "fri"],
+    races: [{ weekNumber: 16, priority: "A" }],
+  };
+}
 
 describe("time-budget skeletons (band-driven; snapshots auto-created on first run)", () => {
   for (const band of BANDS) {
@@ -43,6 +57,9 @@ describe("time-budget skeletons (band-driven; snapshots auto-created on first ru
     });
     it(`70.3 @ ${band}`, () => {
       expect(buildSkeleton(triInput(band))).toMatchSnapshot();
+    });
+    it(`DEKA FIT @ ${band}`, () => {
+      expect(buildSkeleton(dekaFitInput(band))).toMatchSnapshot();
     });
   }
 

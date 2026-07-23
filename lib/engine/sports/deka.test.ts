@@ -184,3 +184,51 @@ describe("DEKA skeletons generate", () => {
     }
   });
 });
+
+
+describe("DEKA research band tables (Batch 6)", () => {
+  const RUN_FORMATS = [deka_fit, deka_mile, deka_ultra];
+  const BANDS = ["h0_5", "h5_10", "h10_20", "h20_30", "h30_40"] as const;
+
+  it("bandZone3Z is present on the run formats and each band sums to 100", () => {
+    for (const cfg of RUN_FORMATS) {
+      expect(cfg.bandZone3Z).toBeTruthy();
+      for (const b of BANDS) {
+        const z = cfg.bandZone3Z![b];
+        expect(z.easy + z.gray + z.hard).toBe(100);
+      }
+    }
+  });
+
+  it("bandLiftCounts is present on the run formats with valid [min,max] ranges", () => {
+    for (const cfg of RUN_FORMATS) {
+      expect(cfg.bandLiftCounts).toBeTruthy();
+      for (const b of BANDS) {
+        const [lo, hi] = cfg.bandLiftCounts![b];
+        expect(lo).toBeGreaterThanOrEqual(1);
+        expect(hi).toBeGreaterThanOrEqual(lo);
+        expect(hi).toBeLessThanOrEqual(4);
+      }
+    }
+  });
+
+  it("station-only STRONG/ATLAS keep their strength-event structure (no band tables)", () => {
+    expect(deka_strong.bandZone3Z).toBeUndefined();
+    expect(deka_strong.bandLiftCounts).toBeUndefined();
+    expect(deka_atlas.bandZone3Z).toBeUndefined();
+    expect(deka_atlas.bandLiftCounts).toBeUndefined();
+  });
+
+  it("intensity ordering by event: MILE hard > FIT hard > ULTRA hard at each band", () => {
+    for (const b of BANDS) {
+      expect(deka_mile.bandZone3Z![b].hard).toBeGreaterThan(deka_fit.bandZone3Z![b].hard);
+      expect(deka_fit.bandZone3Z![b].hard).toBeGreaterThan(deka_ultra.bandZone3Z![b].hard);
+    }
+  });
+
+  it("hard fraction falls as the hours budget rises (more volume, less % hard)", () => {
+    for (const cfg of RUN_FORMATS) {
+      expect(cfg.bandZone3Z!.h0_5.hard).toBeGreaterThan(cfg.bandZone3Z!.h30_40.hard);
+    }
+  });
+});

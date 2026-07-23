@@ -183,6 +183,14 @@ export const deka_fit: SportConfig = {
   sessionCounts: { run: { base: [3, 4, 5], build: [4, 5, 5], peak: [3, 4, 4], taper: [2, 3, 3] }, hybrid: { base: 1, build: 2, peak: 3, taper: 1 }, lift: { base: 3, build: 3, peak: 3, taper: 2 } },
   stations: DEKA_MAP, raceStationOrder: FIT_ORDER, stationCatalog: dekaCatalog(FIT_ORDER, 500), interStationRunMeters: 500, totalRaceRunMeters: 5000,
   phaseZoneTargets: ZT({ z1: 22, z2: 58, z3: 11, z4: 6, z5: 3 }, { z1: 18, z2: 54, z3: 15, z4: 9, z5: 4 }, { z1: 14, z2: 48, z3: 17, z4: 13, z5: 8 }, { z1: 16, z2: 54, z3: 15, z4: 10, z5: 5 }),
+  // Research 3-zone budget (easy/gray/hard) + strength dose by weekly-hours band.
+  // FIT is a ~1 h functional race → HYROX-like intensity shape.
+  bandZone3Z: {
+    h0_5: { easy: 55, gray: 25, hard: 20 }, h5_10: { easy: 70, gray: 15, hard: 15 },
+    h10_20: { easy: 80, gray: 8, hard: 12 }, h20_30: { easy: 85, gray: 4, hard: 11 },
+    h30_40: { easy: 88, gray: 3, hard: 9 },
+  },
+  bandLiftCounts: { h0_5: [1, 1], h5_10: [2, 2], h10_20: [2, 3], h20_30: [3, 4], h30_40: [3, 4] },
   needsDomains: DEKA_NEEDS,
   needsStations: DEKA_NEEDS_STATIONS,
   experienceAxes: [
@@ -200,6 +208,13 @@ export const deka_mile: SportConfig = {
   sessionCounts: { run: { base: [3, 3, 4], build: [3, 4, 4], peak: [3, 3, 4], taper: [2, 2, 3] }, hybrid: { base: 1, build: 2, peak: 3, taper: 1 }, lift: { base: 3, build: 3, peak: 3, taper: 2 } },
   stations: DEKA_MAP, raceStationOrder: MILE_ORDER, stationCatalog: dekaCatalog(MILE_ORDER, 160), interStationRunMeters: 160, totalRaceRunMeters: 1600,
   phaseZoneTargets: ZT({ z1: 20, z2: 55, z3: 12, z4: 8, z5: 5 }, { z1: 16, z2: 48, z3: 15, z4: 13, z5: 8 }, { z1: 12, z2: 40, z3: 16, z4: 18, z5: 14 }, { z1: 14, z2: 48, z3: 16, z4: 13, z5: 9 }),
+  // MILE is a short (~1600 m) glycolytic race → shift the hard pool up ~5 pts.
+  bandZone3Z: {
+    h0_5: { easy: 50, gray: 25, hard: 25 }, h5_10: { easy: 65, gray: 15, hard: 20 },
+    h10_20: { easy: 74, gray: 10, hard: 16 }, h20_30: { easy: 80, gray: 5, hard: 15 },
+    h30_40: { easy: 83, gray: 4, hard: 13 },
+  },
+  bandLiftCounts: { h0_5: [1, 1], h5_10: [2, 2], h10_20: [2, 3], h20_30: [3, 4], h30_40: [3, 4] },
   needsDomains: DEKA_NEEDS,
   needsStations: DEKA_NEEDS_STATIONS,
   experienceAxes: [
@@ -255,6 +270,14 @@ export const deka_ultra: SportConfig = {
   stationCatalog: dekaCatalog(FIT_ORDER, 500, { laps: 5, runNote: "controlled effort (Z2–Z3)" }),
   interStationRunMeters: 500, totalRaceRunMeters: 25000,
   phaseZoneTargets: ZT({ z1: 26, z2: 63, z3: 6, z4: 3, z5: 2 }, { z1: 22, z2: 62, z3: 9, z4: 5, z5: 2 }, { z1: 18, z2: 60, z3: 12, z4: 7, z5: 3 }, { z1: 20, z2: 61, z3: 11, z4: 5, z5: 3 }),
+  // ULTRA is a multi-hour (25 km) endurance event → aerobic-dominant, hard pool
+  // trimmed ~4 pts below FIT.
+  bandZone3Z: {
+    h0_5: { easy: 62, gray: 22, hard: 16 }, h5_10: { easy: 76, gray: 13, hard: 11 },
+    h10_20: { easy: 84, gray: 7, hard: 9 }, h20_30: { easy: 88, gray: 4, hard: 8 },
+    h30_40: { easy: 90, gray: 3, hard: 7 },
+  },
+  bandLiftCounts: { h0_5: [1, 1], h5_10: [2, 2], h10_20: [2, 3], h20_30: [3, 4], h30_40: [3, 4] },
   needsDomains: DEKA_NEEDS,
   needsStations: DEKA_NEEDS_STATIONS,
   experienceAxes: [
