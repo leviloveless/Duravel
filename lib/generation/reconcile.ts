@@ -88,6 +88,21 @@ function leastLoadedDay(days: ProgramDay[]): number {
   return best;
 }
 
+/**
+ * Least-loaded day that still has room under the per-day workout cap (default 2),
+ * so reconciler-added cardio/easy-run blocks don't stack a 3rd session on a day.
+ * Falls back to the overall least-loaded day only when every day is already at the
+ * cap (unavoidable — more sessions than 2 x training days).
+ */
+function leastLoadedUnderCap(days: ProgramDay[], cap = 2): number {
+  let best = -1;
+  for (let i = 0; i < days.length; i++) {
+    if (days[i]!.sessions.length >= cap) continue;
+    if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
+  }
+  return best === -1 ? leastLoadedDay(days) : best;
+}
+
 /** Rewrite the pace token in a hybrid session's run elements to threshold pace. */
 function rewriteHybridPaces(days: ProgramDay[], thresholdSecPerMile: number): void {
   const th = formatPace(thresholdSecPerMile);
@@ -159,7 +174,7 @@ export function reconcileWeekVolume(
   }
 
   // Place added easy runs before the mileage true-up so they count.
-  for (const s of added) days[leastLoadedDay(days)]!.sessions.push(s); // safe: leastLoadedDay returns an in-bounds index for a non-empty week
+  for (const s of added) days[leastLoadedUnderCap(days)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
   trueUpMileage(days, targetMileage, paces);
 
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
@@ -169,7 +184,7 @@ export function reconcileWeekVolume(
   }
   let gap = Math.round(targetCardioMinutes) - runningCardio;
   if (gap > 0) {
-    for (const block of splitCardio(gap)) days[leastLoadedDay(days)]!.sessions.push(block); // safe: leastLoadedDay returns an in-bounds index for a non-empty week
+    for (const block of splitCardio(gap)) days[leastLoadedUnderCap(days)]!.sessions.push(block); // cap-aware: avoid a 3rd session on a day
   }
 }
 

@@ -142,11 +142,15 @@ function pickNoLiftDay(
     if (t === fromIdx) continue;
     const day = days[t]!; // safe: t < days.length
     if (protectedDays.has(day.day)) continue;
-    if (dayHas(day, (s) => s.kind === "lift")) continue;
-    if (legLift && conflictsWithKeyRun(days, t)) continue;
+    if (dayHas(day, (s) => s.kind === "lift")) continue; // HARD: never two lifts on a day
     const load = day.sessions.filter((x) => x.kind !== "rest").length;
     const pairs = legLift && dayHas(day, isCardio) ? 1 : 0; // leg lift onto easy cardio = ideal
-    const score = pairs * 200 + (load === 0 ? 50 : 0) - load;
+    // Key-run adjacency is a strong PREFERENCE, not a veto: the no-two-lifts rule
+    // must always win, so we penalize a conflicting day rather than skip it (in a
+    // dense peak week nearly every day is key-run-adjacent — skipping stranded the
+    // extra lift and left two on one day).
+    const conflict = legLift && conflictsWithKeyRun(days, t) ? 1 : 0;
+    const score = pairs * 200 + (load === 0 ? 50 : 0) - load - conflict * 500;
     if (score > bestScore) {
       bestScore = score;
       best = t;

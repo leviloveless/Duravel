@@ -168,3 +168,23 @@ describe("capSessionsPerDay (rule #1: max 2 workouts/day)", () => {
     expect(JSON.stringify(days)).toBe(before);
   });
 });
+
+
+describe("separateLifts — dense peak week (regression: 2 lifts stayed on one day)", () => {
+  const thresholdRun: SessionSlot = { kind: "run", runType: "threshold", goalZone: 4 };
+  it("relocates the 2nd hard-leg lift even when every open day is key-run-adjacent", () => {
+    // mon stacks two full-body lifts; every other unprotected day holds a key run,
+    // so the old hard key-run veto stranded the extra lift. It must still move.
+    const days = [
+      day("mon", fullLift, fullLift),
+      day("tue", intervalRun),
+      day("wed", thresholdRun),
+      day("thu", longRun),
+    ];
+    separateLifts(days, new Set());
+    const maxLifts = Math.max(...days.map((d) => d.sessions.filter((s) => s.kind === "lift").length));
+    expect(maxLifts).toBe(1);
+    expect(days.reduce((n, d) => n + d.sessions.filter((s) => s.kind === "lift").length, 0)).toBe(2);
+  });
+});
+
