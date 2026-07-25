@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { separateLifts, pairLegLiftWithCardio } from "./sequencing";
+import { separateLifts, pairLegLiftWithCardio, spreadRuns, capSessionsPerDay } from "./sequencing";
 import type { DaySlot, SessionSlot, TrainingDayName } from "./types";
 
 /**
@@ -106,3 +106,65 @@ describe("pairLegLiftWithCardio", () => {
 
 // keep the DAYS constant referenced (documents the weekly frame)
 it("training week frame", () => expect(DAYS.length).toBe(7));
+
+
+const hybrid: SessionSlot = { kind: "hybrid", goalZone: 4 };
+const runsOnDay = (days: DaySlot[], i: number) => days[i]!.sessions.filter((s) => s.kind === "run").length;
+const maxWorkoutsOnAnyDay = (days: DaySlot[]) => Math.max(...days.map((d) => d.sessions.length));
+const totalSessions = (days: DaySlot[]) => days.reduce((n, d) => n + d.sessions.length, 0);
+
+describe("spreadRuns (rule #2: no doubled runs until every day has one)", () => {
+  it("moves a second run onto a run-less day", () => {
+    const days = [day("mon", easyRun, intervalRun), day("tue"), day("wed", fullLift)];
+    const before = totalSessions(days);
+    spreadRuns(days, new Set());
+    expect(days.every((d) => d.sessions.filter((s) => s.kind === "run").length <= 1)).toBe(true);
+    expect(totalSessions(days)).toBe(before); // count-preserving
+  });
+
+  it("keeps the long run on its (protected) day, relocating the easy run", () => {
+    const days = [day("sat", longRun, easyRun), day("sun")];
+    spreadRuns(days, new Set<TrainingDayName>(["sat"]));
+    expect(days[0]!.sessions.some((s) => s.kind === "run" && s.runType === "long")).toBe(true);
+    expect(runsOnDay(days, 1)).toBe(1); // easy run moved to sunday
+  });
+
+  it("allows doubled runs when every day already has a run", () => {
+    const days = [day("mon", easyRun, easyRun), day("tue", easyRun)];
+    spreadRuns(days, new Set());
+    // tue already has a run and is the only other day → mon keeps both
+    expect(runsOnDay(days, 0)).toBe(2);
+  });
+
+  it("won't move a run onto a day that would exceed 2 workouts", () => {
+    const days = [day("mon", easyRun, intervalRun), day("tue", fullLift, hybrid)];
+    spreadRuns(days, new Set());
+    expect(runsOnDay(days, 0)).toBe(2); // tue is full (2 workouts) → no room
+  });
+});
+
+describe("capSessionsPerDay (rule #1: max 2 workouts/day)", () => {
+  it("relocates the 3rd session to a lighter day, preserving count", () => {
+    const days = [day("mon", fullLift, easyRun, hybrid), day("tue"), day("wed")];
+    const before = totalSessions(days);
+    capSessionsPerDay(days, new Set());
+    expect(maxWorkoutsOnAnyDay(days)).toBeLessThanOrEqual(2);
+    expect(totalSessions(days)).toBe(before);
+  });
+
+  it("never creates two lifts on a day when relocating", () => {
+    const days = [day("mon", fullLift, powerLift, easyRun), day("tue", upperLift)];
+    // mon has 3 (2 lifts already — separate first in the real pipeline); cap must
+    // not move a lift onto tue (which has a lift). It moves the easy run instead.
+    capSessionsPerDay(days, new Set());
+    expect(days[1]!.sessions.filter((s) => s.kind === "lift").length).toBe(1);
+    expect(maxWorkoutsOnAnyDay(days)).toBeLessThanOrEqual(2);
+  });
+
+  it("leaves a compliant week untouched", () => {
+    const days = [day("mon", fullLift, easyRun), day("tue", intervalRun)];
+    const before = JSON.stringify(days);
+    capSessionsPerDay(days, new Set());
+    expect(JSON.stringify(days)).toBe(before);
+  });
+});

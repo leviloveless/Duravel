@@ -28,7 +28,7 @@ import type {
 } from "./types";
 import type { ProgramBias, RunEmphasis } from "./needs";
 import { clampInt } from "./math";
-import { applySequencingGuards, separateLifts, pairLegLiftWithCardio } from "./sequencing";
+import { applySequencingGuards, separateLifts, pairLegLiftWithCardio, spreadRuns, capSessionsPerDay } from "./sequencing";
 
 const GOAL_ZONE: Record<RunType, number> = {
   easy: 2,
@@ -551,6 +551,10 @@ export function assignDays(
     if (counts.researchLifts) {
       separateLifts(days, protectedDays);
       pairLegLiftWithCardio(days, protectedDays);
+      // Rule #2 then #1: spread runs across days before doubling, then cap the
+      // day at 2 workouts (relocating any overflow to a lighter day).
+      spreadRuns(days, protectedDays);
+      capSessionsPerDay(days, protectedDays);
     }
   }
 

@@ -11508,17 +11508,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11581,17 +11581,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11654,17 +11654,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11727,17 +11727,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11800,17 +11800,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11873,17 +11873,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -11946,17 +11946,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12019,17 +12019,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12092,17 +12092,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12165,17 +12165,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12238,17 +12238,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12311,17 +12311,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12384,17 +12384,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12458,17 +12458,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12678,12 +12678,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -12728,6 +12722,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -12761,12 +12761,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -12812,6 +12806,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -12844,17 +12844,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -12917,12 +12917,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -12967,6 +12961,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -13000,12 +13000,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -13051,6 +13045,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -13083,17 +13083,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -13156,12 +13156,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -13206,6 +13200,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -13320,12 +13320,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -13349,6 +13343,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -13561,12 +13561,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -13590,6 +13584,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -13951,12 +13951,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14005,6 +13999,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -14038,12 +14038,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14093,6 +14087,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -14125,17 +14125,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -14198,12 +14198,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14252,6 +14246,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -14285,12 +14285,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14340,6 +14334,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -14372,17 +14372,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -14445,12 +14445,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14499,6 +14493,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -14623,12 +14623,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14652,6 +14646,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -14884,12 +14884,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -14913,6 +14907,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -15290,12 +15290,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15344,6 +15338,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -15377,12 +15377,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15432,6 +15426,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -15464,17 +15464,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -15537,12 +15537,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15591,6 +15585,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -15624,12 +15624,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15679,6 +15673,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -15711,17 +15711,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -15784,12 +15784,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15838,6 +15832,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -15968,12 +15968,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -15997,6 +15991,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -16241,12 +16241,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -16270,6 +16264,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -17763,17 +17763,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -17836,17 +17836,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -17909,17 +17909,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -17982,17 +17982,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18055,17 +18055,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18128,17 +18128,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18201,17 +18201,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18274,17 +18274,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18347,17 +18347,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18420,17 +18420,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18493,17 +18493,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18566,17 +18566,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18639,17 +18639,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18713,17 +18713,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -18933,12 +18933,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -18983,6 +18977,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -19016,12 +19016,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19067,6 +19061,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -19099,17 +19099,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -19172,12 +19172,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19222,6 +19216,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -19255,12 +19255,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19306,6 +19300,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -19338,17 +19338,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -19411,12 +19411,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19461,6 +19455,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -19575,12 +19575,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19604,6 +19598,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -19816,12 +19816,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -19845,6 +19839,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -20206,12 +20206,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20260,6 +20254,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -20293,12 +20293,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20348,6 +20342,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -20380,17 +20380,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -20453,12 +20453,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20507,6 +20501,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -20540,12 +20540,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20595,6 +20589,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -20627,17 +20627,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -20700,12 +20700,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20754,6 +20748,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -20878,12 +20878,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -20907,6 +20901,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -21139,12 +21139,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -21168,6 +21162,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -21545,12 +21545,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -21599,6 +21593,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -21632,12 +21632,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -21687,6 +21681,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -21719,17 +21719,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -21792,12 +21792,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -21846,6 +21840,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -21879,12 +21879,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -21934,6 +21928,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
+            {
               "kind": "lift",
               "liftType": "power",
             },
@@ -21966,17 +21966,17 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
+          ],
+        },
+        {
+          "day": "tue",
+          "sessions": [
             {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
             },
-          ],
-        },
-        {
-          "day": "tue",
-          "sessions": [
             {
               "kind": "lift",
               "liftType": "full",
@@ -22039,12 +22039,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -22093,6 +22087,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         {
           "day": "fri",
           "sessions": [
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
+            },
             {
               "kind": "lift",
               "liftType": "power",
@@ -22223,12 +22223,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -22252,6 +22246,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },
@@ -22496,12 +22496,6 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "kind": "run",
               "runType": "long",
             },
-            {
-              "goalZone": 5,
-              "isLong": false,
-              "kind": "run",
-              "runType": "interval",
-            },
           ],
         },
         {
@@ -22525,6 +22519,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             {
               "goalZone": 4,
               "kind": "hybrid",
+            },
+            {
+              "goalZone": 5,
+              "isLong": false,
+              "kind": "run",
+              "runType": "interval",
             },
           ],
         },

@@ -6,6 +6,7 @@ import ResultCardLauncher from "./result-card-launcher";
 import CoachSessionEdit from "./coach-session-edit";
 import { sessionCardFromLog } from "./session-card-data";
 import { sessionKey, type SyncActivitySummary } from "@/lib/wearables/suggest-data";
+import { weekTimeByCategory } from "@/lib/session-volume";
 import {
   DAY_LABEL,
   MICRO_LABEL,
@@ -242,6 +243,7 @@ export default function WeekCard({
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   const hasLogs = (logging?.logs.length ?? 0) > 0;
   const actuals = hasLogs && logging ? computeWeekSignals(week, logging.logs) : null;
+  const time = weekTimeByCategory(week);
 
   return (
     <section id={`week-${week.weekNumber}`} className={`scroll-mt-20 rounded-xl border ${colors.border} bg-white`}>
@@ -284,6 +286,14 @@ export default function WeekCard({
               {actuals && (
                 <span className="block text-xs text-emerald-700">Actual: {actuals.actualMileage} mi</span>
               )}
+            </span>
+            <span>
+              <span className="block text-xs text-zinc-500">Strength time</span>
+              <span className="font-medium">{time.strength} min</span>
+            </span>
+            <span>
+              <span className="block text-xs text-zinc-500">Total training</span>
+              <span className="font-medium">{time.total} min</span>
             </span>
             {actuals && (
               <span>

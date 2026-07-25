@@ -218,3 +218,131 @@ export function pairLegLiftWithCardio(days: DaySlot[], protectedDays: Set<Traini
     day.sessions.push(run);
   }
 }
+
+
+// --- Daily-load guards (per-day session limits) ------------------------------
+//
+// Two structural rules layered on top of the batch-3 guards, applied only for
+// research-lift programs (gated at the call site on counts.researchLifts, so the
+// golden oracle is untouched):
+//   #2  A day may hold a SECOND run only once every (unprotected) training day
+//       already has a run — runs spread across days before they double up.
+//   #1  No more than 2 workouts on any single day — a 3rd+ session is relocated
+//       to a lighter day (respecting rest-day preferences and the no-two-lifts
+//       rule). Both are best-effort and session-count-preserving.
+
+const isRun: SlotPredicate = (s) => s.kind === "run";
+const isLift: SlotPredicate = (s) => s.kind === "lift";
+
+/** Non-rest workouts on a day (rest slots aren't added until after the guards). */
+function workoutCount(day: DaySlot): number {
+  return day.sessions.filter((s) => s.kind !== "rest").length;
+}
+function runCount(day: DaySlot): number {
+  return day.sessions.filter(isRun).length;
+}
+
+/** Lower = relocate this run first (keep the long run on its day). */
+function runMovability(s: SessionSlot): number {
+  if (s.kind !== "run") return 99;
+  if (s.isLong || s.runType === "long") return 2;
+  if (s.runType === "easy") return 0;
+  return 1;
+}
+
+/** Lower = relocate this session first off an overloaded day. */
+function sessionMovability(s: SessionSlot): number {
+  if (s.kind === "cardio") return 0;
+  if (s.kind === "run") return s.isLong || s.runType === "long" ? 6 : s.runType === "easy" ? 1 : 3;
+  if (s.kind === "hybrid") return 4;
+  if (s.kind === "lift") return 5;
+  return 8; // race / other — pinned
+}
+
+/**
+ * Rule #2: runs spread across days before doubling. While some day stacks ≥2
+ * runs and an unprotected day has none (with room for another session), move the
+ * most-movable run onto the emptiest run-less day.
+ */
+export function spreadRuns(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  for (let guard = 0; guard < days.length * 4; guard++) {
+    const srcIdx = days.findIndex((d) => runCount(d) >= 2);
+    if (srcIdx === -1) break;
+    let best = -1;
+    let bestLoad = Infinity;
+    for (let t = 0; t < days.length; t++) {
+      const d = days[t]!; // safe: t < days.length
+      if (protectedDays.has(d.day)) continue;
+      if (runCount(d) > 0) continue;
+      const load = workoutCount(d);
+      if (load >= 2) continue; // adding a run would break the 2-per-day cap
+      if (load < bestLoad) {
+        bestLoad = load;
+        best = t;
+      }
+    }
+    if (best === -1) break; // every day already has a run (or no room) — doubling allowed
+    const src = days[srcIdx]!; // safe: findIndex returned a valid index
+    const moveIdx = src.sessions
+      .map((sl, i) => ({ sl, i }))
+      .filter((x) => x.sl.kind === "run")
+      .sort((a, b) => runMovability(a.sl) - runMovability(b.sl))[0]!.i; // safe: srcIdx has ≥2 runs
+    const run = src.sessions.splice(moveIdx, 1)[0]!; // safe: moveIdx is a valid index
+    days[best]!.sessions.push(run); // safe: best is a valid index
+  }
+}
+
+/** A lighter, unprotected day that can accept `sess` under the 2-per-day cap. */
+function pickCapTarget(
+  days: DaySlot[],
+  fromIdx: number,
+  sess: SessionSlot,
+  protectedDays: Set<TrainingDayName>,
+  max: number,
+): number {
+  const wantRun = sess.kind === "run";
+  const wantLift = sess.kind === "lift";
+  let best = -1;
+  let bestScore = -Infinity;
+  for (let t = 0; t < days.length; t++) {
+    if (t === fromIdx) continue;
+    const d = days[t]!; // safe: t < days.length
+    if (protectedDays.has(d.day)) continue;
+    const load = workoutCount(d);
+    if (load >= max) continue;
+    if (wantLift && dayHas(d, isLift)) continue; // never two lifts on a day
+    const runless = runCount(d) === 0;
+    const score = (load === 0 ? 100 : 0) + (wantRun && runless ? 50 : 0) - load; // prefer empty, then runless for runs
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  return best;
+}
+
+/**
+ * Rule #1: no more than `max` (default 2) workouts on any day. Relocate the
+ * most-movable excess session to a lighter day; keep lifts and the long run put.
+ */
+export function capSessionsPerDay(days: DaySlot[], protectedDays: Set<TrainingDayName>, max = 2): void {
+  for (let guard = 0; guard < days.length * 6; guard++) {
+    const srcIdx = days.findIndex((d) => workoutCount(d) > max);
+    if (srcIdx === -1) break;
+    const src = days[srcIdx]!; // safe: findIndex returned a valid index
+    const order = src.sessions
+      .map((sl, i) => ({ sl, i }))
+      .filter((x) => x.sl.kind !== "rest")
+      .sort((a, b) => sessionMovability(a.sl) - sessionMovability(b.sl));
+    let moved = false;
+    for (const cand of order) {
+      const t = pickCapTarget(days, srcIdx, cand.sl, protectedDays, max);
+      if (t === -1) continue;
+      const sess = src.sessions.splice(cand.i, 1)[0]!; // safe: cand.i is a valid index
+      days[t]!.sessions.push(sess); // safe: pickCapTarget returns a valid index or -1
+      moved = true;
+      break;
+    }
+    if (!moved) break; // nowhere safe to move anything — best-effort
+  }
+}
