@@ -252,11 +252,10 @@ function runMovability(s: SessionSlot): number {
 
 /** Lower = relocate this session first off an overloaded day. */
 function sessionMovability(s: SessionSlot): number {
-  if (s.kind === "cardio") return 0;
   if (s.kind === "run") return s.isLong || s.runType === "long" ? 6 : s.runType === "easy" ? 1 : 3;
   if (s.kind === "hybrid") return 4;
   if (s.kind === "lift") return 5;
-  return 8; // race / other — pinned
+  return 8; // race / swim / bike / brick — pinned (not produced for research-lift sports)
 }
 
 /**
