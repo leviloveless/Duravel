@@ -1,32 +1,48 @@
 "use client";
 
+import { useState } from "react";
 import { usePostAction } from "@/lib/hooks/use-post-action";
 import { Button } from "@/components/ui/button";
 
 /**
  * Re-runs generation for an existing program (Tasks addition #2) — rebuilds the
  * skeleton from the saved inputs and generates fresh session content, without
- * making the user re-enter everything. Asks for confirmation first since it
+ * making the user re-enter everything. Uses a two-step inline confirm (NOT
+ * window.confirm, which blocks the main thread and inflates INP) since it
  * replaces the current program.
  */
 export default function RegenerateButton({ programId }: { programId: string }) {
   const { run, pending, error } = usePostAction("/api/generate");
+  const [confirming, setConfirming] = useState(false);
 
   async function recalculate() {
-    if (
-      !window.confirm(
-        "Recalculate this program? This replaces the current sessions with a freshly generated version.",
-      )
-    ) {
-      return;
-    }
+    setConfirming(false);
     // The hook refreshes on success and surfaces 429 / 502 (failed) as `error`.
     await run({ programId, force: true });
   }
 
+  if (confirming) {
+    return (
+      <span className="flex items-center gap-2 text-xs">
+        <span className="text-zinc-500">Replace current sessions?</span>
+        <Button variant="secondary" size="sm" onClick={recalculate} disabled={pending} className="rounded-full">
+          Yes, recalculate
+        </Button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={pending}
+          className="rounded-md px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </span>
+    );
+  }
+
   return (
     <span className="flex items-center gap-2">
-      <Button variant="secondary" size="sm" onClick={recalculate} disabled={pending} className="rounded-full">
+      <Button variant="secondary" size="sm" onClick={() => setConfirming(true)} disabled={pending} className="rounded-full">
         {pending && (
           <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
