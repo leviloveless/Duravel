@@ -8,14 +8,14 @@ import { createClient } from "@/lib/supabase/server";
  */
 const SECTIONS = [
   {
-    href: "/profile",
-    title: "Profile",
-    desc: "Your name, age, body weight, and training basics.",
-  },
-  {
     href: "/settings/connections",
     title: "Connections",
     desc: "Connect Strava and other wearables so your training syncs automatically.",
+  },
+  {
+    href: "/settings/email",
+    title: "Email preferences",
+    desc: "Choose which training and lifecycle emails you receive.",
   },
   {
     href: "/pricing",
@@ -35,7 +35,7 @@ export default async function SettingsPage() {
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-zinc-500">Manage your profile, connections, and plan.</p>
+        <p className="text-sm text-zinc-500">Manage your connections, emails, and plan.</p>
       </div>
 
       <div className="flex flex-col gap-3">

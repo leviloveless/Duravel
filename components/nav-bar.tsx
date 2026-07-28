@@ -31,6 +31,7 @@ const APP_LINKS = [
   { href: "/onboarding", label: "New program" },
   { href: "/activity", label: "Activity" },
   { href: "/science", label: "Science" },
+  { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
 ] as const;
 
