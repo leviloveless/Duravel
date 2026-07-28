@@ -87,11 +87,33 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
     expect(runsOf(days).some((r) => r.runType === "long")).toBe(true);
   });
 
-  it("race weeks untouched", () => {
-    const days = daysOf([run("easy")], [{ kind: "race", priority: "A" }]);
-    const snap = JSON.stringify(days);
-    reconcileWeekVolume(days, 11.5, 250, P, "intermediate");
-    expect(JSON.stringify(days)).toBe(snap);
+  it("A/B race weeks untouched (taper weeks keep their built sessions)", () => {
+    for (const priority of ["A", "B"] as const) {
+      const days = daysOf([run("easy")], [{ kind: "race", priority }]);
+      const snap = JSON.stringify(days);
+      reconcileWeekVolume(days, 11.5, 250, P, "intermediate");
+      expect(JSON.stringify(days)).toBe(snap);
+    }
+  });
+
+  it("C race week IS reconciled to target mileage (train-through), race day untouched", () => {
+    // A full train-through week whose AI-filled distances overshoot; the C race
+    // sits on the last day. Reconciliation must size the running to the engine
+    // target exactly, without adding any session onto the race day.
+    const days = daysOf(
+      [run("long", 9)],
+      [run("threshold", 4)],
+      [run("interval", 6)],
+      [lift()],
+      [{ kind: "race", priority: "C" }],
+    );
+    reconcileWeekVolume(days, 15, 300, P, "intermediate", 7);
+    expect(weekMileage({ days })).toBe(15); // sized to target, not the ~19 mi AI sum
+    expect(weekCardioMinutes({ days })).toBe(300);
+    expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
+    // Race day still holds ONLY the race — no easy run or cardio block stacked on it.
+    const raceDay = days.find((d) => d.sessions.some((s) => s.kind === "race"))!;
+    expect(raceDay.sessions).toEqual([{ kind: "race", priority: "C" }]);
   });
 
   it("sweep: mileage + cardio exact (generous targets), no run > 90", () => {

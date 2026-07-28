@@ -81,11 +81,19 @@ function makeCardio(durationMin: number): CardioSession {
   };
 }
 
+/** A day hosting a race must never receive reconciler-added run/cardio blocks. */
+function isRaceDay(day: ProgramDay): boolean {
+  return day.sessions.some((s) => s.kind === "race");
+}
+
 function leastLoadedDay(days: ProgramDay[]): number {
-  let best = 0;
-  // safe: i is bounded by days.length; best is 0 or a prior in-bounds index.
-  for (let i = 1; i < days.length; i++) if (days[i]!.sessions.length < days[best]!.sessions.length) best = i;
-  return best;
+  let best = -1;
+  // safe: i is bounded by days.length; best is -1 or a prior in-bounds index.
+  for (let i = 0; i < days.length; i++) {
+    if (isRaceDay(days[i]!)) continue; // never load a race day
+    if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
+  }
+  return best === -1 ? 0 : best;
 }
 
 /**
@@ -97,6 +105,7 @@ function leastLoadedDay(days: ProgramDay[]): number {
 function leastLoadedUnderCap(days: ProgramDay[], cap = 2): number {
   let best = -1;
   for (let i = 0; i < days.length; i++) {
+    if (isRaceDay(days[i]!)) continue; // never load a race day
     if (days[i]!.sessions.length >= cap) continue;
     if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
   }
@@ -127,8 +136,16 @@ export function reconcileWeekVolume(
   weekNumber = 1,
 ): void {
   if (!paces) return; // no 5K → can't apply formula paces
-  const hasRace = days.some((d) => d.sessions.some((s) => s.kind === "race"));
-  if (hasRace) return;
+  // A and B race weeks are taper/event weeks: their reduced sessions are set by
+  // the taper protocol, so leave them exactly as built. A C race "trains through"
+  // a normal full week (spec §6), so it MUST still be reconciled to the engine's
+  // mileage target — otherwise the AI's unclamped run distances stand and the
+  // week reads far over volume. The race day itself carries no run, so it is
+  // skipped naturally by the run-sizing below and protected from added blocks.
+  const raceSession = days
+    .flatMap((d) => d.sessions)
+    .find((s): s is Extract<Session, { kind: "race" }> => s.kind === "race");
+  if (raceSession && raceSession.priority !== "C") return;
 
   rewriteHybridPaces(days, paces.threshold);
 

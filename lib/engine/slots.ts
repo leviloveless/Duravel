@@ -459,6 +459,27 @@ function placeSessionsOn(
   }
 }
 
+/** JS Date.getDay() index (Sun=0 … Sat=6) → engine training-day key. */
+const WEEKDAY_KEY: readonly TrainingDayName[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/**
+ * Index of the day slot the race should occupy. When an ISO race date is given,
+ * the race lands on the training day matching that date's weekday (parsed as a
+ * LOCAL date, exactly like the calendar-date display, so no timezone shift). If
+ * the date is absent or its weekday isn't one of the athlete's training days,
+ * fall back to the last training day — the engine's original behaviour.
+ */
+export function raceDayIndex(days: DaySlot[], isoDate?: string): number {
+  const m = isoDate ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate) : null;
+  if (m) {
+    const local = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const key = WEEKDAY_KEY[local.getDay()]!; // safe: getDay() is 0..6
+    const exact = days.findIndex((d) => d.day === key);
+    if (exact !== -1) return exact;
+  }
+  return days.length - 1; // fallback: last training day
+}
+
 /**
  * Assign a week's sessions across the training days. Sessions are interleaved
  * round-robin so hard days spread out; days with no session get an explicit
@@ -559,10 +580,14 @@ export function assignDays(
   }
 
   if (race) {
-    // The race takes the last training day of the week, replacing that day's
-    // session (for a C race this is the only change to an otherwise normal week).
-    const last = days[days.length - 1]!; // safe: a race week always has ≥ 1 training day
-    last.sessions = [{ kind: "race", priority: race.priority }];
+    // Place the race on the training day matching its real weekday (from
+    // race.date), replacing that day's session. Previously the race was always
+    // dumped on the LAST training day, so a Saturday race for an athlete who also
+    // trains Sunday rendered one day late (Sun). When no date is supplied (engine
+    // week-space fixtures) or the race weekday isn't a training day, fall back to
+    // the last training day — preserving the prior behaviour byte-for-byte.
+    const idx = raceDayIndex(days, race.date);
+    days[idx]!.sessions = [{ kind: "race", priority: race.priority }]; // safe: idx is in-bounds
   }
 
   for (const d of days) {
