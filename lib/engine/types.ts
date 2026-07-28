@@ -103,9 +103,6 @@ export interface RunSlot {
   runType: RunType;
   goalZone: number;
   isLong?: boolean;
-  /** Section 6 keystone: a long run threaded with station transitions
-   *  ("compromised running"). Set for band HYROX/DEKA athletes. */
-  compromised?: boolean;
   /** Prescribed duration (triathlon runs carry it directly; HYROX runs omit it —
    *  the reconciler sizes them from the mileage target). */
   durationMin?: number;

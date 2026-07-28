@@ -49,10 +49,11 @@ export function runDescription(runType: RunType, runningExp: ExperienceLevel): s
 }
 
 /**
- * The Section 6 keystone: a long run threaded with station transitions — the
- * direct antidote to HYROX's compromised-running problem. Independent of run
- * experience (the structure is the same; scale the distance to your long run).
+ * Hybrid (HYROX) session explanation: what "compromised running" is, why it is
+ * programmed, and how these station-to-run sessions build it. Attached to every
+ * hybrid session during assembly so the athlete always sees the rationale for
+ * running straight off a weighted/erg station.
  */
-export function compromisedLongDescription(): string {
-  return "The keystone session: a long compromised run. Run your long-run distance in Zone 1\u20133, but every ~10\u201315 minutes break to perform a race station \u2014 e.g. a 50m sled push/pull, 20 walking lunges, 15 burpee broad jumps, or a 500m ski/row erg \u2014 then resume running. Threading stations into the run trains your legs to run under station fatigue, exactly what race day demands.";
+export function hybridDescription(): string {
+  return "This is your compromised-running work. In a HYROX race you run on legs already fatigued by the weighted stations (sled, lunges, wall balls, ergs); running well in that pre-fatigued state is called \"compromised running,\" and it is what decides your finish. By alternating threshold-pace runs with stations here, you train your body to hold pace when your legs are cooked, so your race-day running does not fall apart. Your weekly long run stays a separate, straightforward aerobic long run -- the compromised running is built here, in the hybrid sessions.";
 }

@@ -79,6 +79,9 @@ export default function SessionCard({ session }: { session: Session }) {
               </li>
             ))}
           </ul>
+          {session.description && (
+            <p className="mt-1 text-xs text-zinc-500">{session.description}</p>
+          )}
         </div>
       </div>
     );

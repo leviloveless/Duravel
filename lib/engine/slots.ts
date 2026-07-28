@@ -105,8 +105,6 @@ export interface SessionCountTables {
   weeklySessionCap?: number;
   /** Runs preserved when trimming to weeklySessionCap (protects long + quality). */
   anchorRunFloor?: number;
-  /** Mark the weekly long run as the Section 6 "compromised" run (stations threaded in). */
-  compromisedLong?: boolean;
 }
 
 export const DEFAULT_COUNTS: SessionCountTables = {
@@ -248,7 +246,6 @@ export function buildRunSlots(
   emphasis: RunEmphasis = "none",
   character: "maintenance" | "full" = "full",
   guaranteeQuality = false,
-  compromisedLong = false,
 ): RunSlot[] {
   if (count <= 0) return [];
   // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
@@ -276,7 +273,6 @@ export function buildRunSlots(
     runType: rt,
     goalZone: GOAL_ZONE[rt],
     isLong: rt === "long",
-    ...(compromisedLong && rt === "long" ? { compromised: true } : {}),
   }));
 }
 
@@ -513,7 +509,7 @@ export function assignDays(
     const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
-    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none", counts.runCharacter ?? "full", counts.guaranteeQuality ?? false, counts.compromisedLong ?? false);
+    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none", counts.runCharacter ?? "full", counts.guaranteeQuality ?? false);
     const lifts = buildLiftSlots(plan.lifts, counts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
     const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");

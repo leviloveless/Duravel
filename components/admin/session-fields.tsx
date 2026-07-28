@@ -104,10 +104,6 @@ export function SessionFields({ session, onChange }: { session: Session; onChang
             <Field label="Pace (min/mile)"><TextInput value={s.paceMinMile} onChange={(paceMinMile) => onChange({ ...s, paceMinMile, durationMin: syncedDuration(s.distanceMiles, paceMinMile, s.durationMin) })} placeholder="8:30" /></Field>
             <Field label="Duration (min)"><NumInput value={s.durationMin} onChange={(durationMin) => onChange({ ...s, durationMin })} /></Field>
             <Field label="Goal zone"><ZoneSelect value={s.goalZone} onChange={(goalZone) => onChange({ ...s, goalZone })} /></Field>
-            <label className="flex items-center gap-2 self-end text-xs text-zinc-600">
-              <input type="checkbox" checked={!!s.compromised} onChange={(e) => onChange({ ...s, compromised: e.target.checked || undefined })} />
-              Compromised long run
-            </label>
           </div>
           <Field label="Description"><TextInput value={s.description} onChange={(description) => onChange({ ...s, description })} /></Field>
         </div>

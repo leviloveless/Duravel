@@ -93,7 +93,7 @@ function enDash(range: string): string {
 /** `Easy run — 40 min @ 8:30 min/mile — 5 miles — Goal HR: Zone 2` */
 export function runLine(s: RunSession): string {
   const miles = Number.isInteger(s.distanceMiles) ? String(s.distanceMiles) : s.distanceMiles.toFixed(1);
-  const runLabel = s.compromised ? "Long compromised run" : RUN_TYPE_LABEL[s.runType];
+  const runLabel = RUN_TYPE_LABEL[s.runType];
   return `${runLabel} — ${Math.round(s.durationMin)} min @ ${s.paceMinMile} min/mile — ${miles} miles — Goal HR: Zone ${s.goalZone}`;
 }
 
@@ -136,7 +136,7 @@ export function raceLabel(priority: "A" | "B" | "C"): string {
 
 /** Short workout-type label for the weekly table. */
 export function sessionTypeLabel(session: Session): string {
-  if (session.kind === "run") return session.compromised ? "Long compromised run" : RUN_TYPE_LABEL[session.runType];
+  if (session.kind === "run") return RUN_TYPE_LABEL[session.runType];
   if (session.kind === "lift") return `${LIFT_TYPE_LABEL[session.liftType]} lift`;
   if (session.kind === "hybrid") return session.simulation ? "Race Simulation" : "Hybrid (HYROX)";
   if (session.kind === "cardio") return "Zone 1–2 cardio";

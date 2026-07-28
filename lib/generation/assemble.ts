@@ -24,7 +24,7 @@ import {
   type Session,
 } from "@/lib/schemas";
 import type { ExperienceLevel, ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
-import { runDescription, compromisedLongDescription } from "@/lib/engine/run-descriptions";
+import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
 import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
@@ -78,7 +78,7 @@ type PlannedSlot = WeekSkeleton["days"][number]["sessions"][number];
 function placeholderFor(slot: PlannedSlot): Session | null {
   switch (slot.kind) {
     case "run":
-      return { kind: "run", runType: slot.runType, durationMin: 0, paceMinMile: "", distanceMiles: 0, goalZone: slot.goalZone, ...(slot.compromised ? { compromised: true } : {}) };
+      return { kind: "run", runType: slot.runType, durationMin: 0, paceMinMile: "", distanceMiles: 0, goalZone: slot.goalZone };
     case "lift":
       return { kind: "lift", liftType: slot.liftType, movements: [] };
     case "hybrid":
@@ -124,11 +124,6 @@ export function daySessions(
       // even when the AI returned a generic lift (matching here is by kind only).
       if (slot.kind === "lift" && slot.liftType === "power" && matched.kind === "lift") {
         matched.liftType = "power";
-      }
-      // The engine owns the compromised-long-run designation (Section 6); enforce
-      // it on the matched run even when the AI returned a plain long run.
-      if (slot.kind === "run" && slot.compromised && matched.kind === "run") {
-        matched.compromised = true;
       }
       out.push(matched);
     } else {
@@ -199,18 +194,16 @@ function orderSessionsByPriority(sessions: Session[]): Session[] {
     .map((x) => x.s);
 }
 
-/** Attach the canonical run-workout description to every run session (Tasks #2). */
-function describeRuns(sessions: Session[], runningExp: ExperienceLevel): Session[] {
-  return sessions.map((s) =>
-    s.kind === "run"
-      ? {
-          ...s,
-          description: s.compromised
-            ? compromisedLongDescription()
-            : runDescription(s.runType, runningExp),
-        }
-      : s,
-  );
+/** Attach the canonical workout description to every run and hybrid session.
+ *  Runs get their run-type protocol (Tasks #2); hybrid sessions get the
+ *  compromised-running explanation (what it is, why it is programmed, how the
+ *  station-to-run format builds it). */
+function describeSessions(sessions: Session[], runningExp: ExperienceLevel): Session[] {
+  return sessions.map((s) => {
+    if (s.kind === "run") return { ...s, description: runDescription(s.runType, runningExp) };
+    if (s.kind === "hybrid") return { ...s, description: hybridDescription() };
+    return s;
+  });
 }
 
 /**
@@ -235,6 +228,7 @@ function replaceSimulations(
       goalZone: 4,
       simulation: true,
       elements: buildSimulationElements(division, sex, catalog),
+      description: hybridDescription(),
     };
     const hi = day.sessions.findIndex((s) => s.kind === "hybrid");
     if (hi === -1) day.sessions.push(sim);
@@ -254,7 +248,7 @@ function buildWeek(
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
-    sessions: describeRuns(
+    sessions: describeSessions(
       orderSessionsByPriority(daySessions(d, aiWeek, issues, skel.weekNumber)),
       runningExp,
     ),

@@ -68,8 +68,6 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   if (input.weeklyHours && cfg.bandZone3Z) {
     counts.weeklySessionCap = bandSessionCap(input.weeklyHours);
     counts.anchorRunFloor = bandAnchorRunFloor(input.weeklyHours);
-    // Section 6 keystone: the weekly long run becomes a compromised long run.
-    counts.compromisedLong = true;
   }
 
   // General fitness has no race to peak toward: a rotating-emphasis macro-arc
