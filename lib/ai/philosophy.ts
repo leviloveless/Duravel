@@ -30,8 +30,8 @@ export const RUN_GUIDANCE = `Run types and how to prescribe them (the engine dec
 - progression: programmed only in the Peak and Taper phases; builds from easy to a hard finish. BEGINNER runners: 10 min easy warm-up, 20–30 min at standard comfortable aerobic pace (1–2 min/mile faster than easy), then a comfortably hard threshold effort for the final 10–15%, 5 min easy cool-down. INTERMEDIATE/ADVANCED runners: 5 min easy warm-up, 20 min easy/warm-up pace, 20 min at marathon/half-marathon race pace, 20 min at comfortably hard tempo (threshold) pace, 5 min easy cool-down. Goal zone ~3.
 - long: Zone 2, extended duration, aerobic development. Every week has exactly one long run. Start Zone 1–2 and allow heart-rate drift toward the top of Zone 3 over a 75–90 min effort without entering Zone 4.
 - tempo: Zone 3–4, 20–35 min continuous at ~80–90% max HR (≈ half-marathon pace); introduced in the Build phase, one per week.
-- threshold: Zone 4, true lactate threshold, "comfortably hard," ~20–30 sec/mile slower than 5K pace; the primary quality run in the Peak phase.
-- interval: Zone 4–5; programmed in the 2nd half of Build, throughout Peak, and some Taper weeks. Protocol: 5-min easy jog warm-up, then 6–8 rounds of 800m at goal 5K pace with a 1-minute slow jog recovery between reps, 5-min easy walk cool-down.
+- threshold: Zone 4 lactate-threshold work ("comfortably hard," ~20-30 s/mi slower than 5K pace); the primary quality run of the Peak phase. Run it as cruise intervals of 5+ min (about 1-mile reps) at threshold (T) pace with an easy jog HALF the length of each rep (a 2:1 work:rest ratio, scaled to the athlete's pace). By running experience: BEGINNER 2 x 1 mi, INTERMEDIATE 3 x 1 mi, ADVANCED 4 x 1 mi (or 2 x 2 mi). Warm up and cool down easy.
+- interval: Zone 4-5 VO2max work; programmed in the 2nd half of Build, throughout Peak, and some Taper weeks. Reps last 2-4 min at interval (I) pace (~5K pace / vVO2max) with an easy-jog recovery EQUAL in time to each rep (a 1:1 work:rest ratio, so rest scales to the athlete's speed instead of a fixed clock). By running experience: BEGINNER ~4 reps of ~800m, INTERMEDIATE 5 x 1000m, ADVANCED 6 x 1000m. Warm up 1-2 mi easy with strides and cool down 1-2 mi easy; keep reps inside the 2-4 min VO2max window.
 - hybrid_run: Zone 4 (threshold pace); these are the runs inside hybrid sessions and already count toward the weekly run total.
 
 Pace: if the athlete provided benchmarks (mile / 5K / 10K), derive paces from them. Threshold ≈ 20–30 s/mile slower than 5K pace; tempo ≈ half-marathon pace; easy ≈ 1.5–2.5 min/mile slower than 5K pace. If no benchmarks are given, prescribe by zone/effort and give a reasonable pace estimate in min/mile.`;
@@ -58,7 +58,16 @@ Give each event a placeholder prescription: the engine rewrites station prescrip
 export const HYBRID_LIBRARY: Record<"base" | "build" | "peak" | "taper", string[]> = {
   base: ["ski erg", "row erg", "assault bike", "wall balls", "farmers carry"],
   build: ["ski erg", "row erg", "sled push", "sandbag lunges", "wall balls", "burpee broad jumps"],
-  peak: ["ski erg", "row erg", "sled push", "sled pull", "sandbag lunges", "wall balls", "burpee broad jumps", "farmers carry"],
+  peak: [
+    "ski erg",
+    "row erg",
+    "sled push",
+    "sled pull",
+    "sandbag lunges",
+    "wall balls",
+    "burpee broad jumps",
+    "farmers carry",
+  ],
   taper: ["ski erg", "row erg", "wall balls"],
 };
 
@@ -71,9 +80,11 @@ export const TAPER_GUIDANCE = `Race tapers (the engine already sets the reduced 
 /** Phase character (spec §4a, Q14/Q15). */
 export const PHASE_CHARACTER: Record<"base" | "build" | "peak" | "taper", string> = {
   base: "High volume, low intensity, aerobic foundation. Easy running dominant; the quality run is a fartlek (no structured tempo in Base). Strength base in lifting; minimal hybrid.",
-  build: "Increasing specificity. Introduce one structured tempo run per week; fartleks continue, and interval work is added in the 2nd half of the phase. More threshold and hybrid work at moderate volume.",
+  build:
+    "Increasing specificity. Introduce one structured tempo run per week; fartleks continue, and interval work is added in the 2nd half of the phase. More threshold and hybrid work at moderate volume.",
   peak: "High intensity, HYROX-specific simulation, volume drops. Threshold and interval runs plus a weekly progression run at true race-effort finishes; maximum hybrid specificity.",
-  taper: "Reduced volume, intensity maintained until the final days. Progression runs with some interval work keep the legs sharp; minimal lifting and hybrid.",
+  taper:
+    "Reduced volume, intensity maintained until the final days. Progression runs with some interval work keep the legs sharp; minimal lifting and hybrid.",
 };
 
 /**

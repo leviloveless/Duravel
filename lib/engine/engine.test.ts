@@ -39,9 +39,7 @@ describe("mesocycle allocation — spec worked examples", () => {
   });
 
   it("20-wk highly-trained A race = 8/6/4/2", () => {
-    const a = allocateMesocycles(
-      makeInput({ trainingClass: "highly_trained", durationWeeks: 20 }),
-    );
+    const a = allocateMesocycles(makeInput({ trainingClass: "highly_trained", durationWeeks: 20 }));
     expect(a).toEqual({ base: 8, build: 6, peak: 4, taper: 2 });
   });
 });
@@ -51,7 +49,11 @@ describe("mesocycle allocation — invariants across 4..24 wks, both classes", (
     for (const D of allDurations) {
       it(`${cls} ${D}wk A: sums to duration, base largest, taper protected`, () => {
         const a = allocateMesocycles(
-          makeInput({ trainingClass: cls, durationWeeks: D, races: [{ weekNumber: D, priority: "A" }] }),
+          makeInput({
+            trainingClass: cls,
+            durationWeeks: D,
+            races: [{ weekNumber: D, priority: "A" }],
+          }),
         );
         expect(a.base + a.build + a.peak + a.taper).toBe(D);
         // taper protected at 2 for an A race whenever there's room
@@ -86,9 +88,7 @@ describe("mesocycle allocation — taper by priority & general fitness", () => {
   });
 
   it("general fitness → no taper mesocycle", () => {
-    const a = allocateMesocycles(
-      makeInput({ programType: "general_fitness", races: [] }),
-    );
+    const a = allocateMesocycles(makeInput({ programType: "general_fitness", races: [] }));
     expect(a.taper).toBe(0);
     expect(a.base + a.build + a.peak).toBe(20);
     expect(a.base).toBeGreaterThanOrEqual(a.build);
@@ -116,7 +116,12 @@ describe("microcycle patterns", () => {
     expect(microcyclePattern("non_highly_trained")).toEqual(["rebound", "increase", "deload"]);
   });
   it("HT = 4-week rebound/increase/increase/deload", () => {
-    expect(microcyclePattern("highly_trained")).toEqual(["rebound", "increase", "increase", "deload"]);
+    expect(microcyclePattern("highly_trained")).toEqual([
+      "rebound",
+      "increase",
+      "increase",
+      "deload",
+    ]);
   });
 });
 
@@ -252,7 +257,9 @@ describe("C race trains through (no taper, no volume cut)", () => {
     const restDays = raceWeek.days.filter((d) => d.sessions.every((s) => s.kind === "rest")).length;
     // trains through: has real training + the race, not 5 days of rest
     expect(sessions.some((s) => s.kind === "race")).toBe(true);
-    expect(sessions.filter((s) => s.kind === "run" || s.kind === "lift" || s.kind === "hybrid").length).toBeGreaterThanOrEqual(3);
+    expect(
+      sessions.filter((s) => s.kind === "run" || s.kind === "lift" || s.kind === "hybrid").length,
+    ).toBeGreaterThanOrEqual(3);
     expect(restDays).toBeLessThanOrEqual(2);
   });
 });
@@ -312,7 +319,13 @@ describe("buildSkeleton — structural integrity", () => {
             // (incl. a C race that trains through) replace a day with the race,
             // and the week after a B race opens with recovery days
             const afterBRace = i > 0 && skeleton.weeks[i - 1]!.raceDay?.priority === "B";
-            if (w.microWeek !== "race" && w.microWeek !== "taper" && w.microWeek !== "deload" && !w.raceDay && !afterBRace) {
+            if (
+              w.microWeek !== "race" &&
+              w.microWeek !== "taper" &&
+              w.microWeek !== "deload" &&
+              !w.raceDay &&
+              !afterBRace
+            ) {
               const lifts = countKind(w, "lift");
               expect(lifts).toBe(3);
               // run count within the spec's 3–8 band
@@ -347,8 +360,12 @@ describe("buildSkeleton — spec anchor end-to-end (20wk NHT A race)", () => {
     expect(last.phase).toBe("taper");
   });
   it("peak-phase mileage sits below the build-phase high (volume drops in peak)", () => {
-    const buildMax = Math.max(...skeleton.weeks.filter((w) => w.phase === "build").map((w) => w.targetMileage));
-    const peakMax = Math.max(...skeleton.weeks.filter((w) => w.phase === "peak").map((w) => w.targetMileage));
+    const buildMax = Math.max(
+      ...skeleton.weeks.filter((w) => w.phase === "build").map((w) => w.targetMileage),
+    );
+    const peakMax = Math.max(
+      ...skeleton.weeks.filter((w) => w.phase === "peak").map((w) => w.targetMileage),
+    );
     expect(peakMax).toBeLessThan(buildMax);
   });
   it("starting mileage matches the intermediate runner anchor", () => {
@@ -360,12 +377,18 @@ describe("buildSkeleton — spec anchor end-to-end (20wk NHT A race)", () => {
 // Run-type placement by phase (Tasks #3, #4, #5)
 // ============================================================
 
-function runTypesOf(phase: PhaseName, count: number, pos?: { index: number; length: number }): RunType[] {
+function runTypesOf(
+  phase: PhaseName,
+  count: number,
+  pos?: { index: number; length: number },
+): RunType[] {
   return buildRunSlots(phase, count, pos).map((r) => r.runType);
 }
 
 /** All run types the engine programs across a full built skeleton, by phase. */
-function runTypesByPhase(skeleton: ReturnType<typeof buildSkeleton>): Record<PhaseName, Set<RunType>> {
+function runTypesByPhase(
+  skeleton: ReturnType<typeof buildSkeleton>,
+): Record<PhaseName, Set<RunType>> {
   const out: Record<PhaseName, Set<RunType>> = {
     base: new Set(),
     build: new Set(),
@@ -446,19 +469,35 @@ describe("day preferences pin workout types to days (Tasks #1)", () => {
     assigned.filter((d) => d.sessions.some((s) => s.kind === kind)).map((d) => d.day);
 
   it("places the long run on the preferred day", () => {
-    const assigned = assignDays(days, "build", "increase", "intermediate", "intermediate", undefined, {
-      longRunDay: "sat",
-    });
+    const assigned = assignDays(
+      days,
+      "build",
+      "increase",
+      "intermediate",
+      "intermediate",
+      undefined,
+      {
+        longRunDay: "sat",
+      },
+    );
     const sat = assigned.find((d) => d.day === "sat")!;
     expect(sat.sessions.some((s) => s.kind === "run" && s.isLong)).toBe(true);
   });
 
   it("pins lift and hybrid sessions onto their preferred days when there is room", () => {
-    const assigned = assignDays(days, "build", "increase", "intermediate", "intermediate", undefined, {
-      longRunDay: "sat",
-      liftDays: ["mon"],
-      hybridDays: ["wed"],
-    });
+    const assigned = assignDays(
+      days,
+      "build",
+      "increase",
+      "intermediate",
+      "intermediate",
+      undefined,
+      {
+        longRunDay: "sat",
+        liftDays: ["mon"],
+        hybridDays: ["wed"],
+      },
+    );
     expect(dayWith(assigned, "lift")).toContain("mon");
     expect(dayWith(assigned, "hybrid")).toContain("wed");
     // long run preference still honored alongside the others
@@ -485,7 +524,16 @@ describe("day preferences pin workout types to days (Tasks #1)", () => {
 
 describe("run descriptions (Tasks #2)", () => {
   it("gives every run type a non-empty explanation", () => {
-    const types: RunType[] = ["easy", "fartlek", "progression", "long", "tempo", "threshold", "interval", "hybrid_run"];
+    const types: RunType[] = [
+      "easy",
+      "fartlek",
+      "progression",
+      "long",
+      "tempo",
+      "threshold",
+      "interval",
+      "hybrid_run",
+    ];
     for (const t of types) {
       expect(runDescription(t, "intermediate").length).toBeGreaterThan(20);
     }
@@ -498,8 +546,13 @@ describe("run descriptions (Tasks #2)", () => {
     expect(adv.toLowerCase()).toContain("race pace");
   });
 
-  it("interval description references the 800m repeat protocol (Tasks #5)", () => {
-    expect(runDescription("interval", "intermediate").toLowerCase()).toContain("800m");
+  it("interval + threshold descriptions scale by experience and use work:rest ratios (Tasks #5)", () => {
+    expect(runDescription("interval", "beginner")).not.toBe(runDescription("interval", "advanced"));
+    expect(runDescription("interval", "intermediate").toLowerCase()).toContain("1:1");
+    expect(runDescription("threshold", "beginner")).not.toBe(
+      runDescription("threshold", "advanced"),
+    );
+    expect(runDescription("threshold", "intermediate")).toContain("2:1");
   });
 });
 
