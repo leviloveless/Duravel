@@ -63,9 +63,9 @@ export default function ProgramGlossary() {
             </Term>
             <Term q="Microcycle weeks (rebound / increase / deload)">
               Within a phase, weeks rotate so you progress without burning out.{" "}
-              <strong>Increase</strong> weeks add load; <strong>deload</strong> weeks back off to let
-              you absorb the work and adapt; <strong>rebound</strong> weeks re-establish load after a
-              deload. This rise-and-recover rhythm is how fitness actually builds.
+              <strong>Increase</strong> weeks add load; <strong>deload</strong> weeks back off to
+              let you absorb the work and adapt; <strong>rebound</strong> weeks re-establish load
+              after a deload. This rise-and-recover rhythm is how fitness actually builds.
             </Term>
             <Term q="Race weeks (A / B / C)">
               An <strong>A race</strong> is your main goal — the plan peaks and tapers for it. A{" "}
@@ -83,17 +83,26 @@ export default function ProgramGlossary() {
               intervals. Training the right zones — not just going hard — is what drives adaptation.
             </Term>
             <Term q="Why so much easy work?">
-              Most endurance gains come from a large base of easy Zone 1–2 work with smaller doses of
-              hard work. Going too hard on easy days blunts recovery and the hard days that matter.
+              Most endurance gains come from a large base of easy Zone 1–2 work with smaller doses
+              of hard work. Going too hard on easy days blunts recovery and the hard days that
+              matter.
             </Term>
           </Group>
 
           <Group title="Your sessions">
             <Term q="Runs (easy, tempo, threshold, intervals, long, fartlek)">
               Each run type trains something specific: <strong>easy</strong> aerobic base,{" "}
-              <strong>tempo/threshold</strong> your sustainable race pace, <strong>intervals</strong>{" "}
-              top-end speed and VO₂max, <strong>long</strong> runs endurance, <strong>fartlek</strong>{" "}
-              playful speed changes. Paces are set from your benchmarks.
+              <strong>tempo/threshold</strong> your sustainable race pace,{" "}
+              <strong>intervals</strong> top-end speed and VO₂max, <strong>long</strong> runs
+              endurance, <strong>fartlek</strong> playful speed changes. Paces are set from your
+              benchmarks.
+            </Term>
+            <Term q="Interval and threshold work:rest ratios">
+              Intervals train VO2max (your aerobic ceiling) with a <strong>1:1</strong> work:rest
+              ratio - jog as long as the rep took. Threshold raises the pace you can hold before
+              lactate builds up, run as reps with a <strong>2:1</strong> ratio - jog half the rep.
+              Rest is computed from your paces, so a faster and a slower runner get the same
+              stimulus rather than the same clock.
             </Term>
             <Term q="Lift sessions (upper / lower / full)">
               Strength work, periodized to the phase. The full-body day is heavy/low-rep for max
@@ -105,21 +114,21 @@ export default function ProgramGlossary() {
               loads, mixed with running — training the actual demands of the event.
             </Term>
             <Term q="Zone 1–2 cardio">
-              Non-running easy aerobic work (bike, row, ski) added to hit your weekly aerobic minutes
-              without piling on running impact.
+              Non-running easy aerobic work (bike, row, ski) added to hit your weekly aerobic
+              minutes without piling on running impact.
             </Term>
             <Term q="Swim / bike / brick (triathlon)">
-              Discipline-specific sessions plus <strong>bricks</strong> — a bike immediately followed
-              by a run — so your legs learn the race-day transition.
+              Discipline-specific sessions plus <strong>bricks</strong> — a bike immediately
+              followed by a run — so your legs learn the race-day transition.
             </Term>
           </Group>
 
           <Group title="Strength details">
             <Term q="“~85% 1RM · 2 RIR” — what is that?">
-              Your target working load. <strong>%1RM</strong> is a percentage of your one-rep max (we
-              estimate it from the 5-rep maxes you entered). <strong>RIR</strong> = reps in reserve —
-              how many more reps you could do; “2 RIR” means stop with about two left in the tank.
-              This autoregulates load to how you feel that day.
+              Your target working load. <strong>%1RM</strong> is a percentage of your one-rep max
+              (we estimate it from the 5-rep maxes you entered). <strong>RIR</strong> = reps in
+              reserve — how many more reps you could do; “2 RIR” means stop with about two left in
+              the tank. This autoregulates load to how you feel that day.
             </Term>
             <Term q="A / B exercise variation">
               Each lift pattern alternates between two exercises week to week (e.g. Back Squat one
@@ -139,19 +148,20 @@ export default function ProgramGlossary() {
               reliable load signal.
             </Term>
             <Term q="Readiness check-in">
-              A quick weekly rating of sleep, fatigue, stress, and soreness (plus resting HR / HRV if
-              you have them). Low readiness lets the plan soften the coming week <em>before</em> a bad
-              stretch instead of only reacting after.
+              A quick weekly rating of sleep, fatigue, stress, and soreness (plus resting HR / HRV
+              if you have them). Low readiness lets the plan soften the coming week <em>before</em>{" "}
+              a bad stretch instead of only reacting after.
             </Term>
             <Term q="Resting HR & HRV">
-              Morning recovery signals. A resting HR that’s trending up or an HRV trending down versus
-              your own baseline is an early sign you need more recovery. If you connect a wearable,
-              these prefill automatically.
+              Morning recovery signals. A resting HR that’s trending up or an HRV trending down
+              versus your own baseline is an early sign you need more recovery. If you connect a
+              wearable, these prefill automatically.
             </Term>
             <Term q="Weekly review & recalculation">
-              After a week is fully logged (or has elapsed), the plan reviews your completion, effort,
-              and load and adapts the next week — easing off if you’re overreaching, pushing on if
-              you’re thriving. Reviewed weeks are locked so the adjustment has a stable audit trail.
+              After a week is fully logged (or has elapsed), the plan reviews your completion,
+              effort, and load and adapts the next week — easing off if you’re overreaching, pushing
+              on if you’re thriving. Reviewed weeks are locked so the adjustment has a stable audit
+              trail.
             </Term>
           </Group>
 

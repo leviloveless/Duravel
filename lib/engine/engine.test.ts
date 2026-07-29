@@ -6,6 +6,7 @@ import { applyTapers } from "./taper";
 import { buildSkeleton } from "./skeleton";
 import { buildRunSlots, assignDays } from "./slots";
 import { runDescription } from "./run-descriptions";
+import { computePaces } from "./paces";
 import type { PhaseName, RunType, TrainingDayName } from "./types";
 import { INCREASE_MILEAGE_FACTOR, DELOAD_FACTOR, STARTING_MILEAGE } from "./volume";
 
@@ -553,6 +554,10 @@ describe("run descriptions (Tasks #2)", () => {
       runDescription("threshold", "advanced"),
     );
     expect(runDescription("threshold", "intermediate")).toContain("2:1");
+    // With paces, work reps show min/mi + min/km and a derived rest time.
+    const paced = runDescription("interval", "intermediate", computePaces("20:00"));
+    expect(paced).toContain("/mi");
+    expect(paced).toContain("/km");
   });
 });
 

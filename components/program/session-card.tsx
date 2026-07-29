@@ -23,7 +23,9 @@ const KIND_TAG: Record<Session["kind"], { label: string; className: string }> = 
 function Tag({ kind }: { kind: Session["kind"] }) {
   const t = KIND_TAG[kind];
   return (
-    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${t.className}`}>
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${t.className}`}
+    >
       {t.label}
     </span>
   );
@@ -38,7 +40,9 @@ export default function SessionCard({ session }: { session: Session }) {
         <div className="text-sm text-zinc-800">
           <p>{runLine(session)}</p>
           {session.description && (
-            <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>
+            <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">
+              {session.description}
+            </p>
           )}
         </div>
       </div>
@@ -93,9 +97,14 @@ export default function SessionCard({ session }: { session: Session }) {
         <Tag kind="cardio" />
         <div className="text-sm text-zinc-800">
           <p>
-            {session.modality ?? "Zone 1–2 cardio"} — {Math.round(session.durationMin)} min — Goal HR: Zone {session.goalZone}
+            {session.modality ?? "Zone 1–2 cardio"} — {Math.round(session.durationMin)} min — Goal
+            HR: Zone {session.goalZone}
           </p>
-          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+          {session.description && (
+            <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">
+              {session.description}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -107,10 +116,14 @@ export default function SessionCard({ session }: { session: Session }) {
         <Tag kind="swim" />
         <div className="text-sm text-zinc-800">
           <p>
-            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span> swim —{" "}
-            {Math.round(session.durationMin)} min — Zone {session.goalZone}
+            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span>{" "}
+            swim — {Math.round(session.durationMin)} min — Zone {session.goalZone}
           </p>
-          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+          {session.description && (
+            <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">
+              {session.description}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -122,10 +135,16 @@ export default function SessionCard({ session }: { session: Session }) {
         <Tag kind="bike" />
         <div className="text-sm text-zinc-800">
           <p>
-            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span> ride
-            {session.isLong ? " (long)" : ""} — {Math.round(session.durationMin)} min — Zone {session.goalZone}
+            <span className="font-medium capitalize">{session.sessionType.replace(/_/g, " ")}</span>{" "}
+            ride
+            {session.isLong ? " (long)" : ""} — {Math.round(session.durationMin)} min — Zone{" "}
+            {session.goalZone}
           </p>
-          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+          {session.description && (
+            <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">
+              {session.description}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -144,7 +163,11 @@ export default function SessionCard({ session }: { session: Session }) {
               </li>
             ))}
           </ul>
-          {session.description && <p className="mt-0.5 text-xs text-zinc-500">{session.description}</p>}
+          {session.description && (
+            <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">
+              {session.description}
+            </p>
+          )}
         </div>
       </div>
     );

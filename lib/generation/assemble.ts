@@ -28,7 +28,12 @@ import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
 import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
-import { movementScheme, powerElementFor, suggestedWeight, pickExercise } from "@/lib/engine/strength";
+import {
+  movementScheme,
+  powerElementFor,
+  suggestedWeight,
+  pickExercise,
+} from "@/lib/engine/strength";
 import {
   buildSimulationElements,
   stationPrescription,
@@ -78,11 +83,23 @@ type PlannedSlot = WeekSkeleton["days"][number]["sessions"][number];
 function placeholderFor(slot: PlannedSlot): Session | null {
   switch (slot.kind) {
     case "run":
-      return { kind: "run", runType: slot.runType, durationMin: 0, paceMinMile: "", distanceMiles: 0, goalZone: slot.goalZone };
+      return {
+        kind: "run",
+        runType: slot.runType,
+        durationMin: 0,
+        paceMinMile: "",
+        distanceMiles: 0,
+        goalZone: slot.goalZone,
+      };
     case "lift":
       return { kind: "lift", liftType: slot.liftType, movements: [] };
     case "hybrid":
-      return { kind: "hybrid", goalZone: slot.goalZone, elements: [], ...(slot.simulation ? { simulation: true } : {}) };
+      return {
+        kind: "hybrid",
+        goalZone: slot.goalZone,
+        elements: [],
+        ...(slot.simulation ? { simulation: true } : {}),
+      };
     default:
       return null; // rest / race handled by the caller
   }
@@ -198,9 +215,14 @@ function orderSessionsByPriority(sessions: Session[]): Session[] {
  *  Runs get their run-type protocol (Tasks #2); hybrid sessions get the
  *  compromised-running explanation (what it is, why it is programmed, how the
  *  station-to-run format builds it). */
-function describeSessions(sessions: Session[], runningExp: ExperienceLevel): Session[] {
+function describeSessions(
+  sessions: Session[],
+  runningExp: ExperienceLevel,
+  paces: RunPaces | null,
+): Session[] {
   return sessions.map((s) => {
-    if (s.kind === "run") return { ...s, description: runDescription(s.runType, runningExp) };
+    if (s.kind === "run")
+      return { ...s, description: runDescription(s.runType, runningExp, paces) };
     if (s.kind === "hybrid") return { ...s, description: hybridDescription() };
     return s;
   });
@@ -251,6 +273,7 @@ function buildWeek(
     sessions: describeSessions(
       orderSessionsByPriority(daySessions(d, aiWeek, issues, skel.weekNumber)),
       runningExp,
+      paces,
     ),
   }));
 
@@ -265,7 +288,14 @@ function buildWeek(
   // session, 90-min run cap) and a non-running Zone 1–2 cardio block absorbs the
   // remaining cardio time. The summary is then read back from the reconciled
   // sessions, so the header can never disagree with the workouts.
-  reconcileWeekVolume(days, skel.targetMileage, skel.targetCardioMinutes, paces, runningExp, skel.weekNumber);
+  reconcileWeekVolume(
+    days,
+    skel.targetMileage,
+    skel.targetCardioMinutes,
+    paces,
+    runningExp,
+    skel.weekNumber,
+  );
 
   return {
     weekNumber: skel.weekNumber,
@@ -277,7 +307,9 @@ function buildWeek(
       zoneDistribution: { ...skel.zoneTargets },
     },
     days,
-    raceDay: skel.raceDay ? { priority: skel.raceDay.priority, date: skel.raceDay.date } : undefined,
+    raceDay: skel.raceDay
+      ? { priority: skel.raceDay.priority, date: skel.raceDay.date }
+      : undefined,
   };
 }
 
@@ -400,7 +432,12 @@ export function applyStrengthSchemes(
         // week so consecutive weeks don't repeat the identical lift (overuse).
         m.exercise = pickExercise(m.pattern, week.weekNumber);
       }
-      const power = powerElementFor(week.phase, week.microWeek, liftIndex, session.liftType === "power");
+      const power = powerElementFor(
+        week.phase,
+        week.microWeek,
+        liftIndex,
+        session.liftType === "power",
+      );
       if (power) session.power = power;
       else delete session.power;
       liftIndex += 1;
@@ -455,9 +492,19 @@ export function assembleProgram(
   const paces = computePaces(raceTimes);
 
   const weeks = skeleton.weeks.map((skel) => {
-    const week = buildWeek(skel, aiByWeek.get(skel.weekNumber), issues, runningExp, paces, division, sex, catalog);
+    const week = buildWeek(
+      skel,
+      aiByWeek.get(skel.weekNumber),
+      issues,
+      runningExp,
+      paces,
+      division,
+      sex,
+      catalog,
+    );
     const patched = patchMovementPatterns(week);
-    if (patched.length) issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
+    if (patched.length)
+      issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
     // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
     // applied deterministically over whatever the AI returned.
     applyStrengthSchemes(week, benchmarks, weightUnit);
@@ -472,7 +519,9 @@ export function assembleProgram(
   const parsed = ProgramDataSchema.safeParse(program);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    throw new Error(`Assembled program failed schema validation: ${first?.path.join(".")} — ${first?.message}`);
+    throw new Error(
+      `Assembled program failed schema validation: ${first?.path.join(".")} — ${first?.message}`,
+    );
   }
   return { program: parsed.data, issues };
 }
@@ -499,7 +548,8 @@ export function verifyProgram(program: ProgramData): VerifyResult {
     if (liftCount(week) < 3) continue; // reduced weeks exempt
     const present = weekPatterns(week);
     const missing = REQUIRED_MOVEMENT_PATTERNS.filter((p) => !present.has(p));
-    if (missing.length) issues.push(`week ${week.weekNumber}: missing movement patterns ${missing.join(", ")}`);
+    if (missing.length)
+      issues.push(`week ${week.weekNumber}: missing movement patterns ${missing.join(", ")}`);
   }
 
   return { ok: issues.length === 0, issues };

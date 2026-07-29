@@ -62,7 +62,9 @@ function SessionDetail({ session }: { session: Session }) {
       <div className="flex flex-col gap-1">
         <span className="text-zinc-500">{miles} mi</span>
         {session.description && (
-          <p className="max-w-md leading-snug text-zinc-500">{session.description}</p>
+          <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">
+            {session.description}
+          </p>
         )}
       </div>
     );
@@ -85,7 +87,9 @@ function SessionDetail({ session }: { session: Session }) {
           ))}
         </ul>
         {session.description && (
-          <p className="max-w-md leading-snug text-zinc-500">{session.description}</p>
+          <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">
+            {session.description}
+          </p>
         )}
       </div>
     );
