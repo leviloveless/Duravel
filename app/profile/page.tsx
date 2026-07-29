@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/queries";
 import ProfileForm from "./profile-form";
 import AccountSecurity from "./account-security";
+import HyroxResults from "./hyrox-results";
 import DeleteAccount from "./delete-account";
 
 export default async function ProfilePage() {
@@ -20,14 +21,16 @@ export default async function ProfilePage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Your profile</h1>
         <p className="text-sm text-zinc-500">
-          Your account details and training basics. Benchmarks, races, and scheduling live in each
-          program&apos;s setup.
+          Your account details, training basics, and saved HYROX results. Races and scheduling live
+          in each program&apos;s setup.
         </p>
       </div>
 
       <AccountSecurity email={user.email ?? ""} />
 
       <ProfileForm profile={profile} />
+
+      <HyroxResults saved={(profile?.benchmarks ?? {}) as Record<string, string | undefined>} />
 
       <p className="text-xs text-zinc-400">
         <Link href="/privacy" className="underline">

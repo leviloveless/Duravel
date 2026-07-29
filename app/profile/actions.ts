@@ -11,10 +11,7 @@ export type ProfileState = { error: string | null };
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
-export async function saveProfile(
-  _prev: ProfileState,
-  formData: FormData,
-): Promise<ProfileState> {
+export async function saveProfile(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -60,6 +57,70 @@ export async function saveProfile(
   redirect("/dashboard");
 }
 
+export type HyroxSaveState = { error: string | null; saved: boolean };
+
+/** The HYROX result fields stored on the profile (per-station + run/roxzone splits + race type). */
+const HYROX_RESULT_FIELDS = [
+  "hyroxSkiErg",
+  "hyroxSledPush",
+  "hyroxSledPull",
+  "hyroxBurpeeBroadJump",
+  "hyroxRow",
+  "hyroxFarmersCarry",
+  "hyroxSandbagLunge",
+  "hyroxWallBalls",
+  "hyroxRunTotal",
+  "hyroxRoxzone",
+  "hyroxRaceType",
+] as const;
+
+/**
+ * Save the athlete's HYROX result (station splits + race type) onto their
+ * profile's `benchmarks`, MERGING with any existing benchmarks so 5K / strength
+ * entries are preserved. These then pre-fill every future program's onboarding.
+ */
+export async function saveHyroxResults(
+  _prev: HyroxSaveState,
+  formData: FormData,
+): Promise<HyroxSaveState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in.", saved: false };
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("benchmarks")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!existing) {
+    return {
+      error: "Save your profile details first, then add your HYROX results.",
+      saved: false,
+    };
+  }
+
+  const current = ((existing as { benchmarks: Record<string, unknown> | null }).benchmarks ??
+    {}) as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...current };
+  for (const f of HYROX_RESULT_FIELDS) {
+    const raw = formData.get(f);
+    const val = typeof raw === "string" ? raw.trim() : "";
+    if (val) next[f] = val;
+    else delete next[f];
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ benchmarks: next, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (error) return { error: error.message, saved: false };
+
+  revalidatePath("/profile");
+  return { error: null, saved: true };
+}
+
 export type DeleteState = { error: string | null };
 
 /**
@@ -79,10 +140,7 @@ export type DeleteState = { error: string | null };
  * card. That step is best-effort: a Stripe error is logged but never blocks the
  * deletion. (The FK to auth.users also stops the webhook re-creating the row.)
  */
-export async function deleteAccount(
-  _prev: DeleteState,
-  _formData: FormData,
-): Promise<DeleteState> {
+export async function deleteAccount(_prev: DeleteState, _formData: FormData): Promise<DeleteState> {
   const supabase = await createClient();
   const {
     data: { user },

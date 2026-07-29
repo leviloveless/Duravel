@@ -59,17 +59,41 @@ const EXPERIENCE_DEFS = {
   running: {
     label: "Running experience",
     options: [
-      { value: "beginner", label: "Beginner", def: "Sustained <15 miles/week over the last 6 months" },
-      { value: "intermediate", label: "Intermediate", def: "Sustained 15–30 miles/week over the last 6 months" },
-      { value: "advanced", label: "Advanced", def: "Sustained >30 miles/week over the last 6 months" },
+      {
+        value: "beginner",
+        label: "Beginner",
+        def: "Sustained <15 miles/week over the last 6 months",
+      },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        def: "Sustained 15–30 miles/week over the last 6 months",
+      },
+      {
+        value: "advanced",
+        label: "Advanced",
+        def: "Sustained >30 miles/week over the last 6 months",
+      },
     ],
   },
   hybrid: {
     label: "Hybrid fitness experience",
     options: [
-      { value: "beginner", label: "Beginner", def: "≤1 hybrid HIIT workout/week over the last 6 months" },
-      { value: "intermediate", label: "Intermediate", def: "2 hybrid HIIT workouts/week over the last 6 months" },
-      { value: "advanced", label: "Advanced", def: "≥3 hybrid HIIT workouts/week over the last 6 months" },
+      {
+        value: "beginner",
+        label: "Beginner",
+        def: "≤1 hybrid HIIT workout/week over the last 6 months",
+      },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        def: "2 hybrid HIIT workouts/week over the last 6 months",
+      },
+      {
+        value: "advanced",
+        label: "Advanced",
+        def: "≥3 hybrid HIIT workouts/week over the last 6 months",
+      },
     ],
   },
   lifting: {
@@ -83,17 +107,41 @@ const EXPERIENCE_DEFS = {
   swim: {
     label: "Swim experience",
     options: [
-      { value: "beginner", label: "Beginner", def: "Can't swim the race distance continuously, or CSS slower than 2:00/100m" },
-      { value: "intermediate", label: "Intermediate", def: "Swims the distance continuously; CSS 1:35–2:00/100m" },
-      { value: "advanced", label: "Advanced", def: "CSS faster than 1:35/100m; open-water comfortable" },
+      {
+        value: "beginner",
+        label: "Beginner",
+        def: "Can't swim the race distance continuously, or CSS slower than 2:00/100m",
+      },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        def: "Swims the distance continuously; CSS 1:35–2:00/100m",
+      },
+      {
+        value: "advanced",
+        label: "Advanced",
+        def: "CSS faster than 1:35/100m; open-water comfortable",
+      },
     ],
   },
   bike: {
     label: "Bike experience",
     options: [
-      { value: "beginner", label: "Beginner", def: "FTP under 2.9 W/kg (M) / 2.4 (F); can't hold aero long" },
-      { value: "intermediate", label: "Intermediate", def: "FTP 2.9–3.6 (M) / 2.4–3.0 (F) W/kg; holds aero most of the race" },
-      { value: "advanced", label: "Advanced", def: "FTP over 3.6 (M) / 3.0 (F) W/kg; holds target power in aero" },
+      {
+        value: "beginner",
+        label: "Beginner",
+        def: "FTP under 2.9 W/kg (M) / 2.4 (F); can't hold aero long",
+      },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        def: "FTP 2.9–3.6 (M) / 2.4–3.0 (F) W/kg; holds aero most of the race",
+      },
+      {
+        value: "advanced",
+        label: "Advanced",
+        def: "FTP over 3.6 (M) / 3.0 (F) W/kg; holds target power in aero",
+      },
     ],
   },
 } as const;
@@ -169,14 +217,34 @@ const STEPS = ["About you", "Experience", "Schedule & goal", "Benchmarks"] as co
 const SPORT_OPTIONS = [
   { value: "hyrox", label: "HYROX", blurb: "8×1km runs + 8 functional stations" },
   { value: "deka_fit", label: "DEKA FIT", blurb: "10 zones, each after a 500m run (5km total)" },
-  { value: "deka_mile", label: "DEKA MILE", blurb: "10 zones + 1 mile of 160m sprints — short & fast" },
-  { value: "deka_strong", label: "DEKA STRONG", blurb: "10 zones back-to-back, no running — strength-endurance" },
-  { value: "deka_atlas", label: "DEKA ATLAS", blurb: "10 heavy barbell/DB zones, no running — strength-led" },
+  {
+    value: "deka_mile",
+    label: "DEKA MILE",
+    blurb: "10 zones + 1 mile of 160m sprints — short & fast",
+  },
+  {
+    value: "deka_strong",
+    label: "DEKA STRONG",
+    blurb: "10 zones back-to-back, no running — strength-endurance",
+  },
+  {
+    value: "deka_atlas",
+    label: "DEKA ATLAS",
+    blurb: "10 heavy barbell/DB zones, no running — strength-led",
+  },
   { value: "deka_ultra", label: "DEKA ULTRA", blurb: "5× DEKA FIT — 25km + 50 zones (endurance)" },
   { value: "tri_olympic", label: "Olympic Triathlon", blurb: "1.5km swim / 40km bike / 10km run" },
   { value: "tri_70_3", label: "Ironman 70.3", blurb: "Half — 1.9km swim / 90km bike / 21.1km run" },
-  { value: "tri_140_6", label: "Ironman 140.6", blurb: "Full — 3.8km swim / 180km bike / 42.2km run" },
-  { value: "general_fitness", label: "General Fitness", blurb: "No race — rotating strength + cardio blocks for all-round fitness" },
+  {
+    value: "tri_140_6",
+    label: "Ironman 140.6",
+    blurb: "Full — 3.8km swim / 180km bike / 42.2km run",
+  },
+  {
+    value: "general_fitness",
+    label: "General Fitness",
+    blurb: "No race — rotating strength + cardio blocks for all-round fitness",
+  },
 ] as const;
 
 const SUBGOAL_OPTIONS = [
@@ -201,84 +269,211 @@ type BudgetCopy = { level: string; tradeoff: string };
 /** Fallback used for sports without a bespoke research table (e.g. DEKA
  *  ATLAS/ULTRA — intentionally not yet modelled). */
 const GENERIC_BUDGET: Record<string, BudgetCopy> = {
-  h0_5: { level: "Time-crunched", tradeoff: "Concentrated, higher-intensity work — efficient, but limits aerobic-base depth." },
-  h5_10: { level: "Committed amateur", tradeoff: "A well-rounded base with room for quality sessions." },
-  h10_20: { level: "Advanced / sub-elite", tradeoff: "Full base plus durability; little left on the table." },
-  h20_30: { level: "Elite / full-time", tradeoff: "Maximal aerobic depth; returns start to diminish." },
-  h30_40: { level: "Pro peak-block", tradeoff: "Camp-level volume; not sustainable long-term for most." },
+  h0_5: {
+    level: "Time-crunched",
+    tradeoff: "Concentrated, higher-intensity work — efficient, but limits aerobic-base depth.",
+  },
+  h5_10: {
+    level: "Committed amateur",
+    tradeoff: "A well-rounded base with room for quality sessions.",
+  },
+  h10_20: {
+    level: "Advanced / sub-elite",
+    tradeoff: "Full base plus durability; little left on the table.",
+  },
+  h20_30: {
+    level: "Elite / full-time",
+    tradeoff: "Maximal aerobic depth; returns start to diminish.",
+  },
+  h30_40: {
+    level: "Pro peak-block",
+    tradeoff: "Camp-level volume; not sustainable long-term for most.",
+  },
 };
 
 /** Sport → band → athlete level + tradeoff (research report §6.3–6.7). Sports
  *  not listed fall back to GENERIC_BUDGET. */
 const TIME_BUDGET_COPY: Record<string, Record<string, BudgetCopy>> = {
   hyrox: {
-    h0_5: { level: "Recreational; competitive Open finisher", tradeoff: "Builds VO₂max, threshold & station efficiency; gives up running durability and aerobic-base depth." },
-    h5_10: { level: "Advanced age-grouper; Pro-qualifier attainable", tradeoff: "Adds race-specific durability; sacrifices only the last few % of aerobic base." },
-    h10_20: { level: "Elite / Pro", tradeoff: "Full durability, aerobic base and race simulation; sacrifices little." },
-    h20_30: { level: "Full-time Pro only", tradeoff: "Maximal durability; returns diminish and impact-injury risk becomes the limiter." },
-    h30_40: { level: "Pro peak-block only; not sustainable", tradeoff: "No added benefit beyond 20–30h for most; camp/peak use only." },
+    h0_5: {
+      level: "Recreational; competitive Open finisher",
+      tradeoff:
+        "Builds VO₂max, threshold & station efficiency; gives up running durability and aerobic-base depth.",
+    },
+    h5_10: {
+      level: "Advanced age-grouper; Pro-qualifier attainable",
+      tradeoff: "Adds race-specific durability; sacrifices only the last few % of aerobic base.",
+    },
+    h10_20: {
+      level: "Elite / Pro",
+      tradeoff: "Full durability, aerobic base and race simulation; sacrifices little.",
+    },
+    h20_30: {
+      level: "Full-time Pro only",
+      tradeoff: "Maximal durability; returns diminish and impact-injury risk becomes the limiter.",
+    },
+    h30_40: {
+      level: "Pro peak-block only; not sustainable",
+      tradeoff: "No added benefit beyond 20–30h for most; camp/peak use only.",
+    },
   },
   deka_fit: {
-    h0_5: { level: "Recreational → competitive", tradeoff: "Builds glycolytic power, zone efficiency & VO₂max; little lost for FIT." },
-    h5_10: { level: "Competitive age-grouper", tradeoff: "Race-specific power-endurance + aerobic support; gives up back-end aerobic base." },
+    h0_5: {
+      level: "Recreational → competitive",
+      tradeoff: "Builds glycolytic power, zone efficiency & VO₂max; little lost for FIT.",
+    },
+    h5_10: {
+      level: "Competitive age-grouper",
+      tradeoff: "Race-specific power-endurance + aerobic support; gives up back-end aerobic base.",
+    },
     h10_20: { level: "Elite", tradeoff: "Everything DEKA FIT rewards; sacrifices little." },
-    h20_30: { level: "Over-prescribed for DEKA; Pro only", tradeoff: "Aerobic ceiling well past DEKA's demands; strong diminishing returns." },
+    h20_30: {
+      level: "Over-prescribed for DEKA; Pro only",
+      tradeoff: "Aerobic ceiling well past DEKA's demands; strong diminishing returns.",
+    },
     h30_40: { level: "Not recommended for DEKA", tradeoff: "Volume exceeds event demand." },
   },
   deka_mile: {
-    h0_5: { level: "Recreational → competitive", tradeoff: "Power & speed emphasis; a short, sharp event needs little aerobic volume." },
+    h0_5: {
+      level: "Recreational → competitive",
+      tradeoff: "Power & speed emphasis; a short, sharp event needs little aerobic volume.",
+    },
     h5_10: { level: "Competitive → elite", tradeoff: "Ample for MILE's power-endurance demands." },
-    h10_20: { level: "Elite (beyond MILE's needs)", tradeoff: "More aerobic volume than the event rewards." },
+    h10_20: {
+      level: "Elite (beyond MILE's needs)",
+      tradeoff: "More aerobic volume than the event rewards.",
+    },
     h20_30: { level: "Over-prescribed for MILE", tradeoff: "Diminishing returns." },
     h30_40: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
   },
   deka_strong: {
-    h0_5: { level: "Recreational → competitive (fully sufficient)", tradeoff: "Strength-endurance & glycolytic power; no running, minimal aerobic volume needed." },
-    h5_10: { level: "Elite", tradeoff: "More than enough for a ~10–14 min strength-endurance sprint." },
-    h10_20: { level: "Over-prescribed for STRONG", tradeoff: "Excess aerobic volume for the event." },
+    h0_5: {
+      level: "Recreational → competitive (fully sufficient)",
+      tradeoff: "Strength-endurance & glycolytic power; no running, minimal aerobic volume needed.",
+    },
+    h5_10: {
+      level: "Elite",
+      tradeoff: "More than enough for a ~10–14 min strength-endurance sprint.",
+    },
+    h10_20: {
+      level: "Over-prescribed for STRONG",
+      tradeoff: "Excess aerobic volume for the event.",
+    },
     h20_30: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
     h30_40: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
   },
   deka_atlas: {
-    h0_5: { level: "Recreational → competitive (sufficient)", tradeoff: "Strength-led power; no running, minimal aerobic volume needed." },
+    h0_5: {
+      level: "Recreational → competitive (sufficient)",
+      tradeoff: "Strength-led power; no running, minimal aerobic volume needed.",
+    },
     h5_10: { level: "Elite", tradeoff: "Ample for a heavy, short strength-endurance event." },
-    h10_20: { level: "Over-prescribed for ATLAS", tradeoff: "Excess aerobic volume for the event." },
+    h10_20: {
+      level: "Over-prescribed for ATLAS",
+      tradeoff: "Excess aerobic volume for the event.",
+    },
     h20_30: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
     h30_40: { level: "Not recommended", tradeoff: "Volume far exceeds event demand." },
   },
   deka_ultra: {
-    h0_5: { level: "Survival-only", tradeoff: "Central fitness only; gives up the durability a 5× event demands." },
-    h5_10: { level: "Back/mid-pack finisher", tradeoff: "Builds a base; sacrifices late-event durability." },
-    h10_20: { level: "Competitive", tradeoff: "Durability + aerobic depth for a long event; sacrifices little." },
-    h20_30: { level: "Elite", tradeoff: "Elite durability for 25 km + 50 zones; diminishing returns begin." },
+    h0_5: {
+      level: "Survival-only",
+      tradeoff: "Central fitness only; gives up the durability a 5× event demands.",
+    },
+    h5_10: {
+      level: "Back/mid-pack finisher",
+      tradeoff: "Builds a base; sacrifices late-event durability.",
+    },
+    h10_20: {
+      level: "Competitive",
+      tradeoff: "Durability + aerobic depth for a long event; sacrifices little.",
+    },
+    h20_30: {
+      level: "Elite",
+      tradeoff: "Elite durability for 25 km + 50 zones; diminishing returns begin.",
+    },
     h30_40: { level: "Pro peak-block", tradeoff: "Volume-gated ceiling; camp use only." },
   },
   tri_olympic: {
-    h0_5: { level: "Recreational; sprint-focused", tradeoff: "VO₂max, threshold & race pace; gives up aerobic base and swim-technique volume." },
-    h5_10: { level: "Competitive age-grouper", tradeoff: "Competitive readiness; sacrifices only marginal base." },
-    h10_20: { level: "Sub-elite / elite", tradeoff: "Base, economy, threshold & durability; sacrifices little." },
-    h20_30: { level: "Elite / Pro", tradeoff: "Elite aerobic depth; diminishing returns for Olympic distance." },
+    h0_5: {
+      level: "Recreational; sprint-focused",
+      tradeoff: "VO₂max, threshold & race pace; gives up aerobic base and swim-technique volume.",
+    },
+    h5_10: {
+      level: "Competitive age-grouper",
+      tradeoff: "Competitive readiness; sacrifices only marginal base.",
+    },
+    h10_20: {
+      level: "Sub-elite / elite",
+      tradeoff: "Base, economy, threshold & durability; sacrifices little.",
+    },
+    h20_30: {
+      level: "Elite / Pro",
+      tradeoff: "Elite aerobic depth; diminishing returns for Olympic distance.",
+    },
     h30_40: { level: "Pro peak-block only", tradeoff: "No Olympic-specific return beyond 20–30h." },
   },
   tri_70_3: {
-    h0_5: { level: "Survival-only; back-of-pack finisher", tradeoff: "Threshold/VO₂max & finishing fitness; gives up durability, fat oxidation, fuelling practice & run robustness." },
-    h5_10: { level: "Competitive age-grouper", tradeoff: "Credible mid-pack 70.3; sacrifices late-race durability depth." },
-    h10_20: { level: "Kona-70.3 qualifier / elite", tradeoff: "Durability, fat oxidation, GI tolerance & competitive readiness; sacrifices little." },
-    h20_30: { level: "Elite / Pro", tradeoff: "Elite durability and metabolic depth; approaching diminishing returns." },
-    h30_40: { level: "Pro only", tradeoff: "Marginal returns over 20–30h; recovery-support dependent." },
+    h0_5: {
+      level: "Survival-only; back-of-pack finisher",
+      tradeoff:
+        "Threshold/VO₂max & finishing fitness; gives up durability, fat oxidation, fuelling practice & run robustness.",
+    },
+    h5_10: {
+      level: "Competitive age-grouper",
+      tradeoff: "Credible mid-pack 70.3; sacrifices late-race durability depth.",
+    },
+    h10_20: {
+      level: "Kona-70.3 qualifier / elite",
+      tradeoff:
+        "Durability, fat oxidation, GI tolerance & competitive readiness; sacrifices little.",
+    },
+    h20_30: {
+      level: "Elite / Pro",
+      tradeoff: "Elite durability and metabolic depth; approaching diminishing returns.",
+    },
+    h30_40: {
+      level: "Pro only",
+      tradeoff: "Marginal returns over 20–30h; recovery-support dependent.",
+    },
   },
   tri_140_6: {
-    h0_5: { level: "Not advised except to finish", tradeoff: "Central fitness only; sacrifices nearly all durability, fuelling & structural prep — high blow-up/injury risk." },
-    h5_10: { level: "Determined age-grouper; execution-dependent", tradeoff: "A realistic finish; sacrifices durability depth, GI robustness & injury margin." },
-    h10_20: { level: "Kona qualifier / strong age-grouper", tradeoff: "Durability, fat oxidation & GI tolerance — genuine competitiveness; near the amateur optimum." },
-    h20_30: { level: "Pro / full-time athlete", tradeoff: "Maximal durability and metabolic depth for 8h+ racing; overtraining risk without full-time recovery." },
-    h30_40: { level: "Pro peak-block only", tradeoff: "Volume-gated ceiling for the longest events; net-negative without pro recovery infrastructure." },
+    h0_5: {
+      level: "Not advised except to finish",
+      tradeoff:
+        "Central fitness only; sacrifices nearly all durability, fuelling & structural prep — high blow-up/injury risk.",
+    },
+    h5_10: {
+      level: "Determined age-grouper; execution-dependent",
+      tradeoff: "A realistic finish; sacrifices durability depth, GI robustness & injury margin.",
+    },
+    h10_20: {
+      level: "Kona qualifier / strong age-grouper",
+      tradeoff:
+        "Durability, fat oxidation & GI tolerance — genuine competitiveness; near the amateur optimum.",
+    },
+    h20_30: {
+      level: "Pro / full-time athlete",
+      tradeoff:
+        "Maximal durability and metabolic depth for 8h+ racing; overtraining risk without full-time recovery.",
+    },
+    h30_40: {
+      level: "Pro peak-block only",
+      tradeoff:
+        "Volume-gated ceiling for the longest events; net-negative without pro recovery infrastructure.",
+    },
   },
   general_fitness: {
-    h0_5: { level: "Time-crunched", tradeoff: "Efficient, higher-intensity mix; comfortably hits health & fitness floors." },
+    h0_5: {
+      level: "Time-crunched",
+      tradeoff: "Efficient, higher-intensity mix; comfortably hits health & fitness floors.",
+    },
     h5_10: { level: "Well-rounded", tradeoff: "Comfortable balance of strength and cardio." },
     h10_20: { level: "High-volume enthusiast", tradeoff: "Plenty of room for both emphases." },
-    h20_30: { level: "Very high volume", tradeoff: "More than most general-fitness goals require." },
+    h20_30: {
+      level: "Very high volume",
+      tradeoff: "More than most general-fitness goals require.",
+    },
     h30_40: { level: "Athlete-level volume", tradeoff: "Beyond general-fitness needs." },
   },
 };
@@ -309,7 +504,8 @@ export type EditInitial = {
   bikeExp?: string;
 };
 
-const inputClass = "rounded-md border border-zinc-300 px-3 py-2 focus:border-black focus:outline-none";
+const inputClass =
+  "rounded-md border border-zinc-300 px-3 py-2 focus:border-black focus:outline-none";
 
 export default function OnboardingForm({
   profile,
@@ -325,6 +521,13 @@ export default function OnboardingForm({
   const isEdit = mode === "edit" && !!programId;
   const action = isEdit ? updateProgramInputs.bind(null, programId!) : submitOnboarding;
   const [state, formAction, pending] = useActionState(action, initialState);
+  // Benchmarks pre-fill from the saved profile on a NEW program, so HYROX splits
+  // (and 5K / strength numbers) don't have to be re-entered each time. When
+  // editing a program, that program's own saved inputs (`initial`) win. Either
+  // way the fields stay fully editable.
+  const savedBench = (profile?.benchmarks ?? {}) as Record<string, string | number | undefined>;
+  const benchDefault = (name: string): string | number =>
+    initial?.benchmarks?.[name] ?? savedBench[name] ?? "";
   const formRef = useRef<HTMLFormElement>(null);
   // Timestamp of when the user reached the final step — used to ignore an
   // accidental click that lands on "Generate" right after advancing.
@@ -357,7 +560,9 @@ export default function OnboardingForm({
   const [longRunDay, setLongRunDay] = useState<string>(profile?.day_preferences?.longRunDay ?? "");
   const [restDays, setRestDays] = useState<string[]>(profile?.day_preferences?.restDays ?? []);
   const [liftDays, setLiftDays] = useState<string[]>(profile?.day_preferences?.liftDays ?? []);
-  const [hybridDays, setHybridDays] = useState<string[]>(profile?.day_preferences?.hybridDays ?? []);
+  const [hybridDays, setHybridDays] = useState<string[]>(
+    profile?.day_preferences?.hybridDays ?? [],
+  );
   const [programType, setProgramType] = useState<ProgramType>(initial?.programType ?? "goal_event");
   const [races, setRaces] = useState<RaceRow[]>(
     (initial && initial.races.length > 0
@@ -366,7 +571,9 @@ export default function OnboardingForm({
     ).map((r) => ({ ...r, id: newRaceId() })),
   );
   const [duration, setDuration] = useState(initial?.durationWeeks ?? 12);
-  const [startDate, setStartDate] = useState<string>(initial?.startDate ?? new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState<string>(
+    initial?.startDate ?? new Date().toISOString().slice(0, 10),
+  );
   // HYROX result lookup (#17) fills this uncontrolled goal-time input on pick.
   const goalTimeRef = useRef<HTMLInputElement>(null);
   // HYROX event-split inputs (Benchmarks step) that a result-lookup pick fills.
@@ -541,14 +748,21 @@ export default function OnboardingForm({
         {isGeneralFitness && (
           <label className="flex flex-col gap-1 text-sm">
             Primary goal
-            <select name="subGoal" value={subGoal} onChange={(e) => setSubGoal(e.target.value)} className={inputClass}>
+            <select
+              name="subGoal"
+              value={subGoal}
+              onChange={(e) => setSubGoal(e.target.value)}
+              className={inputClass}
+            >
               {SUBGOAL_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
                 </option>
               ))}
             </select>
-            <span className="text-xs text-zinc-400">Biases the emphasis rotation; all-round fitness stays the base.</span>
+            <span className="text-xs text-zinc-400">
+              Biases the emphasis rotation; all-round fitness stays the base.
+            </span>
           </label>
         )}
         <label className="flex flex-col gap-1 text-sm">
@@ -558,15 +772,32 @@ export default function OnboardingForm({
         <div className="flex gap-4">
           <label className="flex flex-1 flex-col gap-1 text-sm">
             Age
-            <input name="age" type="number" min={13} max={100} defaultValue={profile?.age ?? ""} className={inputClass} />
+            <input
+              name="age"
+              type="number"
+              min={13}
+              max={100}
+              defaultValue={profile?.age ?? ""}
+              className={inputClass}
+            />
           </label>
           <label className="flex flex-1 flex-col gap-1 text-sm">
             Body weight
-            <input name="bodyWeight" type="number" step="0.1" defaultValue={profile?.body_weight ?? ""} className={inputClass} />
+            <input
+              name="bodyWeight"
+              type="number"
+              step="0.1"
+              defaultValue={profile?.body_weight ?? ""}
+              className={inputClass}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Unit
-            <select name="weightUnit" defaultValue={profile?.weight_unit ?? "lbs"} className={inputClass}>
+            <select
+              name="weightUnit"
+              defaultValue={profile?.weight_unit ?? "lbs"}
+              className={inputClass}
+            >
               <option value="lbs">lbs</option>
               <option value="kg">kg</option>
             </select>
@@ -620,9 +851,9 @@ export default function OnboardingForm({
           </label>
         </div>
         <p className="text-xs text-zinc-500">
-          Max HR defaults to a sex-specific age formula (Tanaka / Gulati). Zones use the best data you
-          give: a threshold HR (lactate-threshold / Friel zones), else a resting HR (heart-rate reserve),
-          else % of max HR. Set a tested max HR if you know it.
+          Max HR defaults to a sex-specific age formula (Tanaka / Gulati). Zones use the best data
+          you give: a threshold HR (lactate-threshold / Friel zones), else a resting HR (heart-rate
+          reserve), else % of max HR. Set a tested max HR if you know it.
         </p>
 
         {sport === "hyrox" && (
@@ -630,13 +861,18 @@ export default function OnboardingForm({
             <div className="flex gap-4">
               <label className="flex flex-1 flex-col gap-1 text-sm">
                 HYROX division <span className="text-xs text-zinc-400">(station loads)</span>
-                <select name="division" defaultValue={profile?.division ?? "open"} className={inputClass}>
+                <select
+                  name="division"
+                  defaultValue={profile?.division ?? "open"}
+                  className={inputClass}
+                >
                   <option value="open">Open</option>
                   <option value="pro">Pro</option>
                 </select>
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm">
-                Goal finish time <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
+                Goal finish time{" "}
+                <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
                 <input
                   ref={goalTimeRef}
                   name="goalFinishTime"
@@ -648,8 +884,9 @@ export default function OnboardingForm({
               </label>
             </div>
             <p className="text-xs text-zinc-500">
-              Division sets the sled / carry / lunge / wall-ball race loads your hybrid sessions build toward.
-              A goal time drives your race pacing plan — leave it blank and we predict one from your benchmarks.
+              Division sets the sled / carry / lunge / wall-ball race loads your hybrid sessions
+              build toward. A goal time drives your race pacing plan — leave it blank and we predict
+              one from your benchmarks.
             </p>
             {/* #17: pull your finish time from official HYROX results to seed the goal. */}
             <details className="rounded-lg border border-zinc-200 p-3">
@@ -660,7 +897,8 @@ export default function OnboardingForm({
                 <HyroxLookup
                   defaultFirst={profile?.first_name ?? ""}
                   onPick={(r) => {
-                    if (goalTimeRef.current && r.finishTime) goalTimeRef.current.value = r.finishTime;
+                    if (goalTimeRef.current && r.finishTime)
+                      goalTimeRef.current.value = r.finishTime;
                     if (hyroxRaceTypeRef.current) {
                       const ev = (r.event ?? "").toLowerCase();
                       hyroxRaceTypeRef.current.value = ev.includes("doubles")
@@ -688,7 +926,8 @@ export default function OnboardingForm({
         {isDeka && (
           <>
             <label className="flex flex-col gap-1 text-sm">
-              Goal finish time <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
+              Goal finish time{" "}
+              <span className="text-xs text-zinc-400">(optional, m:ss or h:mm:ss)</span>
               <input
                 name="goalFinishTime"
                 type="text"
@@ -698,8 +937,8 @@ export default function OnboardingForm({
               />
             </label>
             <p className="text-xs text-zinc-500">
-              A goal time drives your zone-by-zone race pacing plan — leave it blank and we predict one from
-              your run and erg benchmarks.
+              A goal time drives your zone-by-zone race pacing plan — leave it blank and we predict
+              one from your run and erg benchmarks.
             </p>
           </>
         )}
@@ -707,12 +946,16 @@ export default function OnboardingForm({
         {/* Custom HR zones (new-additions #3) */}
         <fieldset className="flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={customZones} onChange={(e) => setCustomZones(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={customZones}
+              onChange={(e) => setCustomZones(e.target.checked)}
+            />
             <span className="font-medium">Set custom heart-rate zones</span>
           </label>
           <p className="text-xs text-zinc-500">
-            By default, zones use standard %-of-max bands (Z1 &lt;60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 90–100).
-            Enable this to set your own low/high % for each zone.
+            By default, zones use standard %-of-max bands (Z1 &lt;60, Z2 60–70, Z3 70–80, Z4 80–90,
+            Z5 90–100). Enable this to set your own low/high % for each zone.
           </p>
           {/* Serialized flag the server action reads to know custom zones are on. */}
           <input type="hidden" name="hrZonesEnabled" value={customZones ? "on" : ""} />
@@ -750,7 +993,9 @@ export default function OnboardingForm({
                   </label>
                 </div>
               ))}
-              <p className="text-xs text-zinc-500">Each zone&apos;s high % must be greater than its low %.</p>
+              <p className="text-xs text-zinc-500">
+                Each zone&apos;s high % must be greater than its low %.
+              </p>
             </div>
           )}
         </fieldset>
@@ -781,8 +1026,17 @@ export default function OnboardingForm({
             <fieldset key={key} className="flex flex-col gap-2 text-sm">
               <legend className="mb-1 font-medium">{group.label}</legend>
               {group.options.map((opt) => (
-                <label key={opt.value} className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2">
-                  <input type="radio" name={fieldName} value={opt.value} defaultChecked={(current ?? fallback) === opt.value} className="mt-1" />
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2"
+                >
+                  <input
+                    type="radio"
+                    name={fieldName}
+                    value={opt.value}
+                    defaultChecked={(current ?? fallback) === opt.value}
+                    className="mt-1"
+                  />
                   <span>
                     <span className="font-medium">{opt.label}</span>
                     <span className="block text-xs text-zinc-500">{opt.def}</span>
@@ -800,11 +1054,28 @@ export default function OnboardingForm({
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">Training classification</legend>
           {[
-            { value: "non_highly_trained", label: "Non-highly trained", def: "No extensive history of high training volume" },
-            { value: "highly_trained", label: "Highly trained", def: "Extensive high-volume history; supports a longer microcycle before a deload" },
+            {
+              value: "non_highly_trained",
+              label: "Non-highly trained",
+              def: "No extensive history of high training volume",
+            },
+            {
+              value: "highly_trained",
+              label: "Highly trained",
+              def: "Extensive high-volume history; supports a longer microcycle before a deload",
+            },
           ].map((opt) => (
-            <label key={opt.value} className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2">
-              <input type="radio" name="trainingClass" value={opt.value} defaultChecked={(profile?.training_class ?? "non_highly_trained") === opt.value} className="mt-1" />
+            <label
+              key={opt.value}
+              className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2"
+            >
+              <input
+                type="radio"
+                name="trainingClass"
+                value={opt.value}
+                defaultChecked={(profile?.training_class ?? "non_highly_trained") === opt.value}
+                className="mt-1"
+              />
               <span>
                 <span className="font-medium">{opt.label}</span>
                 <span className="block text-xs text-zinc-500">{opt.def}</span>
@@ -819,7 +1090,12 @@ export default function OnboardingForm({
         <div className="flex flex-col gap-4 sm:flex-row">
           <label className="flex flex-1 flex-col gap-1 text-sm">
             Program name <span className="text-xs text-zinc-400">(optional)</span>
-            <input name="programName" defaultValue={initial?.programName ?? ""} placeholder="e.g. Spring HYROX build" className={inputClass} />
+            <input
+              name="programName"
+              defaultValue={initial?.programName ?? ""}
+              placeholder="e.g. Spring HYROX build"
+              className={inputClass}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Start date
@@ -846,8 +1122,8 @@ export default function OnboardingForm({
         <fieldset className="flex flex-col gap-2 text-sm">
           <legend className="mb-1 font-medium">How much time can you train each week?</legend>
           <p className="text-xs text-zinc-500">
-            Your program&apos;s total volume scales with this. There&apos;s no wrong answer — pick what&apos;s
-            realistic and we&apos;ll get the most out of the time you have.
+            Your program&apos;s total volume scales with this. There&apos;s no wrong answer — pick
+            what&apos;s realistic and we&apos;ll get the most out of the time you have.
           </p>
           <div className="flex flex-col gap-2">
             {BUDGET_BANDS.map((b) => {
@@ -913,7 +1189,12 @@ export default function OnboardingForm({
                   key={e.key}
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 has-[:checked]:border-black has-[:checked]:bg-black has-[:checked]:text-white"
                 >
-                  <input type="checkbox" name={`equip_${e.key}`} defaultChecked={checked} className="sr-only" />
+                  <input
+                    type="checkbox"
+                    name={`equip_${e.key}`}
+                    defaultChecked={checked}
+                    className="sr-only"
+                  />
                   {e.label}
                 </label>
               );
@@ -930,12 +1211,19 @@ export default function OnboardingForm({
             Day preferences <span className="text-xs font-normal text-zinc-400">(optional)</span>
           </legend>
           {days.length === 0 ? (
-            <p className="text-xs text-zinc-500">Pick your training days above to set day preferences.</p>
+            <p className="text-xs text-zinc-500">
+              Pick your training days above to set day preferences.
+            </p>
           ) : (
             <>
               <label className="flex flex-col gap-1">
                 Preferred long-run day
-                <select name="longRunDay" value={longRunDay} onChange={(e) => setLongRunDay(e.target.value)} className={inputClass}>
+                <select
+                  name="longRunDay"
+                  value={longRunDay}
+                  onChange={(e) => setLongRunDay(e.target.value)}
+                  className={inputClass}
+                >
                   <option value="">No preference</option>
                   {DAYS.filter((d) => days.includes(d.key)).map((d) => (
                     <option key={d.key} value={d.key}>
@@ -946,20 +1234,37 @@ export default function OnboardingForm({
               </label>
               <div className="flex flex-col gap-1">
                 <span>Preferred rest day(s)</span>
-                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={restDays} namePrefix="restday" onToggle={toggleRestDay} />
+                <DayPills
+                  options={DAYS.filter((d) => days.includes(d.key))}
+                  selected={restDays}
+                  namePrefix="restday"
+                  onToggle={toggleRestDay}
+                />
                 <span className="text-xs text-zinc-500">
-                  Rest days are kept clear when your schedule leaves room. A long-run-day preference wins if the two conflict.
+                  Rest days are kept clear when your schedule leaves room. A long-run-day preference
+                  wins if the two conflict.
                 </span>
               </div>
               <div className="flex flex-col gap-1">
                 <span>Preferred strength / lifting day(s)</span>
-                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={liftDays} namePrefix="liftday" onToggle={toggleLiftDay} />
+                <DayPills
+                  options={DAYS.filter((d) => days.includes(d.key))}
+                  selected={liftDays}
+                  namePrefix="liftday"
+                  onToggle={toggleLiftDay}
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <span>Preferred hybrid (HYROX) day(s)</span>
-                <DayPills options={DAYS.filter((d) => days.includes(d.key))} selected={hybridDays} namePrefix="hybridday" onToggle={toggleHybridDay} />
+                <DayPills
+                  options={DAYS.filter((d) => days.includes(d.key))}
+                  selected={hybridDays}
+                  namePrefix="hybridday"
+                  onToggle={toggleHybridDay}
+                />
                 <span className="text-xs text-zinc-500">
-                  We pin these workout types to your chosen days when the week has room — the long-run day is placed first, then hybrid, then lifting.
+                  We pin these workout types to your chosen days when the week has room — the
+                  long-run day is placed first, then hybrid, then lifting.
                 </span>
               </div>
             </>
@@ -968,7 +1273,12 @@ export default function OnboardingForm({
 
         <label className="flex flex-col gap-1 text-sm">
           Program type
-          <select name="programType" value={programType} onChange={(e) => setProgramType(e.target.value as ProgramType)} className={inputClass}>
+          <select
+            name="programType"
+            value={programType}
+            onChange={(e) => setProgramType(e.target.value as ProgramType)}
+            className={inputClass}
+          >
             <option value="goal_event">Goal event (race date)</option>
             <option value="fixed_duration">Fixed duration</option>
             <option value="general_fitness">General fitness</option>
@@ -984,16 +1294,19 @@ export default function OnboardingForm({
             {/* A/B/C race definitions */}
             <div className="flex flex-col gap-1 rounded-md bg-zinc-50 p-3 text-xs text-zinc-600">
               <p>
-                <span className="font-semibold text-zinc-800">A race</span> — your peak goal. Gets a full 2-week taper for
-                maximum freshness (volume drops to ~60–70% then ~40–50% on race week; intensity stays sharp).
+                <span className="font-semibold text-zinc-800">A race</span> — your peak goal. Gets a
+                full 2-week taper for maximum freshness (volume drops to ~60–70% then ~40–50% on
+                race week; intensity stays sharp).
               </p>
               <p>
-                <span className="font-semibold text-zinc-800">B race</span> — secondary. A mini-taper: the race week is cut
-                ~40% while you keep your hard efforts, protecting training rhythm.
+                <span className="font-semibold text-zinc-800">B race</span> — secondary. A
+                mini-taper: the race week is cut ~40% while you keep your hard efforts, protecting
+                training rhythm.
               </p>
               <p>
-                <span className="font-semibold text-zinc-800">C race</span> — a tune-up or fitness test. No taper — you
-                train right through it and treat the race itself as a hard workout.
+                <span className="font-semibold text-zinc-800">C race</span> — a tune-up or fitness
+                test. No taper — you train right through it and treat the race itself as a hard
+                workout.
               </p>
             </div>
 
@@ -1001,18 +1314,35 @@ export default function OnboardingForm({
               <div key={r.id} className="flex items-end gap-2">
                 <label className="flex flex-1 flex-col gap-1">
                   Date
-                  <input type="date" min={minDate} value={r.date} onChange={(e) => updateRace(i, { date: e.target.value })} className={inputClass} />
+                  <input
+                    type="date"
+                    min={minDate}
+                    value={r.date}
+                    onChange={(e) => updateRace(i, { date: e.target.value })}
+                    className={inputClass}
+                  />
                 </label>
                 <label className="flex flex-col gap-1">
                   Priority
-                  <select value={r.priority} onChange={(e) => updateRace(i, { priority: e.target.value as Race["priority"] })} className={inputClass}>
+                  <select
+                    value={r.priority}
+                    onChange={(e) =>
+                      updateRace(i, { priority: e.target.value as Race["priority"] })
+                    }
+                    className={inputClass}
+                  >
                     <option value="A">A race</option>
                     <option value="B">B race</option>
                     <option value="C">C race</option>
                   </select>
                 </label>
                 {(races.length > 1 || programType !== "goal_event") && (
-                  <button type="button" onClick={() => removeRace(i)} className="px-2 py-2 text-zinc-400 hover:text-red-600" aria-label="Remove race">
+                  <button
+                    type="button"
+                    onClick={() => removeRace(i)}
+                    className="px-2 py-2 text-zinc-400 hover:text-red-600"
+                    aria-label="Remove race"
+                  >
                     ✕
                   </button>
                 )}
@@ -1035,7 +1365,14 @@ export default function OnboardingForm({
         {showDuration && (
           <label className="flex flex-col gap-1 text-sm">
             Program length: <span className="font-medium">{duration} weeks</span>
-            <input name="durationWeeks" type="range" min={4} max={24} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+            <input
+              name="durationWeeks"
+              type="range"
+              min={4}
+              max={24}
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+            />
             <span className="flex justify-between text-xs text-zinc-400">
               <span>4</span>
               <span>24</span>
@@ -1045,19 +1382,37 @@ export default function OnboardingForm({
 
         {/* Starting volume overrides (optional) */}
         <fieldset className="flex flex-col gap-2 text-sm">
-          <legend className="mb-1 font-medium">Starting volume <span className="text-xs font-normal text-zinc-400">(optional)</span></legend>
+          <legend className="mb-1 font-medium">
+            Starting volume <span className="text-xs font-normal text-zinc-400">(optional)</span>
+          </legend>
           <p className="text-xs text-zinc-500">
-            Leave blank to start from your running-experience default. Set these if you know your current weekly load and
-            want the program to build from it.
+            Leave blank to start from your running-experience default. Set these if you know your
+            current weekly load and want the program to build from it.
           </p>
           <div className="flex gap-4">
             <label className="flex flex-1 flex-col gap-1">
               Starting weekly mileage
-              <input name="startMileage" type="number" min={0} step="0.1" defaultValue={initial?.startMileage ?? ""} placeholder="e.g. 22" className={inputClass} />
+              <input
+                name="startMileage"
+                type="number"
+                min={0}
+                step="0.1"
+                defaultValue={initial?.startMileage ?? ""}
+                placeholder="e.g. 22"
+                className={inputClass}
+              />
             </label>
             <label className="flex flex-1 flex-col gap-1">
               Starting weekly cardio (min)
-              <input name="startCardioMinutes" type="number" min={0} step="1" defaultValue={initial?.startCardioMinutes ?? ""} placeholder="e.g. 350" className={inputClass} />
+              <input
+                name="startCardioMinutes"
+                type="number"
+                min={0}
+                step="1"
+                defaultValue={initial?.startCardioMinutes ?? ""}
+                placeholder="e.g. 350"
+                className={inputClass}
+              />
             </label>
           </div>
         </fieldset>
@@ -1068,34 +1423,36 @@ export default function OnboardingForm({
         <p className="text-sm text-zinc-500">
           {requiresFiveK ? (
             <>
-              Your <span className="font-medium text-zinc-700">5K time is required</span> — all run paces are calculated
-              from it. If you don&apos;t know it, enter your best guess.{" "}
+              Your <span className="font-medium text-zinc-700">5K time is required</span> — all run
+              paces are calculated from it. If you don&apos;t know it, enter your best guess.{" "}
             </>
           ) : (
             <>All benchmarks are optional for this program. </>
           )}
-          Add all benchmarks that you know. If you are unsure, you may add a best guess, but err on the side of
-          conservative estimates to begin the program.
+          Add all benchmarks that you know. If you are unsure, you may add a best guess, but err on
+          the side of conservative estimates to begin the program.
         </p>
         <div className="grid grid-cols-2 gap-4 text-sm">
-          {([
-            ["mileTime", "1-mile time (mm:ss)", "text"],
-            ["fiveKTime", `5K time (mm:ss)${requiresFiveK ? " — required" : ""}`, "text"],
-            ["tenKTime", "10K time (mm:ss)", "text"],
-            ["ski2kTime", "2000m ski erg (mm:ss)", "text"],
-            ["row2kTime", "2000m row erg (mm:ss)", "text"],
-            ["fiveRmSquat", "5-rep max squat (lbs)", "number"],
-            ["fiveRmBench", "5-rep max bench (lbs)", "number"],
-            ["fiveRmDeadlift", "5-rep max deadlift (lbs)", "number"],
-            ["bike20MinCals", "Assault bike cals / 20 min", "number"],
-          ] as const).map(([name, label, type]) => (
+          {(
+            [
+              ["mileTime", "1-mile time (mm:ss)", "text"],
+              ["fiveKTime", `5K time (mm:ss)${requiresFiveK ? " — required" : ""}`, "text"],
+              ["tenKTime", "10K time (mm:ss)", "text"],
+              ["ski2kTime", "2000m ski erg (mm:ss)", "text"],
+              ["row2kTime", "2000m row erg (mm:ss)", "text"],
+              ["fiveRmSquat", "5-rep max squat (lbs)", "number"],
+              ["fiveRmBench", "5-rep max bench (lbs)", "number"],
+              ["fiveRmDeadlift", "5-rep max deadlift (lbs)", "number"],
+              ["bike20MinCals", "Assault bike cals / 20 min", "number"],
+            ] as const
+          ).map(([name, label, type]) => (
             <label key={name} className="flex flex-col gap-1">
               {label}
               <input
                 name={name}
                 type={type === "number" ? "number" : "text"}
                 step={type === "number" ? "1" : undefined}
-                defaultValue={initial?.benchmarks?.[name] ?? ""}
+                defaultValue={benchDefault(name)}
                 className={inputClass}
               />
             </label>
@@ -1105,16 +1462,16 @@ export default function OnboardingForm({
         {sport === "hyrox" && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-zinc-500">
-              <span className="font-medium text-zinc-700">HYROX event splits</span> &mdash; your per-station
-              times from a previous race. Use &ldquo;Look up my HYROX result&rdquo; on the Schedule &amp; goal
-              step to fill these automatically, or type them in. They sharpen the generator&apos;s read on which
-              stations are your strengths and weaknesses.
+              <span className="font-medium text-zinc-700">HYROX event splits</span> &mdash; your
+              per-station times from a previous race. Use &ldquo;Look up my HYROX result&rdquo; on
+              the Schedule &amp; goal step to fill these automatically, or type them in. They
+              sharpen the generator&apos;s read on which stations are your strengths and weaknesses.
             </p>
             <input
               type="hidden"
               name="hyroxRaceType"
               ref={hyroxRaceTypeRef}
-              defaultValue={initial?.benchmarks?.hyroxRaceType ?? ""}
+              defaultValue={benchDefault("hyroxRaceType")}
             />
             <div className="grid grid-cols-2 gap-4 text-sm">
               {HYROX_SPLIT_INPUTS.map(({ name, label }) => (
@@ -1126,7 +1483,7 @@ export default function OnboardingForm({
                     }}
                     name={name}
                     type="text"
-                    defaultValue={initial?.benchmarks?.[name] ?? ""}
+                    defaultValue={benchDefault(name)}
                     className={inputClass}
                   />
                 </label>
@@ -1138,9 +1495,9 @@ export default function OnboardingForm({
         {isAtlas && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-zinc-500">
-              <span className="font-medium text-zinc-700">ATLAS anchors</span> — overhead-pressing endurance
-              and a glycolytic test let us find your limiter (absolute strength comes from your barbell lifts
-              above) and bias the program toward it.
+              <span className="font-medium text-zinc-700">ATLAS anchors</span> — overhead-pressing
+              endurance and a glycolytic test let us find your limiter (absolute strength comes from
+              your barbell lifts above) and bias the program toward it.
             </p>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <label className="flex flex-col gap-1">
@@ -1150,7 +1507,7 @@ export default function OnboardingForm({
                   type="number"
                   step="1"
                   placeholder="e.g. 22"
-                  defaultValue={initial?.benchmarks?.ohpEnduranceReps ?? ""}
+                  defaultValue={benchDefault("ohpEnduranceReps")}
                   className={inputClass}
                 />
               </label>
@@ -1160,7 +1517,7 @@ export default function OnboardingForm({
                   name="glycolyticTestSec"
                   type="text"
                   placeholder="e.g. 3:10"
-                  defaultValue={initial?.benchmarks?.glycolyticTestSec ?? ""}
+                  defaultValue={benchDefault("glycolyticTestSec")}
                   className={inputClass}
                 />
               </label>
@@ -1171,8 +1528,9 @@ export default function OnboardingForm({
         {isTriathlon && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-zinc-500">
-              <span className="font-medium text-zinc-700">Triathlon anchors</span> — your swim CSS pace and
-              bike FTP unlock personalized swim-pace and bike-power zones (your 5K time drives run zones).
+              <span className="font-medium text-zinc-700">Triathlon anchors</span> — your swim CSS
+              pace and bike FTP unlock personalized swim-pace and bike-power zones (your 5K time
+              drives run zones).
             </p>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <label className="flex flex-col gap-1">
@@ -1181,7 +1539,7 @@ export default function OnboardingForm({
                   name="cssPace"
                   type="text"
                   placeholder="e.g. 1:40"
-                  defaultValue={initial?.benchmarks?.cssPace ?? ""}
+                  defaultValue={benchDefault("cssPace")}
                   className={inputClass}
                 />
               </label>
@@ -1192,7 +1550,7 @@ export default function OnboardingForm({
                   type="number"
                   step="1"
                   placeholder="e.g. 240"
-                  defaultValue={initial?.benchmarks?.ftpWatts ?? ""}
+                  defaultValue={benchDefault("ftpWatts")}
                   className={inputClass}
                 />
               </label>
@@ -1201,7 +1559,9 @@ export default function OnboardingForm({
         )}
       </fieldset>
 
-      {(stepError || state.error) && <p className="text-sm text-red-600">{stepError ?? state.error}</p>}
+      {(stepError || state.error) && (
+        <p className="text-sm text-red-600">{stepError ?? state.error}</p>
+      )}
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
@@ -1214,11 +1574,20 @@ export default function OnboardingForm({
           ← Back
         </button>
         {step < STEPS.length - 1 ? (
-          <button type="button" onClick={next} className="rounded-full bg-black px-6 py-2.5 text-white transition-colors hover:bg-zinc-800">
+          <button
+            type="button"
+            onClick={next}
+            className="rounded-full bg-black px-6 py-2.5 text-white transition-colors hover:bg-zinc-800"
+          >
             Next
           </button>
         ) : (
-          <button type="button" onClick={handleGenerate} disabled={pending} className="rounded-full bg-black px-6 py-2.5 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={pending}
+            className="rounded-full bg-black px-6 py-2.5 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          >
             {pending
               ? isEdit
                 ? "Recalculating…"
