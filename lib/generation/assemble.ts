@@ -24,6 +24,7 @@ import {
   type Session,
 } from "@/lib/schemas";
 import type { ExperienceLevel, ProgramSkeleton, TrainingDayName, WeekSkeleton } from "@/lib/engine/types";
+import type { TrainingCaps } from "@/lib/engine/caps";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
@@ -281,6 +282,7 @@ function buildWeek(
   sex: StationSex = "male",
   catalog: StationCatalog = HYROX_CATALOG,
   restDays?: TrainingDayName[],
+  caps?: TrainingCaps,
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -321,6 +323,7 @@ function buildWeek(
     runningExp,
     skel.weekNumber,
     { avoidDays: restDayKeys, preferDays: ["sat", "sun"] },
+    caps,
   );
 
   return {
@@ -528,6 +531,7 @@ export function assembleProgram(
       sex,
       catalog,
       skeleton.restDays,
+      skeleton.caps,
     );
     const patched = patchMovementPatterns(week);
     if (patched.length)

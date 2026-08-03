@@ -9,6 +9,7 @@
  */
 
 import type { z } from "zod";
+import type { TrainingCaps } from "./caps";
 import {
   ExperienceLevel as ExperienceLevelEnum,
   TrainingClass as TrainingClassEnum,
@@ -76,6 +77,8 @@ export interface EngineInput {
   longRunDays?: TrainingDayName[];
   /** Optional days the athlete prefers to keep as full rest (new-additions #4). */
   restDays?: TrainingDayName[];
+  /** Session/day minute caps for this athlete on this sport (lib/engine/caps.ts). */
+  caps?: TrainingCaps;
   /** Optional preferred days for strength / lifting sessions (Tasks #1). */
   liftDays?: TrainingDayName[];
   /** Optional preferred days for hybrid (HYROX) sessions (Tasks #1). */
@@ -205,6 +208,8 @@ export interface ProgramSkeleton {
    * a chosen rest day, but an incidentally-empty day is exactly where it should go.
    */
   restDays?: TrainingDayName[];
+  /** Session/day minute caps for this athlete on this sport (lib/engine/caps.ts). */
+  caps?: TrainingCaps;
   /** Needs analysis behind this program's biasing, for UI / audit (Review #1). */
   needs?: NeedsAnalysis;
 }

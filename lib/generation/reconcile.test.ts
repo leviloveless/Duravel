@@ -233,3 +233,52 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
     expect(dayOf(days, "mon").sessions.length).toBe(0);
   });
 });
+
+describe("session cap scales with experience", () => {
+  // 90 / 105 / 120 minutes by tier. A run and a Zone 1-2 block on the same day are
+  // two separate sessions: each is capped on its own, and the day cap (exactly two
+  // capped sessions) bounds their sum.
+  const bigWeek = (): ProgramDay[] =>
+    daysOf([], [], [], [], [], [run("long", 14, 120)], []);
+  const longest = (days: ProgramDay[]) =>
+    Math.max(...days.flatMap((d) => d.sessions).map((s) => sessionTiming(s).total));
+
+  for (const [label, cap] of [["beginner", 90], ["intermediate", 105], ["advanced", 120]] as const) {
+    it(`${label}: no session exceeds ${cap} min`, () => {
+      const days = bigWeek();
+      reconcileWeekVolume(days, 30, 400, P, "intermediate", 1, { preferDays: ["sat", "sun"] }, {
+        session: cap,
+        day: cap * 2,
+      });
+      expect(longest(days)).toBeLessThanOrEqual(cap);
+    });
+  }
+
+  it("an advanced athlete gets a longer single session than a beginner", () => {
+    const a = bigWeek();
+    const b = bigWeek();
+    const place = { preferDays: ["sat", "sun"] as const };
+    reconcileWeekVolume(a, 30, 400, P, "intermediate", 1, place, { session: 90, day: 180 });
+    reconcileWeekVolume(b, 30, 400, P, "intermediate", 1, place, { session: 120, day: 240 });
+    expect(longest(b)).toBeGreaterThan(longest(a));
+  });
+
+  it("defaults to the conservative 90-min cap when none is supplied", () => {
+    const days = bigWeek();
+    reconcileWeekVolume(days, 30, 400, P, "intermediate", 1, { preferDays: ["sat", "sun"] });
+    expect(longest(days)).toBeLessThanOrEqual(90);
+  });
+
+  it("a run and a cardio block on one day are capped separately, not summed", () => {
+    const days = daysOf([], [], [], [], [], [run("long", 12, 100)], []);
+    reconcileWeekVolume(days, 20, 300, P, "intermediate", 1, { preferDays: ["sat", "sun"] }, {
+      session: 90,
+      day: 180,
+    });
+    for (const d of days) {
+      for (const s of d.sessions) expect(sessionTiming(s).total).toBeLessThanOrEqual(90);
+      const total = d.sessions.reduce((n, s) => n + sessionTiming(s).total, 0);
+      expect(total).toBeLessThanOrEqual(180);
+    }
+  });
+});
