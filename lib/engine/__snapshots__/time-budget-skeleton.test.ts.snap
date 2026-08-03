@@ -13771,7 +13771,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -13799,8 +13800,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },
@@ -15097,7 +15097,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -15125,8 +15126,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },
@@ -16453,7 +16453,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -16481,8 +16482,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },
@@ -19961,7 +19961,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -19989,8 +19990,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },
@@ -21287,7 +21287,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -21315,8 +21316,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },
@@ -22643,7 +22643,8 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "kind": "rest",
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -22671,8 +22672,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "kind": "rest",
             },
           ],
         },

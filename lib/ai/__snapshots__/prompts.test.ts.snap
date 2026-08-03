@@ -176,8 +176,8 @@ Week 8 — phase build, microcycle increase
   Targets: 27.3 miles, 527 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
     mon: run:long(Z2), lift:lower
-    tue: lift:full, run:easy(Z2)
-    wed: hybrid(Z4), run:fartlek(Z2)
+    tue: run:fartlek(Z2), run:easy(Z2)
+    wed: hybrid(Z4), lift:full
     thu: hybrid(Z4), run:tempo(Z3)
     fri: lift:upper, run:easy(Z2)
 

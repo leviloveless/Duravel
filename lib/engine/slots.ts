@@ -35,6 +35,7 @@ import {
   pairLegLiftWithCardio,
   spreadRuns,
   capSessionsPerDay,
+  separateLiftDays,
   fillEmptyDays,
 } from "./sequencing";
 
@@ -495,9 +496,7 @@ function weekendAnchorDay(
   longRunDay: TrainingDayName | undefined,
   protectedDays: Set<TrainingDayName>,
 ): TrainingDayName | undefined {
-  return WEEKEND.find(
-    (d) => trainingDays.includes(d) && d !== longRunDay && !protectedDays.has(d),
-  );
+  return WEEKEND.find((d) => trainingDays.includes(d) && d !== longRunDay && !protectedDays.has(d));
 }
 
 /**
@@ -661,7 +660,8 @@ function dealLiftsOnto(
     let best = -1;
     for (let i = 0; i < days.length; i++) {
       const d = days[i]!; // safe: i < days.length
-      if (protectedDays.has(d.day) || d.sessions.some((s) => s.kind === "race" || isLift(s))) continue;
+      if (protectedDays.has(d.day) || d.sessions.some((s) => s.kind === "race" || isLift(s)))
+        continue;
       if (best === -1 || d.sessions.length < days[best]!.sessions.length) best = i;
     }
     if (best === -1) break;
@@ -745,7 +745,14 @@ export function assignDays(
     const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
-    const runs = buildRunSlots(phase, plan.runs, pos, bias?.runEmphasis ?? "none", counts.runCharacter ?? "full", counts.guaranteeQuality ?? false);
+    const runs = buildRunSlots(
+      phase,
+      plan.runs,
+      pos,
+      bias?.runEmphasis ?? "none",
+      counts.runCharacter ?? "full",
+      counts.guaranteeQuality ?? false,
+    );
     const lifts = buildLiftSlots(plan.lifts, counts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
     const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");
@@ -891,6 +898,10 @@ export function assignDays(
     // day at 2 workouts (relocating any overflow to a lighter day).
     spreadRuns(days, protectedDays);
     capSessionsPerDay(days, protectedDays);
+    // Recovery separation for weight sessions: full-body lifts never on consecutive
+    // calendar days (kept >=2 days apart when the week allows); all lifts try >=1
+    // day apart. Applies to every program.
+    separateLiftDays(days, protectedDays);
     // Last: a day the athlete selected should never sit empty next to a doubled
     // one. Runs after the caps so it levels out whatever they left behind.
     //

@@ -74,14 +74,21 @@ function pickSequencingTarget(
  * a rest/empty day) elsewhere in the week — count-preserving and best-effort, and
  * it never touches a protected day or creates a new key-run adjacency.
  */
-export function spaceHardRunAfterLongRun(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
-  const longIdx = days.findIndex((d) => d.sessions.some((s) => s.kind === "run" && (s.isLong === true || s.runType === "long")));
+export function spaceHardRunAfterLongRun(
+  days: DaySlot[],
+  protectedDays: Set<TrainingDayName>,
+): void {
+  const longIdx = days.findIndex((d) =>
+    d.sessions.some((s) => s.kind === "run" && (s.isLong === true || s.runType === "long")),
+  );
   if (longIdx === -1) return;
   const nextIdx = longIdx + 1;
   if (nextIdx >= days.length) return; // long run is the last training day — nothing follows
   const next = days[nextIdx]!; // safe: nextIdx < days.length
   if (protectedDays.has(next.day)) return;
-  const hardIdx = next.sessions.findIndex((s) => s.kind === "run" && !(s.isLong === true || s.runType === "long") && isKeyRun(s));
+  const hardIdx = next.sessions.findIndex(
+    (s) => s.kind === "run" && !(s.isLong === true || s.runType === "long") && isKeyRun(s),
+  );
   if (hardIdx === -1) return;
 
   // Prefer swapping with an easy run; otherwise move onto the emptiest free day.
@@ -268,7 +275,6 @@ export function pairLegLiftWithCardio(days: DaySlot[], protectedDays: Set<Traini
   }
 }
 
-
 // --- Daily-load guards (per-day session limits) ------------------------------
 //
 // Two structural rules layered on top of the batch-3 guards, applied only for
@@ -285,7 +291,8 @@ const isLift: SlotPredicate = (s) => s.kind === "lift";
 /** The weekly long run is pinned to its (preferred or weekend-default) day by
  *  assignDays; these load guards must never relocate it. Protected-day checks
  *  only guard a DESTINATION, so the long run needs an explicit exemption here. */
-const isLongRunSlot: SlotPredicate = (s) => s.kind === "run" && (s.isLong === true || s.runType === "long");
+const isLongRunSlot: SlotPredicate = (s) =>
+  s.kind === "run" && (s.isLong === true || s.runType === "long");
 
 /** Non-rest workouts on a day (rest slots aren't added until after the guards). */
 function workoutCount(day: DaySlot): number {
@@ -422,7 +429,11 @@ function pickCapTarget(
  * Rule #1: no more than `max` (default 2) workouts on any day. Relocate the
  * most-movable excess session to a lighter day; keep lifts and the long run put.
  */
-export function capSessionsPerDay(days: DaySlot[], protectedDays: Set<TrainingDayName>, max = 2): void {
+export function capSessionsPerDay(
+  days: DaySlot[],
+  protectedDays: Set<TrainingDayName>,
+  max = 2,
+): void {
   for (let guard = 0; guard < days.length * 6; guard++) {
     const srcIdx = days.findIndex((d) => workoutCount(d) > max);
     if (srcIdx === -1) break;
@@ -441,5 +452,129 @@ export function capSessionsPerDay(days: DaySlot[], protectedDays: Set<TrainingDa
       break;
     }
     if (!moved) break; // nowhere safe to move anything — best-effort
+  }
+}
+
+// --- Lift-day recovery separation (all programs) -----------------------------
+//
+// Levi's rule: two FULL-BODY lifts must never land on consecutive CALENDAR days,
+// and full-body lifts are kept >=2 days apart when the week allows; every weight
+// session (any split) additionally tries to sit >=1 day apart. Gaps are measured
+// in calendar days — so a rest day between two lifts counts — not in training-day
+// slots. Best-effort and count-preserving: a lift is relocated onto an
+// unprotected, lift-free day (giving back a light session when that day is
+// occupied) and never onto a rest day or a new consecutive-lift adjacency.
+
+const CAL_INDEX: Record<string, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+  sat: 5,
+  sun: 6,
+};
+const isFullLift: SlotPredicate = (s) => s.kind === "lift" && s.liftType === "full";
+
+/** Calendar-day gap between two day slots (Mon→Wed = 2). */
+function calGap(days: DaySlot[], i: number, j: number): number {
+  return Math.abs((CAL_INDEX[days[i]!.day] ?? 0) - (CAL_INDEX[days[j]!.day] ?? 0));
+}
+
+/** Required minimum calendar gap between two lift days: 3 (>=2 days between) when
+ *  BOTH are full-body/heavy, else 2 (>=1 day between — not consecutive). */
+function requiredLiftGap(days: DaySlot[], i: number, j: number): number {
+  return dayHas(days[i]!, isFullLift) && dayHas(days[j]!, isFullLift) ? 3 : 2;
+}
+
+/** Best day to relocate the lift on `fromIdx` to: unprotected, lift-free, able to
+ *  give back a light session, and — critically — never calendar-consecutive to any
+ *  other lift. Maximizes the smallest gap to the other lifts. Returns -1 if none. */
+function bestLiftDay(
+  days: DaySlot[],
+  fromIdx: number,
+  protectedDays: Set<TrainingDayName>,
+): number {
+  const otherLiftIdxs = days
+    .map((d, i) => (i !== fromIdx && dayHas(d, isLift) ? i : -1))
+    .filter((i) => i >= 0);
+  const lift = days[fromIdx]!.sessions.find(isLift);
+  const hardLeg = !!lift && isHardLegLift(lift);
+  let best = -1;
+  let bestScore = -Infinity;
+  for (let t = 0; t < days.length; t++) {
+    if (t === fromIdx) continue;
+    const d = days[t]!;
+    if (protectedDays.has(d.day)) continue;
+    if (dayHas(d, isLift)) continue; // never two lifts on a day
+    const empty = d.sessions.length === 0;
+    if (!empty && lightIndex(d) === -1) continue; // nothing safe to give back
+    const minGap = otherLiftIdxs.length
+      ? Math.min(...otherLiftIdxs.map((o) => calGap(days, t, o)))
+      : 99;
+    if (minGap < 2) continue; // would create a consecutive-day lift pair
+    const conflict = hardLeg && conflictsWithKeyRun(days, t) ? 1 : 0;
+    const load = d.sessions.filter((x) => x.kind !== "rest").length;
+    const score = minGap * 100 + (empty ? 10 : 0) - load - conflict * 40;
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  return best;
+}
+
+/** Move the lift on `fromIdx` to `targetIdx`, swapping a light session back if the
+ *  target already holds work (count-preserving). */
+function moveLiftTo(days: DaySlot[], fromIdx: number, targetIdx: number): void {
+  const from = days[fromIdx]!;
+  const tgt = days[targetIdx]!;
+  const j = from.sessions.findIndex(isLift);
+  if (j === -1) return;
+  const lift = from.sessions.splice(j, 1)[0]!; // safe: j !== -1
+  if (tgt.sessions.length > 0) {
+    const di = lightIndex(tgt);
+    if (di !== -1) {
+      const back = tgt.sessions.splice(di, 1)[0]!; // safe: di !== -1
+      from.sessions.push(back);
+    }
+  }
+  tgt.sessions.push(lift);
+}
+
+/**
+ * Enforce lift-day recovery separation. Repeatedly fixes the worst violation
+ * (full-body-on-consecutive-days first, then the largest gap shortfall) by
+ * relocating one lift of the offending pair. Best-effort: it stops when no legal
+ * destination remains, so a week too dense to separate is left as good as it can be.
+ */
+export function separateLiftDays(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  for (let guard = 0; guard < days.length * 6; guard++) {
+    const liftDays = days.map((d, i) => (dayHas(d, isLift) ? i : -1)).filter((i) => i >= 0);
+    let worst: { i: number; j: number; sev: number } | null = null;
+    for (let a = 0; a < liftDays.length; a++) {
+      for (let b = a + 1; b < liftDays.length; b++) {
+        const i = liftDays[a]!;
+        const j = liftDays[b]!;
+        const gap = calGap(days, i, j);
+        const need = requiredLiftGap(days, i, j);
+        if (gap >= need) continue;
+        const bothFull = dayHas(days[i]!, isFullLift) && dayHas(days[j]!, isFullLift);
+        const sev = (bothFull ? 1000 : 0) + (need - gap);
+        if (!worst || sev > worst.sev) worst = { i, j, sev };
+      }
+    }
+    if (!worst) break;
+    const later = bestLiftDay(days, worst.j, protectedDays);
+    if (later !== -1) {
+      moveLiftTo(days, worst.j, later);
+      continue;
+    }
+    const earlier = bestLiftDay(days, worst.i, protectedDays);
+    if (earlier !== -1) {
+      moveLiftTo(days, worst.i, earlier);
+      continue;
+    }
+    break; // nowhere legal to move — best-effort
   }
 }
