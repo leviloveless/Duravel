@@ -36,8 +36,12 @@ describe("Peak race-simulation marking", () => {
   });
 
   it("Base/Build weeks and Peak deloads do NOT", () => {
-    expect(hasSim(assignDays(DAYS, "base", "increase", "intermediate", "intermediate"))).toBe(false);
-    expect(hasSim(assignDays(DAYS, "build", "increase", "intermediate", "intermediate"))).toBe(false);
+    expect(hasSim(assignDays(DAYS, "base", "increase", "intermediate", "intermediate"))).toBe(
+      false,
+    );
+    expect(hasSim(assignDays(DAYS, "build", "increase", "intermediate", "intermediate"))).toBe(
+      false,
+    );
     expect(hasSim(assignDays(DAYS, "peak", "deload", "intermediate", "intermediate"))).toBe(false);
   });
 });
@@ -65,21 +69,54 @@ describe("buildSimulationElements", () => {
   });
 });
 
-
 describe("race simulation is compatible with volume reconciliation", () => {
   it("keeps weekly mileage + cardio exact with a 16-element sim hybrid", () => {
     const P = computePaces("22:00")!;
     const days: ProgramDay[] = [
-      { day: "mon", sessions: [{ kind: "run", runType: "easy", durationMin: 40, paceMinMile: "9:00", distanceMiles: 4, goalZone: 2 }] },
-      { day: "tue", sessions: [{ kind: "hybrid", goalZone: 4, simulation: true, elements: buildSimulationElements("open", "male") }] },
-      { day: "wed", sessions: [{ kind: "run", runType: "long", durationMin: 70, paceMinMile: "9:00", distanceMiles: 8, goalZone: 2 }] },
+      {
+        day: "mon",
+        sessions: [
+          {
+            kind: "run",
+            runType: "easy",
+            durationMin: 40,
+            paceMinMile: "9:00",
+            distanceMiles: 4,
+            goalZone: 2,
+          },
+        ],
+      },
+      {
+        day: "tue",
+        sessions: [
+          {
+            kind: "hybrid",
+            goalZone: 4,
+            simulation: true,
+            elements: buildSimulationElements("open", "male"),
+          },
+        ],
+      },
+      {
+        day: "wed",
+        sessions: [
+          {
+            kind: "run",
+            runType: "long",
+            durationMin: 70,
+            paceMinMile: "9:00",
+            distanceMiles: 8,
+            goalZone: 2,
+          },
+        ],
+      },
       { day: "thu", sessions: [] },
     ];
     reconcileWeekVolume(days, 24, 320, P, "intermediate");
-    // 24 is a WORK-mileage target; the total on the athlete's feet also carries the
-    // warmup/cooldown distance, so it reads higher.
-    expect(weekWorkMileage({ days })).toBe(24);
-    expect(weekMileage({ days })).toBeGreaterThan(24);
+    // 24 is now the TOTAL on-feet target (warmup/cooldown + recovery included), so
+    // the pure work mileage reads lower.
+    expect(weekMileage({ days })).toBe(24);
+    expect(weekWorkMileage({ days })).toBeLessThan(24);
     expect(weekCardioMinutes({ days })).toBe(320);
   });
 });

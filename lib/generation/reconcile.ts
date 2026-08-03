@@ -21,18 +21,13 @@
 
 import type { ProgramDay, Session } from "@/lib/schemas";
 import type { ExperienceLevel, RunType } from "@/lib/engine/types";
-import {
-  effectivePace,
-  formatPace,
-  paceLabel,
-  type RunPaces,
-} from "@/lib/engine/paces";
+import { effectivePace, formatPace, paceLabel, type RunPaces } from "@/lib/engine/paces";
 import {
   hybridRunMiles,
   runOverhead,
   runOverheadMiles,
   sessionTiming,
-  weekWorkMileage,
+  weekMileage,
 } from "@/lib/session-volume";
 import { round1 } from "@/lib/engine/math";
 import { recoveryFactor, recoveryMinutes } from "@/lib/engine/interval-structure";
@@ -65,12 +60,26 @@ const LONG_RUN_DOMINANCE = 1.5; // long run ≥ 1.5× the longest easy run
 
 /** Relative distance share by run type when spreading remaining miles. */
 const TYPE_WEIGHT: Record<RunType, number> = {
-  long: 2.0, progression: 1.3, fartlek: 1.2, tempo: 1.1, threshold: 1.1, interval: 1.0, easy: 1.0, hybrid_run: 1.0,
+  long: 2.0,
+  progression: 1.3,
+  fartlek: 1.2,
+  tempo: 1.1,
+  threshold: 1.1,
+  interval: 1.0,
+  easy: 1.0,
+  hybrid_run: 1.0,
 };
 
 /** How readily a run is dropped when a week is too small (lower = dropped first; long never). */
 const DROP_RANK: Record<RunType, number> = {
-  easy: 0, fartlek: 1, progression: 1, tempo: 2, threshold: 3, interval: 3, hybrid_run: 4, long: 99,
+  easy: 0,
+  fartlek: 1,
+  progression: 1,
+  tempo: 2,
+  threshold: 3,
+  interval: 3,
+  hybrid_run: 4,
+  long: 99,
 };
 
 const CARDIO_DESCRIPTION =
@@ -218,15 +227,15 @@ export function reconcileWeekVolume(
   // Fixed hybrid contribution.
   let hybridMi = 0;
   let hybridMin = 0;
-  for (const d of days) for (const s of d.sessions) {
-    if (s.kind === "hybrid") {
-      hybridMi += hybridRunMiles(s);
-      hybridMin += sessionTiming(s).total;
+  for (const d of days)
+    for (const s of d.sessions) {
+      if (s.kind === "hybrid") {
+        hybridMi += hybridRunMiles(s);
+        hybridMin += sessionTiming(s).total;
+      }
     }
-  }
-  const RM = Math.max(0, round1(targetMileage - hybridMi)); // running miles to place
-
   // Collect run entries.
+  const easyPaceMin = effectivePace("easy", paces) / 60;
   const runs: RunEntry[] = [];
   for (const d of days) {
     for (const s of d.sessions) {
@@ -245,6 +254,7 @@ export function reconcileWeekVolume(
       });
     }
   }
+  const RM = Math.max(0, round1(targetMileage - hybridMi)); // running miles to place (work)
 
   const added: Session[] = [];
 
@@ -258,35 +268,45 @@ export function reconcileWeekVolume(
 
   // Place added easy runs before the mileage true-up so they count.
   for (const s of added) days[leastLoadedUnderCap(days, 2, place)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
-  trueUpMileage(days, targetMileage, paces, caps.session, runningExp);
 
-  // Stamp each run's warmup/cooldown distance, derived from its fixed overhead
-  // MINUTES at easy pace. This is counted in the mileage the athlete sees (they are
-  // miles on the feet) but never in `targetMileage`, which is a WORK target — so
-  // adding this does not quietly shrink anyone's quality volume.
-  const easyPaceMin = effectivePace("easy", paces) / 60;
-  for (const d of days) {
-    for (const s of d.sessions) {
-      if (s.kind !== "run") continue;
-      s.overheadMiles = runOverheadMiles(s.runType, easyPaceMin);
-      // Between-rep recovery: easy jogging, so it is aerobic time and aerobic
-      // distance. Counted in what the athlete is shown, never in the work target.
-      const rec = recoveryMinutes(s.runType, runningExp, s.durationMin);
-      if (rec > 0) {
-        s.recoveryMin = rec;
-        s.recoveryMiles = Math.round((rec / easyPaceMin) * 10) / 10;
-      } else {
-        delete s.recoveryMin;
-        delete s.recoveryMiles;
-      }
+  // The prescribed weekly mileage is the athlete's TOTAL on-feet distance:
+  // warmup/cooldown AND between-rep recovery jogging all count toward it. Stamp
+  // that overhead onto every run, then converge the week to the target by
+  // shrinking (or growing) the run distances — re-stamping each pass because a
+  // run's recovery distance scales with its (changing) work time.
+  for (let iter = 0; iter < 6; iter++) {
+    stampRunOverhead(days, easyPaceMin, runningExp);
+    const diff = round1(targetMileage - weekMileage({ days }));
+    if (Math.abs(diff) < 0.05) break;
+    adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session);
+  }
+  stampRunOverhead(days, easyPaceMin, runningExp);
+  // A proportional shrink can leave a sub-tenth residual (a 0.1 remainder spread
+  // across many runs rounds away on each), so snap it onto the longest run — its
+  // fixed overhead and (for the long run) zero recovery make that exact.
+  const residual = round1(targetMileage - weekMileage({ days }));
+  if (Math.abs(residual) >= 0.05) {
+    const snapRefs: RunSession[] = [];
+    for (const d of days) for (const s of d.sessions) if (s.kind === "run") snapRefs.push(s);
+    if (snapRefs.length > 0) {
+      const anchor = snapRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
+      setRunMiles(
+        anchor,
+        anchor.distanceMiles + residual,
+        effectivePace(anchor.runType, paces) / 60,
+        caps.session,
+        runningExp,
+      );
+      stampRunOverhead(days, easyPaceMin, runningExp);
     }
   }
 
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
   let runningCardio = 0;
-  for (const d of days) for (const s of d.sessions) {
-    if (s.kind === "run" || s.kind === "hybrid") runningCardio += sessionTiming(s).total;
-  }
+  for (const d of days)
+    for (const s of d.sessions) {
+      if (s.kind === "run" || s.kind === "hybrid") runningCardio += sessionTiming(s).total;
+    }
   const gap = Math.round(targetCardioMinutes) - runningCardio;
   if (gap > 0) {
     for (const { day, minutes } of planFiller(days, gap, place, caps)) {
@@ -328,8 +348,7 @@ function planFiller(
   caps: TrainingCaps,
 ): FillerAllocation[] {
   const isPreferred = (d: ProgramDay): boolean => !!place.preferDays?.includes(d.day);
-  const room = (d: ProgramDay): number =>
-    Math.min(caps.session, caps.day - dayTotalMinutes(d));
+  const room = (d: ProgramDay): number => Math.min(caps.session, caps.day - dayTotalMinutes(d));
   const eligible = (d: ProgramDay): boolean =>
     !isRaceDay(d) &&
     !place.avoidDays?.includes(d.day) &&
@@ -370,9 +389,7 @@ function planFiller(
     if (rest > 0) continue; // the weekend can't absorb the remainder at this k
     const weekendPeak = Math.max(
       0,
-      ...weekend.map(
-        (d) => dayTotalMinutes(d) + (plan.find((a) => a.day === d)?.minutes ?? 0),
-      ),
+      ...weekend.map((d) => dayTotalMinutes(d) + (plan.find((a) => a.day === d)?.minutes ?? 0)),
     );
     if (weekendPeak >= weekdayPeak(k)) return plan;
   }
@@ -390,7 +407,8 @@ function planFiller(
     left -= MIN_PAIRED_CARDIO;
   }
   const overflow = spread(left, [...weekend, ...hosts.filter((d) => !isPreferred(d))], plan, caps);
-  if (overflow > 0 && plan.length > 0) plan[plan.length - 1]!.minutes += overflow; // unavoidable
+  if (overflow > 0 && plan.length > 0)
+    plan[plan.length - 1]!.minutes += overflow; // unavoidable
   else if (overflow > 0) plan.push({ day: hosts[0]!, minutes: overflow });
   return plan;
 }
@@ -418,12 +436,10 @@ function spread(
   return left;
 }
 
-
 /** Total prescribed minutes on a day, across every session it holds. */
 function dayTotalMinutes(day: ProgramDay): number {
   return day.sessions.reduce((n, s) => n + sessionTiming(s).total, 0);
 }
-
 
 function minMiles(type: RunType, paceMin: number, overhead: number): number {
   const base = Math.max(MIN_CARDIO_TOTAL - overhead, 1) / paceMin;
@@ -483,7 +499,9 @@ function sizeRuns(
     // Drop the most-droppable run (easy first; never the long run).
     const victimIdx = runs.reduce(
       (best, r, i) =>
-        r.type !== "long" && (best === -1 || DROP_RANK[r.type] < DROP_RANK[runs[best]!.type]) ? i : best, // safe: runs[best] only read when best !== -1, a prior in-bounds index
+        r.type !== "long" && (best === -1 || DROP_RANK[r.type] < DROP_RANK[runs[best]!.type])
+          ? i
+          : best, // safe: runs[best] only read when best !== -1, a prior in-bounds index
       -1,
     );
     if (victimIdx === -1) break;
@@ -574,7 +592,12 @@ function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: Experie
 }
 
 /** Build easy runs to carry `miles`, each within the easy min/max band. */
-function buildEasyRuns(miles: number, paces: RunPaces, runningExp: ExperienceLevel, sessionCap: number): RunSession[] {
+function buildEasyRuns(
+  miles: number,
+  paces: RunPaces,
+  runningExp: ExperienceLevel,
+  sessionCap: number,
+): RunSession[] {
   const paceMin = effectivePace("easy", paces) / 60;
   const overhead = runOverhead("easy");
   const max = maxMiles(paceMin, overhead, sessionCap, "easy", runningExp);
@@ -601,26 +624,76 @@ function runDescriptionEasy(_exp: ExperienceLevel): string {
   return "Easy, conversational-pace aerobic running in Zone 1–2. Keep it relaxed enough to talk in full sentences the whole way.";
 }
 
-/** Snap the longest run so the week's mileage equals the target exactly. */
-function trueUpMileage(
-  days: ProgramDay[],
-  targetMileage: number,
-  paces: RunPaces,
+/** Stamp each run's warmup/cooldown + between-rep recovery distance from its fixed
+ *  overhead minutes and recovery minutes at easy pace. Both are miles on the feet,
+ *  so — now that the weekly target is a TOTAL — they count toward it. */
+function stampRunOverhead(days: ProgramDay[], easyPaceMin: number, exp: ExperienceLevel): void {
+  for (const d of days) {
+    for (const s of d.sessions) {
+      if (s.kind !== "run") continue;
+      s.overheadMiles = runOverheadMiles(s.runType, easyPaceMin);
+      const rec = recoveryMinutes(s.runType, exp, s.durationMin);
+      if (rec > 0) {
+        s.recoveryMin = rec;
+        s.recoveryMiles = round1(rec / easyPaceMin);
+      } else {
+        delete s.recoveryMin;
+        delete s.recoveryMiles;
+      }
+    }
+  }
+}
+
+/** Resize a run to `miles`, clamped to its min floor and the session cap, and
+ *  rewrite its work duration to match (pace label is fixed per type). */
+function setRunMiles(
+  s: RunSession,
+  miles: number,
+  paceMin: number,
   sessionCap: number,
   exp: ExperienceLevel,
+): void {
+  const overhead = runOverhead(s.runType);
+  const maxWorkMin = workBudget(sessionCap, overhead, s.runType, exp);
+  const maxMi = maxWorkMin / paceMin;
+  s.distanceMiles = Math.max(MIN_RUN_MILES, Math.min(round1(miles), round1(maxMi)));
+  s.durationMin = Math.min(maxWorkMin, Math.max(1, Math.round(s.distanceMiles * paceMin)));
+}
+
+/**
+ * Nudge the week's TOTAL on-feet mileage toward the target by `diff` miles.
+ * Shrink (diff < 0) proportionally to each run's headroom above its minimum — so
+ * the week stays balanced and the long run keeps its dominance — or grow (diff > 0)
+ * the longest run toward the session cap. Best-effort: a week already at its run
+ * minimums (or the cap) simply can't move further.
+ */
+function adjustRunMilesToTotal(
+  days: ProgramDay[],
+  diff: number,
+  paces: RunPaces,
+  exp: ExperienceLevel,
+  sessionCap: number,
 ): void {
   const runRefs: RunSession[] = [];
   for (const d of days) for (const s of d.sessions) if (s.kind === "run") runRefs.push(s);
   if (runRefs.length === 0) return;
-  const diff = round1(targetMileage - weekWorkMileage({ days }));
-  if (Math.abs(diff) < 0.1) return;
-  const anchor = runRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
-  anchor.distanceMiles = Math.max(MIN_RUN_MILES, round1(anchor.distanceMiles + diff));
-  const overhead = runOverhead(anchor.runType);
-  const paceMin = effectivePace(anchor.runType, paces) / 60;
-  anchor.durationMin = Math.min(
-    workBudget(sessionCap, overhead, anchor.runType, exp),
-    Math.max(1, Math.round(anchor.distanceMiles * paceMin)),
-  );
-}
 
+  if (diff < 0) {
+    const cut = -diff;
+    const entries = runRefs.map((s) => {
+      const paceMin = effectivePace(s.runType, paces) / 60;
+      const min = minMiles(s.runType, paceMin, runOverhead(s.runType));
+      return { s, paceMin, min, head: Math.max(0, s.distanceMiles - min) };
+    });
+    const totalHead = entries.reduce((a, e) => a + e.head, 0);
+    if (totalHead < 0.05) return; // every run already at its floor
+    const factor = Math.min(1, cut / totalHead);
+    for (const e of entries) {
+      setRunMiles(e.s, e.s.distanceMiles - e.head * factor, e.paceMin, sessionCap, exp);
+    }
+  } else {
+    const anchor = runRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
+    const paceMin = effectivePace(anchor.runType, paces) / 60;
+    setRunMiles(anchor, anchor.distanceMiles + diff, paceMin, sessionCap, exp);
+  }
+}
