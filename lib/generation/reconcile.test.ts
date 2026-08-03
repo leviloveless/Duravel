@@ -311,3 +311,51 @@ describe("the weekend rebalancer respects the session cap", () => {
     expect(weekCardioMinutes({ days } as never)).toBe(420);
   });
 });
+
+describe("filler is planned before it is written", () => {
+  // The layout is decided up front and only then materialised, so no pass mutates
+  // an already-prescribed session afterwards. These pin the guarantees that the old
+  // place-then-repair design broke: it deleted a lift by splicing the wrong day, and
+  // grew a block past the session cap.
+  const CAP = { session: 90, day: 180 };
+  const place = { preferDays: ["sat", "sun"] as const };
+
+  it("when the weekend cannot be biggest, the caps and the total still hold", () => {
+    // Both weekend days already carry two long sessions, so no filler can go there
+    // and no weekday allocation can overtake them being beaten.
+    const days = daysOf(
+      [], [lift()], [], [lift()], [],
+      [run("long", 8, 85), lift()],
+      [hybrid(), lift()],
+    );
+    reconcileWeekVolume(days, 18, 380, P, "intermediate", 1, place, CAP);
+    expect(weekCardioMinutes({ days } as never)).toBe(380);
+    for (const d of days) {
+      for (const x of d.sessions) expect(sessionTiming(x).total, `${d.day} ${x.kind}`).toBeLessThanOrEqual(CAP.session);
+      expect(d.sessions.filter((x) => x.kind === "cardio").length, d.day).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("never removes or alters a planned lift, run or hybrid", () => {
+    const days = daysOf(
+      [], [lift()], [lift()], [run("interval", 3, 45)],
+      [run("threshold", 3, 45), lift()], [run("long", 6, 69)], [hybrid()],
+    );
+    const before = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place, CAP);
+    const after = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
+    expect(after).toBe(before);
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length).toBe(3);
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "hybrid").length).toBe(1);
+  });
+
+  it("is deterministic — same week in, same layout out", () => {
+    const build = () => daysOf([], [lift()], [], [run("tempo", 4, 50)], [lift()], [run("long", 7, 80)], [hybrid()]);
+    const a = build();
+    const b = build();
+    reconcileWeekVolume(a, 16, 340, P, "intermediate", 1, place, CAP);
+    reconcileWeekVolume(b, 16, 340, P, "intermediate", 1, place, CAP);
+    const layout = (d: ProgramDay[]) => d.map((x) => `${x.day}:${x.sessions.map((s) => `${s.kind}/${sessionTiming(s).total}`).join("+")}`).join(" ");
+    expect(layout(a)).toBe(layout(b));
+  });
+});
