@@ -144,7 +144,13 @@ export const HrZonesSchema = z.object({
  * are days the athlete would rather keep as full rest when the schedule allows.
  */
 export const DayPreferencesSchema = z.object({
+  /** @deprecated Single-day form, superseded by `longRunDays`. Still accepted so
+   *  programs saved before multi-day selection keep working; normalized into
+   *  `longRunDays` at the engine boundary (see `normalizeLongRunDays`). */
   longRunDay: TrainingDay.optional(),
+  /** Preferred day(s) for the weekly long run. Any selected day may host it; the
+   *  engine uses the first (most-preferred) one consistently week to week. */
+  longRunDays: z.array(TrainingDay).optional(),
   restDays: z.array(TrainingDay).optional(),
   /** Preferred days for strength / lifting sessions (Tasks #1). */
   liftDays: z.array(TrainingDay).optional(),

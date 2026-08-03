@@ -18,10 +18,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -74,8 +72,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -100,10 +100,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -156,8 +154,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -182,10 +182,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -228,8 +226,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -254,10 +254,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -310,8 +308,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -336,10 +336,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -392,8 +390,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -418,10 +418,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "goalZone": 2,
@@ -464,8 +462,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -494,10 +494,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
               "kind": "hybrid",
             },
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "lower",
             },
           ],
         },
@@ -505,12 +503,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "tue",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "full",
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "fartlek",
             },
             {
               "kind": "lift",
-              "liftType": "lower",
+              "liftType": "full",
             },
           ],
         },
@@ -525,7 +525,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -550,14 +550,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
             {
-              "goalZone": 2,
-              "isLong": false,
-              "kind": "run",
-              "runType": "easy",
+              "kind": "lift",
+              "liftType": "upper",
             },
           ],
         },
@@ -671,16 +671,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
+            },
+            {
+              "kind": "lift",
+              "liftType": "upper",
             },
           ],
         },
@@ -723,8 +721,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -754,9 +754,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "easy",
             },
           ],
         },
@@ -784,7 +784,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -809,14 +809,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "lower",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
             {
-              "goalZone": 2,
-              "isLong": false,
-              "kind": "run",
-              "runType": "easy",
+              "kind": "lift",
+              "liftType": "upper",
             },
           ],
         },
@@ -845,10 +845,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
               "kind": "hybrid",
             },
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
           ],
         },
@@ -877,7 +875,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -900,14 +898,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
               "runType": "progression",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -936,10 +936,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
               "kind": "hybrid",
             },
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
           ],
         },
@@ -982,8 +980,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "lift",
-              "liftType": "upper",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -1008,10 +1008,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "rest",
             },
           ],
         },
@@ -1048,7 +1045,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "rest",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -2468,14 +2468,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -2512,13 +2510,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
               "isLong": false,
               "kind": "run",
               "runType": "fartlek",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -2543,14 +2543,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -2587,13 +2585,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
               "isLong": false,
               "kind": "run",
               "runType": "fartlek",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -2619,9 +2619,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "kind": "lift",
@@ -2658,9 +2658,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "long",
             },
           ],
         },
@@ -2685,14 +2685,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -2729,13 +2727,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
               "isLong": false,
               "kind": "run",
               "runType": "fartlek",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -2760,14 +2760,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
           ],
         },
@@ -2804,13 +2802,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
+              "goalZone": 2,
               "isLong": false,
               "kind": "run",
               "runType": "fartlek",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -2836,9 +2836,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "kind": "lift",
@@ -2875,9 +2875,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "long",
             },
           ],
         },
@@ -2902,14 +2902,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
             {
               "goalZone": 2,
@@ -2951,14 +2949,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
               "runType": "tempo",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -2983,14 +2983,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "upper",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
             },
             {
               "goalZone": 2,
@@ -3032,14 +3030,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
               "runType": "tempo",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -3064,10 +3064,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
+              "goalZone": 3,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "tempo",
             },
             {
               "kind": "lift",
@@ -3103,10 +3103,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 3,
-              "isLong": false,
+              "goalZone": 2,
+              "isLong": true,
               "kind": "run",
-              "runType": "tempo",
+              "runType": "long",
             },
           ],
         },
@@ -3132,19 +3132,17 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
-              "goalZone": 2,
               "isLong": false,
               "kind": "run",
               "runType": "fartlek",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "lower",
+            },
+            {
+              "kind": "lift",
+              "liftType": "full",
             },
           ],
         },
@@ -3157,7 +3155,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "upper",
             },
           ],
         },
@@ -3180,14 +3178,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
               "runType": "tempo",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -3216,14 +3216,12 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
               "kind": "hybrid",
             },
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "lift",
+              "liftType": "lower",
             },
             {
               "kind": "lift",
-              "liftType": "upper",
+              "liftType": "full",
             },
           ],
         },
@@ -3236,7 +3234,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "upper",
             },
           ],
         },
@@ -3260,14 +3258,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
+            },
+            {
               "goalZone": 4,
               "isLong": false,
               "kind": "run",
               "runType": "threshold",
-            },
-            {
-              "kind": "lift",
-              "liftType": "lower",
             },
           ],
         },
@@ -3292,10 +3292,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
+              "goalZone": 4,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "threshold",
             },
             {
               "kind": "lift",
@@ -3335,10 +3335,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "isLong": false,
+              "goalZone": 2,
+              "isLong": true,
               "kind": "run",
-              "runType": "threshold",
+              "runType": "long",
             },
           ],
         },
@@ -3379,14 +3379,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3445,9 +3445,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3472,14 +3472,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3538,9 +3538,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3565,14 +3565,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3631,9 +3631,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3659,15 +3659,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -3714,9 +3714,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3741,14 +3741,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3807,9 +3807,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3834,14 +3834,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3900,9 +3900,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -3927,14 +3927,14 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "kind": "lift",
               "liftType": "lower",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -3993,9 +3993,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -4021,15 +4021,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -4076,9 +4076,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -4103,10 +4103,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -4180,8 +4178,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4340,8 +4340,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4366,10 +4368,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
+              "goalZone": 5,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "interval",
             },
             {
               "goalZone": 2,
@@ -4427,10 +4429,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 5,
-              "isLong": false,
+              "goalZone": 2,
+              "isLong": true,
               "kind": "run",
-              "runType": "interval",
+              "runType": "long",
             },
           ],
         },
@@ -4455,10 +4457,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -4532,8 +4532,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4558,10 +4560,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -4635,8 +4635,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4661,10 +4663,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -4731,8 +4731,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4757,10 +4759,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -4812,8 +4812,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4838,10 +4840,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -4908,8 +4908,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -4934,10 +4936,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -5004,8 +5004,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -5030,10 +5032,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "rest",
             },
           ],
         },
@@ -5078,7 +5077,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "rest",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -6698,10 +6700,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -6769,8 +6769,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -6795,10 +6797,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -6866,8 +6866,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -6893,15 +6895,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -6948,9 +6950,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -6975,10 +6977,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -7046,8 +7046,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -7072,10 +7074,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -7143,8 +7143,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -7170,15 +7172,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -7225,9 +7227,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -7252,10 +7254,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -7323,8 +7323,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -7349,10 +7351,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 2,
@@ -7420,8 +7420,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -7447,9 +7449,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
@@ -7508,9 +7510,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "long",
             },
           ],
         },
@@ -7536,15 +7538,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -7615,9 +7617,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -7643,15 +7645,15 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "sessions": [
             {
               "goalZone": 2,
-              "isLong": true,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "fartlek",
             },
             {
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
-              "runType": "fartlek",
+              "runType": "easy",
             },
           ],
         },
@@ -7722,9 +7724,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -7749,10 +7751,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
+              "goalZone": 5,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "interval",
             },
             {
               "goalZone": 2,
@@ -7810,10 +7812,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 5,
-              "isLong": false,
+              "goalZone": 2,
+              "isLong": true,
               "kind": "run",
-              "runType": "interval",
+              "runType": "long",
             },
           ],
         },
@@ -7838,16 +7840,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -7918,9 +7920,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -7945,16 +7947,16 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
-            },
-            {
               "goalZone": 5,
               "isLong": false,
               "kind": "run",
               "runType": "interval",
+            },
+            {
+              "goalZone": 2,
+              "isLong": false,
+              "kind": "run",
+              "runType": "easy",
             },
           ],
         },
@@ -8025,9 +8027,9 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
             },
             {
               "goalZone": 2,
-              "isLong": false,
+              "isLong": true,
               "kind": "run",
-              "runType": "easy",
+              "runType": "long",
             },
           ],
         },
@@ -8052,10 +8054,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
+              "goalZone": 5,
+              "isLong": false,
               "kind": "run",
-              "runType": "long",
+              "runType": "interval",
             },
             {
               "goalZone": 2,
@@ -8113,10 +8115,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 5,
-              "isLong": false,
+              "goalZone": 2,
+              "isLong": true,
               "kind": "run",
-              "runType": "interval",
+              "runType": "long",
             },
           ],
         },
@@ -8141,10 +8143,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -8211,8 +8211,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -8237,10 +8239,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -8307,8 +8307,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -8333,10 +8335,8 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "goalZone": 4,
+              "kind": "hybrid",
             },
             {
               "goalZone": 5,
@@ -8388,8 +8388,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "goalZone": 4,
-              "kind": "hybrid",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },
@@ -8414,10 +8416,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "mon",
           "sessions": [
             {
-              "goalZone": 2,
-              "isLong": true,
-              "kind": "run",
-              "runType": "long",
+              "kind": "rest",
             },
           ],
         },
@@ -8462,7 +8461,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
-              "kind": "rest",
+              "goalZone": 2,
+              "isLong": true,
+              "kind": "run",
+              "runType": "long",
             },
           ],
         },

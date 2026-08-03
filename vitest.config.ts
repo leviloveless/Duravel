@@ -8,6 +8,14 @@ export default defineConfig({
   test: {
     include: ["lib/**/*.test.ts"],
     environment: "node",
+    // Minimal dummy env so modules that import the strict env validator
+    // (lib/env.ts, which throws on missing required vars outside the build phase)
+    // load under Vitest. These are placeholders — no test makes real network calls.
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
+      ANTHROPIC_API_KEY: "test-anthropic-key",
+    },
     // Coverage of the deterministic engine + generation layer (roadmap #3.3).
     // Thresholds sit just below current (engine ~95%, generation lower because
     // the AI/DB orchestration in generate-program/adapt-week isn't unit-tested)

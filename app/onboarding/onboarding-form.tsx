@@ -163,26 +163,34 @@ function DayPills({
   selected,
   namePrefix,
   onToggle,
+  disabledKeys = [],
 }: {
   options: readonly { key: string; label: string }[];
   selected: string[];
   namePrefix: string;
   onToggle: (key: string) => void;
+  /** Days claimed by another preference — shown greyed out and not selectable. */
+  disabledKeys?: string[];
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((d) => {
         const on = selected.includes(d.key);
+        const blocked = !on && disabledKeys.includes(d.key);
         return (
           <label
             key={d.key}
-            className={`cursor-pointer rounded-full border px-4 py-1.5 ${on ? "border-black bg-black text-white" : "border-zinc-300 text-zinc-700"}`}
+            title={blocked ? "Already used by another day preference" : undefined}
+            className={`rounded-full border px-4 py-1.5 ${blocked ? "cursor-not-allowed border-zinc-200 text-zinc-300" : on ? "cursor-pointer border-black bg-black text-white" : "cursor-pointer border-zinc-300 text-zinc-700"}`}
           >
             <input
               type="checkbox"
               name={`${namePrefix}_${d.key}`}
               checked={on}
-              onChange={() => onToggle(d.key)}
+              disabled={blocked}
+              onChange={() => {
+                if (!blocked) onToggle(d.key);
+              }}
               aria-pressed={on}
               className="sr-only"
             />
@@ -557,7 +565,10 @@ export default function OnboardingForm({
     return DEFAULT_ZONE_PCTS.map((b) => ({ low: b.low, high: b.high }));
   });
   // Day-placement preferences (new-additions #4; lift/hybrid days Tasks #1).
-  const [longRunDay, setLongRunDay] = useState<string>(profile?.day_preferences?.longRunDay ?? "");
+  const [longRunDays, setLongRunDays] = useState<string[]>(
+    profile?.day_preferences?.longRunDays ??
+      (profile?.day_preferences?.longRunDay ? [profile.day_preferences.longRunDay] : []),
+  );
   const [restDays, setRestDays] = useState<string[]>(profile?.day_preferences?.restDays ?? []);
   const [liftDays, setLiftDays] = useState<string[]>(profile?.day_preferences?.liftDays ?? []);
   const [hybridDays, setHybridDays] = useState<string[]>(
@@ -596,12 +607,15 @@ export default function OnboardingForm({
       setRestDays((r) => r.filter((x) => x !== key));
       setLiftDays((r) => r.filter((x) => x !== key));
       setHybridDays((r) => r.filter((x) => x !== key));
-      setLongRunDay((cur) => (cur === key ? "" : cur));
+      setLongRunDays((r) => r.filter((x) => x !== key));
     }
   }
 
   function updateZone(i: number, patch: Partial<{ low: number; high: number }>) {
     setZones((zs) => zs.map((z, idx) => (idx === i ? { ...z, ...patch } : z)));
+  }
+  function toggleLongRunDay(key: string) {
+    setLongRunDays((r) => (r.includes(key) ? r.filter((x) => x !== key) : [...r, key]));
   }
   function toggleRestDay(key: string) {
     setRestDays((r) => (r.includes(key) ? r.filter((x) => x !== key) : [...r, key]));
@@ -1216,22 +1230,20 @@ export default function OnboardingForm({
             </p>
           ) : (
             <>
-              <label className="flex flex-col gap-1">
-                Preferred long-run day
-                <select
-                  name="longRunDay"
-                  value={longRunDay}
-                  onChange={(e) => setLongRunDay(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">No preference</option>
-                  {DAYS.filter((d) => days.includes(d.key)).map((d) => (
-                    <option key={d.key} value={d.key}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="flex flex-col gap-1">
+                <span>Preferred long-run day(s)</span>
+                <DayPills
+                  options={DAYS.filter((d) => days.includes(d.key))}
+                  selected={longRunDays}
+                  namePrefix="longrunday"
+                  onToggle={toggleLongRunDay}
+                  disabledKeys={restDays}
+                />
+                <span className="text-xs text-zinc-500">
+                  Pick one or more. Your long run lands on the first day you select, the same day
+                  every week. Leave this empty and we&apos;ll put it on the weekend.
+                </span>
+              </div>
               <div className="flex flex-col gap-1">
                 <span>Preferred rest day(s)</span>
                 <DayPills
@@ -1239,10 +1251,11 @@ export default function OnboardingForm({
                   selected={restDays}
                   namePrefix="restday"
                   onToggle={toggleRestDay}
+                  disabledKeys={longRunDays}
                 />
                 <span className="text-xs text-zinc-500">
-                  Rest days are kept clear when your schedule leaves room. A long-run-day preference
-                  wins if the two conflict.
+                  Rest days are kept clear when your schedule leaves room. Days you picked for your
+                  long run can&apos;t also be rest days.
                 </span>
               </div>
               <div className="flex flex-col gap-1">

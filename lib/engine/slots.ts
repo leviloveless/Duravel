@@ -345,10 +345,86 @@ function raceWeekSlots(priority: RacePriorityName, maintenance = false): Session
  * (new-additions #4; extended to lift + hybrid days in Tasks #1).
  */
 export interface DayPreferences {
+  /** @deprecated Single-day form, superseded by `longRunDays`. Still honored. */
   longRunDay?: TrainingDayName;
+  /** Preferred day(s) for the weekly long run. Any selected day may host it; the
+   *  engine picks the first (most-preferred) trained day and uses it EVERY week,
+   *  so the athlete's long run sits on a consistent day. */
+  longRunDays?: TrainingDayName[];
   restDays?: TrainingDayName[];
   liftDays?: TrainingDayName[];
   hybridDays?: TrainingDayName[];
+}
+
+/**
+ * Weekend-first default when the athlete expressed no long-run preference:
+ * Saturday, else Sunday. Amateur athletes have the most time on the weekend, so
+ * the week's single biggest session belongs there by default.
+ */
+const DEFAULT_LONG_RUN_DAYS: readonly TrainingDayName[] = ["sat", "sun"];
+
+/** Both weekend days, used for the default "biggest volume on Sat/Sun" anchor. */
+const WEEKEND: readonly TrainingDayName[] = ["sat", "sun"];
+
+/**
+ * Normalize the two accepted long-run preference shapes into one list. The
+ * singular `longRunDay` predates multi-day selection and is still present on
+ * saved profiles, so it is folded in here rather than at every call site.
+ */
+export function normalizeLongRunDays(prefs?: {
+  longRunDay?: TrainingDayName;
+  longRunDays?: TrainingDayName[];
+}): TrainingDayName[] | undefined {
+  if (prefs?.longRunDays?.length) return prefs.longRunDays;
+  if (prefs?.longRunDay) return [prefs.longRunDay];
+  return undefined;
+}
+
+/**
+ * The single day this week's long run should occupy, or `undefined` to leave the
+ * engine's natural (round-robin) placement alone.
+ *
+ * Resolution order:
+ *   1. An explicit preference — the FIRST selected day that the athlete actually
+ *      trains, so the long run is on the same day every week. A selected day that
+ *      is also marked rest is de-prioritized but still beats no placement at all
+ *      (onboarding blocks that combination; this is only a data-level fallback).
+ *   2. No preference -> the weekend: Saturday, else Sunday.
+ *   3. Neither weekend day is trained -> `undefined`. A weekday-only athlete gets
+ *      the engine's existing placement rather than an invented rule.
+ *
+ * `excludeDay` is the race day. The race replaces that day's sessions wholesale
+ * downstream, so placing the long run there would silently delete it and leave
+ * the week with no long run at all.
+ */
+export function resolveLongRunDay(
+  trainingDays: TrainingDayName[],
+  prefs?: DayPreferences,
+  excludeDay?: TrainingDayName,
+): TrainingDayName | undefined {
+  const trains = (d: TrainingDayName) => trainingDays.includes(d) && d !== excludeDay;
+  const rest = new Set(prefs?.restDays ?? []);
+
+  const explicit = (normalizeLongRunDays(prefs) ?? []).filter(trains);
+  if (explicit.length > 0) return explicit.find((d) => !rest.has(d)) ?? explicit[0];
+
+  const weekend = DEFAULT_LONG_RUN_DAYS.filter((d) => trains(d) && !rest.has(d));
+  return weekend[0];
+}
+
+/**
+ * The weekend day that should carry the week's SECOND-biggest session, so Sat +
+ * Sun default to the two highest-volume days. Returns the free weekend training
+ * day that isn't already hosting the long run, or `undefined`.
+ */
+function weekendAnchorDay(
+  trainingDays: TrainingDayName[],
+  longRunDay: TrainingDayName | undefined,
+  protectedDays: Set<TrainingDayName>,
+): TrainingDayName | undefined {
+  return WEEKEND.find(
+    (d) => trainingDays.includes(d) && d !== longRunDay && !protectedDays.has(d),
+  );
 }
 
 /**
@@ -437,6 +513,44 @@ function placeSessionOn(
     targetSlot.sessions.unshift(sess);
     return;
   }
+}
+
+/**
+ * HARD placement: guarantee a session matching `predicate` ends up on `targetDay`.
+ *
+ * Unlike `placeSessionOn`, this ignores protected days when choosing the target —
+ * the long-run day is the athlete's strongest scheduling signal and is resolved
+ * before anything else is pinned, so there is nothing legitimate to protect yet.
+ * The session count is still preserved: if the target already holds sessions, its
+ * LEAST important one is swapped back to the day the long run came from.
+ */
+function forceSessionOn(
+  days: DaySlot[],
+  targetDay: TrainingDayName,
+  predicate: SlotPredicate,
+): boolean {
+  const targetIdx = days.findIndex((d) => d.day === targetDay);
+  if (targetIdx === -1) return false;
+  const target = days[targetIdx]!; // safe: targetIdx !== -1
+  if (target.sessions.some(predicate)) return true; // already satisfied
+
+  for (let i = 0; i < days.length; i++) {
+    if (i === targetIdx) continue;
+    const day = days[i]!; // safe: i < days.length
+    const j = day.sessions.findIndex(predicate);
+    if (j === -1) continue;
+    const sess = day.sessions.splice(j, 1)[0]!; // safe: j !== -1
+    if (target.sessions.length > 0) {
+      // Give back the target's lowest-priority session so neither day is starved.
+      const ordered = orderByPriority(target.sessions);
+      const back = ordered[ordered.length - 1]!; // safe: length > 0
+      const bi = target.sessions.indexOf(back);
+      if (bi !== -1) day.sessions.push(target.sessions.splice(bi, 1)[0]!);
+    }
+    target.sessions.unshift(sess);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -551,9 +665,29 @@ export function assignDays(
   if (!(race && microWeek === "race")) {
     const inDays = (d: TrainingDayName) => trainingDays.includes(d);
     const protectedDays = new Set<TrainingDayName>(restSet);
-    if (prefs?.longRunDay && inDays(prefs.longRunDay)) {
-      placeSessionOn(days, prefs.longRunDay, isLongRun, protectedDays);
-      protectedDays.add(prefs.longRunDay);
+    // A C race trains through, so its week still pins preferences — but the race
+    // overwrites its own day's sessions below. Protect that day so nothing is
+    // pinned onto it only to be deleted.
+    const raceDayKey = race ? days[raceDayIndex(days, race.date)]?.day : undefined;
+    if (raceDayKey) protectedDays.add(raceDayKey);
+    // The long run is placed FIRST and with a hard guarantee: an explicit
+    // preference always wins, and with no preference it defaults to the weekend
+    // (Sat, else Sun). Protecting the day afterwards keeps every later pass —
+    // hybrid/lift pinning and the sequencing guards — from moving it off.
+    const longRunDay = resolveLongRunDay(trainingDays, prefs, raceDayKey);
+    if (longRunDay) {
+      forceSessionOn(days, longRunDay, isLongRun);
+      protectedDays.add(longRunDay);
+    }
+    // Sat + Sun should be the two biggest days by default: anchor the week's
+    // heaviest NON-long-run session (the hybrid / race simulation) to the other
+    // weekend day. Skipped when the athlete pinned their own hybrid days.
+    if (!prefs?.hybridDays?.length) {
+      const anchor = weekendAnchorDay(trainingDays, longRunDay, protectedDays);
+      if (anchor) {
+        placeSessionOn(days, anchor, isHybrid, protectedDays);
+        protectedDays.add(anchor);
+      }
     }
     if (prefs?.hybridDays?.length) {
       placeSessionsOn(days, prefs.hybridDays.filter(inDays), isHybrid, protectedDays);

@@ -134,13 +134,26 @@ export function daySessions(
 
   const out: Session[] = [];
   for (const slot of planned) {
-    const idx = pool.findIndex((s) => s.kind === slot.kind);
+    // Prefer an exact match (same kind AND same run type) so the AI's content is
+    // kept where it already agrees with the plan; fall back to kind-only.
+    let idx = pool.findIndex(
+      (s) => s.kind === slot.kind && (slot.kind !== "run" || (s.kind === "run" && s.runType === slot.runType)),
+    );
+    if (idx === -1) idx = pool.findIndex((s) => s.kind === slot.kind);
     if (idx !== -1) {
       const matched = pool.splice(idx, 1)[0]!; // safe: findIndex returned a valid index
       // The engine owns liftType periodization; enforce the planned "power" day
       // even when the AI returned a generic lift (matching here is by kind only).
       if (slot.kind === "lift" && slot.liftType === "power" && matched.kind === "lift") {
         matched.liftType = "power";
+      }
+      // The engine owns RUN TYPE too — including which day holds the long run.
+      // Matching is by kind, so without this an AI that returned an "easy" run on
+      // the planned long-run day would silently move the long run to whichever day
+      // the AI felt like, defeating the athlete's long-run day preference.
+      if (slot.kind === "run" && matched.kind === "run" && matched.runType !== slot.runType) {
+        matched.runType = slot.runType;
+        matched.goalZone = slot.goalZone;
       }
       out.push(matched);
     } else {

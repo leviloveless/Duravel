@@ -23,7 +23,7 @@ import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
-import { assignDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
+import { assignDays, normalizeLongRunDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
 import { getSport, type SportConfig } from "./sports";
 import { applyBandZoneShift, bandPhaseZoneTargets, bandStartMileage, bandStartCardioMinutes, bandSessionCap, bandAnchorRunFloor, runImpactFactor } from "./time-budget";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
@@ -182,7 +182,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
         input.hybridExp,
         race,
         {
-          longRunDay: input.longRunDay,
+          longRunDays: input.longRunDays,
           restDays: input.restDays,
           liftDays: input.liftDays,
           hybridDays: input.hybridDays,
@@ -291,7 +291,7 @@ function buildRotationSkeleton(input: EngineInput, cfg: SportConfig, counts: Ses
         input.hybridExp,
         undefined, // no race
         {
-          longRunDay: input.longRunDay,
+          longRunDays: input.longRunDays,
           restDays: input.restDays,
           liftDays: input.liftDays,
           hybridDays: input.hybridDays,
@@ -394,7 +394,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     startMileage: input.startMileage,
     startCardioMinutes: input.startCardioMinutes,
     bodyWeightLbs: toLbs(input.profile.bodyWeight, input.profile.weightUnit),
-    longRunDay: input.profile.dayPreferences?.longRunDay,
+    longRunDays: normalizeLongRunDays(input.profile.dayPreferences),
     restDays: input.profile.dayPreferences?.restDays,
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,

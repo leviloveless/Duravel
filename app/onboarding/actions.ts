@@ -90,7 +90,7 @@ function parseGenerationInput(
     : undefined;
 
   // --- Day-placement preferences (optional) (new-additions #4; lift/hybrid Tasks #1) ---
-  const longRunDay = str(formData, "longRunDay");
+  const longRunDays = DAY_KEYS.filter((d) => formData.get(`longrunday_${d}`) === "on");
   const restDays = DAY_KEYS.filter((d) => formData.get(`restday_${d}`) === "on");
   const liftDays = DAY_KEYS.filter((d) => formData.get(`liftday_${d}`) === "on");
   const hybridDays = DAY_KEYS.filter((d) => formData.get(`hybridday_${d}`) === "on");
@@ -100,9 +100,9 @@ function parseGenerationInput(
   const equipment = equipmentSel.length > 0 ? equipmentSel : undefined;
   const currentDaysPerWeek = num(formData, "currentDaysPerWeek");
   const dayPreferences =
-    longRunDay || restDays.length > 0 || liftDays.length > 0 || hybridDays.length > 0
+    longRunDays.length > 0 || restDays.length > 0 || liftDays.length > 0 || hybridDays.length > 0
       ? {
-          longRunDay: longRunDay || undefined,
+          longRunDays: longRunDays.length > 0 ? longRunDays : undefined,
           restDays: restDays.length > 0 ? restDays : undefined,
           liftDays: liftDays.length > 0 ? liftDays : undefined,
           hybridDays: hybridDays.length > 0 ? hybridDays : undefined,

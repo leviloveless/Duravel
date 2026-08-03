@@ -29,7 +29,9 @@ export type ProfileRow = {
   hr_zones: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }> | null;
   /** Optional day-placement preferences (new-additions #4; lift/hybrid days Tasks #1). */
   day_preferences: {
+    /** @deprecated superseded by longRunDays; still read for profiles saved earlier. */
     longRunDay?: string;
+    longRunDays?: string[];
     restDays?: string[];
     liftDays?: string[];
     hybridDays?: string[];

@@ -70,8 +70,10 @@ export interface EngineInput {
    *  engine derives these from running experience (see volume.ts). */
   startMileage?: number;
   startCardioMinutes?: number;
-  /** Optional preferred day for the weekly long run (new-additions #4). */
-  longRunDay?: TrainingDayName;
+  /** Optional preferred day(s) for the weekly long run (new-additions #4;
+   *  multi-day selection added later). The engine uses the first (most-preferred)
+   *  trained day consistently, so the long run lands on the same day every week. */
+  longRunDays?: TrainingDayName[];
   /** Optional days the athlete prefers to keep as full rest (new-additions #4). */
   restDays?: TrainingDayName[];
   /** Optional preferred days for strength / lifting sessions (Tasks #1). */

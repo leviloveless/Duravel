@@ -1,0 +1,5 @@
+{ "extends": "./tsconfig.json",
+  "include": ["next-env.d.ts","app/onboarding/onboarding-form.tsx","app/onboarding/actions.ts",
+    "lib/engine/slots.ts","lib/engine/sequencing.ts","lib/engine/skeleton.ts","lib/engine/types.ts",
+    "lib/schemas.ts","lib/generation/assemble.ts","lib/supabase/queries.ts",
+    "lib/engine/long-run-day.test.ts","lib/generation/assemble-runtype.test.ts"] }

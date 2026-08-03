@@ -237,6 +237,10 @@ export function pairLegLiftWithCardio(days: DaySlot[], protectedDays: Set<Traini
 
 const isRun: SlotPredicate = (s) => s.kind === "run";
 const isLift: SlotPredicate = (s) => s.kind === "lift";
+/** The weekly long run is pinned to its (preferred or weekend-default) day by
+ *  assignDays; these load guards must never relocate it. Protected-day checks
+ *  only guard a DESTINATION, so the long run needs an explicit exemption here. */
+const isLongRunSlot: SlotPredicate = (s) => s.kind === "run" && (s.isLong === true || s.runType === "long");
 
 /** Non-rest workouts on a day (rest slots aren't added until after the guards). */
 function workoutCount(day: DaySlot): number {
@@ -286,10 +290,12 @@ export function spreadRuns(days: DaySlot[], protectedDays: Set<TrainingDayName>)
     }
     if (best === -1) break; // every day already has a run (or no room) — doubling allowed
     const src = days[srcIdx]!; // safe: findIndex returned a valid index
-    const moveIdx = src.sessions
+    const movable = src.sessions
       .map((sl, i) => ({ sl, i }))
-      .filter((x) => x.sl.kind === "run")
-      .sort((a, b) => runMovability(a.sl) - runMovability(b.sl))[0]!.i; // safe: srcIdx has ≥2 runs
+      .filter((x) => x.sl.kind === "run" && !isLongRunSlot(x.sl)) // never move the long run
+      .sort((a, b) => runMovability(a.sl) - runMovability(b.sl));
+    if (movable.length === 0) break; // only the long run here — leave it put
+    const moveIdx = movable[0]!.i; // safe: srcIdx has ≥2 runs
     const run = src.sessions.splice(moveIdx, 1)[0]!; // safe: moveIdx is a valid index
     days[best]!.sessions.push(run); // safe: best is a valid index
   }
@@ -335,7 +341,7 @@ export function capSessionsPerDay(days: DaySlot[], protectedDays: Set<TrainingDa
     const src = days[srcIdx]!; // safe: findIndex returned a valid index
     const order = src.sessions
       .map((sl, i) => ({ sl, i }))
-      .filter((x) => x.sl.kind !== "rest")
+      .filter((x) => x.sl.kind !== "rest" && !isLongRunSlot(x.sl)) // long run is pinned
       .sort((a, b) => sessionMovability(a.sl) - sessionMovability(b.sl));
     let moved = false;
     for (const cand of order) {
