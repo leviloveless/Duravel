@@ -412,6 +412,57 @@ export function resolveLongRunDay(
   return weekend[0];
 }
 
+/** The engine's standing ceiling on workouts in a single day. */
+const MAX_WORKOUTS_PER_DAY = 2;
+
+/** All ways to choose `k` of `xs` (k is tiny here — at most a week of lift days). */
+function combinations<T>(xs: T[], k: number): T[][] {
+  if (k <= 0) return [[]];
+  if (k > xs.length) return [];
+  const [head, ...rest] = xs as [T, ...T[]];
+  return [...combinations(rest, k - 1).map((c) => [head, ...c]), ...combinations(rest, k)];
+}
+
+/**
+ * Choose which of the athlete's preferred lift days actually host the week's
+ * lifts, spread as far apart as the preference allows.
+ *
+ * Pinning used to walk the preference list in order, so "Tue, Wed, Thu, Fri" with
+ * three lifts produced Tue/Wed/Thu — three heavy days back to back, with the
+ * Thu/Fri they also selected left empty. Rules, in priority order:
+ *   1. NEVER three consecutive lift days (hard constraint).
+ *   2. Otherwise maximise the smallest gap between lifts — a clear day between
+ *      sessions wherever the selected days allow it.
+ *   3. A single back-to-back pair is acceptable: three lifts cannot be spread
+ *      across four consecutive days any other way.
+ * Falls back to the athlete's own order if no arrangement satisfies rule 1.
+ */
+export function spreadLiftDays(
+  preferred: TrainingDayName[],
+  count: number,
+  weekOrder: TrainingDayName[],
+): TrainingDayName[] {
+  if (count <= 1 || preferred.length <= count) return preferred;
+  const pos = (d: TrainingDayName) => weekOrder.indexOf(d);
+  const inWeekOrder = [...preferred].sort((a, b) => pos(a) - pos(b));
+
+  const gaps = (combo: TrainingDayName[]): number[] =>
+    combo.slice(1).map((d, i) => pos(d) - pos(combo[i]!));
+
+  let best: TrainingDayName[] | undefined;
+  let bestKey: [number, number] = [-1, -1];
+  for (const combo of combinations(inWeekOrder, count)) {
+    const g = gaps(combo);
+    if (g.some((x, i) => x === 1 && g[i + 1] === 1)) continue; // rule 1: no 3 in a row
+    const key: [number, number] = [Math.min(...g), g.reduce((a, b) => a + b, 0)];
+    if (key[0] > bestKey[0] || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
+      bestKey = key;
+      best = combo;
+    }
+  }
+  return best ?? preferred;
+}
+
 /**
  * Reorder preferred days so Saturday/Sunday come first. When an athlete lists
  * several acceptable days for a session type that only occurs once or twice a
@@ -568,6 +619,55 @@ function forceSessionOn(
 }
 
 /**
+ * Deal the week's lift sessions onto `targetDays`, exactly one per day, in order.
+ *
+ * Every lift is lifted out of the week first and re-dealt, which keeps the
+ * engine's heavy/power alternation intact and — unlike the generic
+ * `placeSessionOn` — guarantees no day ends up with two lifts while another
+ * preferred day sits empty. Leftovers (more lifts than preferred days) go to the
+ * emptiest lift-free day that isn't a rest or race day.
+ */
+function dealLiftsOnto(
+  days: DaySlot[],
+  targetDays: TrainingDayName[],
+  protectedDays: Set<TrainingDayName>,
+): void {
+  if (targetDays.length === 0) return;
+  const lifts: SessionSlot[] = [];
+  for (const d of days) {
+    const keep: SessionSlot[] = [];
+    for (const s of d.sessions) (isLift(s) ? lifts : keep).push(s);
+    d.sessions = keep;
+  }
+  if (lifts.length === 0) return;
+
+  let li = 0;
+  for (const day of targetDays) {
+    if (li >= lifts.length) break;
+    const slot = days.find((d) => d.day === day);
+    if (!slot || slot.sessions.some((s) => s.kind === "race")) continue;
+    slot.sessions.push(lifts[li]!); // safe: li < lifts.length
+    li += 1;
+  }
+  while (li < lifts.length) {
+    let best = -1;
+    for (let i = 0; i < days.length; i++) {
+      const d = days[i]!; // safe: i < days.length
+      if (protectedDays.has(d.day) || d.sessions.some((s) => s.kind === "race" || isLift(s))) continue;
+      if (best === -1 || d.sessions.length < days[best]!.sessions.length) best = i;
+    }
+    if (best === -1) break;
+    days[best]!.sessions.push(lifts[li]!); // safe: li < lifts.length
+    li += 1;
+  }
+  // Nowhere legal left: keep the remainder rather than dropping sessions.
+  for (; li < lifts.length; li++) {
+    const fallback = days.find((d) => d.day === targetDays[0]) ?? days[0];
+    fallback?.sessions.push(lifts[li]!);
+  }
+}
+
+/**
  * Place matching sessions onto several preferred days in order, protecting each
  * day once it's been assigned so the next target can't steal it back.
  */
@@ -663,7 +763,18 @@ export function assignDays(
   // rest day could end up the HEAVIEST day of the week.)
   const nonRestDays = trainingDays.filter((d) => !restSet.has(d));
   const restOnlyDays = trainingDays.filter((d) => restSet.has(d));
-  const distributionDays = nonRestDays.length > 0 ? [...nonRestDays, ...restOnlyDays] : [...trainingDays];
+  // "Only spill onto a rest day if the sessions genuinely don't fit" means fit
+  // them at the normal 2-workouts-a-day ceiling FIRST. Appending the rest days to
+  // the round-robin instead put a session on the rest day the moment the week had
+  // one more session than non-rest days — even though doubling up on a training
+  // day was available — and a 60-min lift could end up on a designated rest day.
+  const nonRestCapacity = nonRestDays.length * MAX_WORKOUTS_PER_DAY;
+  const distributionDays =
+    nonRestDays.length === 0
+      ? [...trainingDays]
+      : ordered.length > nonRestCapacity
+        ? [...nonRestDays, ...restOnlyDays] // genuinely over capacity — rest days last
+        : nonRestDays; // wraps, doubling up on training days before touching rest
   const idxByDay = new Map(days.map((d, i) => [d.day, i]));
 
   let di = 0;
@@ -738,7 +849,19 @@ export function assignDays(
       placeSessionsOn(days, weekendFirst(prefs.hybridDays.filter(inDays)), isHybrid, protectedDays);
     }
     if (prefs?.liftDays?.length) {
-      placeSessionsOn(days, prefs.liftDays.filter(inDays), isLift, protectedDays);
+      // Walking the preference list in order clustered lifts onto the earliest
+      // days (Tue/Wed/Thu from a Tue–Fri preference = three in a row), and
+      // `placeSessionOn` counts a day that already holds TWO lifts as "satisfied",
+      // stranding the remaining preferred day. Deal the lifts out explicitly, one
+      // per best-spread day, instead.
+      const liftCount = days.reduce((n, d) => n + d.sessions.filter(isLift).length, 0);
+      const targets = spreadLiftDays(
+        prefs.liftDays.filter((d) => inDays(d) && !restSet.has(d)),
+        liftCount,
+        trainingDays,
+      );
+      dealLiftsOnto(days, targets, protectedDays);
+      for (const d of targets) protectedDays.add(d);
     }
     // Review #8: keep heavy-leg lifts off the day before a key run.
     applySequencingGuards(days, protectedDays);
