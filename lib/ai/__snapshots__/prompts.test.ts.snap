@@ -194,19 +194,19 @@ Week 10 — phase build, microcycle rebound
   Targets: 27.3 miles, 527 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
     mon: hybrid(Z4), run:long(Z2)
-    tue: run:interval(Z5), lift:full
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), lift:upper
     thu: run:tempo(Z3), run:fartlek(Z2)
-    fri: lift:lower, run:easy(Z2)
+    fri: run:interval(Z5), lift:lower
 
 Week 11 — phase build, microcycle increase
   Targets: 29.4 miles, 580 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
     mon: hybrid(Z4), run:long(Z2)
-    tue: run:interval(Z5), lift:full
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), lift:upper
     thu: run:tempo(Z3), run:fartlek(Z2)
-    fri: lift:lower, run:easy(Z2)
+    fri: run:interval(Z5), lift:lower
 
 Week 12 — phase build, microcycle deload
   Targets: 17.6 miles, 348 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%

@@ -289,8 +289,16 @@ export const LiftSessionSchema = z.object({
        *  week so the athlete isn't repeating identical lifts week after week
        *  (overuse). Set deterministically at assembly; optional for back-compat. */
       exercise: z.string().optional(),
-      sets: z.number().int(),
-      repRange: z.string(),
+      /** Set count + rep range are OWNED BY THE ENGINE: `applyStrengthSchemes`
+       *  overwrites both during assembly from the periodized scheme, and the
+       *  generator prompt tells the model exactly that ("the engine sets
+       *  sets/reps/intensity/RIR deterministically — just choose which patterns
+       *  go in each session"). They therefore must not be REQUIRED of the AI:
+       *  a model that followed the prompt and omitted `sets` used to hard-fail
+       *  schema validation and kill the whole generation. Defaulted, so the
+       *  assembled ProgramData still always carries concrete numbers. */
+      sets: z.number().int().default(3),
+      repRange: z.string().default("8-10"),
       suggestedWeight: z.string().optional(),
       /** Periodized load + autoregulation (Review #4); set deterministically at assembly. */
       intensityPct: z.number().optional(),
