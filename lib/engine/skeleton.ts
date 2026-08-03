@@ -17,13 +17,14 @@ import type {
   MicroWeekType,
   PhaseName,
   ProgramSkeleton,
+  SessionSlot,
   WeekSkeleton,
 } from "./types";
 import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
-import { assignDays, normalizeLongRunDays, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
+import { assignDays, normalizeLongRunDays, slotPriority, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
 import { getSport, type SportConfig } from "./sports";
 import { applyBandZoneShift, bandPhaseZoneTargets, bandStartMileage, bandStartCardioMinutes, bandSessionCap, bandAnchorRunFloor, runImpactFactor } from "./time-budget";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
@@ -208,17 +209,62 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   };
 }
 
-/** B-race post-race recovery: rest day + two easy days at the start of the
- *  week following each B race (spec addition — B post-race protocol). */
+/** Non-rest workouts on a day. */
+function workoutCount(day: WeekSkeleton["days"][number]): number {
+  return day.sessions.filter((s) => s.kind !== "rest").length;
+}
+
+/**
+ * B-race post-race recovery: rest day + two easy days at the start of the week
+ * following each B race (spec addition — B post-race protocol).
+ *
+ * The first three training days are overwritten by the protocol. Anything that
+ * was scheduled there used to be silently DELETED, which is how the week after a
+ * B race could end up with **zero strength work** for an entire Build week (an
+ * athlete who pins their lifts to early-week days lost all of them at once).
+ *
+ * Displaced LIFT and HYBRID sessions are now re-homed onto the later days of the
+ * same week — 4+ days after the race, so recovery is untouched. Displaced RUNS
+ * are deliberately NOT carried over: `reconcileWeekVolume` re-sizes whatever runs
+ * remain to hit the week's prescribed mileage exactly, so a dropped run loses no
+ * volume, while a dropped lift or hybrid is simply gone.
+ */
 function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): void {
   for (const race of races) {
     if (race.priority !== "B") continue;
     const nextWeek = weeks[race.weekNumber]; // weekNumber is 1-based → index = the next week
     if (!nextWeek) continue;
     const d = nextWeek.days;
+
+    const displaced: SessionSlot[] = [];
+    for (const idx of [0, 1, 2]) {
+      const day = d[idx];
+      if (!day) continue;
+      for (const s of day.sessions) if (s.kind === "lift" || s.kind === "hybrid") displaced.push(s);
+    }
+
     if (d[0]) d[0].sessions = [{ kind: "rest" }];
     if (d[1]) d[1].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
     if (d[2]) d[2].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
+
+    // Re-home onto the emptiest later day, keeping the engine's standing rules:
+    // at most 2 workouts a day and never two lifts on the same day.
+    for (const sess of displaced) {
+      let best = -1;
+      for (let i = 3; i < d.length; i++) {
+        const day = d[i]!; // safe: i < d.length
+        if (workoutCount(day) >= 2) continue;
+        if (sess.kind === "lift" && day.sessions.some((x) => x.kind === "lift")) continue;
+        if (best === -1 || workoutCount(day) < workoutCount(d[best]!)) best = i;
+      }
+      if (best === -1) continue; // genuinely no room left — drop, as before
+      const target = d[best]!; // safe: best is a valid index
+      const restIdx = target.sessions.findIndex((x) => x.kind === "rest");
+      if (restIdx !== -1) target.sessions.splice(restIdx, 1); // a rest slot yields
+      target.sessions.push(sess);
+      // Keep the priority workout first on any day that now doubles up.
+      target.sessions.sort((a, b) => slotPriority(b) - slotPriority(a));
+    }
   }
 }
 

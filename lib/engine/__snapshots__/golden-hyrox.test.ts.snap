@@ -4340,6 +4340,10 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
           "day": "sat",
           "sessions": [
             {
+              "goalZone": 4,
+              "kind": "hybrid",
+            },
+            {
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
