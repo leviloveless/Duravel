@@ -137,3 +137,52 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
     }
   });
 });
+
+describe("cardio filler spreads across the week instead of bunching at the weekend", () => {
+  // Reported setup: seven training days, lifts midweek, long run + hybrid on the
+  // weekend. Every reconciler-added Zone 1-2 block used to land on Sat/Sun,
+  // because the weekend preference outranked emptiness in the placement score —
+  // so Mon/Tue/Wed ran three consecutive days with no aerobic work at all.
+  const build = (): ProgramDay[] =>
+    daysOf([], [lift()], [lift()], [run("interval", 3, 45)], [run("threshold", 3, 45)], [run("long", 6, 69)], [hybrid()]);
+  const place = { preferDays: ["sat", "sun"] as const };
+  const cardioDays = (days: ProgramDay[]) =>
+    days.filter((d) => d.sessions.some((s) => s.kind === "cardio")).map((d) => d.day);
+  const aerobicDays = (days: ProgramDay[]) =>
+    days.filter((d) =>
+      d.sessions.some((s) => s.kind === "run" || s.kind === "hybrid" || s.kind === "cardio"),
+    ).length;
+
+  it("puts the surplus on days that have no aerobic work yet", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    // Nothing lands on Sat/Sun, which already carry the long run and the hybrid.
+    expect(cardioDays(days).every((d) => d !== "sat" && d !== "sun")).toBe(true);
+    expect(aerobicDays(days)).toBeGreaterThan(4);
+  });
+
+  it("leaves no three-day stretch without aerobic work", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    let gap = 0;
+    let worst = 0;
+    for (const d of days) {
+      const aerobic = d.sessions.some((s) => s.kind === "run" || s.kind === "hybrid" || s.kind === "cardio");
+      gap = aerobic ? 0 : gap + 1;
+      worst = Math.max(worst, gap);
+    }
+    expect(worst).toBeLessThan(3);
+  });
+
+  it("still hits the exact prescribed cardio total", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    expect(weekCardioMinutes({ days } as never)).toBe(300);
+  });
+
+  it("keeps a preferred rest day clear of filler", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, { ...place, avoidDays: ["mon"] });
+    expect(cardioDays(days)).not.toContain("mon");
+  });
+});

@@ -28,7 +28,15 @@ import type {
 } from "./types";
 import type { ProgramBias, RunEmphasis } from "./needs";
 import { clampInt } from "./math";
-import { applySequencingGuards, spaceHardRunAfterLongRun, separateLifts, pairLegLiftWithCardio, spreadRuns, capSessionsPerDay } from "./sequencing";
+import {
+  applySequencingGuards,
+  spaceHardRunAfterLongRun,
+  separateLifts,
+  pairLegLiftWithCardio,
+  spreadRuns,
+  capSessionsPerDay,
+  fillEmptyDays,
+} from "./sequencing";
 
 const GOAL_ZONE: Record<RunType, number> = {
   easy: 2,
@@ -868,16 +876,24 @@ export function assignDays(
     // ...and keep hard running off the day AFTER the long run (no back-to-back
     // hard days around the week's biggest aerobic session).
     spaceHardRunAfterLongRun(days, protectedDays);
-    // Batch 3: research programs keep one weight session per day (rule 1)
-    // and pair every hard-leg lift with easy same-day cardio (rule 2).
-    if (counts.researchLifts) {
-      separateLifts(days, protectedDays);
-      pairLegLiftWithCardio(days, protectedDays);
-      // Rule #2 then #1: spread runs across days before doubling, then cap the
-      // day at 2 workouts (relocating any overflow to a lighter day).
-      spreadRuns(days, protectedDays);
-      capSessionsPerDay(days, protectedDays);
-    }
+    // One weight session per day (rule 1) and every hard-leg lift paired with
+    // easy same-day cardio (rule 2).
+    //
+    // These were gated on `counts.researchLifts` — set only for a band-table sport
+    // with an hours budget — so on an ordinary program none of them ran, and a week
+    // could ship with two lift-only days, all its cardio bunched at the weekend and
+    // a stranded empty day. Nothing about "don't put two lifts on one day" or
+    // "spread the runs out" is specific to research programming; they are general
+    // structural guarantees, so they now apply to every program.
+    separateLifts(days, protectedDays);
+    pairLegLiftWithCardio(days, protectedDays);
+    // Rule #2 then #1: spread runs across days before doubling, then cap the
+    // day at 2 workouts (relocating any overflow to a lighter day).
+    spreadRuns(days, protectedDays);
+    capSessionsPerDay(days, protectedDays);
+    // Last: a day the athlete selected should never sit empty next to a doubled
+    // one. Runs after the caps so it levels out whatever they left behind.
+    fillEmptyDays(days, protectedDays);
   }
 
   if (race) {

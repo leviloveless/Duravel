@@ -346,6 +346,49 @@ export function spreadRuns(days: DaySlot[], protectedDays: Set<TrainingDayName>)
   }
 }
 
+/**
+ * Never leave a selected training day empty while another day doubles up.
+ *
+ * The athlete picked these days; a day the engine leaves bare is wasted capacity,
+ * and it always pairs with some other day carrying two sessions. The round-robin
+ * in assignDays deals one session per day and would never produce this — it's the
+ * pinning passes afterwards (long run forced to its day, hybrid anchored to the
+ * weekend, lifts re-dealt onto spread targets) that pull sessions off a day and
+ * strand it, because none of them checks whether it just emptied one.
+ *
+ * This runs last and deliberately outranks those pins: a hybrid anchor or a
+ * preferred lift day will yield to fill an empty day. Two things it will NOT
+ * move — the long run, which the athlete pinned to a chosen day and which every
+ * other pass already exempts, and a race. A rest day the athlete asked for is not
+ * "empty" in the sense that matters, so `protectedDays` is still honoured as the
+ * set of days that must stay clear.
+ */
+export function fillEmptyDays(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  for (let guard = 0; guard < days.length * 4; guard++) {
+    const destIdx = days.findIndex((d) => !protectedDays.has(d.day) && workoutCount(d) === 0);
+    if (destIdx === -1) break; // every training day is doing something
+    // Take from the fullest day, so the week levels out rather than shuffling.
+    let srcIdx = -1;
+    for (let t = 0; t < days.length; t++) {
+      if (t === destIdx) continue;
+      if (workoutCount(days[t]!) < 2) continue; // only ever unstack a doubled day
+      if (srcIdx === -1 || workoutCount(days[t]!) > workoutCount(days[srcIdx]!)) srcIdx = t;
+    }
+    if (srcIdx === -1) break; // nothing is doubled — the empty day is genuine slack
+    const src = days[srcIdx]!; // safe: srcIdx set in the loop above
+    const dest = days[destIdx]!; // safe: findIndex returned a valid index
+    const movable = src.sessions
+      .map((sl, i) => ({ sl, i }))
+      .filter((x) => x.sl.kind !== "rest" && x.sl.kind !== "race" && !isLongRunSlot(x.sl))
+      // Never end up with two lifts on the destination day.
+      .filter((x) => !(x.sl.kind === "lift" && dayHas(dest, isLift)))
+      .sort((a, b) => sessionMovability(a.sl) - sessionMovability(b.sl));
+    if (movable.length === 0) break; // only pinned work here — best-effort, stop
+    const sess = src.sessions.splice(movable[0]!.i, 1)[0]!; // safe: length checked above
+    dest.sessions.push(sess);
+  }
+}
+
 /** A lighter, unprotected day that can accept `sess` under the 2-per-day cap. */
 function pickCapTarget(
   days: DaySlot[],

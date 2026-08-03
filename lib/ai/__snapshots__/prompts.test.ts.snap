@@ -93,26 +93,26 @@ WEEKS TO FILL
 Week 1 — phase base, microcycle rebound
   Targets: 22 miles, 396 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:fartlek(Z2)
+    thu: run:fartlek(Z2), lift:lower
     fri: lift:upper
 
 Week 2 — phase base, microcycle increase
   Targets: 23.7 miles, 436 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:fartlek(Z2)
+    thu: run:fartlek(Z2), lift:lower
     fri: lift:upper
 
 Week 3 — phase base, microcycle deload
   Targets: 14.2 miles, 261 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4)
     thu: run:fartlek(Z2)
     fri: lift:upper
@@ -120,26 +120,26 @@ Week 3 — phase base, microcycle deload
 Week 4 — phase base, microcycle rebound
   Targets: 23.7 miles, 436 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:fartlek(Z2)
+    thu: run:fartlek(Z2), lift:lower
     fri: lift:upper
 
 Week 5 — phase base, microcycle increase
   Targets: 25.4 miles, 479 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:fartlek(Z2)
+    thu: run:fartlek(Z2), lift:lower
     fri: lift:upper
 
 Week 6 — phase base, microcycle deload
   Targets: 15.3 miles, 287 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4)
     thu: run:fartlek(Z2)
     fri: lift:upper
@@ -147,10 +147,10 @@ Week 6 — phase base, microcycle deload
 Week 7 — phase base, microcycle rebound
   Targets: 25.4 miles, 479 cardio min; zones Z1 25% Z2 60% Z3 8% Z4 4% Z5 3%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:easy(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2)
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:fartlek(Z2)
+    thu: run:fartlek(Z2), lift:lower
     fri: lift:upper
 
 Return the JSON object described in the system prompt, with one entry in "weeks" for each week above."
@@ -175,18 +175,18 @@ WEEKS TO FILL
 Week 8 — phase build, microcycle increase
   Targets: 27.3 miles, 527 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: hybrid(Z4), run:long(Z2)
-    tue: lift:full, lift:lower
+    mon: run:long(Z2), lift:lower
+    tue: lift:full, run:easy(Z2)
     wed: hybrid(Z4), run:fartlek(Z2)
-    thu: run:tempo(Z3), run:easy(Z2)
+    thu: hybrid(Z4), run:tempo(Z3)
     fri: lift:upper, run:easy(Z2)
 
 Week 9 — phase build, microcycle deload
   Targets: 16.4 miles, 316 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:fartlek(Z2)
+    mon: run:long(Z2)
     tue: lift:full, run:easy(Z2)
-    wed: hybrid(Z4)
+    wed: hybrid(Z4), run:fartlek(Z2)
     thu: run:tempo(Z3)
     fri: lift:upper
 
@@ -211,9 +211,9 @@ Week 11 — phase build, microcycle increase
 Week 12 — phase build, microcycle deload
   Targets: 17.6 miles, 348 cardio min; zones Z1 20% Z2 58% Z3 12% Z4 6% Z5 4%
   Day slots to fill (match kind + order; skip rest/RACE):
-    mon: run:long(Z2), run:interval(Z5)
+    mon: run:long(Z2)
     tue: run:fartlek(Z2), lift:full
-    wed: hybrid(Z4)
+    wed: hybrid(Z4), run:interval(Z5)
     thu: run:tempo(Z3)
     fri: lift:upper
 
