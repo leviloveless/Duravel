@@ -318,7 +318,7 @@ export function reconcileWeekVolume(
       }
     }
 
-    keepPreferredDaysBiggest(days, added, place);
+    keepPreferredDaysBiggest(days, added, place, caps.session);
   }
 }
 
@@ -355,7 +355,12 @@ function dayTotalMinutes(day: ProgramDay): number {
  * so this converges in a couple of passes. If a block would fall under the paired
  * floor it is removed outright and its whole duration handed to the weekend.
  */
-function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: FillerPlacement): void {
+function keepPreferredDaysBiggest(
+  days: ProgramDay[],
+  added: Placed[],
+  place: FillerPlacement,
+  sessionCap: number,
+): void {
   const preferred = days.filter((d) => place.preferDays?.includes(d.day));
   if (preferred.length === 0) return;
 
@@ -371,8 +376,13 @@ function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: Fi
       added.find((a) => a.day === over && a.kind !== "fill") ??
       added.find((a) => a.kind === "pair" && !place.preferDays?.includes(a.day.day));
     if (!source) return; // nothing we are allowed to move — leave it
-    // Prefer growing an existing weekend block; otherwise start one on a free day.
-    let sink = added.find((a) => place.preferDays?.includes(a.day.day));
+    // Prefer growing an existing weekend block — but only one with room left under
+    // the session cap. Without that check this loop happily grew a block past the
+    // athlete's per-session limit while chasing the weekend-biggest rule (a 98-min
+    // block against a 90-min beginner cap).
+    let sink = added.find(
+      (a) => place.preferDays?.includes(a.day.day) && a.block.durationMin < sessionCap,
+    );
     if (!sink) {
       const host = preferred.find((d) => !isRaceDay(d) && d.sessions.length < 2);
       if (!host) return;
@@ -383,13 +393,16 @@ function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: Fi
       source.block.durationMin = Math.max(1, source.block.durationMin - MIN_PAIRED_CARDIO);
       continue;
     }
-    const move = Math.max(1, Math.ceil((dayTotalMinutes(over) - ceiling) / 2));
+    const room = sessionCap - sink.block.durationMin;
+    const move = Math.min(room, Math.max(1, Math.ceil((dayTotalMinutes(over) - ceiling) / 2)));
+    if (move <= 0) return; // sink is at the cap and no other has room
     if (source.block.durationMin - move < MIN_PAIRED_CARDIO) {
       // Too small to survive the trim — hand the whole block over.
       // Splice from the block's OWN day. `source` may be a pairing block on a
       // different day than `over` (the fallback above), and splicing an index of
       // -1 from `over` silently removed that day's LAST session — deleting a lift
       // and leaving the cardio total over target.
+      if (sink.block.durationMin + source.block.durationMin > sessionCap) return; // would breach the cap
       sink.block.durationMin += source.block.durationMin;
       const at = source.day.sessions.indexOf(source.block);
       if (at === -1) return; // defensive: already gone

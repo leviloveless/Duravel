@@ -282,3 +282,32 @@ describe("session cap scales with experience", () => {
     }
   });
 });
+
+describe("the weekend rebalancer respects the session cap", () => {
+  // It grows a weekend filler block to keep Sat/Sun the biggest days. Without a cap
+  // check that growth ran straight past the athlete's per-session limit — a 98-min
+  // block against a 90-min beginner cap showed up in week 13 of a live program.
+  const CAP = { session: 90, day: 180 };
+  const shapes: ProgramDay[][] = [
+    daysOf([], [lift()], [], [run("threshold", 3, 45), lift()], [], [run("long", 7, 80)], [hybrid()]),
+    daysOf([], [lift()], [lift()], [run("interval", 3, 45)], [run("tempo", 4, 50), lift()], [run("long", 8, 85)], [hybrid()]),
+    daysOf([run("easy", 3, 30)], [lift()], [], [hybrid()], [run("threshold", 4, 50), lift()], [run("long", 9, 88)], []),
+  ];
+
+  it("never emits a session longer than the cap, whatever the week shape", () => {
+    for (const [i, days] of shapes.entries()) {
+      reconcileWeekVolume(days, 20, 420, P, "intermediate", 1, { preferDays: ["sat", "sun"] }, CAP);
+      for (const d of days) {
+        for (const s of d.sessions) {
+          expect(sessionTiming(s).total, `shape ${i} ${d.day} ${s.kind}`).toBeLessThanOrEqual(CAP.session);
+        }
+      }
+    }
+  });
+
+  it("still hits the exact cardio total while respecting the cap", () => {
+    const days = daysOf([], [lift()], [], [run("threshold", 3, 45), lift()], [], [run("long", 7, 80)], [hybrid()]);
+    reconcileWeekVolume(days, 20, 420, P, "intermediate", 1, { preferDays: ["sat", "sun"] }, CAP);
+    expect(weekCardioMinutes({ days } as never)).toBe(420);
+  });
+});
