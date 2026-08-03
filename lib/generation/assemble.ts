@@ -301,6 +301,12 @@ function buildWeek(
   // session, 90-min run cap) and a non-running Zone 1–2 cardio block absorbs the
   // remaining cardio time. The summary is then read back from the reconciled
   // sessions, so the header can never disagree with the workouts.
+  // Tell the reconciler where its filler may go: never onto a day the engine left
+  // as rest (otherwise a designated rest day collects the surplus cardio and ends
+  // up the biggest day of the week), and prefer the weekend for the rest.
+  const restDayKeys = skel.days
+    .filter((d) => d.sessions.length > 0 && d.sessions.every((x) => x.kind === "rest"))
+    .map((d) => d.day);
   reconcileWeekVolume(
     days,
     skel.targetMileage,
@@ -308,6 +314,7 @@ function buildWeek(
     paces,
     runningExp,
     skel.weekNumber,
+    { avoidDays: restDayKeys, preferDays: ["sat", "sun"] },
   );
 
   return {

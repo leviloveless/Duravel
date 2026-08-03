@@ -86,14 +86,34 @@ function isRaceDay(day: ProgramDay): boolean {
   return day.sessions.some((s) => s.kind === "race");
 }
 
-function leastLoadedDay(days: ProgramDay[]): number {
+/**
+ * Where the reconciler is allowed to put the filler it adds (the non-running
+ * Zone 1–2 blocks and any extra easy runs).
+ *   - `avoidDays`: the athlete's preferred rest days. Filler used to land here by
+ *     default, because an empty rest day always looks like the "least loaded" one —
+ *     which is how a designated rest day could end up the biggest day of the week.
+ *   - `preferDays`: the weekend. The athlete asked for Sat/Sun to carry the most
+ *     volume, so surplus aerobic time goes there before anywhere else.
+ */
+export interface FillerPlacement {
+  avoidDays?: readonly string[];
+  preferDays?: readonly string[];
+}
+
+const WEEKEND_DAYS: readonly string[] = ["sat", "sun"];
+
+function leastLoadedDay(days: ProgramDay[], place: FillerPlacement = {}): number {
   let best = -1;
   // safe: i is bounded by days.length; best is -1 or a prior in-bounds index.
   for (let i = 0; i < days.length; i++) {
     if (isRaceDay(days[i]!)) continue; // never load a race day
+    if (place.avoidDays?.includes(days[i]!.day)) continue; // never load a rest day
     if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
   }
-  return best === -1 ? 0 : best;
+  if (best !== -1) return best;
+  // Everything is a race/rest day — fall back to the first non-race day.
+  const any = days.findIndex((d) => !isRaceDay(d));
+  return any === -1 ? 0 : any;
 }
 
 /**
@@ -102,14 +122,19 @@ function leastLoadedDay(days: ProgramDay[]): number {
  * Falls back to the overall least-loaded day only when every day is already at the
  * cap (unavoidable — more sessions than 2 x training days).
  */
-function leastLoadedUnderCap(days: ProgramDay[], cap = 2): number {
+function leastLoadedUnderCap(days: ProgramDay[], cap = 2, place: FillerPlacement = {}): number {
+  // Rank: weekend first (the athlete wants Sat/Sun biggest), then emptiest.
+  const score = (d: ProgramDay): number =>
+    (place.preferDays?.includes(d.day) ? 100 : 0) - d.sessions.length * 10;
   let best = -1;
   for (let i = 0; i < days.length; i++) {
-    if (isRaceDay(days[i]!)) continue; // never load a race day
-    if (days[i]!.sessions.length >= cap) continue;
-    if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
+    const d = days[i]!; // safe: i < days.length
+    if (isRaceDay(d)) continue; // never load a race day
+    if (place.avoidDays?.includes(d.day)) continue; // never load a rest day
+    if (d.sessions.length >= cap) continue;
+    if (best === -1 || score(d) > score(days[best]!)) best = i;
   }
-  return best === -1 ? leastLoadedDay(days) : best;
+  return best === -1 ? leastLoadedDay(days, place) : best;
 }
 
 /** Rewrite the pace token in a hybrid session's run elements to threshold pace. */
@@ -134,6 +159,7 @@ export function reconcileWeekVolume(
   paces: RunPaces | null,
   runningExp: ExperienceLevel,
   weekNumber = 1,
+  place: FillerPlacement = { preferDays: WEEKEND_DAYS },
 ): void {
   if (!paces) return; // no 5K → can't apply formula paces
   // A and B race weeks are taper/event weeks: their reduced sessions are set by
@@ -191,7 +217,7 @@ export function reconcileWeekVolume(
   }
 
   // Place added easy runs before the mileage true-up so they count.
-  for (const s of added) days[leastLoadedUnderCap(days)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
+  for (const s of added) days[leastLoadedUnderCap(days, 2, place)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
   trueUpMileage(days, targetMileage, paces);
 
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
@@ -201,7 +227,18 @@ export function reconcileWeekVolume(
   }
   let gap = Math.round(targetCardioMinutes) - runningCardio;
   if (gap > 0) {
-    for (const block of splitCardio(gap)) days[leastLoadedUnderCap(days)]!.sessions.push(block); // cap-aware: avoid a 3rd session on a day
+    // Spread the surplus over every free preferred (weekend) day so Sat AND Sun
+    // carry it, instead of the whole remainder landing on the first one.
+    const freePreferred = days.filter(
+      (d) =>
+        place.preferDays?.includes(d.day) &&
+        !isRaceDay(d) &&
+        !place.avoidDays?.includes(d.day) &&
+        d.sessions.length < 2,
+    ).length;
+    for (const block of splitCardio(gap, Math.max(1, freePreferred))) {
+      days[leastLoadedUnderCap(days, 2, place)]!.sessions.push(block); // cap-aware: avoid a 3rd session on a day
+    }
   }
 }
 
@@ -363,11 +400,19 @@ function trueUpMileage(days: ProgramDay[], targetMileage: number, paces: RunPace
   anchor.durationMin = Math.min(MAX_RUN_TOTAL - overhead, Math.max(1, Math.round(anchor.distanceMiles * paceMin)));
 }
 
-/** Split leftover cardio minutes into ≤90-min blocks (≥45 where possible). */
-function splitCardio(total: number): CardioSession[] {
+/**
+ * Split leftover cardio minutes into ≤90-min blocks (≥45 where possible).
+ * `minBlocks` lets the caller spread the surplus over several days — used to put
+ * a block on BOTH weekend days so Sat and Sun end up the two biggest days,
+ * rather than stacking the whole remainder onto Saturday.
+ */
+function splitCardio(total: number, minBlocks = 1): CardioSession[] {
   if (total <= 0) return [];
-  if (total <= MAX_RUN_TOTAL) return [makeCardio(total)];
-  const n = Math.ceil(total / MAX_RUN_TOTAL);
+  const byCap = Math.ceil(total / MAX_RUN_TOTAL);
+  // Only split further while every resulting block still clears the 45-min floor.
+  const bySpread = Math.max(1, Math.min(minBlocks, Math.floor(total / MIN_CARDIO_TOTAL)));
+  const n = Math.max(byCap, bySpread);
+  if (n <= 1) return [makeCardio(total)];
   const per = total / n;
   return Array.from({ length: n }, (_, i) =>
     makeCardio(i === n - 1 ? total - Math.round(per) * (n - 1) : Math.round(per)),

@@ -28,7 +28,7 @@ import type {
 } from "./types";
 import type { ProgramBias, RunEmphasis } from "./needs";
 import { clampInt } from "./math";
-import { applySequencingGuards, separateLifts, pairLegLiftWithCardio, spreadRuns, capSessionsPerDay } from "./sequencing";
+import { applySequencingGuards, spaceHardRunAfterLongRun, separateLifts, pairLegLiftWithCardio, spreadRuns, capSessionsPerDay } from "./sequencing";
 
 const GOAL_ZONE: Record<RunType, number> = {
   easy: 2,
@@ -413,6 +413,20 @@ export function resolveLongRunDay(
 }
 
 /**
+ * Reorder preferred days so Saturday/Sunday come first. When an athlete lists
+ * several acceptable days for a session type that only occurs once or twice a
+ * week, the weekend ones should win — otherwise pinning (which walks the list in
+ * order) always resolves to the earliest weekday and the weekend stays light.
+ */
+export function weekendFirst(days: TrainingDayName[]): TrainingDayName[] {
+  return [...days].sort((a, b) => {
+    const wa = WEEKEND.includes(a) ? 0 : 1;
+    const wb = WEEKEND.includes(b) ? 0 : 1;
+    return wa - wb; // stable within each group, so the athlete's order is kept
+  });
+}
+
+/**
  * The weekend day that should carry the week's SECOND-biggest session, so Sat +
  * Sun default to the two highest-volume days. Returns the free weekend training
  * day that isn't already hosting the long run, or `undefined`.
@@ -641,12 +655,15 @@ export function assignDays(
       ? (prefs?.restDays ?? []).filter((d) => trainingDays.includes(d))
       : [],
   );
-  let distributionDays = trainingDays.filter((d) => !restSet.has(d));
-  if (distributionDays.length === 0 || ordered.length > distributionDays.length) {
-    // Not enough room to respect the rest preference (or none set): fall back to
-    // spreading across all training days so no session is dropped.
-    distributionDays = [...trainingDays];
-  }
+  // Preferred rest days go LAST in the distribution order rather than being
+  // abandoned wholesale. The round-robin therefore fills every non-rest day
+  // before it ever touches a rest day, and because `ordered` is interleaved
+  // hardest-first, anything that does spill over is the week's lightest work.
+  // (Previously, one session too many dropped the preference entirely and the
+  // rest day could end up the HEAVIEST day of the week.)
+  const nonRestDays = trainingDays.filter((d) => !restSet.has(d));
+  const restOnlyDays = trainingDays.filter((d) => restSet.has(d));
+  const distributionDays = nonRestDays.length > 0 ? [...nonRestDays, ...restOnlyDays] : [...trainingDays];
   const idxByDay = new Map(days.map((d, i) => [d.day, i]));
 
   let di = 0;
@@ -656,6 +673,31 @@ export function assignDays(
     const dayKey = distributionDays[di % distributionDays.length]!;
     days[idxByDay.get(dayKey)!]!.sessions.push(s);
     di += 1;
+  }
+
+  // If the week genuinely overflowed onto a preferred rest day, make sure what
+  // landed there is the LIGHTEST work of the week — trade a hard session on a
+  // rest day for the easiest session sitting on a normal training day.
+  if (restSet.size > 0) {
+    for (const rest of days.filter((d) => restSet.has(d.day) && d.sessions.length > 0)) {
+      const worst = [...rest.sessions].sort((a, b) => slotPriority(b) - slotPriority(a))[0]!; // safe: length > 0
+      let bestDay: DaySlot | undefined;
+      let bestSess: SessionSlot | undefined;
+      for (const d of days) {
+        if (restSet.has(d.day)) continue;
+        for (const cand of d.sessions) {
+          if (slotPriority(cand) >= slotPriority(worst)) continue;
+          if (!bestSess || slotPriority(cand) < slotPriority(bestSess)) {
+            bestDay = d;
+            bestSess = cand;
+          }
+        }
+      }
+      if (bestDay && bestSess) {
+        rest.sessions[rest.sessions.indexOf(worst)] = bestSess;
+        bestDay.sessions[bestDay.sessions.indexOf(bestSess)] = worst;
+      }
+    }
   }
 
   // Pin preferred workout types to their days (skipped for A/B race weeks whose
@@ -690,13 +732,19 @@ export function assignDays(
       }
     }
     if (prefs?.hybridDays?.length) {
-      placeSessionsOn(days, prefs.hybridDays.filter(inDays), isHybrid, protectedDays);
+      // Several preferred hybrid days but only ~1 hybrid a week: take the WEEKEND
+      // one first so the weekend keeps the big sessions. Pinning walks the list in
+      // order, so a plain list would always resolve to the first weekday.
+      placeSessionsOn(days, weekendFirst(prefs.hybridDays.filter(inDays)), isHybrid, protectedDays);
     }
     if (prefs?.liftDays?.length) {
       placeSessionsOn(days, prefs.liftDays.filter(inDays), isLift, protectedDays);
     }
     // Review #8: keep heavy-leg lifts off the day before a key run.
     applySequencingGuards(days, protectedDays);
+    // ...and keep hard running off the day AFTER the long run (no back-to-back
+    // hard days around the week's biggest aerobic session).
+    spaceHardRunAfterLongRun(days, protectedDays);
     // Batch 3: research programs keep one weight session per day (rule 1)
     // and pair every hard-leg lift with easy same-day cardio (rule 2).
     if (counts.researchLifts) {

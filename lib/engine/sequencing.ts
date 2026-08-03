@@ -65,6 +65,51 @@ function pickSequencingTarget(
   return best;
 }
 
+/**
+ * Keep hard running off the day AFTER the long run.
+ *
+ * The long run is the week's biggest aerobic stress; stacking an interval /
+ * threshold / tempo session on the very next day gives two hard days back to
+ * back with no recovery between them. This swaps such a run with an easy run (or
+ * a rest/empty day) elsewhere in the week — count-preserving and best-effort, and
+ * it never touches a protected day or creates a new key-run adjacency.
+ */
+export function spaceHardRunAfterLongRun(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  const longIdx = days.findIndex((d) => d.sessions.some((s) => s.kind === "run" && (s.isLong === true || s.runType === "long")));
+  if (longIdx === -1) return;
+  const nextIdx = longIdx + 1;
+  if (nextIdx >= days.length) return; // long run is the last training day — nothing follows
+  const next = days[nextIdx]!; // safe: nextIdx < days.length
+  if (protectedDays.has(next.day)) return;
+  const hardIdx = next.sessions.findIndex((s) => s.kind === "run" && !(s.isLong === true || s.runType === "long") && isKeyRun(s));
+  if (hardIdx === -1) return;
+
+  // Prefer swapping with an easy run; otherwise move onto the emptiest free day.
+  for (let t = 0; t < days.length; t++) {
+    if (t === nextIdx || t === longIdx || protectedDays.has(days[t]!.day)) continue;
+    const day = days[t]!; // safe: t < days.length
+    if (t + 1 === longIdx) continue; // don't create a hard day right before the long run
+    const easyIdx = day.sessions.findIndex(isEasyRun);
+    if (easyIdx === -1) continue;
+    const hard = next.sessions.splice(hardIdx, 1)[0]!; // safe: hardIdx !== -1
+    const easy = day.sessions.splice(easyIdx, 1)[0]!; // safe: easyIdx !== -1
+    day.sessions.push(hard);
+    next.sessions.push(easy);
+    return;
+  }
+  // No easy run to trade with: relocate onto a run-free, unprotected day.
+  for (let t = 0; t < days.length; t++) {
+    if (t === nextIdx || t === longIdx || protectedDays.has(days[t]!.day)) continue;
+    if (t + 1 === longIdx) continue;
+    const day = days[t]!; // safe: t < days.length
+    if (day.sessions.some(isKeyRun)) continue;
+    if (day.sessions.filter((x) => x.kind !== "rest").length >= 2) continue;
+    const hard = next.sessions.splice(hardIdx, 1)[0]!; // safe: hardIdx !== -1
+    day.sessions.push(hard);
+    return;
+  }
+}
+
 /** Relocate heavy-leg lifts that sit the day before a key run. */
 export function applySequencingGuards(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
   for (let i = 1; i < days.length; i++) {
