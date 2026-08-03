@@ -27,8 +27,15 @@ import {
   paceLabel,
   type RunPaces,
 } from "@/lib/engine/paces";
-import { hybridRunMiles, runOverhead, sessionTiming, weekMileage } from "@/lib/session-volume";
+import {
+  hybridRunMiles,
+  runOverhead,
+  runOverheadMiles,
+  sessionTiming,
+  weekWorkMileage,
+} from "@/lib/session-volume";
 import { round1 } from "@/lib/engine/math";
+import { recoveryFactor, recoveryMinutes } from "@/lib/engine/interval-structure";
 import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
 
 type RunSession = Extract<Session, { kind: "run" }>;
@@ -233,7 +240,7 @@ export function reconcileWeekVolume(
         paceMin,
         overhead,
         min: minMiles(s.runType, paceMin, overhead),
-        max: maxMiles(paceMin, overhead, caps.session),
+        max: maxMiles(paceMin, overhead, caps.session, s.runType, runningExp),
         miles: 0,
       });
     }
@@ -246,12 +253,34 @@ export function reconcileWeekVolume(
   } else {
     sizeRuns(runs, RM, days, paces, runningExp, added, caps.session);
     enforceLongRun(runs, weekNumber, caps.session);
-    for (const r of runs) writeRun(r, paces, caps.session);
+    for (const r of runs) writeRun(r, paces, caps.session, runningExp);
   }
 
   // Place added easy runs before the mileage true-up so they count.
   for (const s of added) days[leastLoadedUnderCap(days, 2, place)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
-  trueUpMileage(days, targetMileage, paces, caps.session);
+  trueUpMileage(days, targetMileage, paces, caps.session, runningExp);
+
+  // Stamp each run's warmup/cooldown distance, derived from its fixed overhead
+  // MINUTES at easy pace. This is counted in the mileage the athlete sees (they are
+  // miles on the feet) but never in `targetMileage`, which is a WORK target — so
+  // adding this does not quietly shrink anyone's quality volume.
+  const easyPaceMin = effectivePace("easy", paces) / 60;
+  for (const d of days) {
+    for (const s of d.sessions) {
+      if (s.kind !== "run") continue;
+      s.overheadMiles = runOverheadMiles(s.runType, easyPaceMin);
+      // Between-rep recovery: easy jogging, so it is aerobic time and aerobic
+      // distance. Counted in what the athlete is shown, never in the work target.
+      const rec = recoveryMinutes(s.runType, runningExp, s.durationMin);
+      if (rec > 0) {
+        s.recoveryMin = rec;
+        s.recoveryMiles = Math.round((rec / easyPaceMin) * 10) / 10;
+      } else {
+        delete s.recoveryMin;
+        delete s.recoveryMiles;
+      }
+    }
+  }
 
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
   let runningCardio = 0;
@@ -402,8 +431,39 @@ function minMiles(type: RunType, paceMin: number, overhead: number): number {
   return base;
 }
 
-function maxMiles(paceMin: number, overhead: number, sessionCap: number): number {
-  return (sessionCap - overhead) / paceMin;
+/**
+ * Longest this run may be, in miles, under the athlete's session cap.
+ *
+ * A rep-based run adds between-rep recovery ON TOP of the rep time, so the cap has
+ * to be shared between them: sizing purely on rep time let a "90 minute" interval
+ * session actually run to 105.
+ */
+function maxMiles(
+  paceMin: number,
+  overhead: number,
+  sessionCap: number,
+  runType: RunType = "easy",
+  exp: ExperienceLevel = "intermediate",
+): number {
+  return workBudget(sessionCap, overhead, runType, exp) / paceMin;
+}
+
+/**
+ * Minutes of REP time a run may carry under the session cap.
+ *
+ * Every place that clamps work minutes has to go through this. A rep-based run
+ * adds recovery on top of its reps, so `sessionCap - overhead` is the budget for
+ * reps AND recovery together — using it for reps alone let a 90-minute cap ship
+ * 92-minute sessions.
+ */
+function workBudget(
+  sessionCap: number,
+  overhead: number,
+  runType: RunType,
+  exp: ExperienceLevel,
+): number {
+  // Floored so the reps plus their floored recovery can never round past the cap.
+  return Math.floor((sessionCap - overhead) / (1 + recoveryFactor(runType, exp)));
 }
 
 /** Size the run distances to sum to RM, honoring min/max, dropping easy runs
@@ -503,11 +563,11 @@ function enforceLongRun(runs: RunEntry[], weekNumber: number, sessionCap: number
   }
 }
 
-function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number): void {
+function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: ExperienceLevel): void {
   const miles = Math.max(MIN_RUN_MILES, round1(r.miles));
   let work = Math.round(miles * r.paceMin);
   // Respect the 45–90 min total band even after rounding.
-  work = Math.min(sessionCap - r.overhead, Math.max(1, work));
+  work = Math.min(workBudget(sessionCap, r.overhead, r.type, exp), Math.max(1, work));
   r.ref.distanceMiles = miles;
   r.ref.durationMin = work;
   r.ref.paceMinMile = paceLabel(r.type, paces);
@@ -517,7 +577,7 @@ function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number): void {
 function buildEasyRuns(miles: number, paces: RunPaces, runningExp: ExperienceLevel, sessionCap: number): RunSession[] {
   const paceMin = effectivePace("easy", paces) / 60;
   const overhead = runOverhead("easy");
-  const max = maxMiles(paceMin, overhead, sessionCap);
+  const max = maxMiles(paceMin, overhead, sessionCap, "easy", runningExp);
   const n = Math.max(1, Math.ceil(miles / max));
   const out: RunSession[] = [];
   for (let i = 0; i < n; i++) {
@@ -542,16 +602,25 @@ function runDescriptionEasy(_exp: ExperienceLevel): string {
 }
 
 /** Snap the longest run so the week's mileage equals the target exactly. */
-function trueUpMileage(days: ProgramDay[], targetMileage: number, paces: RunPaces, sessionCap: number): void {
+function trueUpMileage(
+  days: ProgramDay[],
+  targetMileage: number,
+  paces: RunPaces,
+  sessionCap: number,
+  exp: ExperienceLevel,
+): void {
   const runRefs: RunSession[] = [];
   for (const d of days) for (const s of d.sessions) if (s.kind === "run") runRefs.push(s);
   if (runRefs.length === 0) return;
-  const diff = round1(targetMileage - weekMileage({ days }));
+  const diff = round1(targetMileage - weekWorkMileage({ days }));
   if (Math.abs(diff) < 0.1) return;
   const anchor = runRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
   anchor.distanceMiles = Math.max(MIN_RUN_MILES, round1(anchor.distanceMiles + diff));
   const overhead = runOverhead(anchor.runType);
   const paceMin = effectivePace(anchor.runType, paces) / 60;
-  anchor.durationMin = Math.min(sessionCap - overhead, Math.max(1, Math.round(anchor.distanceMiles * paceMin)));
+  anchor.durationMin = Math.min(
+    workBudget(sessionCap, overhead, anchor.runType, exp),
+    Math.max(1, Math.round(anchor.distanceMiles * paceMin)),
+  );
 }
 

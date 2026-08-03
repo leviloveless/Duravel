@@ -4,7 +4,7 @@ import { buildSimulationElements, RACE_STATION_ORDER } from "./stations";
 import type { TrainingDayName } from "./types";
 import { reconcileWeekVolume } from "../generation/reconcile";
 import { computePaces } from "./paces";
-import { weekMileage, weekCardioMinutes } from "@/lib/session-volume";
+import { weekMileage, weekWorkMileage, weekCardioMinutes } from "@/lib/session-volume";
 import type { ProgramDay } from "@/lib/schemas";
 
 const DAYS: TrainingDayName[] = ["mon", "tue", "wed", "thu", "fri", "sat"];
@@ -76,7 +76,10 @@ describe("race simulation is compatible with volume reconciliation", () => {
       { day: "thu", sessions: [] },
     ];
     reconcileWeekVolume(days, 24, 320, P, "intermediate");
-    expect(weekMileage({ days })).toBe(24);
+    // 24 is a WORK-mileage target; the total on the athlete's feet also carries the
+    // warmup/cooldown distance, so it reads higher.
+    expect(weekWorkMileage({ days })).toBe(24);
+    expect(weekMileage({ days })).toBeGreaterThan(24);
     expect(weekCardioMinutes({ days })).toBe(320);
   });
 });

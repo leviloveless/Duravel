@@ -80,7 +80,10 @@ export interface SessionTiming {
 export function sessionTiming(session: Session): SessionTiming {
   if (session.kind === "run") {
     const [warmup, cooldown] = RUN_WARMUP_COOLDOWN[session.runType];
-    const work = Math.max(1, Math.round(session.durationMin));
+    // The between-rep recovery is part of the main set — you are on your feet for
+    // it — so it belongs in `work`. Leaving it out made a 45-minute interval
+    // session really take 60 and under-counted the week's cardio every time.
+    const work = Math.max(1, Math.round(session.durationMin + (session.recoveryMin ?? 0)));
     return { warmup, work, cooldown, total: warmup + work + cooldown };
   }
   if (session.kind === "lift") {
@@ -115,11 +118,48 @@ export function sessionTiming(session: Session): SessionTiming {
   return { warmup: 0, work: 0, cooldown: 0, total: 0 };
 }
 
-/** Running miles in a single session (run distance, or hybrid run distances). */
-export function sessionMiles(session: Session): number {
+/**
+ * WORK miles in a single session — the reps / main set, excluding warmup and
+ * cooldown. This is what the engine's weekly mileage target is set against, so a
+ * long warmup never eats into the quality volume.
+ */
+export function sessionWorkMiles(session: Session): number {
   if (session.kind === "run") return session.distanceMiles;
   if (session.kind === "hybrid") return hybridRunMiles(session);
   return 0;
+}
+
+/**
+ * TOTAL miles on the feet in a single session — work plus the warmup/cooldown
+ * distance. This is what the athlete actually runs, so it is what the weekly
+ * summary reports.
+ */
+export function sessionMiles(session: Session): number {
+  const work = sessionWorkMiles(session);
+  if (session.kind === "run") {
+    return round1(work + (session.overheadMiles ?? 0) + (session.recoveryMiles ?? 0));
+  }
+  return work;
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Warmup + cooldown distance for a run, from its fixed overhead MINUTES at easy
+ * pace. Minutes are the source of truth — session timing has always been built on
+ * them — and the distance is derived so both can be shown in the prescription.
+ */
+export function runOverheadMiles(runType: RunSession["runType"], easyPaceMinPerMile: number): number {
+  if (!Number.isFinite(easyPaceMinPerMile) || easyPaceMinPerMile <= 0) return 0;
+  // Round each leg separately and sum, so this equals the two figures printed in
+  // the prescription ("15 min easy (~1.4 mi)" + "10 min easy (~0.9 mi)" = 2.3).
+  // Rounding the combined minutes instead gave 2.4 and left the counted mileage
+  // disagreeing with the workout text by a tenth.
+  const [w, c] = RUN_WARMUP_COOLDOWN[runType];
+  const leg = (min: number) => Math.round((min / easyPaceMinPerMile) * 10) / 10;
+  return Math.round((leg(w) + leg(c)) * 10) / 10;
 }
 
 /** Warmup + cooldown minutes for a run type (fixed overhead not counted as work). */
@@ -152,6 +192,15 @@ export function weekMileage(week: { days: { sessions: Session[] }[] }): number {
   let miles = 0;
   for (const day of week.days) {
     for (const s of day.sessions) miles += sessionMiles(s);
+  }
+  return Math.round(miles * 10) / 10;
+}
+
+/** Weekly WORK mileage — what the engine's target is reconciled against. */
+export function weekWorkMileage(week: { days: { sessions: Session[] }[] }): number {
+  let miles = 0;
+  for (const day of week.days) {
+    for (const s of day.sessions) miles += sessionWorkMiles(s);
   }
   return Math.round(miles * 10) / 10;
 }

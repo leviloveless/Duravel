@@ -262,7 +262,21 @@ export const RunSessionSchema = z.object({
   runType: RunType,
   durationMin: z.number(),
   paceMinMile: z.string(),
+  /** WORK distance — the reps / main set. Warmup and cooldown are separate; see
+   *  `overheadMiles`. The engine's weekly mileage target is set against this, so
+   *  the quality volume is unaffected by how long a warmup happens to be. */
   distanceMiles: z.number(),
+  /** Warmup + cooldown distance, derived from the fixed per-type overhead minutes
+   *  at the athlete's easy pace. Counted in the weekly mileage the athlete SEES —
+   *  they are miles on the feet — but never in the work target. Set during
+   *  assembly, so it is optional on AI input. */
+  overheadMiles: z.number().nonnegative().optional(),
+  /** Between-rep recovery MINUTES for a rep-based run (interval / threshold). Easy
+   *  running, so it counts toward cardio time and mileage — never toward the work
+   *  target. Absent for continuous runs. */
+  recoveryMin: z.number().nonnegative().optional(),
+  /** Distance covered by that recovery jogging, at easy pace. */
+  recoveryMiles: z.number().nonnegative().optional(),
   goalZone: z.number().int().min(1).max(5),
   /** 1–2 sentence explanation of the run + how to execute it (Tasks #2).
    *  Attached deterministically during assembly, so it's optional on input. */

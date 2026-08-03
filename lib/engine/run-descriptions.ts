@@ -11,6 +11,7 @@
 
 import type { ExperienceLevel, RunType } from "./types";
 import { formatPace, METERS_PER_MILE, type RunPaces } from "./paces";
+import { RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
 
 const PROGRESSION_BEGINNER =
   "A steady run that gradually builds effort. Warm up 10 minutes easy and conversational, run 20–30 minutes at your standard comfortable aerobic pace (1–2 min/mile faster than easy), pick up to a comfortably hard threshold effort for the final 10–15%, then cool down 5 minutes easy.";
@@ -47,6 +48,20 @@ function pacePair(secPerMile: number): string {
   return `${formatPace(secPerMile)}/mi (${formatPace(secPerKm(secPerMile))}/km)`;
 }
 
+/**
+ * Warmup / cooldown lines that state the MINUTES, the distance those minutes cover
+ * at easy pace, and the pace itself — e.g. "Warm up: 15 min easy (~1.4 mi) @
+ * 10:39/mi". Minutes are the source of truth (session timing has always been built
+ * on them); the distance is derived so the athlete can measure it either way, and
+ * the pace is stated because "easy" on its own is not a prescription.
+ */
+function overheadLine(label: string, minutes: number, paces: RunPaces | null, extra = ""): string {
+  if (!paces) return `${label}: ${minutes} min easy${extra}`;
+  const easySecPerMile = paces.easy;
+  const miles = Math.round((minutes / (easySecPerMile / 60)) * 10) / 10;
+  return `${label}: ${minutes} min easy (~${miles} mi) @ ${formatPace(easySecPerMile)}/mi${extra}`;
+}
+
 /** Reps per session by running experience. */
 const INTERVAL_REPS: Record<ExperienceLevel, number> = {
   beginner: 4,
@@ -63,12 +78,13 @@ const THRESHOLD_REPS: Record<ExperienceLevel, number> = {
 function intervalDescription(exp: ExperienceLevel, paces: RunPaces | null): string {
   const reps = INTERVAL_REPS[exp];
   const work = paces
-    ? `${reps} x 1km at ${pacePair(paces.interval)} with ${formatPace(roundTo5(secPerKm(paces.interval)))} easy jog/rest between reps`
+    ? `${reps} x 1km at ${pacePair(paces.interval)}, with ${formatPace(roundTo5(secPerKm(paces.interval)))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)`
     : `${reps} x 1km at your interval (I) pace with an equal-time easy jog/rest between reps`;
+  const [wu, cd] = RUN_WARMUP_COOLDOWN.interval;
   return [
-    "Warm up: 1 mile easy (10-15 min) with 3-4 short strides",
+    overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
     `Work: ${work}`,
-    "Cooldown: 1 mile easy",
+    overheadLine("Cooldown", cd, paces),
     "Work:rest 1:1 - your rest equals your work time.",
   ].join("\n");
 }
@@ -77,12 +93,13 @@ function intervalDescription(exp: ExperienceLevel, paces: RunPaces | null): stri
 function thresholdDescription(exp: ExperienceLevel, paces: RunPaces | null): string {
   const reps = THRESHOLD_REPS[exp];
   const work = paces
-    ? `${reps} x 1 mile at ${pacePair(paces.threshold)} with ${formatPace(roundTo5(paces.threshold / 2))} easy jog between reps`
+    ? `${reps} x 1 mile at ${pacePair(paces.threshold)}, with ${formatPace(roundTo5(paces.threshold / 2))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)`
     : `${reps} x 1 mile at your threshold (T) pace with an easy jog half the rep time between reps`;
+  const [wu, cd] = RUN_WARMUP_COOLDOWN.threshold;
   return [
-    "Warm up: 1 mile easy",
+    overheadLine("Warm up", wu, paces),
     `Work: ${work}`,
-    "Cooldown: 1 mile easy",
+    overheadLine("Cooldown", cd, paces),
     "Work:rest 2:1 - your rest is half your work time.",
   ].join("\n");
 }

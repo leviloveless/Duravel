@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { reconcileWeekVolume } from "./reconcile";
-import { weekMileage, weekCardioMinutes, sessionTiming } from "@/lib/session-volume";
+import { weekMileage, weekWorkMileage, weekCardioMinutes, sessionTiming } from "@/lib/session-volume";
 import { computePaces, formatPace } from "@/lib/engine/paces";
 import type { ProgramDay, Session } from "@/lib/schemas";
 
@@ -57,7 +57,10 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
   it("reported example (11.5 mi / 250 min): both exact, non-running cardio added, no run > 90", () => {
     const days = daysOf([run("easy")], [hybrid()], [lift()], [run("fartlek")], [run("long")], []);
     reconcileWeekVolume(days, 11.5, 250, P, "intermediate");
-    expect(weekMileage({ days })).toBe(11.5);
+    // The target is WORK mileage; the total the athlete sees also carries the
+    // warmup/cooldown distance, so it is strictly greater.
+    expect(weekWorkMileage({ days })).toBe(11.5);
+    expect(weekMileage({ days })).toBeGreaterThan(11.5);
     expect(weekCardioMinutes({ days })).toBe(250);
     expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
     expect(hasCardio(days)).toBe(true);
@@ -82,7 +85,8 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
   it("tight deload consolidates easy runs into the long run; mileage stays exact", () => {
     const days = daysOf([run("easy")], [run("easy")], [run("long")], [lift()]);
     reconcileWeekVolume(days, 6, 150, P, "beginner");
-    expect(weekMileage({ days })).toBe(6);
+    expect(weekWorkMileage({ days })).toBe(6);
+    expect(weekMileage({ days })).toBeGreaterThan(6);
     expect(weekCardioMinutes({ days })).toBe(150);
     expect(runsOf(days).some((r) => r.runType === "long")).toBe(true);
   });
@@ -108,7 +112,8 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
       [{ kind: "race", priority: "C" }],
     );
     reconcileWeekVolume(days, 15, 300, P, "intermediate", 7);
-    expect(weekMileage({ days })).toBe(15); // sized to target, not the ~19 mi AI sum
+    expect(weekWorkMileage({ days })).toBe(15); // sized to target, not the ~19 mi AI sum
+    expect(weekMileage({ days })).toBeGreaterThan(15);
     expect(weekCardioMinutes({ days })).toBe(300);
     expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
     // Race day still holds ONLY the race — no easy run or cardio block stacked on it.
@@ -129,7 +134,7 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
           while (sessions.length < 7) sessions.push([]);
           const days = daysOf(...sessions);
           reconcileWeekVolume(days, mi, min, P, "intermediate");
-          expect(weekMileage({ days })).toBe(mi);
+          expect(weekWorkMileage({ days })).toBe(mi);
           expect(weekCardioMinutes({ days })).toBe(min);
           expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
         }
@@ -167,7 +172,9 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
       [run("easy", 3, 30)], [lift()], [lift()],
       [run("interval", 3, 45)], [run("threshold", 3, 45)], [run("long", 6, 69)], [hybrid()],
     );
-    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    // Cardio target raised: now that between-rep recovery counts, the runs alone
+    // supply more of the week, so a 300-minute target leaves no surplus to place.
+    reconcileWeekVolume(days, 12.5, 420, P, "intermediate", 1, place);
     const paired = days.filter((d) => d.sessions.some((s) => s.kind === "lift") && isAerobic(d)).length;
     expect(paired).toBeGreaterThan(0);
   });
