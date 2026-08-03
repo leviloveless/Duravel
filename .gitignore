@@ -48,3 +48,6 @@ _phase3_draft/
 # sensitive / local-only (do not commit)
 CP_575_G.pdf
 _phase3_draft/
+
+# scratch/trash dir — never compile or track
+_to_delete/
