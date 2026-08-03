@@ -34,7 +34,12 @@ type RunSession = Extract<Session, { kind: "run" }>;
 type CardioSession = Extract<Session, { kind: "cardio" }>;
 
 const MAX_RUN_TOTAL = 90; // cap per run (total minutes incl. warmup/cooldown)
-const MIN_CARDIO_TOTAL = 45; // every cardio session ≥ 45 min
+const MIN_CARDIO_TOTAL = 45; // every standalone cardio session ≥ 45 min
+// A block paired onto a day that already has a lift is a bolt-on, not a session in
+// its own right, so it sits below the standalone floor. This is what makes "spread
+// the cardio" and "keep Sat/Sun the biggest days" satisfiable at the same time: at
+// 45 min a paired spin pushes a 60-min lift day past a 60-min long-run Saturday.
+const MIN_PAIRED_CARDIO = 30;
 const EASY_LONG_MIN_MI = 3;
 const MIN_RUN_MILES = 0.3;
 
@@ -141,19 +146,14 @@ function leastLoadedDay(days: ProgramDay[], place: FillerPlacement = {}): number
  * cap (unavoidable — more sessions than 2 x training days).
  */
 function leastLoadedUnderCap(days: ProgramDay[], cap = 2, place: FillerPlacement = {}): number {
-  // Rank: a day with NO aerobic work first, then the weekend, then the emptiest.
+  // Rank: weekend first (the athlete wants Sat/Sun biggest), then emptiest.
   //
-  // The weekend term used to lead, so Saturday won at 100 - 10 = 90 even when it
-  // already held the long run and Monday sat empty at 0. Every filler block piled
-  // onto Sat/Sun and the week ran three consecutive days with no cardio at all.
-  // Aerobic frequency across the week matters more than which day is biggest, so
-  // cardio-free days now outrank the weekend. Sat/Sun still end up heaviest by
-  // MINUTES — via the block sizing in the caller, which sends the largest block
-  // there — rather than by taking every block.
+  // This is the REMAINDER path only. Spreading aerobic work across the week is
+  // handled explicitly in phase 1 of the gap fill; putting a cardio-free bonus in
+  // here as well double-counted it and let a weekday win the leftover block too,
+  // which is how the weekend stopped being the biggest day.
   const score = (d: ProgramDay): number =>
-    (dayHasCardio(d) ? 0 : 1000) +
-    (place.preferDays?.includes(d.day) ? 100 : 0) -
-    d.sessions.length * 10;
+    (place.preferDays?.includes(d.day) ? 100 : 0) - d.sessions.length * 10;
   let best = -1;
   for (let i = 0; i < days.length; i++) {
     const d = days[i]!; // safe: i < days.length
@@ -257,15 +257,51 @@ export function reconcileWeekVolume(
   if (gap > 0) {
     const free = (d: ProgramDay): boolean =>
       !isRaceDay(d) && !place.avoidDays?.includes(d.day) && d.sessions.length < 2;
-    // Aim for one block per cardio-free day so the aerobic work reaches as much of
-    // the week as the minutes allow. splitCardio still honours the 45-min floor, so
-    // a small surplus stays one block rather than fragmenting into unusable slivers.
-    const cardioFree = days.filter((d) => free(d) && !dayHasCardio(d)).length;
-    const freePreferred = days.filter((d) => free(d) && place.preferDays?.includes(d.day)).length;
-    for (const block of splitCardio(gap, Math.max(1, cardioFree, freePreferred))) {
-      days[pickCardioDay(days, block, place)]!.sessions.push(block); // cap-aware: avoid a 3rd session on a day
+    const isPreferred = (d: ProgramDay): boolean => !!place.preferDays?.includes(d.day);
+    const added: Placed[] = [];
+
+    // Phase 1 — spread. A SHORT easy block onto each day with no aerobic work yet,
+    // so the week can't run three days dry and no lift day is left without cardio.
+    // These are deliberately shorter than a standalone block: a paired spin is a
+    // bolt-on to a lift, not a session in its own right, and keeping it short is
+    // what lets the weekend stay the biggest day.
+    //
+    // Lift days come first. Pairing cardio WITH the strength work is the point —
+    // filling an otherwise-empty day is a lesser good, and taking the budget in
+    // day order would spend it on Monday and leave Tuesday's lift dry.
+    const spreadTargets = days.filter((d) => free(d) && !isPreferred(d) && !dayHasCardio(d));
+    const hasLift = (d: ProgramDay): boolean => d.sessions.some((s) => s.kind === "lift");
+    spreadTargets.sort((a, b) => Number(hasLift(b)) - Number(hasLift(a)));
+    // Always leave at least one paired block's worth for the weekend, so Sat/Sun
+    // never come away with nothing.
+    let spreadBudget = gap - MIN_PAIRED_CARDIO;
+    for (const d of spreadTargets) {
+      if (spreadBudget < MIN_PAIRED_CARDIO) break;
+      const block = makeCardio(MIN_PAIRED_CARDIO);
+      d.sessions.push(block);
+      added.push({ day: d, block });
+      spreadBudget -= MIN_PAIRED_CARDIO;
+      gap -= MIN_PAIRED_CARDIO;
     }
+
+    // Phase 2 — the remainder, weekend first, at the normal 45-min floor.
+    if (gap > 0) {
+      const freePreferred = days.filter((d) => free(d) && isPreferred(d)).length;
+      for (const block of splitCardio(gap, Math.max(1, freePreferred))) {
+        const i = leastLoadedUnderCap(days, 2, place); // cap-aware: avoid a 3rd session on a day
+        days[i]!.sessions.push(block);
+        added.push({ day: days[i]!, block });
+      }
+    }
+
+    keepPreferredDaysBiggest(days, added, place);
   }
+}
+
+/** A filler block and the day it landed on, so it can be resized afterwards. */
+interface Placed {
+  day: ProgramDay;
+  block: CardioSession;
 }
 
 /** Total prescribed minutes on a day, across every session it holds. */
@@ -274,38 +310,52 @@ function dayTotalMinutes(day: ProgramDay): number {
 }
 
 /**
- * Choose the day for one reconciler-added Zone 1–2 block.
+ * Keep Sat/Sun the biggest days of the week after spreading.
  *
- * Cardio-free days come first, so a week can't run three days with no aerobic
- * work while the weekend carries two blocks. But spreading is bounded by the
- * athlete's other standing requirement — Sat/Sun should be the biggest days — so
- * a block only lands on a non-weekend day while doing so keeps that day at or
- * under the heaviest weekend day. Once spreading would overtake the weekend, the
- * block goes to the weekend instead.
+ * Spreading and weekend-biggest pull against each other: a lift day carrying 60
+ * minutes of strength plus a paired spin can outweigh a Saturday whose long run is
+ * only 60 minutes. Rather than refuse to spread (which reinstates the bunching this
+ * whole change exists to remove), move MINUTES from the offending weekday's filler
+ * block to a weekend one. Total cardio is preserved exactly, so the week still hits
+ * its prescribed volume — only the distribution shifts.
  *
- * Note the floor this bumps against: every cardio session is >= MIN_CARDIO_TOTAL
- * (45 min), so "pair a lift day with a SHORT easy spin" can't go below 45 here.
- * On a light week that single 45-min block can still outweigh a weekend day, in
- * which case the ceiling test sends it to the weekend and the lift day stays dry.
+ * Moving X minutes closes the gap by 2X (the weekday drops X, the weekend gains X),
+ * so this converges in a couple of passes. If a block would fall under the paired
+ * floor it is removed outright and its whole duration handed to the weekend.
  */
-function pickCardioDay(days: ProgramDay[], block: CardioSession, place: FillerPlacement): number {
+function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: FillerPlacement): void {
   const preferred = days.filter((d) => place.preferDays?.includes(d.day));
-  if (preferred.length > 0) {
+  if (preferred.length === 0) return;
+
+  for (let guard = 0; guard < 12; guard++) {
     const ceiling = Math.max(...preferred.map(dayTotalMinutes));
-    let best = -1;
-    for (let i = 0; i < days.length; i++) {
-      const d = days[i]!; // safe: i < days.length
-      if (isRaceDay(d)) continue;
-      if (place.avoidDays?.includes(d.day)) continue;
-      if (place.preferDays?.includes(d.day)) continue; // handled by the fallback
-      if (d.sessions.length >= 2) continue;
-      if (dayHasCardio(d)) continue; // spreading only — doubling up is the fallback's job
-      if (dayTotalMinutes(d) + block.durationMin > ceiling) continue; // keep Sat/Sun biggest
-      if (best === -1 || dayTotalMinutes(d) < dayTotalMinutes(days[best]!)) best = i;
+    const over = days.find((d) => !place.preferDays?.includes(d.day) && dayTotalMinutes(d) > ceiling);
+    if (!over) return; // the weekend is already on top
+    const source = added.find((a) => a.day === over);
+    if (!source) return; // the overage isn't filler we added — not ours to fix
+    // Prefer growing an existing weekend block; otherwise start one on a free day.
+    let sink = added.find((a) => place.preferDays?.includes(a.day.day));
+    if (!sink) {
+      const host = preferred.find((d) => !isRaceDay(d) && d.sessions.length < 2);
+      if (!host) return;
+      const block = makeCardio(MIN_PAIRED_CARDIO);
+      host.sessions.push(block);
+      sink = { day: host, block };
+      added.push(sink);
+      source.block.durationMin = Math.max(1, source.block.durationMin - MIN_PAIRED_CARDIO);
+      continue;
     }
-    if (best !== -1) return best;
+    const move = Math.max(1, Math.ceil((dayTotalMinutes(over) - ceiling) / 2));
+    if (source.block.durationMin - move < MIN_PAIRED_CARDIO) {
+      // Too small to survive the trim — hand the whole block over.
+      sink.block.durationMin += source.block.durationMin;
+      over.sessions.splice(over.sessions.indexOf(source.block), 1);
+      added.splice(added.indexOf(source), 1);
+    } else {
+      source.block.durationMin -= move;
+      sink.block.durationMin += move;
+    }
   }
-  return leastLoadedUnderCap(days, 2, place);
 }
 
 function minMiles(type: RunType, paceMin: number, overhead: number): number {

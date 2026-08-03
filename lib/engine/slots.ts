@@ -893,7 +893,16 @@ export function assignDays(
     capSessionsPerDay(days, protectedDays);
     // Last: a day the athlete selected should never sit empty next to a doubled
     // one. Runs after the caps so it levels out whatever they left behind.
-    fillEmptyDays(days, protectedDays);
+    //
+    // Note what it is passed: the REST days (plus any race day), not the full
+    // protected set. Passing `protectedDays` made this a no-op wherever it mattered
+    // — the set also holds the pinned long-run, hybrid and preferred-lift days, so
+    // a preferred lift day with no lift on it stayed protected AND empty while
+    // Friday carried two sessions. Only a day the athlete asked to keep clear, or a
+    // race day, may stay empty.
+    const keepClear = new Set<TrainingDayName>(restSet);
+    if (raceDayKey) keepClear.add(raceDayKey);
+    fillEmptyDays(days, keepClear);
   }
 
   if (race) {

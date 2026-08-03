@@ -41,6 +41,29 @@ describe("no selected training day is left empty while another doubles up", () =
     }
   });
 
+  it("fills a PINNED but empty day — pins yield, only rest days stay clear", () => {
+    // The reported shape: rest Monday, preferred lift days Tue-Fri, long run on the
+    // weekend, hybrid days including Sunday. Wednesday is a preferred lift day; on
+    // weeks with fewer lifts than preferred days it was pinned (so protected) yet
+    // empty, while Friday carried two sessions. `fillEmptyDays` was being handed the
+    // whole protected set, which includes those pins, so it refused to touch it.
+    const prefs = {
+      longRunDays: ["sat", "sun"] as TrainingDayName[],
+      restDays: ["mon"] as TrainingDayName[],
+      liftDays: ["tue", "wed", "thu", "fri"] as TrainingDayName[],
+      hybridDays: ["tue", "wed", "thu", "fri", "sun"] as TrainingDayName[],
+    };
+    for (const phase of PHASES) {
+      for (const micro of MICROS) {
+        const days = assignDays(ALL, phase, micro, "beginner", "advanced", undefined, prefs);
+        const l = loads(days);
+        const emptyNonRest = days.some((d, i) => d.day !== "mon" && l[i] === 0);
+        const detail = `${phase}/${micro} → ${JSON.stringify(l)}`;
+        if (emptyNonRest) expect(l.every((n) => n <= 1), detail).toBe(true);
+      }
+    }
+  });
+
   it("still honours a preferred rest day — that day stays empty by design", () => {
     const days = assignDays(ALL, "build", "increase", "advanced", "advanced", undefined, {
       longRunDays: ["sat"],

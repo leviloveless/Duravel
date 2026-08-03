@@ -142,23 +142,30 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
   // Reported setup: seven training days, lifts midweek, long run + hybrid on the
   // weekend. Every reconciler-added Zone 1-2 block used to land on Sat/Sun,
   // because the weekend preference outranked emptiness in the placement score —
-  // so Mon/Tue/Wed ran three consecutive days with no aerobic work at all.
+  // so the lift days carried no aerobic work at all and the week ran three
+  // consecutive days dry.
   const build = (): ProgramDay[] =>
     daysOf([], [lift()], [lift()], [run("interval", 3, 45)], [run("threshold", 3, 45)], [run("long", 6, 69)], [hybrid()]);
   const place = { preferDays: ["sat", "sun"] as const };
-  const cardioDays = (days: ProgramDay[]) =>
-    days.filter((d) => d.sessions.some((s) => s.kind === "cardio")).map((d) => d.day);
-  const aerobicDays = (days: ProgramDay[]) =>
-    days.filter((d) =>
-      d.sessions.some((s) => s.kind === "run" || s.kind === "hybrid" || s.kind === "cardio"),
-    ).length;
+  const AER = ["run", "hybrid", "cardio"];
+  const isAerobic = (d: ProgramDay) => d.sessions.some((s) => AER.includes(s.kind));
+  const totalOf = (d: ProgramDay) => d.sessions.reduce((n, s) => n + sessionTiming(s).total, 0);
+  const dayOf = (days: ProgramDay[], k: string) => days.find((d) => d.day === k)!;
 
-  it("puts the surplus on days that have no aerobic work yet", () => {
+  it("pairs every lift day with cardio", () => {
     const days = build();
     reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
-    // Nothing lands on Sat/Sun, which already carry the long run and the hybrid.
-    expect(cardioDays(days).every((d) => d !== "sat" && d !== "sun")).toBe(true);
-    expect(aerobicDays(days)).toBeGreaterThan(4);
+    for (const d of days) {
+      if (d.sessions.some((s) => s.kind === "lift")) expect(isAerobic(d), d.day).toBe(true);
+    }
+  });
+
+  it("never leaves a lift day dry while another day carries two aerobic sessions", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    const dryLift = days.some((d) => d.sessions.some((s) => s.kind === "lift") && !isAerobic(d));
+    const doubled = days.some((d) => d.sessions.filter((s) => AER.includes(s.kind)).length >= 2);
+    expect(dryLift && doubled).toBe(false);
   });
 
   it("leaves no three-day stretch without aerobic work", () => {
@@ -167,11 +174,18 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
     let gap = 0;
     let worst = 0;
     for (const d of days) {
-      const aerobic = d.sessions.some((s) => s.kind === "run" || s.kind === "hybrid" || s.kind === "cardio");
-      gap = aerobic ? 0 : gap + 1;
+      gap = isAerobic(d) ? 0 : gap + 1;
       worst = Math.max(worst, gap);
     }
     expect(worst).toBeLessThan(3);
+  });
+
+  it("keeps a weekend day the biggest day of the week", () => {
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    const weekend = Math.max(totalOf(dayOf(days, "sat")), totalOf(dayOf(days, "sun")));
+    const weekday = Math.max(...["mon", "tue", "wed", "thu", "fri"].map((k) => totalOf(dayOf(days, k))));
+    expect(weekend).toBeGreaterThanOrEqual(weekday);
   });
 
   it("still hits the exact prescribed cardio total", () => {
@@ -183,6 +197,6 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
   it("keeps a preferred rest day clear of filler", () => {
     const days = build();
     reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, { ...place, avoidDays: ["mon"] });
-    expect(cardioDays(days)).not.toContain("mon");
+    expect(dayOf(days, "mon").sessions.length).toBe(0);
   });
 });
