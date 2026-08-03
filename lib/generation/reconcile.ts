@@ -260,37 +260,49 @@ export function reconcileWeekVolume(
     const isPreferred = (d: ProgramDay): boolean => !!place.preferDays?.includes(d.day);
     const added: Placed[] = [];
 
-    // Phase 1 — spread. A SHORT easy block onto each day with no aerobic work yet,
-    // so the week can't run three days dry and no lift day is left without cardio.
-    // These are deliberately shorter than a standalone block: a paired spin is a
-    // bolt-on to a lift, not a session in its own right, and keeping it short is
-    // what lets the weekend stay the biggest day.
-    //
-    // Lift days come first. Pairing cardio WITH the strength work is the point —
-    // filling an otherwise-empty day is a lesser good, and taking the budget in
-    // day order would spend it on Monday and leave Tuesday's lift dry.
-    const spreadTargets = days.filter((d) => free(d) && !isPreferred(d) && !dayHasCardio(d));
-    const hasLift = (d: ProgramDay): boolean => d.sessions.some((s) => s.kind === "lift");
-    spreadTargets.sort((a, b) => Number(hasLift(b)) - Number(hasLift(a)));
-    // Always leave at least one paired block's worth for the weekend, so Sat/Sun
-    // never come away with nothing.
-    let spreadBudget = gap - MIN_PAIRED_CARDIO;
-    for (const d of spreadTargets) {
-      if (spreadBudget < MIN_PAIRED_CARDIO) break;
+    // The three goals here conflict on a low-volume week — there are not always
+    // enough surplus minutes to fill every day, keep the weekend biggest AND pair
+    // every lift day. They are applied in that order, which is the athlete's stated
+    // priority: use the days first, protect the weekend second, pair lifts third.
+    let spreadBudget = gap - MIN_PAIRED_CARDIO; // always leave the weekend something
+    const take = (d: ProgramDay, kind: PlacedKind): void => {
       const block = makeCardio(MIN_PAIRED_CARDIO);
       d.sessions.push(block);
-      added.push({ day: d, block });
+      added.push({ day: d, block, kind });
       spreadBudget -= MIN_PAIRED_CARDIO;
       gap -= MIN_PAIRED_CARDIO;
+    };
+
+    // Phase 1 — USE EVERY DAY. A day with nothing on it takes a block before any
+    // occupied day gets a second session. Highest priority: an unused training day
+    // next to a doubled one is the thing the athlete objected to first.
+    for (const d of days) {
+      if (spreadBudget < MIN_PAIRED_CARDIO) break;
+      if (!free(d) || isPreferred(d) || d.sessions.length > 0) continue;
+      take(d, "fill");
     }
 
-    // Phase 2 — the remainder, weekend first, at the normal 45-min floor.
+    // Phase 2 — PAIR THE LIFT DAYS that still have no aerobic work. Deliberately
+    // after phase 1 and after the weekend's share is reserved: pairing is the goal
+    // that yields when the minutes run out.
+    for (const d of days) {
+      if (spreadBudget < MIN_PAIRED_CARDIO) break;
+      if (!free(d) || isPreferred(d) || dayHasCardio(d)) continue;
+      take(d, "pair");
+    }
+
+    // Phase 3 — the remainder, weekend first, at the normal 45-min floor. Days that
+    // already took a block above are excluded: stacking a second reconciler block on
+    // one day is exactly the "two cardio sessions on the same day" this is meant to
+    // prevent, and the cap check alone allowed it on a day that started empty.
     if (gap > 0) {
+      const used = new Set(added.map((a) => a.day.day));
       const freePreferred = days.filter((d) => free(d) && isPreferred(d)).length;
       for (const block of splitCardio(gap, Math.max(1, freePreferred))) {
-        const i = leastLoadedUnderCap(days, 2, place); // cap-aware: avoid a 3rd session on a day
+        const i = leastLoadedUnderCap(days, 2, { ...place, avoidDays: [...(place.avoidDays ?? []), ...used] });
         days[i]!.sessions.push(block);
-        added.push({ day: days[i]!, block });
+        added.push({ day: days[i]!, block, kind: "remainder" });
+        used.add(days[i]!.day);
       }
     }
 
@@ -298,10 +310,18 @@ export function reconcileWeekVolume(
   }
 }
 
-/** A filler block and the day it landed on, so it can be resized afterwards. */
+/**
+ * A filler block, the day it landed on, and why it was placed — so the rebalancer
+ * knows what it may raid. The athlete's priority order is: use every day, then
+ * keep the weekend biggest, then pair the lift days. So a "fill" block (the only
+ * thing on an otherwise unused day) is untouchable, while a "pair" block may be
+ * given up to protect the weekend.
+ */
+type PlacedKind = "fill" | "pair" | "remainder";
 interface Placed {
   day: ProgramDay;
   block: CardioSession;
+  kind: PlacedKind;
 }
 
 /** Total prescribed minutes on a day, across every session it holds. */
@@ -331,8 +351,14 @@ function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: Fi
     const ceiling = Math.max(...preferred.map(dayTotalMinutes));
     const over = days.find((d) => !place.preferDays?.includes(d.day) && dayTotalMinutes(d) > ceiling);
     if (!over) return; // the weekend is already on top
-    const source = added.find((a) => a.day === over);
-    if (!source) return; // the overage isn't filler we added — not ours to fix
+    // Prefer trimming filler on the offending day. If that day holds none of ours
+    // (its bulk is an engine-placed run + lift), give up a PAIRING block elsewhere
+    // instead — pairing ranks below weekend-biggest. "fill" blocks are never taken:
+    // using every day outranks both.
+    const source =
+      added.find((a) => a.day === over && a.kind !== "fill") ??
+      added.find((a) => a.kind === "pair" && !place.preferDays?.includes(a.day.day));
+    if (!source) return; // nothing we are allowed to move — leave it
     // Prefer growing an existing weekend block; otherwise start one on a free day.
     let sink = added.find((a) => place.preferDays?.includes(a.day.day));
     if (!sink) {
@@ -340,7 +366,7 @@ function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: Fi
       if (!host) return;
       const block = makeCardio(MIN_PAIRED_CARDIO);
       host.sessions.push(block);
-      sink = { day: host, block };
+      sink = { day: host, block, kind: "remainder" };
       added.push(sink);
       source.block.durationMin = Math.max(1, source.block.durationMin - MIN_PAIRED_CARDIO);
       continue;
@@ -348,8 +374,14 @@ function keepPreferredDaysBiggest(days: ProgramDay[], added: Placed[], place: Fi
     const move = Math.max(1, Math.ceil((dayTotalMinutes(over) - ceiling) / 2));
     if (source.block.durationMin - move < MIN_PAIRED_CARDIO) {
       // Too small to survive the trim — hand the whole block over.
+      // Splice from the block's OWN day. `source` may be a pairing block on a
+      // different day than `over` (the fallback above), and splicing an index of
+      // -1 from `over` silently removed that day's LAST session — deleting a lift
+      // and leaving the cardio total over target.
       sink.block.durationMin += source.block.durationMin;
-      over.sessions.splice(over.sessions.indexOf(source.block), 1);
+      const at = source.day.sessions.indexOf(source.block);
+      if (at === -1) return; // defensive: already gone
+      source.day.sessions.splice(at, 1);
       added.splice(added.indexOf(source), 1);
     } else {
       source.block.durationMin -= move;

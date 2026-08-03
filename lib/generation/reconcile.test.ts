@@ -152,20 +152,43 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
   const totalOf = (d: ProgramDay) => d.sessions.reduce((n, s) => n + sessionTiming(s).total, 0);
   const dayOf = (days: ProgramDay[], k: string) => days.find((d) => d.day === k)!;
 
-  it("pairs every lift day with cardio", () => {
+  // Priority order when the surplus minutes cannot satisfy everything:
+  //   1. use every training day, 2. keep the weekend biggest, 3. pair the lift days.
+  it("uses an empty day before pairing any lift day", () => {
     const days = build();
     reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
-    for (const d of days) {
-      if (d.sessions.some((s) => s.kind === "lift")) expect(isAerobic(d), d.day).toBe(true);
-    }
+    expect(dayOf(days, "mon").sessions.length).toBeGreaterThan(0);
   });
 
-  it("never leaves a lift day dry while another day carries two aerobic sessions", () => {
+  it("pairs the lift days once every day is in use", () => {
+    // Same week, but Monday already has a session — so nothing needs filling and
+    // the surplus goes to pairing instead.
+    const days = daysOf(
+      [run("easy", 3, 30)], [lift()], [lift()],
+      [run("interval", 3, 45)], [run("threshold", 3, 45)], [run("long", 6, 69)], [hybrid()],
+    );
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    const paired = days.filter((d) => d.sessions.some((s) => s.kind === "lift") && isAerobic(d)).length;
+    expect(paired).toBeGreaterThan(0);
+  });
+
+  it("never puts two filler blocks on the same day", () => {
     const days = build();
     reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
-    const dryLift = days.some((d) => d.sessions.some((s) => s.kind === "lift") && !isAerobic(d));
-    const doubled = days.some((d) => d.sessions.filter((s) => AER.includes(s.kind)).length >= 2);
-    expect(dryLift && doubled).toBe(false);
+    for (const d of days) expect(d.sessions.filter((s) => s.kind === "cardio").length, d.day).toBeLessThanOrEqual(1);
+  });
+
+  it("preserves every planned session while rebalancing", () => {
+    // The rebalancer once spliced from the wrong day's session list, silently
+    // deleting a lift and leaving the cardio total over target.
+    const days = daysOf(
+      [], [lift()], [lift()], [run("interval", 3, 45)],
+      [run("threshold", 3, 45), lift()], [run("long", 6, 69)], [hybrid()],
+    );
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place);
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length).toBe(3);
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "hybrid").length).toBe(1);
+    expect(weekCardioMinutes({ days } as never)).toBe(300);
   });
 
   it("leaves no three-day stretch without aerobic work", () => {
