@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { addExtraWorkout, addExtraFromActivity, deleteExtraWorkout } from "@/app/program/extra-actions";
 import { extraDetail, extraTitle } from "@/lib/extra-workouts";
 import type { ExtraWorkout, ExtraWorkoutKindName } from "@/lib/schemas";
@@ -56,6 +57,7 @@ function ExtraWorkoutRow({
   extra: ExtraWorkout;
   frozen?: boolean;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const detail = extraDetail(extra);
   return (
@@ -72,7 +74,12 @@ function ExtraWorkoutRow({
           <button
             type="button"
             disabled={pending}
-            onClick={() => startTransition(() => void deleteExtraWorkout(programId, extra.id))}
+            onClick={() =>
+              startTransition(async () => {
+                await deleteExtraWorkout(programId, extra.id);
+                router.refresh();
+              })
+            }
             className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
           >
             Remove
@@ -99,6 +106,7 @@ export function AddExtraWorkout({
   activities?: SyncActivitySummary[];
   compact?: boolean;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -153,6 +161,10 @@ export function AddExtraWorkout({
       if (res.ok) {
         reset();
         setOpen(false);
+        // The page is a server component; nothing re-renders until the router
+        // re-fetches it. revalidatePath alone leaves the athlete staring at an
+        // unchanged day, so refresh here — the same protocol as usePostAction.
+        router.refresh();
       } else setError(res.error);
     });
   }
@@ -168,6 +180,7 @@ export function AddExtraWorkout({
       if (res.ok) {
         reset();
         setOpen(false);
+        router.refresh();
       } else setError(res.error);
     });
   }

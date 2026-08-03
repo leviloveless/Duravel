@@ -69,3 +69,28 @@ Then, once deployed: open a program, add an extra workout on a rest day and on a
 ## Housekeeping
 
 `_to_delete/` on the device holds scratch tarballs, superseded scoped tsconfigs, and swept git lock files. It is untracked but *not* gitignored, so stage explicit paths rather than `git add -A`, or delete the folder.
+
+---
+
+## Addendum — live verification (deploy `3ec8741`)
+
+Migration applied and pushed; Vercel deployment `dpl_DZWQHPGBW5epC2FDRsGCFLM5ZRqC` READY in production for SHA `3ec87415fb822b985d53c93b9642bbf9c7fa56ac`.
+
+Verified on the "Post-B fix test" program:
+
+- The "＋ Add a workout" affordance renders on every day in both layouts, including rest days.
+- Added a manual entry on the Monday Aug 3 **rest day** — "Pickup basketball", 45 min, 2.4 mi. It rendered as `Pickup basketball · extra · 45 min · 2.4 mi` with a Remove control, and the week header gained `extra · 1 extra workout · 45 min · 2.4 mi — not counted in the totals above`.
+- **The engine's prescribed totals did not move**: cardio 300 min, mileage 12.5 mi, strength 180 min, total 480 min — identical before and after. That is the whole point of storing extras outside the blob, and it holds.
+- Remove worked; the entry and the header line both disappeared. Test data cleaned up — the program is back to its pre-test state.
+
+### Bug found and fixed: the day didn't update until a manual reload
+
+Saving an extra called `revalidatePath` server-side, which invalidates the cache but does not by itself cause the client to re-render a server component. The athlete saved a workout and watched nothing happen.
+
+Every other mutation in this codebase goes through `usePostAction`, which ends in `router.refresh()`. `extra-workout.tsx` now follows the same protocol: `useRouter()` + `router.refresh()` after a successful add (both paths — manual and synced-activity) and after a delete. `revalidatePath` stays on the server side; the two work together, the refresh re-fetches what the revalidation invalidated.
+
+Re-verified after the fix: `tsc --noEmit` exit 0, `next build` exit 0, `vitest run` 78 files / 760 tests passing.
+
+### Not yet verified
+
+Recalculate-survival. Extras are stored outside `program_data.weeks`, so they should be untouched by a regeneration, but that has not been exercised against the live app — recalculating burns a generation and rewrites the program, so it was left as a deliberate check rather than run unasked. Worth doing once: add an extra, hit Recalculate, confirm it is still there.
