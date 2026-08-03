@@ -2,6 +2,9 @@ import type { ProgramWeek, Session, WorkoutLog } from "@/lib/schemas";
 import { computeWeekSignals } from "@/lib/engine/adapt";
 import LogSession from "./log-session";
 import SessionLink from "./session-link";
+import { AddExtraWorkout, ExtraWorkoutList } from "@/components/program/extra-workout";
+import { extraSummaryLabel, extrasForDay, extrasForWeek } from "@/lib/extra-workouts";
+import type { ExtraWorkout } from "@/lib/schemas";
 import ResultCardLauncher from "./result-card-launcher";
 import CoachSessionEdit from "./coach-session-edit";
 import { sessionCardFromLog } from "./session-card-data";
@@ -121,6 +124,8 @@ export interface WeekLogging {
   linkableActivities?: SyncActivitySummary[];
   /** Synced activity linked to each session, keyed `${week}:${day}:${index}`. */
   linkedBySession?: Record<string, SyncActivitySummary>;
+  /** Unplanned workouts the athlete recorded on top of the plan. */
+  extras?: ExtraWorkout[];
 }
 
 function logFor(
@@ -251,6 +256,21 @@ function MobileDayList({
                 </div>
               );
             })}
+            {logging && (
+              <ExtraWorkoutList
+                programId={logging.programId}
+                extras={extrasForDay(logging.extras ?? [], week.weekNumber, dayKey)}
+                frozen={logging.frozen}
+              />
+            )}
+            {logging && !logging.frozen && (
+              <AddExtraWorkout
+                programId={logging.programId}
+                weekNumber={week.weekNumber}
+                day={dayKey}
+                activities={logging.linkableActivities ?? []}
+              />
+            )}
           </li>
         );
       })}
@@ -281,6 +301,7 @@ export default function WeekCard({
   const hasLogs = (logging?.logs.length ?? 0) > 0;
   const actuals = hasLogs && logging ? computeWeekSignals(week, logging.logs) : null;
   const time = weekTimeByCategory(week);
+  const weekExtrasLabel = extraSummaryLabel(extrasForWeek(logging?.extras ?? [], week.weekNumber));
 
   return (
     <section
@@ -352,6 +373,16 @@ export default function WeekCard({
           </div>
           <ZoneBars week={week} />
         </div>
+
+        {/* Off-plan work, reported alongside the prescribed volume rather than folded into it. */}
+        {weekExtrasLabel && (
+          <p className="text-xs text-zinc-500">
+            <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">
+              extra
+            </span>{" "}
+            {weekExtrasLabel} — not counted in the totals above
+          </p>
+        )}
       </div>
 
       {/* Mobile: stacked per-day list (no horizontal scroll) */}
@@ -385,6 +416,10 @@ export default function WeekCard({
             {DAY_ORDER.map((dayKey) => {
               const sessions = byDay.get(dayKey) ?? [];
               const dateLabel = dayDateLabel(startDate, week.weekNumber, dayKey);
+              const dayExtras = extrasForDay(logging?.extras ?? [], week.weekNumber, dayKey);
+              // Extras get their own full-width row under the day's sessions, so the
+              // day cell has to span it too.
+              const extraRow = logging ? 1 : 0;
 
               if (sessions.length === 0) {
                 return (
@@ -393,7 +428,26 @@ export default function WeekCard({
                       <span className="font-medium">{DAY_LABEL[dayKey]}</span>
                       <span className="block text-xs text-zinc-400">{dateLabel}</span>
                     </td>
-                    <td className="px-3 py-3 text-zinc-400">Rest</td>
+                    <td className="px-3 py-3 align-top text-zinc-400">
+                      <span>Rest</span>
+                      {logging && (
+                        <div className="mt-2 flex flex-col gap-2">
+                          <ExtraWorkoutList
+                            programId={logging.programId}
+                            extras={dayExtras}
+                            frozen={logging.frozen}
+                          />
+                          {!logging.frozen && (
+                            <AddExtraWorkout
+                              programId={logging.programId}
+                              weekNumber={week.weekNumber}
+                              day={dayKey}
+                              activities={logging.linkableActivities ?? []}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-3 text-zinc-400">—</td>
                     <td className="px-3 py-3 text-zinc-400">—</td>
                     <td className="px-2 py-3 text-right text-zinc-400">—</td>
@@ -407,7 +461,7 @@ export default function WeekCard({
                 );
               }
 
-              return sessions.map((s, si) => {
+              const sessionRows = sessions.map((s, si) => {
                 const t = sessionTiming(s);
                 const isRace = s.kind === "race";
                 const log = logFor(logging, dayKey, si);
@@ -418,7 +472,7 @@ export default function WeekCard({
                   >
                     {si === 0 && (
                       <td
-                        rowSpan={sessions.length}
+                        rowSpan={sessions.length + extraRow}
                         className="whitespace-nowrap px-4 py-3 align-top"
                       >
                         <span className="font-medium">{DAY_LABEL[dayKey]}</span>
@@ -497,6 +551,32 @@ export default function WeekCard({
                   </tr>
                 );
               });
+
+              if (!logging) return sessionRows;
+              // One row per day for anything the plan didn't ask for, plus the way in.
+              return [
+                ...sessionRows,
+                <tr key={`${dayKey}-extras`}>
+                  <td colSpan={8} className="px-3 pb-3 align-top">
+                    <div className="flex flex-col gap-2">
+                      <ExtraWorkoutList
+                        programId={logging.programId}
+                        extras={dayExtras}
+                        frozen={logging.frozen}
+                      />
+                      {!logging.frozen && (
+                        <AddExtraWorkout
+                          programId={logging.programId}
+                          weekNumber={week.weekNumber}
+                          day={dayKey}
+                          activities={logging.linkableActivities ?? []}
+                          compact={dayExtras.length === 0}
+                        />
+                      )}
+                    </div>
+                  </td>
+                </tr>,
+              ];
             })}
           </tbody>
         </table>

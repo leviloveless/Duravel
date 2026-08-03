@@ -93,6 +93,38 @@ export async function getProgramLogs(programId: string): Promise<WorkoutLogRow[]
   return (data as WorkoutLogRow[] | null) ?? [];
 }
 
+/** Row shape from `extra_workouts` (supabase/migrations/0038). */
+export type ExtraWorkoutRow = {
+  id: string;
+  program_id: string;
+  week_number: number;
+  day: string;
+  kind: "run" | "lift" | "hybrid" | "cardio" | "other";
+  title: string | null;
+  duration_min: number | null;
+  distance_miles: number | string | null;
+  avg_hr: number | null;
+  goal_zone: number | null;
+  rpe: number | null;
+  note: string | null;
+  activity_id: string | null;
+  created_at: string;
+};
+
+/**
+ * Every unplanned workout the athlete added to this program, oldest first so a
+ * day's extras render in the order they were logged. Read-own via RLS.
+ */
+export async function getProgramExtras(programId: string): Promise<ExtraWorkoutRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("extra_workouts")
+    .select("id, program_id, week_number, day, kind, title, duration_min, distance_miles, avg_hr, goal_zone, rpe, note, activity_id, created_at")
+    .eq("program_id", programId)
+    .order("created_at", { ascending: true });
+  return (data as ExtraWorkoutRow[] | null) ?? [];
+}
+
 /** Row shape from `adaptations` (Phase 2 — supabase/migrations/0006). */
 export type AdaptationRow = {
   id: string;

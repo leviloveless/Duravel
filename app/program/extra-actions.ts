@@ -1,0 +1,125 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { ExtraWorkoutInputSchema } from "@/lib/schemas";
+
+const METERS_PER_MILE = 1609.344;
+
+export type ExtraResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Record a workout the program did NOT plan — on a rest day, or as an extra
+ * session on a day that already has one.
+ *
+ * Deliberately separate from `workout_logs`: those are keyed on a planned
+ * session's position and the logs API rejects a position with no session behind
+ * it, which is exactly why unplanned work had nowhere to go. Extras also stay
+ * out of the program blob so the weekly summary keeps equalling the engine's
+ * prescribed volume, and so Recalculate — which replaces program_data.weeks —
+ * doesn't wipe them.
+ */
+export async function addExtraWorkout(input: unknown): Promise<ExtraResult> {
+  const parsed = ExtraWorkoutInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid workout" };
+  }
+  const v = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  // Ownership: RLS would block a foreign program anyway, but fail clearly here.
+  const { data: program } = await supabase
+    .from("programs")
+    .select("id, user_id")
+    .eq("id", v.programId)
+    .maybeSingle();
+  if (!program || program.user_id !== user.id) return { ok: false, error: "Program not found" };
+
+  const { error } = await supabase.from("extra_workouts").insert({
+    user_id: user.id,
+    program_id: v.programId,
+    week_number: v.weekNumber,
+    day: v.day,
+    kind: v.kind,
+    title: v.title ?? null,
+    duration_min: v.durationMin ?? null,
+    distance_miles: v.distanceMiles ?? null,
+    avg_hr: v.avgHr ?? null,
+    goal_zone: v.goalZone ?? null,
+    rpe: v.rpe ?? null,
+    note: v.note ?? null,
+    activity_id: v.activityId ?? null,
+  });
+  if (error) {
+    // The (program_id, activity_id) unique index — same synced activity twice.
+    if (error.code === "23505") return { ok: false, error: "That synced workout is already added." };
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/program/${v.programId}`);
+  return { ok: true };
+}
+
+/**
+ * Add an already-synced wearable activity as an extra workout, carrying its
+ * duration / distance / HR across so the athlete doesn't retype them.
+ */
+export async function addExtraFromActivity(
+  programId: string,
+  weekNumber: number,
+  day: string,
+  activityId: string,
+): Promise<ExtraResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  const { data: activity } = await supabase
+    .from("wearable_activities")
+    .select("id, user_id, type, duration_s, distance_m, avg_hr")
+    .eq("id", activityId)
+    .maybeSingle();
+  if (!activity || activity.user_id !== user.id) return { ok: false, error: "Workout not found" };
+
+  const distanceM = Number(activity.distance_m ?? 0);
+  const durationS = Number(activity.duration_s ?? 0);
+
+  return addExtraWorkout({
+    programId,
+    weekNumber,
+    day,
+    kind: kindFromActivityType(activity.type),
+    title: activity.type ? String(activity.type) : undefined,
+    durationMin: durationS > 0 ? Math.max(1, Math.round(durationS / 60)) : undefined,
+    distanceMiles: distanceM > 0 ? Math.round((distanceM / METERS_PER_MILE) * 10) / 10 : undefined,
+    avgHr: activity.avg_hr ? Math.round(Number(activity.avg_hr)) : undefined,
+    activityId,
+  });
+}
+
+/** Remove an extra workout. RLS scopes the delete to the owner. */
+export async function deleteExtraWorkout(programId: string, id: string): Promise<ExtraResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("extra_workouts").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/program/${programId}`);
+  return { ok: true };
+}
+
+/** Map a provider's activity type onto one of our extra-workout kinds. */
+function kindFromActivityType(type: unknown): "run" | "lift" | "hybrid" | "cardio" | "other" {
+  const t = String(type ?? "").toLowerCase();
+  if (t.includes("run")) return "run";
+  if (t.includes("weight") || t.includes("strength")) return "lift";
+  if (t.includes("crossfit") || t.includes("hiit") || t.includes("workout")) return "hybrid";
+  if (t.includes("ride") || t.includes("bike") || t.includes("row") || t.includes("swim") || t.includes("elliptical"))
+    return "cardio";
+  return "other";
+}

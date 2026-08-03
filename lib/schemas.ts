@@ -459,6 +459,41 @@ export type AiDay = z.infer<typeof AiDaySchema>;
 export type AiWeek = z.infer<typeof AiWeekSchema>;
 export type AiChunk = z.infer<typeof AiChunkSchema>;
 
+// --- Extra (unplanned) workouts ---
+//
+// A workout the athlete did that the engine did NOT plan — on a rest day, or as
+// an additional session. These are stored in their own table, NOT in the program
+// blob, for two reasons: the weekly summary is guaranteed to equal the engine's
+// prescribed volume (lib/generation/reconcile.ts), and Recalculate replaces
+// program_data.weeks wholesale. Extras are reported alongside the week instead.
+
+export const ExtraWorkoutKind = z.enum(["run", "lift", "hybrid", "cardio", "other"]);
+export type ExtraWorkoutKindName = z.infer<typeof ExtraWorkoutKind>;
+
+/** One stored extra workout, as the program view reads it. */
+export const ExtraWorkoutSchema = z.object({
+  id: z.string().min(1),
+  weekNumber: z.number().int().min(1).max(24),
+  day: TrainingDay,
+  kind: ExtraWorkoutKind,
+  title: z.string().max(80).optional(),
+  durationMin: z.number().int().positive().max(600).optional(),
+  distanceMiles: z.number().nonnegative().max(100).optional(),
+  avgHr: z.number().int().min(40).max(230).optional(),
+  goalZone: z.number().int().min(1).max(5).optional(),
+  rpe: z.number().int().min(1).max(10).optional(),
+  note: z.string().max(280).optional(),
+  /** Set when the athlete attached an already-synced wearable activity. */
+  activityId: z.string().optional(),
+});
+export type ExtraWorkout = z.infer<typeof ExtraWorkoutSchema>;
+
+/** What the "add an extra workout" form submits. */
+export const ExtraWorkoutInputSchema = ExtraWorkoutSchema.omit({ id: true }).extend({
+  programId: z.string().min(1),
+});
+export type ExtraWorkoutInput = z.infer<typeof ExtraWorkoutInputSchema>;
+
 // --- Workout logs (Phase 2 — phase2-spec.md §3a) ---
 
 export const LogStatus = z.enum(["completed", "partial", "skipped"]);

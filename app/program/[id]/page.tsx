@@ -3,8 +3,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdmin } from "@/lib/admin";
 import type { ProgramData, WorkoutLog } from "@/lib/schemas";
-import { getProgramAdaptations, getProgramLogs, getProgramReadiness, getDailyMetrics } from "@/lib/supabase/queries";
+import {
+  getProgramAdaptations,
+  getProgramExtras,
+  getProgramLogs,
+  getProgramReadiness,
+  getDailyMetrics,
+} from "@/lib/supabase/queries";
 import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
+import { extrasFromRows } from "@/lib/extra-workouts";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
 import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
@@ -223,14 +230,16 @@ export default async function ProgramPage({
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
-    const [logRows, adaptations, readinessRows, syncData, dailyMetrics, entitlement] = await Promise.all([
-      getProgramLogs(program.id),
-      getProgramAdaptations(program.id),
-      getProgramReadiness(program.id),
-      getProgramSyncData(program.id),
-      getDailyMetrics(),
-      getEntitlement(),
-    ]);
+    const [logRows, adaptations, readinessRows, syncData, dailyMetrics, entitlement, extraRows] =
+      await Promise.all([
+        getProgramLogs(program.id),
+        getProgramAdaptations(program.id),
+        getProgramReadiness(program.id),
+        getProgramSyncData(program.id),
+        getDailyMetrics(),
+        getEntitlement(),
+        getProgramExtras(program.id),
+      ]);
 
     // #18: unsubscribed users (trial ended, no live sub) preview only the first
     // couple weeks. Truncate server-side so locked weeks never reach the client.
@@ -333,6 +342,7 @@ export default async function ProgramPage({
       // Locked-preview users can't act on hidden weeks → no review banner.
       reviewWeek: gate.previewing ? null : reviewWeek,
       recoveryByWeek: weeklyRecoveryAverages(dailyMetrics, program.start_date, program.duration_weeks),
+      extras: extrasFromRows(extraRows),
     };
 
     const readinessWeek = Math.min(

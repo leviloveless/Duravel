@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ProgramData, WorkoutLog } from "@/lib/schemas";
+import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import type { ZoneBands } from "./format";
 import type { SyncSuggestion, SyncActivitySummary } from "@/lib/wearables/suggest-data";
 import PhaseTimeline from "./phase-timeline";
@@ -37,6 +37,8 @@ export interface ProgramActivity {
   reviewWeek: number | null;
   /** Weekly average resting HR + HRV by week number (Tasks addition #7). */
   recoveryByWeek?: Map<number, WeekRecovery>;
+  /** Workouts the athlete did that the program never planned. */
+  extras?: ExtraWorkout[];
 }
 
 const PROGRAM_TYPE_LABEL: Record<string, string> = {
@@ -166,6 +168,7 @@ export default function ProgramView({
                     adapted: activity.adaptedWeeks.includes(w.weekNumber),
                     linkableActivities: linking?.linkableActivities ?? [],
                     linkedBySession: linking?.linkedBySession ?? {},
+                    extras: activity.extras ?? [],
                   }
                 : undefined
             }
