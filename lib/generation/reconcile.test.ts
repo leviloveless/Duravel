@@ -217,6 +217,16 @@ describe("cardio filler spreads across the week instead of bunching at the weeke
     expect(weekCardioMinutes({ days } as never)).toBe(300);
   });
 
+  it("fills a day the engine merely left empty — that is not a rest day", () => {
+    // The distinction that matters: `assignDays` appends a `rest` slot to ANY day
+    // that ends up with no sessions, so reading rest days back off the skeleton
+    // treated an incidentally-empty day as sacred and guaranteed it stayed empty
+    // while other days doubled up. Only a real preference blocks filler.
+    const days = build();
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place); // no avoidDays
+    expect(dayOf(days, "mon").sessions.length).toBeGreaterThan(0);
+  });
+
   it("keeps a preferred rest day clear of filler", () => {
     const days = build();
     reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, { ...place, avoidDays: ["mon"] });

@@ -10390,6 +10390,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -11479,6 +11480,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -12634,6 +12636,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -13892,6 +13895,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -15216,6 +15220,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -16570,6 +16575,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -17659,6 +17665,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -18814,6 +18821,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -20072,6 +20080,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -21396,6 +21405,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {

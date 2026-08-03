@@ -1254,8 +1254,14 @@ export default function OnboardingForm({
                   disabledKeys={longRunDays}
                 />
                 <span className="text-xs text-zinc-500">
-                  Rest days are kept clear when your schedule leaves room. Days you picked for your
-                  long run can&apos;t also be rest days.
+                  Only pick a day here if you genuinely can&apos;t train it, or know you don&apos;t
+                  want to. A rest day is held clear all the way through the plan, so every one you
+                  set is a day the program can&apos;t use — the more days it has to work with, the
+                  better it can space your hard sessions and spread your cardio across the week.
+                  Leave this empty and recovery days still get built in where they belong.
+                </span>
+                <span className="text-xs text-zinc-500">
+                  Days you picked for your long run can&apos;t also be rest days.
                 </span>
               </div>
               <div className="flex flex-col gap-1">

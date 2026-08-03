@@ -206,6 +206,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
     allocation: alloc,
     weeks,
     needs: input.needs,
+    restDays: input.restDays,
   };
 }
 
@@ -354,7 +355,14 @@ function buildRotationSkeleton(input: EngineInput, cfg: SportConfig, counts: Ses
   const alloc = { base: 0, build: 0, peak: 0, taper: 0 };
   for (const w of weeks) alloc[w.phase] += 1;
 
-  return { durationWeeks: D, trainingClass: input.trainingClass, allocation: alloc, weeks, needs: input.needs };
+  return {
+    durationWeeks: D,
+    trainingClass: input.trainingClass,
+    allocation: alloc,
+    weeks,
+    needs: input.needs,
+    restDays: input.restDays,
+  };
 }
 
 // --- Adapter: GenerationInput (spec section 2 shape) -> EngineInput (week-space) ---

@@ -23,7 +23,7 @@ import {
   type ProgramWeek,
   type Session,
 } from "@/lib/schemas";
-import type { ExperienceLevel, ProgramSkeleton, WeekSkeleton } from "@/lib/engine/types";
+import type { ExperienceLevel, ProgramSkeleton, TrainingDayName, WeekSkeleton } from "@/lib/engine/types";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
@@ -280,6 +280,7 @@ function buildWeek(
   division: Division = "open",
   sex: StationSex = "male",
   catalog: StationCatalog = HYROX_CATALOG,
+  restDays?: TrainingDayName[],
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -301,12 +302,17 @@ function buildWeek(
   // session, 90-min run cap) and a non-running Zone 1–2 cardio block absorbs the
   // remaining cardio time. The summary is then read back from the reconciled
   // sessions, so the header can never disagree with the workouts.
-  // Tell the reconciler where its filler may go: never onto a day the engine left
-  // as rest (otherwise a designated rest day collects the surplus cardio and ends
-  // up the biggest day of the week), and prefer the weekend for the rest.
-  const restDayKeys = skel.days
-    .filter((d) => d.sessions.length > 0 && d.sessions.every((x) => x.kind === "rest"))
-    .map((d) => d.day);
+  // Tell the reconciler where its filler may go: never onto a day the ATHLETE
+  // asked to keep clear (otherwise a designated rest day collects the surplus
+  // cardio and ends up the biggest day of the week), and prefer the weekend for
+  // the rest.
+  //
+  // This used to read the rest slots back off the skeleton. That conflated two
+  // very different things: `assignDays` appends a `rest` slot to any day that ends
+  // up empty, so a day the engine merely failed to use was treated as sacred and
+  // the reconciler refused to put anything there — guaranteeing it stayed empty
+  // while other days doubled up. Only a real preference should block filler.
+  const restDayKeys = restDays ?? [];
   reconcileWeekVolume(
     days,
     skel.targetMileage,
@@ -521,6 +527,7 @@ export function assembleProgram(
       division,
       sex,
       catalog,
+      skeleton.restDays,
     );
     const patched = patchMovementPatterns(week);
     if (patched.length)

@@ -10,6 +10,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
   },
   "durationWeeks": 14,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -1146,6 +1147,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
   },
   "durationWeeks": 16,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -2460,6 +2462,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
   },
   "durationWeeks": 12,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {
@@ -3371,6 +3374,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
   },
   "durationWeeks": 20,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "highly_trained",
   "weeks": [
     {
@@ -5190,6 +5194,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
   },
   "durationWeeks": 18,
   "needs": undefined,
+  "restDays": undefined,
   "trainingClass": "highly_trained",
   "weeks": [
     {
@@ -6696,6 +6701,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
     ],
     "summary": "Primary limiter: erg / non-running cardio. Program biased to address this.",
   },
+  "restDays": undefined,
   "trainingClass": "non_highly_trained",
   "weeks": [
     {

@@ -197,6 +197,14 @@ export interface ProgramSkeleton {
   trainingClass: TrainingClassName;
   allocation: MesocycleAllocation;
   weeks: WeekSkeleton[];
+  /**
+   * Days the ATHLETE asked to keep clear. Distinct from a day that merely ended
+   * up with no sessions — `assignDays` appends a `rest` slot to any empty day, so
+   * the two are indistinguishable downstream unless the real preference is carried
+   * through. The generation stage needs the difference: filler must never land on
+   * a chosen rest day, but an incidentally-empty day is exactly where it should go.
+   */
+  restDays?: TrainingDayName[];
   /** Needs analysis behind this program's biasing, for UI / audit (Review #1). */
   needs?: NeedsAnalysis;
 }
