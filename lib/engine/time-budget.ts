@@ -112,12 +112,66 @@ export function bandTriHours(band: WeeklyHoursBand): [number, number] {
  * surplus hybrids), so the long run + quality anchors (threshold / VO2) and the
  * research lift dose are preserved. Higher budgets support more anchors.
  */
+/**
+ * Minimum TRAINING DAYS a band requires (Levi, 2026-08-04).
+ *
+ * The volume a band prescribes has to physically fit, and a week can hold at most
+ * `days x 2` sessions — two a day is absolute. Letting someone pick 20-30 hours
+ * across 3 days produced a week that dropped half its prescription on the floor
+ * and stacked five sessions on a Monday. The time budget and the day count are
+ * one decision, so the day count follows the budget.
+ */
+export const BAND_MIN_TRAINING_DAYS: Record<WeeklyHoursBand, number> = {
+  h0_5: 4,
+  h5_10: 5,
+  h10_20: 7,
+  h20_30: 7,
+  h30_40: 7,
+};
+
+export function bandMinTrainingDays(band: WeeklyHoursBand): number {
+  return BAND_MIN_TRAINING_DAYS[band];
+}
+
+/**
+ * The band's own upper bound, as total weekly TRAINING MINUTES (Levi,
+ * 2026-08-04). The progression must never prescribe more than the athlete said
+ * they had.
+ *
+ * It used to. `h20_30` peaked at 32 hours and `h30_40` at **46** — an athlete who
+ * selected "30-40 hours" was being handed 46. Cardio is clamped to
+ * `bandMax - liftMinutes`, so the whole week (lifts included) stays inside the
+ * budget the athlete actually chose.
+ */
+export const BAND_MAX_WEEKLY_MINUTES: Record<WeeklyHoursBand, number> = {
+  h0_5: 5 * 60,
+  h5_10: 10 * 60,
+  h10_20: 20 * 60,
+  h20_30: 30 * 60,
+  h30_40: 40 * 60,
+};
+
+export function bandMaxWeeklyMinutes(band: WeeklyHoursBand): number {
+  return BAND_MAX_WEEKLY_MINUTES[band];
+}
+
+/**
+ * TOTAL weekly non-cardio sessions (runs + lifts + hybrids) the band budgets for.
+ *
+ * This is also, implicitly, how many of the week's `days x 2` slots are LEFT for
+ * Zone 1-2 blocks — and that is what makes a high-volume week deliverable. At
+ * 20-30 h the old budget of 10 left only 3 cardio slots on a 7-day week, so 441
+ * of 1560 prescribed minutes had nowhere to go. Dropping to 8 frees two more
+ * slots; the same mileage then rides on fewer, LONGER runs and the aerobic volume
+ * lands in long Zone 1-2 blocks, which is what a 20+ hour endurance week is
+ * actually made of (Levi, 2026-08-04 — "build out the longer sessions").
+ */
 export const BAND_SESSION_CAP: Record<WeeklyHoursBand, number> = {
   h0_5: 5,
   h5_10: 6,
   h10_20: 8,
-  h20_30: 10,
-  h30_40: 12,
+  h20_30: 8,
+  h30_40: 8,
 };
 
 /**

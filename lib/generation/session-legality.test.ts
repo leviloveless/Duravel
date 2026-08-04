@@ -19,17 +19,14 @@ import type { GenerationInput, WeeklyHoursBand } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
 import { sessionTiming } from "@/lib/session-volume";
+import { bandMinTrainingDays, bandMaxWeeklyMinutes } from "@/lib/engine/time-budget";
 
 const START = "2026-08-10";
 
-/** Levi's rule: 0-5 h needs 3 days, 5-10 h needs 5, 10+ h needs 7. */
-const REQUIRED_DAYS: Record<WeeklyHoursBand, string[]> = {
-  h0_5: ["mon", "wed", "fri"],
-  h5_10: ["mon", "tue", "wed", "thu", "fri"],
-  h10_20: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-  h20_30: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-  h30_40: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-};
+/** Levi's rule (2026-08-04): 0-5 h needs 4 days, 5-10 h needs 5, 10+ h needs 7. */
+const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const REQUIRED_DAYS = (band: WeeklyHoursBand): string[] =>
+  WEEK.slice(0, bandMinTrainingDays(band));
 
 function gen(exp: "beginner" | "intermediate" | "advanced", band: WeeklyHoursBand) {
   return {
@@ -42,7 +39,7 @@ function gen(exp: "beginner" | "intermediate" | "advanced", band: WeeklyHoursBan
       hybridExp: exp,
       liftingExp: exp,
       trainingClass: "highly_trained",
-      trainingDays: REQUIRED_DAYS[band],
+      trainingDays: REQUIRED_DAYS(band),
       sex: "male",
       weeklyHours: band,
       benchmarks: { fiveKTime: "22:00", tenKTime: "46:00", ski2kTime: "7:30", row2kTime: "7:20" },
@@ -113,5 +110,47 @@ describe("every generated session is legal, at every weekly-hours band", () => {
     // Strictly increasing with the band — that is the whole mechanism.
     expect(longest("h30_40")).toBeGreaterThan(longest("h10_20"));
     expect(longest("h20_30")).toBeGreaterThan(longest("h5_10"));
+  });
+});
+
+// --- the band's own hours are a hard ceiling ---------------------------------
+
+describe("no week exceeds the time budget the athlete selected", () => {
+  it("keeps total weekly training inside the band, lifts included", () => {
+    // The progression is driven by experience + training class + week number and
+    // never checked itself against the budget: h20_30 peaked at 32 h and h30_40 at
+    // 46 h. An athlete who chose "30-40 hours" was handed 46.
+    for (const band of BANDS) {
+      for (const exp of LEVELS) {
+        const skeleton = buildSkeleton(toEngineInput(gen(exp, band), START));
+        const { program } = assembleProgram(skeleton, [], exp, {
+          fiveKTime: "22:00",
+          tenKTime: "46:00",
+        });
+        for (const w of program.weeks) {
+          const total = w.days
+            .flatMap((d) => d.sessions)
+            .reduce((n, s) => n + sessionTiming(s).total, 0);
+          expect(total, `${band}/${exp} wk${w.weekNumber}`).toBeLessThanOrEqual(
+            bandMaxWeeklyMinutes(band),
+          );
+        }
+      }
+    }
+  });
+
+  it("requires more training days as the budget grows", () => {
+    expect(bandMinTrainingDays("h0_5")).toBe(4);
+    expect(bandMinTrainingDays("h5_10")).toBe(5);
+    expect(bandMinTrainingDays("h10_20")).toBe(7);
+    expect(bandMinTrainingDays("h20_30")).toBe(7);
+    expect(bandMinTrainingDays("h30_40")).toBe(7);
+    // Never decreasing — a bigger budget can never need fewer days.
+    let prev = 0;
+    for (const band of BANDS) {
+      const d = bandMinTrainingDays(band);
+      expect(d).toBeGreaterThanOrEqual(prev);
+      prev = d;
+    }
   });
 });

@@ -33,6 +33,8 @@ import {
 } from "./slots";
 import { spreadFullLiftTypes } from "./sequencing";
 import { trainingCaps } from "./caps";
+import { STRENGTH_SESSION_MIN } from "@/lib/session-volume";
+import type { WeeklyHoursBand } from "@/lib/schemas";
 import { getSport, type SportConfig } from "./sports";
 import {
   applyBandZoneShift,
@@ -40,6 +42,7 @@ import {
   bandStartMileage,
   bandStartCardioMinutes,
   bandSessionCap,
+  bandMaxWeeklyMinutes,
   bandAnchorRunFloor,
   runImpactFactor,
 } from "./time-budget";
@@ -223,6 +226,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   // After a B race, open the following week with a full rest day then two
   // easy days (48–72h recovery) before resuming normal training.
   applyPostBRaceRecovery(weeks, input.races);
+  clampCardioToBand(weeks, input.weeklyHours);
 
   return {
     durationWeeks: D,
@@ -233,6 +237,30 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
     restDays: input.restDays,
     caps: input.caps,
   };
+}
+
+/**
+ * Hold every week inside the band's own hours (Levi, 2026-08-04).
+ *
+ * The volume progression is driven by experience, training class and week number,
+ * and never checked itself against the budget the athlete selected. `h20_30`
+ * peaked at 32 hours and `h30_40` at 46 — a "30-40 hours" athlete was prescribed
+ * 46. Lifts are part of the athlete's time too, so the cardio target is clamped to
+ * `bandMax - liftMinutes` and the whole week stays inside the budget.
+ *
+ * Only ever REDUCES a target. Weeks already inside their band are untouched, so
+ * the no-band (legacy) path is completely unaffected.
+ */
+function clampCardioToBand(weeks: WeekSkeleton[], band: WeeklyHoursBand | undefined): void {
+  if (!band) return;
+  const budget = bandMaxWeeklyMinutes(band);
+  for (const w of weeks) {
+    const liftMinutes =
+      w.days.reduce((n, d) => n + d.sessions.filter((s) => s.kind === "lift").length, 0) *
+      STRENGTH_SESSION_MIN;
+    const ceiling = Math.max(0, budget - liftMinutes);
+    if (w.targetCardioMinutes > ceiling) w.targetCardioMinutes = ceiling;
+  }
 }
 
 /** Non-rest workouts on a day. */
@@ -397,6 +425,8 @@ function buildRotationSkeleton(
   // Allocation is informational for general fitness — report block-phase counts.
   const alloc = { base: 0, build: 0, peak: 0, taper: 0 };
   for (const w of weeks) alloc[w.phase] += 1;
+
+  clampCardioToBand(weeks, input.weeklyHours);
 
   return {
     durationWeeks: D,

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/schemas";
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
+import { bandMinTrainingDays } from "@/lib/engine/time-budget";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -185,6 +186,18 @@ function parseGenerationInput(
   // still parse on recalc and the golden-HYROX path is unaffected.
   if (!input.profile.weeklyHours) {
     return { error: "Select how much time you can train each week." };
+  }
+
+  // The time budget dictates a MINIMUM number of training days (Levi,
+  // 2026-08-04). Two sessions a day is an absolute engine rule, so a week holds
+  // at most `days x 2` sessions — a 20-30 hour budget spread over 3 days cannot
+  // be delivered, and the engine used to resolve that by silently dropping half
+  // the prescription and stacking five sessions on one day.
+  const minDays = bandMinTrainingDays(input.profile.weeklyHours);
+  if ((input.profile.trainingDays?.length ?? 0) < minDays) {
+    return {
+      error: `That weekly time budget needs at least ${minDays} training days. Add more days, or choose a smaller time budget.`,
+    };
   }
 
   // Only HYROX and DEKA Fit require a 5K (their run prescriptions are paced off

@@ -4,6 +4,8 @@ import { startTransition, useActionState, useRef, useState, type KeyboardEvent }
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
+import { bandMinTrainingDays } from "@/lib/engine/time-budget";
+import type { WeeklyHoursBand } from "@/lib/schemas";
 
 const initialState: OnboardingState = { error: null };
 
@@ -669,6 +671,15 @@ export default function OnboardingForm({
     if (current === 2) {
       if (days.length < 3) return "Pick at least 3 training days.";
       if (!weeklyHours) return "Select how much time you can train each week.";
+      // The time budget and the day count are one decision: a week holds at most
+      // two sessions a day, so a big budget across too few days cannot physically
+      // be delivered. See BAND_MIN_TRAINING_DAYS.
+      const minDays = bandMinTrainingDays(weeklyHours as WeeklyHoursBand);
+      if (days.length < minDays) {
+        const label =
+          BUDGET_BANDS.find((b) => b.value === weeklyHours)?.label ?? "that time budget";
+        return `${label} needs at least ${minDays} training days — training that much in fewer days doesn't fit. Add ${minDays - days.length} more day${minDays - days.length === 1 ? "" : "s"}, or pick a smaller time budget.`;
+      }
       if (showRaces && programType === "goal_event") {
         if (races.length === 0 || races.some((r) => !r.date)) return "Add a date for each race.";
         if (!races.some((r) => r.priority === "A")) return "Mark your main race as an A race.";
