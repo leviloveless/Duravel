@@ -183,13 +183,17 @@ async function loadForAdaptation(
   };
 }
 
-function decide(loaded: LoadedProgram, weekNumber: number): { signals: WeekSignals; decision: AdaptDecision } {
+function decide(
+  loaded: LoadedProgram,
+  weekNumber: number,
+): { signals: WeekSignals; decision: AdaptDecision } {
   const signals = computeWeekSignals(loaded.reviewedWeek, loaded.logs);
   const reviewedSkeleton = loaded.skeleton.weeks.find((w) => w.weekNumber === weekNumber);
   // ACWR + monotony across the loaded window (Review #5).
   const load = computeLoadMetrics(loaded.programData.weeks, loaded.allLogs, weekNumber);
   // Forward readiness (Review #7): the reviewed week's check-in vs personal baseline.
-  const currentReadiness = loaded.readinessCheckins.find((c) => c.weekNumber === weekNumber) ?? null;
+  const currentReadiness =
+    loaded.readinessCheckins.find((c) => c.weekNumber === weekNumber) ?? null;
   const priorReadiness = loaded.readinessCheckins.filter((c) => c.weekNumber < weekNumber);
   const readiness = currentReadiness ? computeReadiness(currentReadiness, priorReadiness) : null;
   const ctx: AdaptContext = {
@@ -337,10 +341,15 @@ export async function applyAdaptation(
       const anchors = triAnchorsFromBenchmarks(loaded.input.profile.benchmarks);
       const { skeletonWeek, programWeek } = rebuildTriWeek(revisedWeek, engineInput, cfg, anchors);
       programWeek.raceDay = loaded.nextWeekSkeleton.raceDay
-        ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
+        ? {
+            priority: loaded.nextWeekSkeleton.raceDay.priority,
+            date: loaded.nextWeekSkeleton.raceDay.date,
+          }
         : undefined;
 
-      const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? programWeek : w));
+      const weeks = loaded.programData.weeks.map((w) =>
+        w.weekNumber === targetWeek ? programWeek : w,
+      );
       const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
         w.weekNumber === targetWeek ? skeletonWeek : w,
       );
@@ -387,16 +396,22 @@ export async function applyAdaptation(
         a.division,
         a.sex,
         a.catalog,
+        a.liftingExp,
       );
       const newWeek = miniProgram.weeks[0];
       if (!newWeek) throw new Error("Refill produced no week");
       // Keep the race-day marker if the original target week had one (it shouldn't —
       // rule 1 — but never lose a race on a data edge case).
       newWeek.raceDay = loaded.nextWeekSkeleton.raceDay
-        ? { priority: loaded.nextWeekSkeleton.raceDay.priority, date: loaded.nextWeekSkeleton.raceDay.date }
+        ? {
+            priority: loaded.nextWeekSkeleton.raceDay.priority,
+            date: loaded.nextWeekSkeleton.raceDay.date,
+          }
         : undefined;
 
-      const weeks = loaded.programData.weeks.map((w) => (w.weekNumber === targetWeek ? newWeek : w));
+      const weeks = loaded.programData.weeks.map((w) =>
+        w.weekNumber === targetWeek ? newWeek : w,
+      );
       const skeletonWeeks = loaded.skeleton.weeks.map((w) =>
         w.weekNumber === targetWeek ? revisedWeek : w,
       );

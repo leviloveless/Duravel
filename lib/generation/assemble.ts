@@ -39,6 +39,8 @@ import {
   powerElementFor,
   suggestedWeight,
   pickExercise,
+  splitWeeklySets,
+  weeklySetTarget,
 } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
@@ -409,6 +411,8 @@ export interface StrengthBenchmarks {
  */
 export interface AssembleArgs {
   runningExp: ExperienceLevel;
+  /** Drives the WEEKLY working-set target per movement pattern (6/8/10). */
+  liftingExp: ExperienceLevel;
   raceTimes: RaceInput;
   benchmarks: StrengthBenchmarks;
   weightUnit: "lbs" | "kg";
@@ -423,6 +427,9 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
   const b = input.profile.benchmarks;
   return {
     runningExp: input.profile.runningExp,
+    // Weekly working sets per movement pattern come from LIFTING experience, not
+    // running experience — the two are routinely different for a hybrid athlete.
+    liftingExp: input.profile.liftingExp,
     // Best of mile / 5K / 10K → VDOT (Review #2), plus any athlete-entered pace
     // overrides — these must flow through so a manual pace drives the sized
     // mileage and not just the displayed pace.
@@ -457,38 +464,83 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
  * upper/lower, high-rep muscular endurance for the lunge, with load progressing
  * by microcycle and an RIR cue. Adds a plyometric element in Base/Build. Runs
  * AFTER pattern patching so injected movements are prescribed too. Deterministic.
+ *
+ * Two rules from Levi (2026-08-04) sit on top of the per-session schemes:
+ *   - WEEKLY working sets per movement pattern are set by LIFTING experience
+ *     (beginner 6 / intermediate 8 / advanced 10, scaled down on deload+taper),
+ *     split across the sessions that train that pattern. The week is the unit
+ *     that drives adaptation, so the week is what gets controlled.
+ *   - When a week carries more than one FULL-BODY lift, the LATER one runs LIGHT
+ *     (12–15 reps, submaximal): heavy first while fresh, and never two maximal
+ *     efforts in a week on top of the running.
  */
 export function applyStrengthSchemes(
   week: ProgramWeek,
   benchmarks?: StrengthBenchmarks,
   weightUnit: "lbs" | "kg" = "lbs",
+  liftingExp: ExperienceLevel = "intermediate",
 ): void {
-  let liftIndex = 0;
-  for (const day of week.days) {
-    for (const session of day.sessions) {
-      if (session.kind !== "lift") continue;
-      for (const m of session.movements) {
-        const scheme = movementScheme(m.pattern, session.liftType, week.phase, week.microWeek);
-        m.sets = scheme.sets;
-        m.repRange = scheme.repRange;
-        m.intensityPct = scheme.intensityPct;
-        m.rir = scheme.rir;
-        m.emphasis = scheme.emphasis;
-        m.suggestedWeight = suggestedWeight(scheme, m.pattern, benchmarks, weightUnit);
-        // Tasks #10: name a specific A/B exercise for the pattern, alternating by
-        // week so consecutive weeks don't repeat the identical lift (overuse).
-        m.exercise = pickExercise(m.pattern, week.weekNumber);
-      }
-      const power = powerElementFor(
-        week.phase,
-        week.microWeek,
-        liftIndex,
-        session.liftType === "power",
-      );
-      if (power) session.power = power;
-      else delete session.power;
-      liftIndex += 1;
+  // Calendar order — the light full-body day and the weekly set split both depend
+  // on which session comes first.
+  const liftSessions = week.days
+    .flatMap((d) => d.sessions)
+    .filter((s): s is Extract<Session, { kind: "lift" }> => s.kind === "lift");
+
+  const fullBody = liftSessions.filter((s) => s.liftType === "full");
+  const lightSession = fullBody.length >= 2 ? fullBody[fullBody.length - 1] : undefined;
+
+  liftSessions.forEach((session, liftIndex) => {
+    const light = session === lightSession;
+    for (const m of session.movements) {
+      const scheme = movementScheme(m.pattern, session.liftType, week.phase, week.microWeek, light);
+      m.sets = scheme.sets;
+      m.repRange = scheme.repRange;
+      m.intensityPct = scheme.intensityPct;
+      m.rir = scheme.rir;
+      m.emphasis = scheme.emphasis;
+      m.suggestedWeight = suggestedWeight(scheme, m.pattern, benchmarks, weightUnit);
+      // Tasks #10: name a specific A/B exercise for the pattern, alternating by
+      // week so consecutive weeks don't repeat the identical lift (overuse).
+      m.exercise = pickExercise(m.pattern, week.weekNumber);
     }
+    const power = powerElementFor(
+      week.phase,
+      week.microWeek,
+      liftIndex,
+      session.liftType === "power",
+    );
+    if (power) session.power = power;
+    else delete session.power;
+  });
+
+  applyWeeklySetVolume(liftSessions, liftingExp, week.microWeek);
+}
+
+/**
+ * Rewrite each movement's set count so the WEEKLY total per movement pattern hits
+ * the athlete's target, split across the sessions that train it (earlier =
+ * heavier = the extra set). Runs after the per-session schemes, which supply
+ * everything else about the prescription; only `sets` is touched here.
+ */
+function applyWeeklySetVolume(
+  liftSessions: Extract<Session, { kind: "lift" }>[],
+  liftingExp: ExperienceLevel,
+  microWeek: ProgramWeek["microWeek"],
+): void {
+  const target = weeklySetTarget(liftingExp, microWeek);
+  const byPattern = new Map<string, Extract<Session, { kind: "lift" }>["movements"]>();
+  for (const session of liftSessions) {
+    for (const m of session.movements) {
+      const list = byPattern.get(m.pattern);
+      if (list) list.push(m);
+      else byPattern.set(m.pattern, [m]);
+    }
+  }
+  for (const movements of byPattern.values()) {
+    const shares = splitWeeklySets(target, movements.length);
+    movements.forEach((m, i) => {
+      m.sets = shares[i] ?? m.sets;
+    });
   }
 }
 
@@ -531,6 +583,7 @@ export function assembleProgram(
   division: Division = "open",
   sex: StationSex = "male",
   catalog: StationCatalog = HYROX_CATALOG,
+  liftingExp: ExperienceLevel = "intermediate",
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
@@ -556,7 +609,7 @@ export function assembleProgram(
       issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
     // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
     // applied deterministically over whatever the AI returned.
-    applyStrengthSchemes(week, benchmarks, weightUnit);
+    applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp);
     // Review #6: progress hybrid station prescriptions toward race spec.
     applyStationProgression(week, division, sex, catalog);
     return week;

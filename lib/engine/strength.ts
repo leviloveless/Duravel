@@ -25,7 +25,7 @@
 
 import type { z } from "zod";
 import { MovementPattern, StrengthEmphasis as StrengthEmphasisEnum } from "@/lib/schemas";
-import type { MicroWeekType, PhaseName } from "./types";
+import type { ExperienceLevel, MicroWeekType, PhaseName } from "./types";
 import { clamp, round5, EPLEY_5RM_TO_1RM } from "./math";
 
 // Derived from the canonical Zod enums (roadmap #2.5) — kills the LiftPattern /
@@ -66,6 +66,19 @@ const STRENGTH: Record<PhaseName, SchemeBase> = {
   taper: { sets: 2, repRange: "5-6", intensityPct: 78, rir: 2 },
 };
 
+/**
+ * LIGHT full-body day (Levi, 2026-08-04). When a week carries more than one
+ * full-body lift, the LATER one runs light — 12–15 reps at a submaximal load —
+ * so the athlete isn't asked for two maximal-strength efforts in the same week
+ * on top of the running. Heavy first while fresh, light second.
+ */
+const LIGHT_FULL: Record<PhaseName, SchemeBase> = {
+  base: { sets: 3, repRange: "12-15", intensityPct: 58, rir: 3 },
+  build: { sets: 3, repRange: "12-15", intensityPct: 60, rir: 3 },
+  peak: { sets: 3, repRange: "12-15", intensityPct: 55, rir: 3 },
+  taper: { sets: 2, repRange: "12-15", intensityPct: 50, rir: 3 },
+};
+
 /** High-rep muscular endurance — the lunge pattern (HYROX sandbag lunges). */
 const ENDURANCE: Record<PhaseName, SchemeBase> = {
   base: { sets: 3, repRange: "15", intensityPct: 55, rir: 3 },
@@ -91,13 +104,24 @@ const PCT_CAP: Record<StrengthEmphasis, number> = {
 };
 const PCT_FLOOR = 45;
 
-/** The lunge is the one HYROX-specific muscular-endurance pattern. */
-export function patternEmphasis(pattern: LiftPattern, liftType: LiftType): StrengthEmphasis {
+/**
+ * The lunge is the one HYROX-specific muscular-endurance pattern. A LIGHT
+ * full-body day is muscular-endurance work throughout — 12–15 reps at a
+ * submaximal load — so every pattern on it carries the endurance emphasis (which
+ * is also what caps its intensity sensibly).
+ */
+export function patternEmphasis(
+  pattern: LiftPattern,
+  liftType: LiftType,
+  light = false,
+): StrengthEmphasis {
+  if (light) return "endurance";
   if (pattern === "lunge") return "endurance";
   return liftType === "full" || liftType === "power" ? "max_strength" : "strength";
 }
 
-function baseScheme(emphasis: StrengthEmphasis, phase: PhaseName): SchemeBase {
+function baseScheme(emphasis: StrengthEmphasis, phase: PhaseName, light: boolean): SchemeBase {
+  if (light) return LIGHT_FULL[phase];
   if (emphasis === "endurance") return ENDURANCE[phase];
   if (emphasis === "max_strength") return MAX_STRENGTH[phase];
   return STRENGTH[phase];
@@ -106,21 +130,79 @@ function baseScheme(emphasis: StrengthEmphasis, phase: PhaseName): SchemeBase {
 /**
  * The prescription for one movement given its pattern, the session's lift type,
  * and the week's phase + microcycle position.
+ *
+ * `light` marks the week's SECOND full-body session (see `LIGHT_FULL`): every
+ * movement on it drops to 12–15 reps at a submaximal load. The `sets` returned
+ * here are the per-session starting point — `applyStrengthSchemes` then rewrites
+ * them so the WEEKLY total per pattern matches the athlete's target
+ * (`weeklySetTarget`).
  */
 export function movementScheme(
   pattern: LiftPattern,
   liftType: LiftType,
   phase: PhaseName,
   microWeek: MicroWeekType,
+  light = false,
 ): MovementScheme {
-  const emphasis = patternEmphasis(pattern, liftType);
-  const b = baseScheme(emphasis, phase);
+  const emphasis = patternEmphasis(pattern, liftType, light);
+  const b = baseScheme(emphasis, phase, light);
   const intensityPct = clamp(
     b.intensityPct + (MICRO_INTENSITY_DELTA[microWeek] ?? 0),
     PCT_FLOOR,
     PCT_CAP[emphasis],
   );
   return { sets: b.sets, repRange: b.repRange, intensityPct, rir: b.rir, emphasis };
+}
+
+// --- weekly working-set volume per pattern -----------------------------------
+//
+// Levi's rule (2026-08-04): weekly WORKING SETS per muscle / movement pattern are
+// set by the athlete's LIFTING experience, not by the phase's per-session scheme.
+// The per-session numbers above are a starting point; what the athlete actually
+// accumulates over the week is what drives hypertrophy/strength adaptation, so the
+// week is the unit that gets controlled.
+
+/** Weekly working sets per movement pattern, by lifting experience. */
+export const WEEKLY_SETS_PER_PATTERN: Record<ExperienceLevel, number> = {
+  beginner: 6,
+  intermediate: 8,
+  advanced: 10,
+};
+
+/**
+ * Recovery weeks carry a fraction of the target — a deload that kept full volume
+ * would not be a deload. Intensity is handled separately by
+ * `MICRO_INTENSITY_DELTA`; this is the volume side of the same idea.
+ */
+const WEEKLY_SET_FACTOR: Record<MicroWeekType, number> = {
+  increase: 1,
+  rebound: 1,
+  deload: 0.6,
+  taper: 0.5,
+  race: 0.5,
+};
+
+/** Weekly working sets per pattern for this athlete in this microcycle week. */
+export function weeklySetTarget(liftingExp: ExperienceLevel, microWeek: MicroWeekType): number {
+  const base = WEEKLY_SETS_PER_PATTERN[liftingExp] ?? WEEKLY_SETS_PER_PATTERN.intermediate;
+  return Math.max(1, Math.round(base * (WEEKLY_SET_FACTOR[microWeek] ?? 1)));
+}
+
+/**
+ * Split a weekly set target across the sessions that train the pattern, in
+ * calendar order. The remainder goes to the EARLIER sessions, which are the
+ * heavier ones (the light full-body day is always the later one), so the extra
+ * set lands on the quality work.
+ *
+ * Every session that trains a pattern gets at least one set — if a week somehow
+ * trains a pattern more times than the target has sets to give, the weekly total
+ * overshoots rather than prescribing a zero-set movement.
+ */
+export function splitWeeklySets(target: number, occurrences: number): number[] {
+  if (occurrences <= 0) return [];
+  const base = Math.floor(target / occurrences);
+  const remainder = target % occurrences;
+  return Array.from({ length: occurrences }, (_, i) => Math.max(1, base + (i < remainder ? 1 : 0)));
 }
 
 // --- A/B exercise variation (Tasks #10) --------------------------------------

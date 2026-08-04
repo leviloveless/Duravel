@@ -5,13 +5,22 @@ import {
   suggestedWeight,
   benchmarkForPattern,
   powerElementFor,
+  weeklySetTarget,
+  splitWeeklySets,
+  WEEKLY_SETS_PER_PATTERN,
 } from "./strength";
 
 describe("patternEmphasis / movementScheme", () => {
   it("full-body compounds are heavy low-rep max strength", () => {
     expect(patternEmphasis("squat", "full")).toBe("max_strength");
     const s = movementScheme("squat", "full", "base", "rebound");
-    expect(s).toMatchObject({ sets: 4, repRange: "5-6", intensityPct: 78, rir: 3, emphasis: "max_strength" });
+    expect(s).toMatchObject({
+      sets: 4,
+      repRange: "5-6",
+      intensityPct: 78,
+      rir: 3,
+      emphasis: "max_strength",
+    });
   });
 
   it("peak full-body is heaviest and lowest-rep", () => {
@@ -89,5 +98,66 @@ describe("powerElementFor (plyometrics)", () => {
     const a = powerElementFor("base", "rebound", 0)!.exercise;
     const b = powerElementFor("base", "rebound", 1)!.exercise;
     expect(a).not.toBe(b);
+  });
+});
+
+describe("weekly working-set volume (Levi 2026-08-04)", () => {
+  it("targets 6 / 8 / 10 sets per pattern per week by lifting experience", () => {
+    expect(WEEKLY_SETS_PER_PATTERN).toEqual({ beginner: 6, intermediate: 8, advanced: 10 });
+    expect(weeklySetTarget("beginner", "increase")).toBe(6);
+    expect(weeklySetTarget("intermediate", "increase")).toBe(8);
+    expect(weeklySetTarget("advanced", "increase")).toBe(10);
+    expect(weeklySetTarget("intermediate", "rebound")).toBe(8);
+  });
+
+  it("scales the target down on deload, taper and race weeks", () => {
+    const work = weeklySetTarget("advanced", "increase");
+    expect(weeklySetTarget("advanced", "deload")).toBeLessThan(work);
+    expect(weeklySetTarget("advanced", "taper")).toBeLessThan(
+      weeklySetTarget("advanced", "deload"),
+    );
+    expect(weeklySetTarget("advanced", "race")).toBeLessThan(work);
+    expect(weeklySetTarget("beginner", "taper")).toBeGreaterThanOrEqual(1);
+  });
+
+  it("splits the weekly target across sessions, remainder to the earlier ones", () => {
+    expect(splitWeeklySets(8, 1)).toEqual([8]);
+    expect(splitWeeklySets(8, 2)).toEqual([4, 4]);
+    expect(splitWeeklySets(8, 3)).toEqual([3, 3, 2]);
+    expect(splitWeeklySets(10, 3)).toEqual([4, 3, 3]);
+    expect(splitWeeklySets(6, 4)).toEqual([2, 2, 1, 1]);
+    expect(splitWeeklySets(8, 0)).toEqual([]);
+  });
+
+  it("never returns a zero-set session", () => {
+    for (const n of [1, 2, 3, 5, 7, 9]) {
+      for (const target of [1, 4, 6, 8, 10]) {
+        const split = splitWeeklySets(target, n);
+        expect(split).toHaveLength(n);
+        for (const s of split) expect(s).toBeGreaterThanOrEqual(1);
+        if (target >= n) expect(split.reduce((a, b) => a + b, 0)).toBe(target);
+      }
+    }
+  });
+});
+
+describe("the light full-body scheme", () => {
+  it("drops the later full-body day to 12-15 reps at a submaximal load", () => {
+    const heavy = movementScheme("squat", "full", "base", "increase");
+    const light = movementScheme("squat", "full", "base", "increase", true);
+    expect(heavy.repRange).not.toBe("12-15");
+    expect(light.repRange).toBe("12-15");
+    expect(light.intensityPct).toBeLessThan(heavy.intensityPct);
+    expect(light.rir).toBeGreaterThanOrEqual(heavy.rir);
+    expect(light.emphasis).toBe("endurance");
+  });
+
+  it("applies to every pattern on that day, in every phase", () => {
+    for (const phase of ["base", "build", "peak", "taper"] as const)
+      for (const pattern of ["squat", "hip_hinge", "horizontal_press", "vertical_pull"] as const) {
+        const light = movementScheme(pattern, "full", phase, "increase", true);
+        expect(light.repRange, `${phase} ${pattern}`).toBe("12-15");
+      }
+    expect(patternEmphasis("horizontal_press", "full", true)).toBe("endurance");
   });
 });

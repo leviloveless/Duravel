@@ -54,7 +54,9 @@ const OUTPUT_COST_PER_TOKEN = 5 / 1_000_000; // $5 / 1M output tokens
 export const MAX_WEEKS_PER_CALL = 3;
 
 /** Split the skeleton weeks into contiguous same-phase mesocycle chunks. */
-export function chunkByMesocycle(skeleton: ProgramSkeleton): { phase: PhaseName; weeks: WeekSkeleton[] }[] {
+export function chunkByMesocycle(
+  skeleton: ProgramSkeleton,
+): { phase: PhaseName; weeks: WeekSkeleton[] }[] {
   const chunks: { phase: PhaseName; weeks: WeekSkeleton[] }[] = [];
   for (const week of skeleton.weeks) {
     const last = chunks[chunks.length - 1];
@@ -114,7 +116,10 @@ export async function generateProgram(
     // Triathlon assembles deterministically from the skeleton (no AI fill): the
     // skeleton slots already carry per-session durations, zones, and types.
     if (getSport(input.sport).family === "triathlon") {
-      const program = buildTriProgramData(skeleton, triAnchorsFromBenchmarks(input.profile.benchmarks));
+      const program = buildTriProgramData(
+        skeleton,
+        triAnchorsFromBenchmarks(input.profile.benchmarks),
+      );
       await persist(supabase, programId, program, skeleton);
       return { ok: true, status: "ready", issues: [] };
     }
@@ -123,9 +128,7 @@ export async function generateProgram(
     // response is large enough to truncate. Batches are independent given the
     // skeleton and merge back by weekNumber during assembly.
     const chunkPlan = planChunks(skeleton);
-    const results = await Promise.all(
-      chunkPlan.map((c) => generateChunk(input, c.phase, c.weeks)),
-    );
+    const results = await Promise.all(chunkPlan.map((c) => generateChunk(input, c.phase, c.weeks)));
     const chunks: AiChunk[] = results.map((r) => r.chunk);
 
     // Sum token usage across all mesocycle calls and price it (Haiku list rate).
@@ -157,6 +160,7 @@ export async function generateProgram(
       a.division,
       a.sex,
       a.catalog,
+      a.liftingExp,
     );
     const verdict = verifyProgram(program);
     if (!verdict.ok) {
