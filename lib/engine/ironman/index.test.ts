@@ -85,12 +85,20 @@ describe("(A) long-run cap + ramp", () => {
     expect(baseLong.durationMin!).toBeGreaterThan(easyRunSlot(base)!.durationMin!);
   });
 
-  it("long-run duration = min(round(easy*1.4), cap)", () => {
-    const { weeks } = buildTriathlonSkeleton(makeInput(), tri_140_6);
+  it("the long run is the week's biggest run, and never longer than the session cap", () => {
+    // The long run is SEEDED at min(round(easy * 1.4), phase cap). It is then
+    // fitted to the week's prescribed minutes and held to the athlete's session
+    // cap (Levi, 2026-08-04) — before that clamp existed, triathlon shipped an
+    // 11-hour session. So the invariant is the ORDERING plus the ceiling, not the
+    // raw 1.4 multiplier, which the fit legitimately compresses when the cap bites.
+    const { weeks, caps } = buildTriathlonSkeleton(makeInput(), tri_140_6);
     const peak = firstOfPhase(weeks, "peak");
     const easy = easyRunSlot(peak)!.durationMin!;
     const long = longRunSlot(peak)!.durationMin!;
-    expect(long).toBe(Math.min(Math.round(easy * 1.4), 150));
+    expect(long).toBeGreaterThan(easy);
+    expect(long).toBeLessThanOrEqual(Math.min(Math.round(easy * 1.4), 150));
+    // The cap applies to the SESSION total (run overhead included).
+    expect(long + 10).toBeLessThanOrEqual(caps!.cardioSession);
   });
 });
 
@@ -98,7 +106,7 @@ describe("(A) long-run cap + ramp", () => {
 
 describe("(B) long ride is a discrete brick", () => {
   it("peak week has a Z2 long-ride brick with a 15–30 min run tail", () => {
-    const { weeks } = buildTriathlonSkeleton(makeInput(), tri_140_6);
+    const { weeks, caps } = buildTriathlonSkeleton(makeInput(), tri_140_6);
     const peak = firstOfPhase(weeks, "peak");
     const brick = longRideBrick(peak)!;
     expect(brick).toBeTruthy();
@@ -109,10 +117,15 @@ describe("(B) long ride is a discrete brick", () => {
     expect(bikeSeg.durationMin).toBeGreaterThan(0);
     // 75%-of-race long-ride cap for 140.6 peak = 0.75*112/16*60 = 315 min
     expect(bikeSeg.durationMin).toBeLessThanOrEqual(315);
-    // Z2 easy tail, 15–30 min
-    expect(runSeg.durationMin).toBeGreaterThanOrEqual(15);
+    // Z2 easy tail. Seeded at 15-30 min; the whole brick is then scaled to fit the
+    // week's prescribed minutes and the session cap, which scales the tail with it
+    // (the segments keep their proportions), so the floor is the scaled one.
+    expect(runSeg.durationMin).toBeGreaterThanOrEqual(10);
     expect(runSeg.durationMin).toBeLessThanOrEqual(30);
     expect(runSeg.goalZone).toBe(2);
+    // The brick as a whole respects the Zone 1-2 session ceiling.
+    const brickTotal = brick.segments.reduce((a, x) => a + x.durationMin, 0);
+    expect(brickTotal).toBeLessThanOrEqual(caps!.cardioSession);
   });
 
   it("no inline long-ride bike session survives (the long ride is the brick)", () => {

@@ -21,6 +21,9 @@ import { parseTimeToSeconds } from "../paces";
 import { clampInt } from "../math";
 import { applyBandZoneShift, bandTriHours } from "../time-budget";
 import { spreadPatternSessions, applyWeeklySetVolume } from "../strength";
+import { trainingCaps, MAX_SESSIONS_PER_DAY, type TrainingCaps } from "../caps";
+import { bandMaxWeeklyMinutes } from "../time-budget";
+import { STRENGTH_SESSION_MIN, runOverhead } from "@/lib/session-volume";
 import type {
   EngineInput,
   EngineRace,
@@ -202,6 +205,104 @@ function triCardioSlots(phase: PhaseName, totalMin: number, cfg: SportConfig, id
 }
 
 /**
+ * The cap a triathlon session is held to.
+ *
+ * Same rule as the station-hybrid side (Levi, 2026-08-04): a ZONE 1-2 session is
+ * limited by time, not by recovery cost, so it gets the long `cardioSession` cap
+ * — that is the long ride and the aerobic long-ride brick, which are the whole
+ * point of a big triathlon week. Anything at Zone 3+ is quality work and is held
+ * to the ordinary `session` cap.
+ */
+function triSlotCap(slot: SessionSlot, caps: TrainingCaps): number {
+  const zone = slot.kind === "lift" || slot.kind === "race" || slot.kind === "rest" ? 0 : slot.goalZone;
+  return zone <= 2 ? caps.cardioSession : caps.session;
+}
+
+/**
+ * What `sessionTiming` will report for this slot once it becomes a session.
+ *
+ * Swim, bike and brick are their prescribed duration exactly. A RUN also carries
+ * a fixed warmup + cooldown on top of `durationMin` — miss that and every run in
+ * the week is 10-15 minutes bigger than the number the fitter reasoned about,
+ * which is exactly how a "960 minute" week shipped at 1000+.
+ */
+function slotTotalMinutes(slot: SessionSlot): number {
+  if (slot.kind === "run") return (slot.durationMin ?? 40) + runOverhead(slot.runType);
+  return slotMinutes(slot);
+}
+
+/** Set a slot so its SESSION TOTAL is `minutes` (brick segments scale pro rata). */
+function scaleSlot(slot: SessionSlot, minutes: number): void {
+  if (slot.kind === "brick") {
+    const cur = slot.segments.reduce((a, x) => a + x.durationMin, 0) || 1;
+    const f = minutes / cur;
+    slot.segments.forEach((seg) => {
+      seg.durationMin = Math.max(10, Math.round(seg.durationMin * f));
+    });
+    return;
+  }
+  if (slot.kind === "run") {
+    slot.durationMin = Math.max(10, Math.round(minutes - runOverhead(slot.runType)));
+    return;
+  }
+  if (slot.kind === "swim" || slot.kind === "bike") {
+    slot.durationMin = Math.max(10, Math.round(minutes));
+  }
+}
+
+/**
+ * Hold the week's cardio slots to `totalMin`, and every slot to its own cap.
+ *
+ * The triathlon builder sizes each session from a SHARE of the weekly minutes and
+ * then grows the important ones on top — the long ride is 1.4x its share plus a
+ * run tail, the long run another 1.4x, the race bricks 1.2-1.6x. Nothing ever
+ * added the result back up, so a week prescribed 960 minutes shipped **1789**
+ * (an athlete who asked for 10-20 hours got 30), and a single long-ride brick
+ * reached **666 minutes — 11 hours**. HYROX has been reconciled to its target
+ * since the start; triathlon never was.
+ *
+ * Two passes: clamp each slot to its cap, then scale the whole set to the target.
+ * The relative shape (long ride dominant, long run next) is preserved because
+ * every slot scales by the same factor. If the caps alone can't reach the target,
+ * the week lands short rather than shipping an 11-hour session.
+ */
+function fitTriSlotsToTarget(slots: SessionSlot[], totalMin: number, caps: TrainingCaps): void {
+  const cardio = slots.filter((s) => s.kind !== "lift" && s.kind !== "race" && s.kind !== "rest");
+  if (cardio.length === 0 || totalMin <= 0) return;
+
+  for (const s of cardio) {
+    const cap = triSlotCap(s, caps);
+    if (slotTotalMinutes(s) > cap) scaleSlot(s, cap);
+  }
+
+  // Scale toward the target, re-clamping anything the scale pushes over its cap
+  // and re-spreading what that leaves behind. Two rounds converge in practice;
+  // the loop is bounded regardless.
+  for (let round = 0; round < 4; round++) {
+    const current = cardio.reduce((a, s) => a + slotTotalMinutes(s), 0);
+    if (current <= 0 || Math.abs(totalMin - current) <= 1) break;
+    const factor = totalMin / current;
+    let headroom = false;
+    for (const s of cardio) {
+      const cap = triSlotCap(s, caps);
+      const want = slotTotalMinutes(s) * factor;
+      scaleSlot(s, Math.min(want, cap));
+      if (slotTotalMinutes(s) < cap) headroom = true;
+    }
+    if (!headroom) break; // everything is at its ceiling — the week is as big as it can be
+  }
+
+  // Per-slot rounding can leave the week a minute or two OVER, which is enough to
+  // push it past the band ceiling the caller sized against. Never round upward
+  // out of the athlete's budget: shave the excess off the longest session.
+  let excess = cardio.reduce((a, s) => a + slotTotalMinutes(s), 0) - totalMin;
+  if (excess > 0) {
+    const longest = cardio.reduce((a, b) => (slotTotalMinutes(b) > slotTotalMinutes(a) ? b : a));
+    scaleSlot(longest, Math.max(10, slotTotalMinutes(longest) - excess));
+  }
+}
+
+/**
  * Downgrade a week's cardio slots to active recovery for the week after a race
  * (feature D): cap durations, drop all bricks, and downgrade any hard swim/bike/
  * run to easy endurance. No vo2 / threshold / brick survives.
@@ -255,13 +356,30 @@ function dayHasKeyAerobic(d: DaySlot): boolean {
   );
 }
 
-/** Round-robin cardio slots across the training days (no rest fill yet). */
-function distributeCardio(trainingDays: EngineInput["trainingDays"], slots: SessionSlot[]): DaySlot[] {
+/**
+ * Round-robin cardio slots across the training days, never putting a THIRD
+ * session on a day (Levi, 2026-08-04 — two a day is absolute).
+ *
+ * The old version was a bare `days[i % days.length].push(...)`, so a week with
+ * more slots than 2x the training days simply stacked them: real triathlon weeks
+ * came out with THREE sessions on a day, every day. Slots that no longer fit are
+ * returned to the caller, which folds their minutes back into the sessions that
+ * did fit rather than dropping the training.
+ */
+function distributeCardio(
+  trainingDays: EngineInput["trainingDays"],
+  slots: SessionSlot[],
+  reservedPerWeek = 0,
+): { days: DaySlot[]; unplaced: SessionSlot[] } {
   const days: DaySlot[] = trainingDays.map((day) => ({ day, sessions: [] as SessionSlot[] }));
-  slots.forEach((s, i) => {
+  // Leave room for the lifts that will be placed after us.
+  const capacity = Math.max(0, days.length * MAX_SESSIONS_PER_DAY - reservedPerWeek);
+  const placed = slots.slice(0, capacity);
+  const unplaced = slots.slice(capacity);
+  placed.forEach((s, i) => {
     days[i % days.length]!.sessions.push(s);
   });
-  return days;
+  return { days, unplaced };
 }
 
 /**
@@ -271,8 +389,10 @@ function distributeCardio(trainingDays: EngineInput["trainingDays"], slots: Sess
  */
 function placeLifts(days: DaySlot[], liftN: number): void {
   for (let i = 0; i < liftN; i++) {
-    const eligible = days.filter((d) => !dayHasKeyAerobic(d));
-    const pool = eligible.length > 0 ? eligible : days; // stack only if unavoidable
+    const open = days.filter((d) => d.sessions.length < MAX_SESSIONS_PER_DAY);
+    if (open.length === 0) return; // two a day is absolute — the lift is dropped, not stacked
+    const eligible = open.filter((d) => !dayHasKeyAerobic(d));
+    const pool = eligible.length > 0 ? eligible : open;
     let best = pool[0]!;
     let bestMin = dayMinutes(best);
     for (const d of pool) {
@@ -301,6 +421,7 @@ function assembleTriDays(
   totalMin: number,
   idx: number,
   ctx: { raceThis?: EngineRace; raceLast?: EngineRace },
+  caps: TrainingCaps,
 ): DaySlot[] {
   const raceWeek = !!ctx.raceThis;
   const isTaper = phase === "taper";
@@ -309,12 +430,24 @@ function assembleTriDays(
   let slots = triCardioSlots(phase, totalMin, cfg, idx);
   if (postRace) slots = toActiveRecovery(slots);
 
-  const days = distributeCardio(input.trainingDays, slots);
+  const liftN = raceWeek || postRace ? 0 : LIFT_BY_PHASE[phase];
+  const raceSlots = raceWeek ? 1 : 0;
+
+  // Hold the week to its prescribed minutes and every session to its cap BEFORE
+  // placing anything — the day layout then only has legal sessions to place.
+  fitTriSlotsToTarget(slots, totalMin, caps);
+
+  const { days, unplaced } = distributeCardio(input.trainingDays, slots, liftN + raceSlots);
+  // Anything that could not get a slot gives its minutes back to the sessions
+  // that did, so the week keeps its volume instead of silently losing a session.
+  if (unplaced.length > 0) {
+    const placedSlots = days.flatMap((d) => d.sessions);
+    fitTriSlotsToTarget(placedSlots, totalMin, caps);
+  }
 
   // After an A race: near-complete rest early — clear the first training day.
   if (postRace && ctx.raceLast!.priority === "A" && days.length > 0) days[0]!.sessions = [];
 
-  const liftN = raceWeek || postRace ? 0 : LIFT_BY_PHASE[phase];
   placeLifts(days, liftN);
 
   // Insert the race on the last training day (frequency preserved).
@@ -336,6 +469,13 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
   const level = triVolumeLevel(input); // blended swim/bike/run volume tier
   const idx = EXP_INDEX[level] ?? 1;
   const key = `${distanceKey(cfg.id)}:${level}`;
+  const caps =
+    input.caps ??
+    trainingCaps(
+      cfg.family,
+      { runningExp: input.runningExp, hybridExp: input.hybridExp, liftingExp: input.liftingExp },
+      input.weeklyHours,
+    );
   const bandHours = input.weeklyHours ? bandTriHours(input.weeklyHours) : null;
   const hours = bandHours ?? (cfg.volume.kind === "per_discipline" ? (cfg.volume.hoursPerWeekByLevel[key] ?? [8, 14]) : [8, 14]);
   const [baseH, peakH] = hours as [number, number];
@@ -387,7 +527,18 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
     }
     if (raceThis) micro = "race";
 
-    const totalMin = Math.round(hoursThis * 60);
+    // Hold the week inside the band the athlete actually chose, lifts included —
+    // the same ceiling the station-hybrid path gets (Levi, 2026-08-04). Triathlon
+    // returns before `buildSkeleton`'s clamp, so it needs its own.
+    // Must match assembleTriDays exactly, or the ceiling reserves the wrong number
+    // of lift minutes and the week lands over the athlete's stated budget.
+    const postRaceWeek = !raceThis && !!raceLast && !isTaper;
+    const liftN = raceThis || postRaceWeek ? 0 : LIFT_BY_PHASE[phase];
+    let totalMin = Math.round(hoursThis * 60);
+    if (input.weeklyHours) {
+      const ceiling = Math.max(0, bandMaxWeeklyMinutes(input.weeklyHours) - liftN * STRENGTH_SESSION_MIN);
+      totalMin = Math.min(totalMin, ceiling);
+    }
 
     weeks.push({
       weekNumber,
@@ -398,12 +549,23 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
       zoneTargets: input.weeklyHours
         ? applyBandZoneShift(cfg.phaseZoneTargets[phase], input.weeklyHours)
         : { ...cfg.phaseZoneTargets[phase] },
-      days: assembleTriDays(input, cfg, phase, totalMin, idx, { raceThis, raceLast }),
+      days: assembleTriDays(input, cfg, phase, totalMin, idx, { raceThis, raceLast }, caps),
       ...(raceThis ? { raceDay: { priority: raceThis.priority, ...(raceThis.date ? { date: raceThis.date } : {}) } } : {}),
     });
   }
 
-  return { durationWeeks: D, trainingClass: input.trainingClass, allocation: alloc, weeks, needs: input.needs };
+  // The triathlon skeleton used to return NO caps at all, so nothing downstream
+  // could bound a session — every guard the station-hybrid path has was silently
+  // absent here.
+  return {
+    durationWeeks: D,
+    trainingClass: input.trainingClass,
+    allocation: alloc,
+    weeks,
+    needs: input.needs,
+    restDays: input.restDays,
+    caps,
+  };
 }
 
 // --- deterministic session content builders (individualized by anchors) -----
@@ -664,7 +826,14 @@ export function rebuildTriWeek(
     ? input.races.find((r) => r.weekNumber === week.weekNumber) ?? { weekNumber: week.weekNumber, priority: week.raceDay.priority, date: week.raceDay.date }
     : undefined;
   const raceLast = input.races.find((r) => r.weekNumber === week.weekNumber - 1);
-  const days = assembleTriDays(input, cfg, week.phase, week.targetCardioMinutes, idx, { raceThis, raceLast });
+  const caps =
+    input.caps ??
+    trainingCaps(
+      cfg.family,
+      { runningExp: input.runningExp, hybridExp: input.hybridExp, liftingExp: input.liftingExp },
+      input.weeklyHours,
+    );
+  const days = assembleTriDays(input, cfg, week.phase, week.targetCardioMinutes, idx, { raceThis, raceLast }, caps);
   const skeletonWeek: WeekSkeleton = { ...week, days };
   return {
     skeletonWeek,

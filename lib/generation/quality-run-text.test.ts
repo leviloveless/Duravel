@@ -13,6 +13,8 @@ import type { GenerationInput } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
 import { sessionMiles } from "@/lib/session-volume";
+import { runDescription } from "@/lib/engine/run-descriptions";
+import { computePaces } from "@/lib/engine/paces";
 import {
   repsForWorkMiles,
   snapWorkMiles,
@@ -166,5 +168,30 @@ describe("race-week placeholders are real sessions", () => {
         }
       }
     }
+  });
+});
+
+describe("a single-rep quality run doesn't talk about the gaps between reps", () => {
+  it("omits the recovery-jog clause and the work:rest footer when there is one rep", () => {
+    // Seen live on 2026-08-04: a threshold run resized down to a single mile still
+    // read "1 x 1 mile ... with 4:00 of easy JOGGING between reps". N reps have
+    // N-1 gaps, so one rep has none.
+    const paces = computePaces({ fiveKTime: "22:00", tenKTime: "46:00" });
+    const one = runDescription("threshold", "intermediate", paces, 1);
+    expect(one).toContain("1 x 1 mile");
+    expect(one).not.toContain("between reps");
+    expect(one).not.toContain("Work:rest");
+    expect(one).toContain("Warm up");
+    expect(one).toContain("Cooldown");
+
+    // Two or more reps keep both.
+    const three = runDescription("threshold", "intermediate", paces, 3);
+    expect(three).toContain("between reps");
+    expect(three).toContain("Work:rest 2:1");
+
+    const oneInterval = runDescription("interval", "intermediate", paces, 1);
+    expect(oneInterval).not.toContain("between reps");
+    expect(oneInterval).not.toContain("Work:rest");
+    expect(runDescription("interval", "intermediate", paces, 5)).toContain("Work:rest 1:1");
   });
 });

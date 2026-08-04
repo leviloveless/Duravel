@@ -81,15 +81,18 @@ function intervalDescription(
   repsOverride?: number,
 ): string {
   const reps = repsOverride ?? INTERVAL_REPS[exp];
+  // N reps have N-1 gaps: a single rep has no "between reps" at all, and saying
+  // so read as a contradiction on the athlete's calendar.
+  const gaps = reps > 1;
   const work = paces
-    ? `${reps} x 1km at ${pacePair(paces.interval)}, with ${formatPace(roundTo5(secPerKm(paces.interval)))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)`
-    : `${reps} x 1km at your interval (I) pace with an equal-time easy jog/rest between reps`;
+    ? `${reps} x 1km at ${pacePair(paces.interval)}${gaps ? `, with ${formatPace(roundTo5(secPerKm(paces.interval)))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
+    : `${reps} x 1km at your interval (I) pace${gaps ? " with an equal-time easy jog/rest between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.interval;
   return [
     overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
     `Work: ${work}`,
     overheadLine("Cooldown", cd, paces),
-    "Work:rest 1:1 - your rest equals your work time.",
+    ...(gaps ? ["Work:rest 1:1 - your rest equals your work time."] : []),
   ].join("\n");
 }
 
@@ -100,15 +103,16 @@ function thresholdDescription(
   repsOverride?: number,
 ): string {
   const reps = repsOverride ?? THRESHOLD_REPS[exp];
+  const gaps = reps > 1;
   const work = paces
-    ? `${reps} x 1 mile at ${pacePair(paces.threshold)}, with ${formatPace(roundTo5(paces.threshold / 2))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)`
-    : `${reps} x 1 mile at your threshold (T) pace with an easy jog half the rep time between reps`;
+    ? `${reps} x 1 mile at ${pacePair(paces.threshold)}${gaps ? `, with ${formatPace(roundTo5(paces.threshold / 2))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
+    : `${reps} x 1 mile at your threshold (T) pace${gaps ? " with an easy jog half the rep time between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.threshold;
   return [
     overheadLine("Warm up", wu, paces),
     `Work: ${work}`,
     overheadLine("Cooldown", cd, paces),
-    "Work:rest 2:1 - your rest is half your work time.",
+    ...(gaps ? ["Work:rest 2:1 - your rest is half your work time."] : []),
   ].join("\n");
 }
 
