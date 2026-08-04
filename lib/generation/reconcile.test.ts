@@ -415,6 +415,105 @@ describe("the weekend rebalancer respects the session cap", () => {
   });
 });
 
+describe("Zone 1–2 blocks respect the 45-minute floor", () => {
+  // Levi's rule: a Zone 1–2 cardio session is worth doing at 45 minutes or more.
+  // Below that it only exists as a bolt-on to ANOTHER cardio session on the same day
+  // (a run or hybrid — a brick). A lift is not cardio, so two 30-minute spins on
+  // back-to-back lift days are wrong: 90 surplus minutes are 45 + 45, not 30 + 30 + 30.
+  const place = { preferDays: ["sat", "sun"] as const };
+  const CAP = { session: 90, day: 180 };
+  const blocks = (days: ProgramDay[]) =>
+    days.flatMap((d) =>
+      d.sessions
+        .filter((s) => s.kind === "cardio")
+        .map((s) => ({
+          day: d.day,
+          minutes: sessionTiming(s).total,
+          pairedWithCardio: d.sessions.some((x) => x.kind === "run" || x.kind === "hybrid"),
+        })),
+    );
+
+  it("never emits a short standalone block — only ever beside a run or hybrid", () => {
+    // Wide sweep of week shapes and cardio targets: the surplus varies from a few
+    // minutes to hours, which is where sub-45 blocks used to appear.
+    const shapes: (() => ProgramDay[])[] = [
+      () => daysOf([], [lift()], [lift()], [run("interval", 3, 45)], [], [run("long", 6, 69)], []),
+      () =>
+        daysOf(
+          [],
+          [lift()],
+          [lift()],
+          [run("interval", 3, 45)],
+          [run("threshold", 3, 45)],
+          [run("long", 6, 69)],
+          [hybrid()],
+        ),
+      () =>
+        daysOf([run("easy", 3, 30)], [lift()], [], [hybrid()], [lift()], [run("long", 8, 85)], []),
+      () => daysOf([], [], [], [], [], [run("long", 10, 90)], []),
+      () =>
+        daysOf([lift()], [lift()], [lift()], [run("tempo", 4, 50)], [], [run("long", 7, 80)], []),
+    ];
+    for (const [i, build] of shapes.entries()) {
+      for (const target of [150, 200, 240, 280, 300, 330, 360, 400, 450, 500]) {
+        const days = build();
+        reconcileWeekVolume(days, 14, target, P, "intermediate", 1, place, CAP);
+        const bs = blocks(days);
+        for (const b of bs) {
+          const why = `shape ${i}/${target} ${b.day}`;
+          if (!b.pairedWithCardio) {
+            // Standalone: always a real session.
+            expect(b.minutes, why).toBeGreaterThanOrEqual(45);
+          } else if (bs.length > 1) {
+            // Beside a run/hybrid: a brick tail, floor 30.
+            expect(b.minutes, why).toBeGreaterThanOrEqual(30);
+          }
+          // The remaining case is a week whose runs already cover almost all of the
+          // prescribed cardio: the few leftover minutes have to land somewhere for the
+          // total to stay exact, and beside the long run is the least-bad place. (It
+          // used to land on an empty weekday as a standalone 9-minute "session".)
+        }
+        // Exact whenever the target is reachable — a week whose runs alone already
+        // exceed a very low target simply overshoots (nothing is deleted to fit).
+        const runMinutes = days
+          .flatMap((d) => d.sessions)
+          .filter((s) => s.kind === "run" || s.kind === "hybrid")
+          .reduce((n, s) => n + sessionTiming(s).total, 0);
+        if (runMinutes <= target)
+          expect(weekCardioMinutes({ days } as never), `shape ${i}/${target}`).toBe(target);
+      }
+    }
+  });
+
+  it("splits 90 surplus minutes into two 45s rather than one 90 or three 30s", () => {
+    // Two dry lift days and an empty day available: the old floor put 30 on each of
+    // the three. Frequency still beats duration — it just can't go below 45.
+    const days = daysOf(
+      [],
+      [lift()],
+      [lift()],
+      [run("interval", 3, 45)],
+      [run("threshold", 3, 45)],
+      [run("long", 6, 69)],
+      [hybrid()],
+    );
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place, CAP);
+    const b = blocks(days);
+    expect(b.length).toBeGreaterThan(1); // not one giant block
+    for (const x of b) if (!x.pairedWithCardio) expect(x.minutes).toBeGreaterThanOrEqual(45);
+  });
+
+  it("leaves a long block paired with the long run alone (brick) even under 45", () => {
+    // Saturday's block sits next to the long run, so it is a legal brick tail at any
+    // length — and is usually well over the floor anyway.
+    const days = daysOf([], [lift()], [], [run("tempo", 4, 50)], [], [run("long", 7, 80)], []);
+    reconcileWeekVolume(days, 16, 330, P, "intermediate", 1, place, CAP);
+    expect(weekCardioMinutes({ days } as never)).toBe(330);
+    const sat = days.find((d) => d.day === "sat")!;
+    expect(sat.sessions.some((s) => s.kind === "run")).toBe(true);
+  });
+});
+
 describe("filler is planned before it is written", () => {
   // The layout is decided up front and only then materialised, so no pass mutates
   // an already-prescribed session afterwards. These pin the guarantees that the old

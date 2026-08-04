@@ -41,11 +41,14 @@ type CardioSession = Extract<Session, { kind: "cardio" }>;
 // Zone 1–2 block on the same day are two SESSIONS: each is capped on its own, and
 // the day cap is what bounds their sum.
 const MIN_CARDIO_TOTAL = 45; // every standalone cardio session ≥ 45 min
-// A block paired onto a day that already has a lift is a bolt-on, not a session in
-// its own right, so it sits below the standalone floor. This is what makes "spread
-// the cardio" and "keep Sat/Sun the biggest days" satisfiable at the same time: at
-// 45 min a paired spin pushes a 60-min lift day past a 60-min long-run Saturday.
-const MIN_PAIRED_CARDIO = 30;
+// A Zone 1–2 block that stands on its own has to be worth the trip: 45 minutes is
+// the floor (Levi's rule). The ONE exception is a block that sits beside another
+// CARDIO session on the same day — a run or a hybrid — where it reads as a brick /
+// second aerobic piece rather than a session of its own. A lift is NOT cardio, so a
+// lift day gets the standalone floor: 30-minute spins bolted onto Tue and Wed lift
+// days are wrong; 90 surplus minutes become 45 + 45, not 30 + 30 + 30.
+const MIN_CARDIO_BLOCK = 45;
+const MIN_BRICK_CARDIO = 30;
 const EASY_LONG_MIN_MI = 3;
 const MIN_RUN_MILES = 0.3;
 
@@ -127,6 +130,18 @@ function dayHasCardio(day: ProgramDay): boolean {
       s.kind === "swim" ||
       s.kind === "brick",
   );
+}
+
+/**
+ * Shortest legal Zone 1–2 block on this day.
+ *
+ * On its own a block must be a real session (45 min — under that the aerobic
+ * return doesn't justify a trip to the gym). Beside a run or hybrid it is a brick
+ * tail / second aerobic piece and may be shorter. Lifts don't count as cardio, so
+ * a lift day gets the standalone floor.
+ */
+function cardioFloor(day: ProgramDay): number {
+  return dayHasCardio(day) ? MIN_BRICK_CARDIO : MIN_CARDIO_BLOCK;
 }
 
 /**
@@ -338,8 +353,9 @@ interface FillerAllocation {
  * repaired afterwards.
  *
  * Priority order (the athlete's): use every day → keep the weekend biggest → pair
- * the lift days. Hard limits that outrank all three: the per-session cap, the
- * per-day cap, two workouts a day, and hitting the prescribed cardio total exactly.
+ * the lift days. Hard limits that outrank all three: the 45-minute floor on a
+ * standalone block, the per-session cap, the per-day cap, two workouts a day, and
+ * hitting the prescribed cardio total exactly.
  */
 function planFiller(
   days: ProgramDay[],
@@ -353,7 +369,7 @@ function planFiller(
     !isRaceDay(d) &&
     !place.avoidDays?.includes(d.day) &&
     d.sessions.length < 2 &&
-    room(d) >= MIN_PAIRED_CARDIO;
+    room(d) >= cardioFloor(d);
 
   const hosts = days.filter(eligible);
   if (hosts.length === 0) return [];
@@ -373,18 +389,19 @@ function planFiller(
       0,
       ...days
         .filter((d) => !isPreferred(d))
-        .map((d) => dayTotalMinutes(d) + (spread.has(d) ? MIN_PAIRED_CARDIO : 0)),
+        .map((d) => dayTotalMinutes(d) + (spread.has(d) ? MIN_CARDIO_BLOCK : 0)),
     );
   };
 
   // Back off one spread day at a time until the weekend still ends up on top. k = 0
-  // (everything to the weekend) is always tried last and always terminates.
-  for (let k = Math.min(spreadTargets.length, Math.floor(gap / MIN_PAIRED_CARDIO)); k >= 0; k--) {
-    const spend = k * MIN_PAIRED_CARDIO;
+  // (everything to the weekend) is always tried last and always terminates. Each
+  // spread day takes exactly one minimum block, so the weekend keeps the surplus.
+  for (let k = Math.min(spreadTargets.length, Math.floor(gap / MIN_CARDIO_BLOCK)); k >= 0; k--) {
+    const spend = k * MIN_CARDIO_BLOCK;
     if (spend > gap) continue;
     const plan: FillerAllocation[] = spreadTargets
       .slice(0, k)
-      .map((day) => ({ day, minutes: MIN_PAIRED_CARDIO }));
+      .map((day) => ({ day, minutes: MIN_CARDIO_BLOCK }));
     const rest = spread(gap - spend, weekend, plan, caps);
     if (rest > 0) continue; // the weekend can't absorb the remainder at this k
     const weekendPeak = Math.max(
@@ -402,11 +419,25 @@ function planFiller(
   const plan: FillerAllocation[] = [];
   let left = gap;
   for (const day of spreadTargets) {
-    if (left < MIN_PAIRED_CARDIO * 2) break; // keep something back for the remainder
-    plan.push({ day, minutes: MIN_PAIRED_CARDIO });
-    left -= MIN_PAIRED_CARDIO;
+    if (left < MIN_CARDIO_BLOCK * 2) break; // keep something back for the remainder
+    plan.push({ day, minutes: MIN_CARDIO_BLOCK });
+    left -= MIN_CARDIO_BLOCK;
   }
-  const overflow = spread(left, [...weekend, ...hosts.filter((d) => !isPreferred(d))], plan, caps);
+  let overflow = spread(left, [...weekend, ...hosts.filter((d) => !isPreferred(d))], plan, caps);
+  // A remainder too small to be its own block is topped onto blocks already planned
+  // (still under the caps) rather than shipped as a 20-minute standalone session.
+  overflow = absorb(plan, overflow, caps);
+  if (overflow > 0) {
+    // Still stranded: park it beside another cardio session, where a short block is
+    // legal as a brick tail. Weekend first, so the weekend keeps the volume.
+    const brick = hosts
+      .filter((d) => dayHasCardio(d) && !plan.some((a) => a.day === d) && room(d) >= overflow)
+      .sort((a, b) => Number(isPreferred(b)) - Number(isPreferred(a)))[0];
+    if (brick) {
+      plan.push({ day: brick, minutes: overflow });
+      overflow = 0;
+    }
+  }
   if (overflow > 0 && plan.length > 0)
     plan[plan.length - 1]!.minutes += overflow; // unavoidable
   else if (overflow > 0) plan.push({ day: hosts[0]!, minutes: overflow });
@@ -414,9 +445,14 @@ function planFiller(
 }
 
 /**
- * Lay `minutes` across `hosts`, respecting each day's remaining room and never
- * putting two filler blocks on one day. Mutates `plan`; returns whatever could not
- * be placed.
+ * Lay `minutes` across `hosts` in as MANY legal blocks as the minutes allow, split
+ * as evenly as the caps permit. Frequency beats duration: a Zone 1–2 session stops
+ * paying back much past ~45 minutes, so 90 surplus minutes are two 45s on two days,
+ * never one 90. Below 2 × the floor there is only one block and it takes the lot.
+ *
+ * Respects each day's remaining room, the per-day floor (45 standalone, 30 next to a
+ * run/hybrid), and never puts two filler blocks on one day. Mutates `plan`; returns
+ * whatever could not be placed.
  */
 function spread(
   minutes: number,
@@ -425,13 +461,49 @@ function spread(
   caps: TrainingCaps,
 ): number {
   let left = minutes;
-  for (const day of hosts) {
+  const capacity = (d: ProgramDay): number => Math.min(caps.session, caps.day - dayTotalMinutes(d));
+  const open = hosts.filter((d) => !plan.some((a) => a.day === d)); // one block per day
+  if (open.length === 0 || left <= 0) return left;
+
+  // How many blocks the minutes can pay for at the standalone floor, bounded by the
+  // days available. Always at least one: the total has to land somewhere exact.
+  const pieces = Math.max(1, Math.min(open.length, Math.floor(left / MIN_CARDIO_BLOCK)));
+  const chosen = open.slice(0, pieces);
+  for (let i = 0; i < chosen.length && left > 0; i++) {
+    const day = chosen[i]!; // safe: i < chosen.length
+    const share = Math.round(left / (chosen.length - i)); // an even cut of what's left
+    const give = Math.min(share, left, capacity(day));
+    if (give < cardioFloor(day)) continue; // too small to be legal here — rolls onward
+    plan.push({ day, minutes: give });
+    left -= give;
+  }
+
+  // Mop-up: whatever the even split could not seat (a day too small for its share, an
+  // awkward remainder) goes onto the next day that can legally take it.
+  for (const day of open) {
     if (left <= 0) break;
-    if (plan.some((a) => a.day === day)) continue; // one filler block per day
-    const capacity = Math.min(caps.session, caps.day - dayTotalMinutes(day), left);
-    if (capacity < MIN_PAIRED_CARDIO) continue;
-    plan.push({ day, minutes: capacity });
-    left -= capacity;
+    if (plan.some((a) => a.day === day)) continue;
+    const give = Math.min(left, capacity(day));
+    if (give < cardioFloor(day)) continue;
+    plan.push({ day, minutes: give });
+    left -= give;
+  }
+  return left;
+}
+
+/**
+ * Top up blocks the plan already holds with `minutes` that could not stand alone,
+ * never past the session or day cap. Returns whatever still would not fit.
+ */
+function absorb(plan: FillerAllocation[], minutes: number, caps: TrainingCaps): number {
+  let left = minutes;
+  for (const a of plan) {
+    if (left <= 0) break;
+    // The block isn't written to the day yet, so its own minutes are not in the total.
+    const headroom = Math.min(caps.session, caps.day - dayTotalMinutes(a.day)) - a.minutes;
+    const add = Math.min(left, Math.max(0, headroom));
+    a.minutes += add;
+    left -= add;
   }
   return left;
 }
