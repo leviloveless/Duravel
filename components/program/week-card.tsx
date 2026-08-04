@@ -9,7 +9,7 @@ import ResultCardLauncher from "./result-card-launcher";
 import CoachSessionEdit from "./coach-session-edit";
 import { sessionCardFromLog } from "./session-card-data";
 import { sessionKey, type SyncActivitySummary } from "@/lib/wearables/suggest-data";
-import { weekTimeByCategory } from "@/lib/session-volume";
+import { sessionMiles, weekTimeByCategory } from "@/lib/session-volume";
 import {
   DAY_LABEL,
   MICRO_LABEL,
@@ -58,9 +58,11 @@ function ZoneBars({ week }: { week: ProgramWeek }) {
 /** The details cell content for a session (distance / movements / elements + how-to description). */
 function SessionDetail({ session }: { session: Session }) {
   if (session.kind === "run") {
-    const miles = Number.isInteger(session.distanceMiles)
-      ? session.distanceMiles
-      : session.distanceMiles.toFixed(1);
+    // Show TOTAL on-feet distance (work + warmup/cooldown + between-rep recovery),
+    // the same figure the weekly "Running mileage" sums to — so a run's headline
+    // matches what the athlete actually runs, not just the main-set reps.
+    const total = sessionMiles(session);
+    const miles = Number.isInteger(total) ? total : total.toFixed(1);
     return (
       <div className="flex flex-col gap-1">
         <span className="text-zinc-500">{miles} mi</span>

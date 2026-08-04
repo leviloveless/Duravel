@@ -7,13 +7,11 @@
  * spec-format rendering unit-testable without a browser.
  */
 
-import type {
-  ProgramWeek,
-  Session,
-} from "@/lib/schemas";
+import type { ProgramWeek, Session } from "@/lib/schemas";
 import type { PhaseName } from "@/lib/engine/types";
 import {
   sessionTiming,
+  sessionMiles,
   weekMileage,
   weekCardioMinutes,
   HYBRID_MIN_WORK,
@@ -92,7 +90,10 @@ function enDash(range: string): string {
 
 /** `Easy run — 40 min @ 8:30 min/mile — 5 miles — Goal HR: Zone 2` */
 export function runLine(s: RunSession): string {
-  const miles = Number.isInteger(s.distanceMiles) ? String(s.distanceMiles) : s.distanceMiles.toFixed(1);
+  // Total on-feet distance (work + warmup/cooldown + recovery), matching the
+  // weekly mileage figure rather than just the main-set reps.
+  const total = sessionMiles(s);
+  const miles = Number.isInteger(total) ? String(total) : total.toFixed(1);
   const runLabel = RUN_TYPE_LABEL[s.runType];
   return `${runLabel} — ${Math.round(s.durationMin)} min @ ${s.paceMinMile} min/mile — ${miles} miles — Goal HR: Zone ${s.goalZone}`;
 }
@@ -187,7 +188,11 @@ export const DEFAULT_ZONE_BANDS: ZoneBands = {
 };
 
 /** The bpm range for a zone given the user's max HR and (optional) custom bands. */
-export function zoneHrRange(zone: number, maxHR: number, bands: ZoneBands = DEFAULT_ZONE_BANDS): string {
+export function zoneHrRange(
+  zone: number,
+  maxHR: number,
+  bands: ZoneBands = DEFAULT_ZONE_BANDS,
+): string {
   const band = bands[zone as 1 | 2 | 3 | 4 | 5];
   if (!band) return "";
   const bpm = (p: number) => Math.round(p * maxHR);
@@ -197,7 +202,11 @@ export function zoneHrRange(zone: number, maxHR: number, bands: ZoneBands = DEFA
 }
 
 /** Zone column with the user's applicable HR numbers, or "—" when N/A. */
-export function sessionZoneLabel(session: Session, maxHR: number, bands: ZoneBands = DEFAULT_ZONE_BANDS): string {
+export function sessionZoneLabel(
+  session: Session,
+  maxHR: number,
+  bands: ZoneBands = DEFAULT_ZONE_BANDS,
+): string {
   if (session.kind === "run" || session.kind === "hybrid" || session.kind === "cardio") {
     return `Zone ${session.goalZone} · ${zoneHrRange(session.goalZone, maxHR, bands)}`;
   }
@@ -249,14 +258,22 @@ export function phaseBands(weeks: ProgramWeek[]): PhaseBand[] {
       last.weeks += 1;
       last.endWeek = w.weekNumber;
     } else {
-      bands.push({ phase: w.phase, label: PHASE_LABEL[w.phase], weeks: 1, startWeek: w.weekNumber, endWeek: w.weekNumber });
+      bands.push({
+        phase: w.phase,
+        label: PHASE_LABEL[w.phase],
+        weeks: 1,
+        startWeek: w.weekNumber,
+        endWeek: w.weekNumber,
+      });
     }
   }
   return bands;
 }
 
 /** Week numbers that host a race, with priority — for timeline markers. */
-export function raceMarkers(weeks: ProgramWeek[]): { weekNumber: number; priority: "A" | "B" | "C" }[] {
+export function raceMarkers(
+  weeks: ProgramWeek[],
+): { weekNumber: number; priority: "A" | "B" | "C" }[] {
   return weeks
     .filter((w) => w.raceDay)
     .map((w) => ({ weekNumber: w.weekNumber, priority: w.raceDay!.priority }));
@@ -268,7 +285,15 @@ export function raceMarkers(weeks: ProgramWeek[]): { weekNumber: number; priorit
 // program's start date. Week N's Monday = (Monday of start week) + (N−1)×7 days,
 // and each training day maps to its weekday within that week.
 
-const DAY_OFFSET: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+const DAY_OFFSET: Record<string, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+  sat: 5,
+  sun: 6,
+};
 
 /** Parse a "YYYY-MM-DD" string as a local date (no timezone shift). */
 function parseISODate(iso: string): Date {
@@ -298,7 +323,10 @@ export function dayDate(startISO: string, weekNumber: number, dayKey: string): D
   return ws;
 }
 
-function fmt(date: Date, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }): string {
+function fmt(
+  date: Date,
+  opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" },
+): string {
   return date.toLocaleDateString(undefined, opts);
 }
 
@@ -324,9 +352,32 @@ export function phaseDateRangeLabel(startISO: string, startWeek: number, endWeek
 }
 
 /** Tailwind colour set per phase, used by the timeline + week headers. */
-export const PHASE_COLORS: Record<PhaseName, { band: string; chip: string; text: string; border: string }> = {
-  base: { band: "bg-sky-500", chip: "bg-sky-100 text-sky-800", text: "text-sky-700", border: "border-sky-200" },
-  build: { band: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800", text: "text-emerald-700", border: "border-emerald-200" },
-  peak: { band: "bg-orange-500", chip: "bg-orange-100 text-orange-800", text: "text-orange-700", border: "border-orange-200" },
-  taper: { band: "bg-violet-500", chip: "bg-violet-100 text-violet-800", text: "text-violet-700", border: "border-violet-200" },
+export const PHASE_COLORS: Record<
+  PhaseName,
+  { band: string; chip: string; text: string; border: string }
+> = {
+  base: {
+    band: "bg-sky-500",
+    chip: "bg-sky-100 text-sky-800",
+    text: "text-sky-700",
+    border: "border-sky-200",
+  },
+  build: {
+    band: "bg-emerald-500",
+    chip: "bg-emerald-100 text-emerald-800",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
+  },
+  peak: {
+    band: "bg-orange-500",
+    chip: "bg-orange-100 text-orange-800",
+    text: "text-orange-700",
+    border: "border-orange-200",
+  },
+  taper: {
+    band: "bg-violet-500",
+    chip: "bg-violet-100 text-violet-800",
+    text: "text-violet-700",
+    border: "border-violet-200",
+  },
 };

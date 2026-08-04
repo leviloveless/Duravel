@@ -1,6 +1,7 @@
 import type { Session, WorkoutLog } from "@/lib/schemas";
 import type { CardData } from "./result-card";
 import { sessionTypeLabel, sessionPace, sessionTiming } from "./format";
+import { sessionMiles } from "@/lib/session-volume";
 
 /**
  * Map a completed session + its workout log into a "session" result-card seed
@@ -22,11 +23,16 @@ function mainSet(session: Session): string {
   switch (session.kind) {
     case "run": {
       const pace = sessionPace(session);
-      const dist = fmtMiles(session.distanceMiles);
+      const dist = fmtMiles(sessionMiles(session));
       return pace !== "—" ? `${dist} @ ${pace}` : dist;
     }
     case "lift":
-      return session.movements.map((m) => m.pattern).slice(0, 3).join(" · ") || "Full-body strength";
+      return (
+        session.movements
+          .map((m) => m.pattern)
+          .slice(0, 3)
+          .join(" · ") || "Full-body strength"
+      );
     case "hybrid":
       return `${session.elements.length} stations`;
     case "swim":
@@ -41,11 +47,16 @@ function mainSet(session: Session): string {
   }
 }
 
-export function sessionCardFromLog(session: Session, log: WorkoutLog, athlete: string): SessionCard {
+export function sessionCardFromLog(
+  session: Session,
+  log: WorkoutLog,
+  athlete: string,
+): SessionCard {
   const a = log.actuals ?? {};
 
-  // Volume: prefer the logged distance; else the planned run mileage.
-  const plannedMiles = session.kind === "run" ? session.distanceMiles : 0;
+  // Volume: prefer the logged distance; else the planned run mileage (total
+  // on-feet, matching the weekly figure).
+  const plannedMiles = session.kind === "run" ? sessionMiles(session) : 0;
   const sessVol =
     typeof a.distanceMiles === "number"
       ? fmtMiles(a.distanceMiles)
