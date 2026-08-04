@@ -31,9 +31,9 @@ describe("capExperience — which level the caps key off", () => {
 
 describe("trainingCaps", () => {
   it("maps each level to its session and day cap", () => {
-    expect(trainingCaps("station_hybrid", exp("beginner"))).toEqual({ session: 90, day: 180 });
-    expect(trainingCaps("station_hybrid", exp("intermediate"))).toEqual({ session: 105, day: 210 });
-    expect(trainingCaps("station_hybrid", exp("advanced"))).toEqual({ session: 120, day: 240 });
+    expect(trainingCaps("station_hybrid", exp("beginner"))).toEqual({ session: 90, day: 180, cardioSession: 90 });
+    expect(trainingCaps("station_hybrid", exp("intermediate"))).toEqual({ session: 105, day: 210, cardioSession: 105 });
+    expect(trainingCaps("station_hybrid", exp("advanced"))).toEqual({ session: 120, day: 240, cardioSession: 120 });
   });
 
   it("the day cap is exactly two capped sessions in every tier", () => {
@@ -44,13 +44,14 @@ describe("trainingCaps", () => {
   });
 
   it("defaults to the most conservative tier", () => {
-    expect(DEFAULT_CAPS).toEqual({ session: 90, day: 180 });
+    expect(DEFAULT_CAPS).toEqual({ session: 90, day: 180, cardioSession: 90 });
   });
 
   it("the athlete's own profile: HYROX + beginner runner → 90 / 180 despite advanced lifting", () => {
     expect(trainingCaps("station_hybrid", exp("beginner", "intermediate", "advanced"))).toEqual({
       session: 90,
       day: 180,
+      cardioSession: 90,
     });
   });
 });
@@ -71,7 +72,7 @@ describe("caps reach the skeleton through the real generation path", () => {
         weightUnit: "lbs",
       },
     } as never);
-    expect(engineInput.caps).toEqual({ session: 90, day: 180 });
+    expect(engineInput.caps).toEqual({ session: 90, day: 180, cardioSession: 90 });
   });
 
   it("a triathlete takes the lowest of the three", async () => {
@@ -89,6 +90,56 @@ describe("caps reach the skeleton through the real generation path", () => {
         weightUnit: "lbs",
       },
     } as never);
-    expect(engineInput.caps).toEqual({ session: 90, day: 180 });
+    expect(engineInput.caps).toEqual({ session: 90, day: 180, cardioSession: 90 });
+  });
+});
+
+// --- weekly-hours bands raise the caps (Levi, 2026-08-04) --------------------
+//
+// The experience tiers (90/105/120) were written for athletes training under ~10
+// hours a week, and they silently became the ceiling on WEEKLY volume: a week is
+// at most `days x 2 sessions x sessionCap`, so 7 days x 2 x 120 = 1680 min = 28 h.
+// An athlete who selected 30-40 hours could not be given the program they asked
+// for. Two sessions a day stays absolute; the volume goes into LONGER Zone 1-2
+// blocks, which is what a high-volume endurance week is actually made of.
+
+describe("weekly-hours bands raise the session caps", () => {
+  const adv = { runningExp: "advanced", hybridExp: "advanced", liftingExp: "advanced" } as const;
+
+  it("raises the general session cap on the high-volume bands", () => {
+    expect(trainingCaps("station_hybrid", adv, "h10_20").session).toBe(120);
+    expect(trainingCaps("station_hybrid", adv, "h20_30").session).toBe(150);
+    expect(trainingCaps("station_hybrid", adv, "h30_40").session).toBe(180);
+  });
+
+  it("gives Zone 1-2 cardio its own, higher ceiling", () => {
+    expect(trainingCaps("station_hybrid", adv, "h5_10").cardioSession).toBe(150); // 2.5 h
+    expect(trainingCaps("station_hybrid", adv, "h10_20").cardioSession).toBe(180); // 3 h
+    expect(trainingCaps("station_hybrid", adv, "h20_30").cardioSession).toBe(240); // 4 h
+    expect(trainingCaps("station_hybrid", adv, "h30_40").cardioSession).toBe(300); // 5 h
+  });
+
+  it("never lets the cardio ceiling fall below the general session cap", () => {
+    for (const band of ["h0_5", "h5_10", "h10_20", "h20_30", "h30_40"] as const) {
+      for (const level of ["beginner", "intermediate", "advanced"] as const) {
+        const caps = trainingCaps("station_hybrid", { runningExp: level }, band);
+        expect(caps.cardioSession).toBeGreaterThanOrEqual(caps.session);
+        // A day is still exactly two sessions — the longest possible pair.
+        expect(caps.day).toBe(caps.session + caps.cardioSession);
+      }
+    }
+  });
+
+  it("leaves the sub-5-hour band on the experience tier", () => {
+    const caps = trainingCaps("station_hybrid", adv, "h0_5");
+    expect(caps.session).toBe(120);
+    expect(caps.cardioSession).toBe(120); // nothing to absorb at 5 h/week
+  });
+
+  it("a beginner on a high-volume band still gets the band's caps", () => {
+    // The band is the athlete's stated time budget; it outranks the tier default.
+    const caps = trainingCaps("station_hybrid", { runningExp: "beginner" }, "h30_40");
+    expect(caps.session).toBe(180);
+    expect(caps.cardioSession).toBe(300);
   });
 });

@@ -497,11 +497,15 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     bodyWeightLbs: toLbs(input.profile.bodyWeight, input.profile.weightUnit),
     longRunDays: normalizeLongRunDays(input.profile.dayPreferences),
     restDays: input.profile.dayPreferences?.restDays,
-    caps: trainingCaps(getSport(input.sport).family, {
-      runningExp: input.profile.runningExp,
-      hybridExp: input.profile.hybridExp,
-      liftingExp: input.profile.liftingExp,
-    }),
+    caps: trainingCaps(
+      getSport(input.sport).family,
+      {
+        runningExp: input.profile.runningExp,
+        hybridExp: input.profile.hybridExp,
+        liftingExp: input.profile.liftingExp,
+      },
+      input.profile.weeklyHours,
+    ),
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,
     needs: analyzeNeedsForSport(input.profile, input.sport, {

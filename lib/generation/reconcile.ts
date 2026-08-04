@@ -37,7 +37,7 @@ import {
   repsForWorkMiles,
   REP_DISTANCE_MILES,
 } from "@/lib/engine/interval-structure";
-import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
+import { DEFAULT_CAPS, MAX_SESSIONS_PER_DAY, type TrainingCaps } from "@/lib/engine/caps";
 
 type RunSession = Extract<Session, { kind: "run" }>;
 type CardioSession = Extract<Session, { kind: "cardio" }>;
@@ -186,8 +186,21 @@ export function weekCardioCapacity(
   for (const d of days) {
     if (isRaceDay(d)) continue;
     if (avoidDays.includes(d.day)) continue; // the athlete asked to keep this clear
-    const liftMinutes = d.sessions.filter((s) => s.kind === "lift").length * STRENGTH_SESSION_MIN;
-    capacity += Math.max(0, caps.day - liftMinutes);
+    // SLOTS are the real constraint, not minutes. A day has two, full stop. A lift
+    // spends one without contributing any cardio; a run or hybrid spends one and
+    // contributes what it already is. Only the slots left over can take a new
+    // Zone 1-2 block, and each of those holds at most `cardioSession`.
+    let aerobic = 0;
+    let lifts = 0;
+    for (const s of d.sessions) {
+      if (s.kind === "lift") lifts++;
+      else if (s.kind !== "race") aerobic += sessionTiming(s).total;
+    }
+    const freeSlots = Math.max(0, MAX_SESSIONS_PER_DAY - d.sessions.length);
+    capacity += Math.min(
+      Math.max(0, caps.day - lifts * STRENGTH_SESSION_MIN),
+      aerobic + freeSlots * caps.cardioSession,
+    );
   }
   return capacity;
 }
@@ -448,7 +461,11 @@ function planFiller(
   caps: TrainingCaps,
 ): FillerAllocation[] {
   const isPreferred = (d: ProgramDay): boolean => !!place.preferDays?.includes(d.day);
-  const room = (d: ProgramDay): number => Math.min(caps.session, caps.day - dayTotalMinutes(d));
+  // These blocks ARE Zone 1-2 cardio, so they are bounded by the cardio cap, not
+  // the general session cap (Levi, 2026-08-04: two sessions a day is absolute;
+  // high-volume weeks absorb their volume through LONGER easy aerobic blocks).
+  const room = (d: ProgramDay): number =>
+    Math.min(caps.cardioSession, caps.day - dayTotalMinutes(d));
   const eligible = (d: ProgramDay): boolean =>
     !isRaceDay(d) &&
     !place.avoidDays?.includes(d.day) &&
@@ -522,10 +539,28 @@ function planFiller(
       overflow = 0;
     }
   }
-  if (overflow > 0 && plan.length > 0)
-    plan[plan.length - 1]!.minutes += overflow; // unavoidable
-  else if (overflow > 0) plan.push({ day: hosts[0]!, minutes: overflow });
-  return plan;
+  // Last resort. This used to read `plan[last].minutes += overflow` with the note
+  // "unavoidable", which is how a week ended up shipping a SINGLE 1707-minute
+  // (28-hour) Zone 1-2 block: whatever could not be placed was simply piled onto
+  // one session, unbounded, and the week reported its total as met.
+  //
+  // Nothing is served by a session no human can do. The remainder is placed only
+  // up to the cardio cap; anything still stranded is DROPPED and the week lands
+  // honestly short (Levi, 2026-08-04 — two sessions a day is absolute, and a
+  // capped block is a real session where a 28-hour one is not).
+  if (overflow > 0 && plan.length > 0) {
+    const last = plan[plan.length - 1]!;
+    const headroom =
+      Math.min(caps.cardioSession, caps.day - dayTotalMinutes(last.day)) - last.minutes;
+    last.minutes += Math.min(overflow, Math.max(0, headroom));
+  } else if (overflow > 0) {
+    const host = hosts[0]!;
+    plan.push({
+      day: host,
+      minutes: Math.min(overflow, Math.min(caps.cardioSession, caps.day - dayTotalMinutes(host))),
+    });
+  }
+  return plan.filter((a) => a.minutes > 0);
 }
 
 /**
@@ -545,7 +580,8 @@ function spread(
   caps: TrainingCaps,
 ): number {
   let left = minutes;
-  const capacity = (d: ProgramDay): number => Math.min(caps.session, caps.day - dayTotalMinutes(d));
+  const capacity = (d: ProgramDay): number =>
+    Math.min(caps.cardioSession, caps.day - dayTotalMinutes(d));
   const open = hosts.filter((d) => !plan.some((a) => a.day === d)); // one block per day
   if (open.length === 0 || left <= 0) return left;
 
@@ -584,7 +620,8 @@ function absorb(plan: FillerAllocation[], minutes: number, caps: TrainingCaps): 
   for (const a of plan) {
     if (left <= 0) break;
     // The block isn't written to the day yet, so its own minutes are not in the total.
-    const headroom = Math.min(caps.session, caps.day - dayTotalMinutes(a.day)) - a.minutes;
+    const headroom =
+      Math.min(caps.cardioSession, caps.day - dayTotalMinutes(a.day)) - a.minutes;
     const add = Math.min(left, Math.max(0, headroom));
     a.minutes += add;
     left -= add;

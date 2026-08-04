@@ -179,12 +179,27 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
           // feasible target and only overshoots when the week's run minimums already
           // exceed it (an unrealistic many-runs/tiny-target combo).
           expect(weekMileage({ days })).toBeGreaterThanOrEqual(mi - 0.05);
-          // Cardio is hit exactly up to what the week can physically hold. These
-          // targets are deliberately generous (22 min per prescribed mile), so the
-          // largest of them exceed the day caps — and a target the days cannot hold
-          // is delivered at capacity rather than pretended to (Levi, 2026-08-04).
-          expect(weekCardioMinutes({ days })).toBe(Math.min(min, capacity));
+          // Cardio is hit EXACTLY whenever the week can hold it. These targets are
+          // deliberately generous (22 min per prescribed mile), so the largest of
+          // them exceed what two-sessions-a-day can physically fit — and a target
+          // the week cannot hold is delivered short, never faked by inflating one
+          // block past its cap (Levi, 2026-08-04).
+          const delivered = weekCardioMinutes({ days });
+          if (min <= capacity) {
+            expect(delivered).toBe(min);
+          } else {
+            expect(delivered).toBeLessThanOrEqual(capacity);
+            expect(delivered).toBeGreaterThan(0);
+          }
           expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
+          // The invariant that actually matters: every session is legal.
+          for (const d of days) {
+            expect(d.sessions.length).toBeLessThanOrEqual(2);
+            for (const s of d.sessions) {
+              const lim = s.kind === "cardio" ? DEFAULT_CAPS.cardioSession : DEFAULT_CAPS.session;
+              expect(sessionTiming(s).total).toBeLessThanOrEqual(lim);
+            }
+          }
         }
       }
     }
@@ -335,10 +350,7 @@ describe("session cap scales with experience", () => {
         "intermediate",
         1,
         { preferDays: ["sat", "sun"] },
-        {
-          session: cap,
-          day: cap * 2,
-        },
+        { session: cap, day: cap * 2, cardioSession: cap },
       );
       expect(longest(days)).toBeLessThanOrEqual(cap);
     });
@@ -348,8 +360,8 @@ describe("session cap scales with experience", () => {
     const a = bigWeek();
     const b = bigWeek();
     const place = { preferDays: ["sat", "sun"] as const };
-    reconcileWeekVolume(a, 30, 400, P, "intermediate", 1, place, { session: 90, day: 180 });
-    reconcileWeekVolume(b, 30, 400, P, "intermediate", 1, place, { session: 120, day: 240 });
+    reconcileWeekVolume(a, 30, 400, P, "intermediate", 1, place, { session: 90, day: 180, cardioSession: 90 });
+    reconcileWeekVolume(b, 30, 400, P, "intermediate", 1, place, { session: 120, day: 240, cardioSession: 120 });
     expect(longest(b)).toBeGreaterThan(longest(a));
   });
 
@@ -369,10 +381,7 @@ describe("session cap scales with experience", () => {
       "intermediate",
       1,
       { preferDays: ["sat", "sun"] },
-      {
-        session: 90,
-        day: 180,
-      },
+      { session: 90, day: 180, cardioSession: 90 },
     );
     for (const d of days) {
       for (const s of d.sessions) expect(sessionTiming(s).total).toBeLessThanOrEqual(90);
@@ -386,7 +395,7 @@ describe("the weekend rebalancer respects the session cap", () => {
   // It grows a weekend filler block to keep Sat/Sun the biggest days. Without a cap
   // check that growth ran straight past the athlete's per-session limit — a 98-min
   // block against a 90-min beginner cap showed up in week 13 of a live program.
-  const CAP = { session: 90, day: 180 };
+  const CAP = { session: 90, day: 180, cardioSession: 90 };
   const shapes: ProgramDay[][] = [
     daysOf(
       [],
@@ -451,7 +460,7 @@ describe("Zone 1–2 blocks respect the 45-minute floor", () => {
   // (a run or hybrid — a brick). A lift is not cardio, so two 30-minute spins on
   // back-to-back lift days are wrong: 90 surplus minutes are 45 + 45, not 30 + 30 + 30.
   const place = { preferDays: ["sat", "sun"] as const };
-  const CAP = { session: 90, day: 180 };
+  const CAP = { session: 90, day: 180, cardioSession: 90 };
   const blocks = (days: ProgramDay[]) =>
     days.flatMap((d) =>
       d.sessions
@@ -555,7 +564,7 @@ describe("filler is planned before it is written", () => {
   // an already-prescribed session afterwards. These pin the guarantees that the old
   // place-then-repair design broke: it deleted a lift by splicing the wrong day, and
   // grew a block past the session cap.
-  const CAP = { session: 90, day: 180 };
+  const CAP = { session: 90, day: 180, cardioSession: 90 };
   const place = { preferDays: ["sat", "sun"] as const };
 
   it("when the weekend cannot be biggest, the caps and the total still hold", () => {
