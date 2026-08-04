@@ -190,7 +190,11 @@ export function sessionSummary(session: Session, ctx: SessionSummaryContext = {}
     typeof a?.durationMin === "number" ? Math.round(a.durationMin) : sessionTiming(session).total;
   const sessHr = typeof a?.avgHr === "number" ? `Avg ${Math.round(a.avgHr)} bpm` : "";
   const note = ctx.log?.note?.trim();
-  const coachNote = note && note.length > 0 ? note : defaultNote(session, !!a);
+  // A workout marked complete gets the completed note even if the athlete never
+  // filled in distance/duration/HR — seen live: a session showing "Done · RPE 3"
+  // carried the not-started note because `actuals` was empty.
+  const done = ctx.log?.status === "completed" || !!a;
+  const coachNote = note && note.length > 0 ? note : defaultNote(session, done);
 
   const cardData: SessionCardSeed = {
     type: "session",

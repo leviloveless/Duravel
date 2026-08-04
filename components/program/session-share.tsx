@@ -35,20 +35,40 @@ export default function SessionShare({
   weekNumber?: number;
   stravaWriteEnabled?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState<null | "ok" | "reconnect" | "error">(null);
 
   const link = "text-xs font-medium text-lime-700 transition-colors hover:text-lime-900";
 
+  /**
+   * `navigator.clipboard` rejects when the document isn't focused or the
+   * permission is denied, and the old catch swallowed that silently — the button
+   * just did nothing. Fall back to a hidden textarea + `execCommand`, and if even
+   * that fails SAY so rather than pretending it worked.
+   */
   async function copy() {
+    const text = summary.stravaDescription;
     try {
-      await navigator.clipboard.writeText(summary.stravaDescription);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopyState("copied");
     } catch {
-      setCopied(false);
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopyState(ok ? "copied" : "failed");
+      } catch {
+        setCopyState("failed");
+      }
     }
+    setTimeout(() => setCopyState("idle"), 2500);
   }
 
   async function postToStrava() {
@@ -87,7 +107,7 @@ export default function SessionShare({
         initial={summary.cardData as Partial<CardData>}
       />
       <button type="button" onClick={copy} className={link} title="Copy the Strava description">
-        {copied ? "Copied" : "Copy"}
+        {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy"}
       </button>
       {stravaWriteEnabled && activityId && (
         <button type="button" onClick={postToStrava} disabled={posting} className={link}>

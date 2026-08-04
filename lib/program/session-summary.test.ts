@@ -128,6 +128,19 @@ describe("sessionSummary", () => {
     }
   });
 
+  it("a completed workout gets the completed note even with no actuals", () => {
+    // Seen live: a session showing "Done · RPE 3" but no distance/duration/HR
+    // carried the not-started note, because the note keyed off actuals.
+    const doneNoActuals = { status: "completed", rpe: 3 } as unknown as WorkoutLog;
+    expect(sessionSummary(run, { ...CTX, log: doneNoActuals }).cardData.coachNote).toBe(
+      "Logged and done. On to the next one.",
+    );
+    // An unstarted session still reads as a plan.
+    expect(sessionSummary(run, CTX).cardData.coachNote).toBe("On the plan. Let's go.");
+    // ...and the headline stays on the plan when there is nothing actual to show.
+    expect(sessionSummary(run, { ...CTX, log: doneNoActuals }).title).toBe("Threshold run — 6 mi");
+  });
+
   it("is deterministic — same session in, same text out", () => {
     expect(sessionSummary(run, CTX).stravaDescription).toBe(
       sessionSummary(run, CTX).stravaDescription,
