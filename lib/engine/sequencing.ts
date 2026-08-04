@@ -542,13 +542,104 @@ function moveLiftTo(days: DaySlot[], fromIdx: number, targetIdx: number): void {
   tgt.sessions.push(lift);
 }
 
+/** Every size-k subset of `xs` (k small; used for lift-day selection). */
+function kSubsets<T>(xs: T[], k: number): T[][] {
+  if (k === 0) return [[]];
+  if (k > xs.length) return [];
+  const [head, ...rest] = xs;
+  const withHead = kSubsets(rest, k - 1).map((s) => [head!, ...s]);
+  const withoutHead = kSubsets(rest, k);
+  return [...withHead, ...withoutHead];
+}
+
 /**
- * Enforce lift-day recovery separation. Repeatedly fixes the worst violation
- * (full-body-on-consecutive-days first, then the largest gap shortfall) by
- * relocating one lift of the offending pair. Best-effort: it stops when no legal
- * destination remains, so a week too dense to separate is left as good as it can be.
+ * Levi's HARD rule enforcer: two FULL-BODY lifts must never share consecutive
+ * days and are kept >=2 calendar days apart when the lift days allow it. Rather
+ * than MOVE a lift (which fails when every free day is protected — long run,
+ * weekend hybrid, key runs), this RELABELS which of the existing lift days carry
+ * the heavy "full" session vs the lighter split/power session. That is
+ * count-preserving and needs no free day, so it works in the densest weeks.
+ *
+ * With the research heavy/power split a 3-lift week is [full, power, full]; if
+ * both fulls get dealt onto adjacent days (e.g. Tue+Wed), this reassigns "full"
+ * to the best-spread pair of lift days (e.g. Tue+Fri) and hands the vacated day
+ * the power session — same sessions, legal spacing. No-op when the current full
+ * placement is already >=2 days apart, so weeks that were already fine (and the
+ * golden fixtures) are untouched.
+ */
+export function spreadFullLiftTypes(days: DaySlot[]): void {
+  const liftDays = days
+    .map((d, i) => (dayHas(d, isLift) ? i : -1))
+    .filter((i) => i >= 0)
+    .sort((a, b) => (CAL_INDEX[days[a]!.day] ?? 0) - (CAL_INDEX[days[b]!.day] ?? 0));
+  if (liftDays.length < 2) return;
+
+  const fullDays = liftDays.filter((i) => dayHas(days[i]!, isFullLift));
+  const f = fullDays.length;
+  if (f < 2) return;
+
+  const minGap = (idxs: number[]): number => {
+    let m = Infinity;
+    for (let a = 0; a < idxs.length; a++)
+      for (let b = a + 1; b < idxs.length; b++) m = Math.min(m, calGap(days, idxs[a]!, idxs[b]!));
+    return m;
+  };
+  // Already >=2 days apart (calendar gap >= 3)? Leave everything as-is.
+  if (minGap(fullDays) >= 3) return;
+
+  // Pick which lift days should be "full": maximize the smallest gap between full
+  // days (never consecutive if avoidable), then total spread, then keep the most
+  // of the current full days to minimize churn.
+  let best: number[] | null = null;
+  let bestKey: [number, number, number] = [-1, -1, -1];
+  for (const combo of kSubsets(liftDays, f)) {
+    let mn = Infinity;
+    let sum = 0;
+    for (let a = 0; a < combo.length; a++)
+      for (let b = a + 1; b < combo.length; b++) {
+        const g = calGap(days, combo[a]!, combo[b]!);
+        mn = Math.min(mn, g);
+        sum += g;
+      }
+    const kept = combo.filter((i) => fullDays.includes(i)).length;
+    const key: [number, number, number] = [mn, sum, kept];
+    if (
+      key[0] > bestKey[0] ||
+      (key[0] === bestKey[0] &&
+        (key[1] > bestKey[1] || (key[1] === bestKey[1] && key[2] > bestKey[2])))
+    ) {
+      bestKey = key;
+      best = combo;
+    }
+  }
+  if (!best || minGap(best) <= minGap(fullDays)) return; // no improvement available
+
+  // The non-full lift types, kept in day order so we reassign them stably to the
+  // lift days that are no longer "full".
+  const nonFullTypes = liftDays
+    .filter((i) => !best!.includes(i))
+    .map((i) => {
+      const lift = days[i]!.sessions.find(isLift);
+      return lift && lift.kind === "lift" && lift.liftType !== "full" ? lift.liftType : "power";
+    });
+  let nf = 0;
+  for (const i of liftDays) {
+    const lift = days[i]!.sessions.find(isLift);
+    if (!lift || lift.kind !== "lift") continue;
+    lift.liftType = best.includes(i) ? "full" : (nonFullTypes[nf++] ?? "power");
+  }
+}
+
+/**
+ * Enforce lift-day recovery separation. First relabels which lift days carry the
+ * heavy "full" session so two full-body lifts are never consecutive (works even
+ * when the week is too dense to move a lift). Then repeatedly fixes the worst
+ * remaining spacing violation (full-body-on-consecutive-days first, then the
+ * largest gap shortfall) by relocating one lift of the offending pair.
+ * Best-effort on the relocation step: it stops when no legal destination remains.
  */
 export function separateLiftDays(days: DaySlot[], protectedDays: Set<TrainingDayName>): void {
+  spreadFullLiftTypes(days);
   for (let guard = 0; guard < days.length * 6; guard++) {
     const liftDays = days.map((d, i) => (dayHas(d, isLift) ? i : -1)).filter((i) => i >= 0);
     let worst: { i: number; j: number; sev: number } | null = null;

@@ -24,10 +24,25 @@ import { allocateMesocycles, expandPhases } from "./mesocycles";
 import { sequenceMicrocycles } from "./microcycles";
 import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
-import { assignDays, normalizeLongRunDays, slotPriority, DEFAULT_COUNTS, type SessionCountTables } from "./slots";
+import {
+  assignDays,
+  normalizeLongRunDays,
+  slotPriority,
+  DEFAULT_COUNTS,
+  type SessionCountTables,
+} from "./slots";
+import { spreadFullLiftTypes } from "./sequencing";
 import { trainingCaps } from "./caps";
 import { getSport, type SportConfig } from "./sports";
-import { applyBandZoneShift, bandPhaseZoneTargets, bandStartMileage, bandStartCardioMinutes, bandSessionCap, bandAnchorRunFloor, runImpactFactor } from "./time-budget";
+import {
+  applyBandZoneShift,
+  bandPhaseZoneTargets,
+  bandStartMileage,
+  bandStartCardioMinutes,
+  bandSessionCap,
+  bandAnchorRunFloor,
+  runImpactFactor,
+} from "./time-budget";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
 import { analyzeNeedsForSport } from "./needs-atlas";
 import { clamp, round1 } from "./math";
@@ -43,7 +58,9 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const cfg = getSport(input.sport);
   const counts: SessionCountTables = {
     run: (cfg.sessionCounts.run as SessionCountTables["run"] | undefined) ?? DEFAULT_COUNTS.run,
-    hybrid: (cfg.sessionCounts.hybrid as SessionCountTables["hybrid"] | undefined) ?? DEFAULT_COUNTS.hybrid,
+    hybrid:
+      (cfg.sessionCounts.hybrid as SessionCountTables["hybrid"] | undefined) ??
+      DEFAULT_COUNTS.hybrid,
     lift: (cfg.sessionCounts.lift as SessionCountTables["lift"] | undefined) ?? DEFAULT_COUNTS.lift,
     // Station-only sports (totalRaceRunMeters 0) floor runs to 0 and keep them easy.
     runFloor: cfg.runFloor ?? (cfg.totalRaceRunMeters === 0 ? 0 : undefined),
@@ -59,7 +76,8 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   if (input.weeklyHours && cfg.bandLiftCounts) {
     const [lo, hi] = cfg.bandLiftCounts[input.weeklyHours];
     // Scale within the range by lifting experience: beginner -> min, advanced -> max.
-    const expIdx = input.liftingExp === "advanced" ? 2 : input.liftingExp === "intermediate" ? 1 : 0;
+    const expIdx =
+      input.liftingExp === "advanced" ? 2 : input.liftingExp === "intermediate" ? 1 : 0;
     const n = Math.round(lo + ((hi - lo) * expIdx) / 2);
     counts.lift = { base: n, build: n, peak: n, taper: Math.max(1, n - 1) };
     counts.researchLifts = true;
@@ -93,13 +111,18 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const startMi =
     input.startMileage ??
     (input.weeklyHours
-      ? round1(bandStartMileage(input.weeklyHours) * runImpactFactor(input.runningExp, input.bodyWeightLbs))
+      ? round1(
+          bandStartMileage(input.weeklyHours) *
+            runImpactFactor(input.runningExp, input.bodyWeightLbs),
+        )
       : cfg.volume.kind === "single_currency"
         ? cfg.volume.startMileageByExp[input.runningExp]
         : startingMileage(input.runningExp));
   const startCa =
     input.startCardioMinutes ??
-    (input.weeklyHours ? bandStartCardioMinutes(input.weeklyHours) : startingCardioMinutes(startMi));
+    (input.weeklyHours
+      ? bandStartCardioMinutes(input.weeklyHours)
+      : startingCardioMinutes(startMi));
   const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa, input.age);
 
   // 2. Assemble full-length base arrays; apply the peak-phase volume drop.
@@ -268,6 +291,11 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
       // Keep the priority workout first on any day that now doubles up.
       target.sessions.sort((a, b) => slotPriority(b) - slotPriority(a));
     }
+    // Re-homing packs lifts onto the emptiest later days without regard to the
+    // full-body-lift spacing rule, so two full lifts can land on consecutive days
+    // (e.g. Fri+Sat). Re-spread which of these days carries the heavy "full"
+    // session so full lifts are never consecutive.
+    spreadFullLiftTypes(d);
   }
 }
 
@@ -275,7 +303,11 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
 
 /** Emphasis block → synthetic phase, so strength schemes + zone targets + run-type
  *  selection all reuse the existing phase machinery unchanged. */
-const EMPHASIS_PHASE: Record<string, PhaseName> = { aerobic: "base", mixed: "build", strength: "peak" };
+const EMPHASIS_PHASE: Record<string, PhaseName> = {
+  aerobic: "base",
+  mixed: "build",
+  strength: "peak",
+};
 
 /** Sub-goal → the block rotation. Balanced cycles evenly; the others weight the loop. */
 const SUBGOAL_ROTATION: Record<string, string[]> = {
@@ -293,18 +325,27 @@ const BLOCK_WEEKS = 4;
  * continuously across all weeks (rising baseline), there is no taper, and each
  * week carries its `emphasis` for the UI/AI. The sub-goal chooses the rotation.
  */
-function buildRotationSkeleton(input: EngineInput, cfg: SportConfig, counts: SessionCountTables): ProgramSkeleton {
+function buildRotationSkeleton(
+  input: EngineInput,
+  cfg: SportConfig,
+  counts: SessionCountTables,
+): ProgramSkeleton {
   const D = input.durationWeeks;
   const startMi =
     input.startMileage ??
     (input.weeklyHours
-      ? round1(bandStartMileage(input.weeklyHours) * runImpactFactor(input.runningExp, input.bodyWeightLbs))
+      ? round1(
+          bandStartMileage(input.weeklyHours) *
+            runImpactFactor(input.runningExp, input.bodyWeightLbs),
+        )
       : cfg.volume.kind === "single_currency"
         ? cfg.volume.startMileageByExp[input.runningExp]
         : startingMileage(input.runningExp));
   const startCa =
     input.startCardioMinutes ??
-    (input.weeklyHours ? bandStartCardioMinutes(input.weeklyHours) : startingCardioMinutes(startMi));
+    (input.weeklyHours
+      ? bandStartCardioMinutes(input.weeklyHours)
+      : startingCardioMinutes(startMi));
   // Continuous progression across ALL weeks (no taper carve-out) → rising baseline.
   const seq = sequenceMicrocycles(D, input.trainingClass, startMi, startCa, input.age);
 
@@ -401,7 +442,10 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
   if (start && rawRaces.length > 0) {
     races = rawRaces
       .map((r) => ({
-        weekNumber: Math.max(1, Math.ceil((new Date(r.raceDate).getTime() - start.getTime()) / MS_PER_WEEK)),
+        weekNumber: Math.max(
+          1,
+          Math.ceil((new Date(r.raceDate).getTime() - start.getTime()) / MS_PER_WEEK),
+        ),
         priority: r.priority,
         date: r.raceDate,
       }))

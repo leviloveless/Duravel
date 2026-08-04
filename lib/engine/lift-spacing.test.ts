@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { assignDays, spreadLiftDays } from "./slots";
-import type { DaySlot, TrainingDayName } from "./types";
+import { buildSkeleton } from "./skeleton";
+import type { DaySlot, EngineInput, TrainingDayName } from "./types";
 
 /**
  * Reported: "the program has all three lifts in 3 days in a row" — Mon/Tue/Wed,
@@ -73,8 +74,10 @@ describe("the reported week: rest Mon, lifts Tue–Fri, long run Sat/Sun", () =>
     liftDays: ["tue", "wed", "thu", "fri"] as TrainingDayName[],
     hybridDays: ["tue", "wed", "thu", "fri", "sun"] as TrainingDayName[],
   };
-  const build = (phase: "base" | "build" | "peak", micro: "rebound" | "increase" | "deload" = "increase") =>
-    assignDays(ALL, phase, micro, "intermediate", "intermediate", undefined, prefs);
+  const build = (
+    phase: "base" | "build" | "peak",
+    micro: "rebound" | "increase" | "deload" = "increase",
+  ) => assignDays(ALL, phase, micro, "intermediate", "intermediate", undefined, prefs);
 
   it("never puts three lift days in a row", () => {
     for (const phase of ["base", "build", "peak"] as const) {
@@ -110,13 +113,78 @@ describe("the reported week: rest Mon, lifts Tue–Fri, long run Sat/Sun", () =>
     const days = build("base", "rebound");
     expect(days.find((d) => d.sessions.some((s) => s.kind === "run" && s.isLong))?.day).toBe("sat");
     expect(liftDaysOf(days).length).toBeGreaterThan(0);
-    expect(days.filter((d) => d.sessions.some((s) => s.kind === "hybrid")).map((d) => d.day)).toContain("sun");
+    expect(
+      days.filter((d) => d.sessions.some((s) => s.kind === "hybrid")).map((d) => d.day),
+    ).toContain("sun");
   });
 
   it("preserves the session count (nothing dropped by the re-deal)", () => {
     const plain = assignDays(ALL, "build", "increase", "intermediate", "intermediate");
     const pref = build("build");
-    const count = (a: DaySlot[]) => a.reduce((n, d) => n + d.sessions.filter((s) => s.kind !== "rest").length, 0);
+    const count = (a: DaySlot[]) =>
+      a.reduce((n, d) => n + d.sessions.filter((s) => s.kind !== "rest").length, 0);
     expect(count(pref)).toBe(count(plain));
+  });
+});
+
+/**
+ * Levi's hard rule: two FULL-BODY lifts must never fall on consecutive calendar
+ * days. The research heavy/power split (band budget + advanced lifting) makes a
+ * 3-lift week [full, power, full] = two fulls, which used to land on adjacent
+ * lift days (Tue+Wed) that `separateLiftDays` couldn't move apart when every
+ * free day was protected — and the post-B-race re-home could stack them on
+ * Fri+Sat. `spreadFullLiftTypes` now relabels which lift day carries the heavy
+ * session so the fulls are always spread. This guards both paths.
+ */
+describe("full-body lifts are never on consecutive days (research split)", () => {
+  const CAL: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+  const fullDays = (wk: { days: DaySlot[] }): number[] =>
+    wk.days
+      .filter((d) => d.sessions.some((s) => s.kind === "lift" && s.liftType === "full"))
+      .map((d) => CAL[d.day]!);
+  const hasConsecutiveFulls = (wk: { days: DaySlot[] }): boolean => {
+    const f = fullDays(wk).sort((a, b) => a - b);
+    for (let i = 1; i < f.length; i++) if (f[i]! - f[i - 1]! < 2) return true;
+    return false;
+  };
+
+  const dense = (races: EngineInput["races"]): EngineInput =>
+    ({
+      trainingClass: "non_highly_trained",
+      runningExp: "intermediate",
+      hybridExp: "intermediate",
+      liftingExp: "advanced",
+      programType: "goal_event",
+      durationWeeks: 16,
+      weeklyHours: "h10_20",
+      trainingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      liftDays: ["tue", "wed", "thu", "fri"],
+      hybridDays: ["tue", "wed", "thu", "fri", "sun"],
+      longRunDays: ["sat", "sun"],
+      races,
+    }) as EngineInput;
+
+  it("single A race — no week stacks two full lifts", () => {
+    const sk = buildSkeleton(dense([{ weekNumber: 16, priority: "A" }]));
+    for (const [i, wk] of sk.weeks.entries())
+      expect(hasConsecutiveFulls(wk), `week ${i + 1}`).toBe(false);
+  });
+
+  it("multi-race incl. B races (post-B-race re-home) — still no consecutive fulls", () => {
+    const sk = buildSkeleton(
+      dense([
+        { weekNumber: 7, priority: "B" },
+        { weekNumber: 10, priority: "B" },
+        { weekNumber: 16, priority: "A" },
+      ]),
+    );
+    for (const [i, wk] of sk.weeks.entries())
+      expect(hasConsecutiveFulls(wk), `week ${i + 1}`).toBe(false);
+  });
+
+  it("keeps two full lifts in the base weeks (fix spreads, does not delete)", () => {
+    const sk = buildSkeleton(dense([{ weekNumber: 16, priority: "A" }]));
+    const week1 = sk.weeks[0]!;
+    expect(fullDays(week1).length).toBe(2);
   });
 });
