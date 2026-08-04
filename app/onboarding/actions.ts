@@ -38,12 +38,21 @@ function todayISO(): string {
  */
 function parseGenerationInput(
   formData: FormData,
-): { input: GenerationInput; programNameInput?: string; error?: undefined } | { error: string; input?: undefined } {
+):
+  | { input: GenerationInput; programNameInput?: string; error?: undefined }
+  | { error: string; input?: undefined } {
   // --- Benchmarks (all optional) ---
+  const paceUnitRaw = str(formData, "paceUnit");
   const benchmarksRaw = {
     mileTime: str(formData, "mileTime"),
     fiveKTime: str(formData, "fiveKTime"),
     tenKTime: str(formData, "tenKTime"),
+    easyPace: str(formData, "easyPace"),
+    thresholdPace: str(formData, "thresholdPace"),
+    intervalPace: str(formData, "intervalPace"),
+    tempoPace: str(formData, "tempoPace"),
+    paceUnit:
+      paceUnitRaw === "km" ? ("km" as const) : paceUnitRaw === "mi" ? ("mi" as const) : undefined,
     fiveRmSquat: num(formData, "fiveRmSquat"),
     fiveRmBench: num(formData, "fiveRmBench"),
     fiveRmDeadlift: num(formData, "fiveRmDeadlift"),
@@ -84,7 +93,10 @@ function parseGenerationInput(
 
   // --- Custom HR zone bands (optional) (new-additions #3) ---
   const zonesEnabled = formData.get("hrZonesEnabled") === "on";
-  const zoneBand = (n: number) => ({ low: num(formData, `zone_${n}_low`), high: num(formData, `zone_${n}_high`) });
+  const zoneBand = (n: number) => ({
+    low: num(formData, `zone_${n}_low`),
+    high: num(formData, `zone_${n}_high`),
+  });
   const hrZones = zonesEnabled
     ? { z1: zoneBand(1), z2: zoneBand(2), z3: zoneBand(3), z4: zoneBand(4), z5: zoneBand(5) }
     : undefined;
@@ -179,7 +191,10 @@ function parseGenerationInput(
   // it). Every other sport treats all benchmarks as optional.
   const requiresFiveK = input.sport === "hyrox" || input.sport === "deka_fit";
   if (requiresFiveK && !input.profile.benchmarks?.fiveKTime) {
-    return { error: "Enter your 5K time so run paces can be calculated — a best guess is fine if you don't know it." };
+    return {
+      error:
+        "Enter your 5K time so run paces can be calculated — a best guess is fine if you don't know it.",
+    };
   }
 
   if (input.programType === "goal_event" && (!input.races || input.races.length === 0)) {
@@ -256,9 +271,12 @@ export async function submitOnboarding(
   const start = input.startDate ?? todayISO();
   const engineInput = toEngineInput(input, start);
   const skeleton = buildSkeleton(engineInput);
-  const programName = parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
+  const programName =
+    parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
 
-  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input, user.email ?? null));
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert(profileUpsertRow(user.id, input, user.email ?? null));
   if (profileError) return { error: profileError.message };
 
   const { data: program, error: programError } = await supabase
@@ -281,9 +299,15 @@ export async function submitOnboarding(
   }
 
   if (input.races && input.races.length > 0) {
-    const { error: racesError } = await supabase.from("races").insert(
-      input.races.map((r) => ({ program_id: program.id, race_date: r.raceDate, priority: r.priority })),
-    );
+    const { error: racesError } = await supabase
+      .from("races")
+      .insert(
+        input.races.map((r) => ({
+          program_id: program.id,
+          race_date: r.raceDate,
+          priority: r.priority,
+        })),
+      );
     if (racesError) return { error: racesError.message };
   }
 
@@ -312,7 +336,11 @@ export async function updateProgramInputs(
   if (!user) return { error: "You must be signed in." };
 
   // Ownership check (RLS also scopes this to the caller's own rows).
-  const { data: existing } = await supabase.from("programs").select("id").eq("id", programId).single();
+  const { data: existing } = await supabase
+    .from("programs")
+    .select("id")
+    .eq("id", programId)
+    .single();
   if (!existing) return { error: "Program not found." };
 
   const parsed = parseGenerationInput(formData);
@@ -322,9 +350,12 @@ export async function updateProgramInputs(
   const start = input.startDate ?? todayISO();
   const engineInput = toEngineInput(input, start);
   const skeleton = buildSkeleton(engineInput);
-  const programName = parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
+  const programName =
+    parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
 
-  const { error: profileError } = await supabase.from("profiles").upsert(profileUpsertRow(user.id, input, user.email ?? null));
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert(profileUpsertRow(user.id, input, user.email ?? null));
   if (profileError) return { error: profileError.message };
 
   const { error: updateError } = await supabase
@@ -346,9 +377,15 @@ export async function updateProgramInputs(
   // Replace the program's race rows with the edited set.
   await supabase.from("races").delete().eq("program_id", programId);
   if (input.races && input.races.length > 0) {
-    const { error: racesError } = await supabase.from("races").insert(
-      input.races.map((r) => ({ program_id: programId, race_date: r.raceDate, priority: r.priority })),
-    );
+    const { error: racesError } = await supabase
+      .from("races")
+      .insert(
+        input.races.map((r) => ({
+          program_id: programId,
+          race_date: r.raceDate,
+          priority: r.priority,
+        })),
+      );
     if (racesError) return { error: racesError.message };
   }
 

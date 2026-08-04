@@ -547,6 +547,11 @@ export default function OnboardingForm({
   const [subGoal, setSubGoal] = useState<string>(initial?.subGoal ?? "balanced");
   // Weekly training-time budget (required for new programs) — volume-vs-intensity research.
   const [weeklyHours, setWeeklyHours] = useState<string>(initial?.weeklyHours ?? "");
+  // Unit for the optional manual pace overrides on the Benchmarks step.
+  const [paceUnit, setPaceUnit] = useState<string>(() => {
+    const v = initial?.benchmarks?.paceUnit ?? savedBench.paceUnit;
+    return v === "km" ? "km" : "mi";
+  });
   const budgetCopy = TIME_BUDGET_COPY[sport] ?? GENERIC_BUDGET;
   const sportBlurb = SPORT_OPTIONS.find((s) => s.value === sport)?.blurb ?? "";
   const isGeneralFitness = sport === "general_fitness";
@@ -1476,6 +1481,55 @@ export default function OnboardingForm({
               />
             </label>
           ))}
+        </div>
+
+        {/* Optional: athlete-entered training paces (override the VDOT-derived ones). */}
+        <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-zinc-700">Know your paces? (optional)</p>
+            <label className="flex items-center gap-2 text-xs text-zinc-500">
+              Units
+              <select
+                name="paceUnit"
+                value={paceUnit}
+                onChange={(e) => setPaceUnit(e.target.value)}
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm"
+              >
+                <option value="mi">min / mile</option>
+                <option value="km">min / km</option>
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {(
+              [
+                ["easyPace", "Easy pace"],
+                ["thresholdPace", "Threshold pace"],
+                ["intervalPace", "Interval pace"],
+                ["tempoPace", "Tempo pace"],
+              ] as const
+            ).map(([name, label]) => (
+              <label key={name} className="flex flex-col gap-1">
+                {label} (mm:ss / {paceUnit === "km" ? "km" : "mi"})
+                <input
+                  name={name}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={paceUnit === "km" ? "5:15" : "8:30"}
+                  defaultValue={benchDefault(name)}
+                  className={inputClass}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="text-xs leading-snug text-zinc-500">
+            Only fill these in if you know them from a lab or field test, a recent race, or your own
+            data — a manual pace <span className="font-medium text-zinc-600">overrides</span> the
+            pace we&apos;d calculate from your 5K and drives both your prescribed workout paces and
+            your weekly mileage. Leave a box blank to keep the calculated value. Enter the pace to
+            cover one {paceUnit === "km" ? "kilometer" : "mile"} (e.g.{" "}
+            {paceUnit === "km" ? "5:15 per km" : "8:30 per mile"}).
+          </p>
         </div>
 
         {sport === "hyrox" && (

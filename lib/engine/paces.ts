@@ -44,7 +44,23 @@ export interface RaceInput {
   mileTime?: string | null;
   fiveKTime?: string | null;
   tenKTime?: string | null;
+  /**
+   * Optional athlete-entered pace overrides. Each, when set, REPLACES the
+   * VDOT-derived pace for that run type — driving both the displayed pace and the
+   * distance<->duration conversion that sizes weekly mileage. Expressed as "m:ss"
+   * in the unit given by `paceUnit` (per mile by default). A long run follows the
+   * easy pace (Daniels L = E), so an easy override also moves the long pace.
+   */
+  easyPace?: string | null;
+  thresholdPace?: string | null;
+  intervalPace?: string | null;
+  tempoPace?: string | null;
+  /** Unit the manual paces are given in: "mi" (per mile, default) or "km". */
+  paceUnit?: "mi" | "km" | null;
 }
+
+/** Miles→km factor: a per-km pace covers a shorter distance, so sec/mi = sec/km × 1.609344. */
+const KM_PER_MILE = 1.609344;
 
 export interface RunPaces {
   /** The VDOT these paces were derived from. */
@@ -137,7 +153,7 @@ function predictRaceTimeSec(distMeters: number, vdot: number): number {
  * string.
  */
 export function computePaces(input: string | RaceInput | null | undefined): RunPaces | null {
-  const races: RaceInput = typeof input === "string" ? { fiveKTime: input } : input ?? {};
+  const races: RaceInput = typeof input === "string" ? { fiveKTime: input } : (input ?? {});
 
   const vdots: number[] = [];
   const consider = (distM: number, time?: string | null) => {
@@ -155,7 +171,7 @@ export function computePaces(input: string | RaceInput | null | undefined): RunP
   const vdot = Math.max(...vdots); // trust the best performance
 
   const easy = paceForVdotFraction(vdot, VDOT_FRACTION.easy);
-  return {
+  const paces: RunPaces = {
     vdot: Math.round(vdot * 10) / 10,
     fiveKSecPerMile: predictRaceTimeSec(FIVE_K_M, vdot) / FIVE_K_MILES,
     easy,
@@ -163,6 +179,34 @@ export function computePaces(input: string | RaceInput | null | undefined): RunP
     tempo: paceForVdotFraction(vdot, VDOT_FRACTION.tempo),
     threshold: paceForVdotFraction(vdot, VDOT_FRACTION.threshold),
     interval: paceForVdotFraction(vdot, VDOT_FRACTION.interval),
+  };
+  return applyPaceOverrides(paces, races);
+}
+
+/**
+ * Apply any athlete-entered pace overrides on top of the VDOT-derived set. Each
+ * override replaces one training pace (in sec/mile); an easy override also sets
+ * the long pace (Daniels L = E). Blank/invalid entries are ignored, so the
+ * derived pace stands. This is the single place overrides are resolved, so both
+ * the display and the mileage reconciler see the same numbers.
+ */
+export function applyPaceOverrides(paces: RunPaces, input: RaceInput): RunPaces {
+  const perMile = (text?: string | null): number | null => {
+    if (!text) return null;
+    const sec = parseTimeToSeconds(text);
+    if (sec === null || sec <= 0) return null;
+    return input.paceUnit === "km" ? sec * KM_PER_MILE : sec;
+  };
+  const easy = perMile(input.easyPace);
+  const threshold = perMile(input.thresholdPace);
+  const interval = perMile(input.intervalPace);
+  const tempo = perMile(input.tempoPace);
+  return {
+    ...paces,
+    ...(easy !== null ? { easy, long: easy } : {}),
+    ...(threshold !== null ? { threshold } : {}),
+    ...(interval !== null ? { interval } : {}),
+    ...(tempo !== null ? { tempo } : {}),
   };
 }
 

@@ -22,7 +22,12 @@ import TriZonesCard from "@/components/program/tri-zones-card";
 import ReadinessForm from "@/components/program/readiness-form";
 import DailyMetricsForm from "@/components/program/daily-metrics-form";
 import { computePacingPlan } from "@/lib/engine/pacing";
-import { projectTimes, parseClock, type ExperienceLevel, type RaceType } from "@/lib/engine/progression";
+import {
+  projectTimes,
+  parseClock,
+  type ExperienceLevel,
+  type RaceType,
+} from "@/lib/engine/progression";
 import { reforecast, type Reforecast } from "@/lib/engine/reforecast";
 import type { HyroxEventKey } from "@/lib/engine/hyrox-standards";
 import { computeAdherence } from "@/lib/wearables/adherence";
@@ -55,9 +60,13 @@ type SnapshotProfile = {
   thresholdHr?: number;
   hrZones?: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }>;
   benchmarks?: {
-    mileTime?: string; fiveKTime?: string; tenKTime?: string;
-    ski2kTime?: string; row2kTime?: string;
-    cssPace?: string; ftpWatts?: number;
+    mileTime?: string;
+    fiveKTime?: string;
+    tenKTime?: string;
+    ski2kTime?: string;
+    row2kTime?: string;
+    cssPace?: string;
+    ftpWatts?: number;
   };
   division?: "open" | "pro";
   goalFinishTime?: string;
@@ -104,11 +113,7 @@ function elapsedWeeks(startDate: string): number {
   return Math.max(0, Math.floor((Date.now() - wk1.getTime()) / MS_PER_WEEK));
 }
 
-export default async function ProgramPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const isCoach = !!(await getAdmin());
@@ -119,7 +124,9 @@ export default async function ProgramPage({
 
   const { data: program } = await supabase
     .from("programs")
-    .select("id, name, status, duration_weeks, program_type, start_date, program_data, input_snapshot")
+    .select(
+      "id, name, status, duration_weeks, program_type, start_date, program_data, input_snapshot",
+    )
     .eq("id", id)
     .single();
 
@@ -136,8 +143,9 @@ export default async function ProgramPage({
 
   const data = program.program_data as ProgramData | null;
   const sport = (program.input_snapshot as { sport?: string } | null)?.sport ?? "hyrox";
-  const weeklyHours = (program.input_snapshot as { profile?: { weeklyHours?: WeeklyHoursBand } } | null)?.profile
-    ?.weeklyHours;
+  const weeklyHours = (
+    program.input_snapshot as { profile?: { weeklyHours?: WeeklyHoursBand } } | null
+  )?.profile?.weeklyHours;
   const sportLabel = SPORT_LABEL[sport] ?? "HYROX";
 
   // Recover programs stuck in 'generating' (function killed before its failure
@@ -155,7 +163,11 @@ export default async function ProgramPage({
       .maybeSingle();
     const startedMs = lastEvent ? new Date(lastEvent.created_at).getTime() : null;
     if (startedMs !== null && Date.now() - startedMs > STUCK_GENERATION_MS) {
-      await supabase.from("programs").update({ status: "failed" }).eq("id", id).eq("user_id", user.id);
+      await supabase
+        .from("programs")
+        .update({ status: "failed" })
+        .eq("id", id)
+        .eq("user_id", user.id);
       status = "failed";
     }
   }
@@ -189,16 +201,18 @@ export default async function ProgramPage({
           snapshotProfile?.benchmarks as Record<string, string | number | undefined> | undefined,
           {
             runningExp:
-              (snapshotProfile as { runningExp?: ExperienceLevel } | undefined)?.runningExp ?? "intermediate",
+              (snapshotProfile as { runningExp?: ExperienceLevel } | undefined)?.runningExp ??
+              "intermediate",
             hybridExp:
-              (snapshotProfile as { hybridExp?: ExperienceLevel } | undefined)?.hybridExp ?? "intermediate",
+              (snapshotProfile as { hybridExp?: ExperienceLevel } | undefined)?.hybridExp ??
+              "intermediate",
             weeks: program.duration_weeks ?? 12,
             sex: snapshotProfile?.sex,
             division: snapshotProfile?.division,
             age: snapshotProfile?.age,
           },
-          ((snapshotProfile?.benchmarks as { hyroxRaceType?: RaceType } | undefined)?.hyroxRaceType) ??
-            "singles",
+          (snapshotProfile?.benchmarks as { hyroxRaceType?: RaceType } | undefined)
+            ?.hyroxRaceType ?? "singles",
         )
       : null;
 
@@ -206,6 +220,16 @@ export default async function ProgramPage({
   // (best of mile/5K/10K). Display only; the engine already derives run paces
   // from this same VDOT model. Null when no run time is on file.
   const runPaces = computePaces(snapshotProfile?.benchmarks ?? null);
+  // Which training paces the athlete set by hand (so the VDOT card can flag them).
+  const benchForPace = snapshotProfile?.benchmarks as
+    | { easyPace?: string; thresholdPace?: string; intervalPace?: string; tempoPace?: string }
+    | undefined;
+  const manualPaces = {
+    easy: !!benchForPace?.easyPace,
+    threshold: !!benchForPace?.thresholdPace,
+    interval: !!benchForPace?.intervalPace,
+    tempo: !!benchForPace?.tempoPace,
+  };
 
   // Sport-specific extras: a DEKA station-by-station pacing plan, or triathlon
   // per-discipline (swim/bike/run) training zones. Both are null/empty for HYROX.
@@ -282,9 +306,10 @@ export default async function ProgramPage({
         .select("benchmarks")
         .eq("id", user.id)
         .maybeSingle();
-      const curBench = (curProfile?.benchmarks ?? null) as
-        | Record<string, string | number | undefined>
-        | null;
+      const curBench = (curProfile?.benchmarks ?? null) as Record<
+        string,
+        string | number | undefined
+      > | null;
       const measurements: Partial<Record<HyroxEventKey, number>> = {};
       for (const e of projection.perEvent) {
         const m = parseClock(curBench?.[e.key]);
@@ -341,7 +366,11 @@ export default async function ProgramPage({
         .map((a) => a.target_week),
       // Locked-preview users can't act on hidden weeks → no review banner.
       reviewWeek: gate.previewing ? null : reviewWeek,
-      recoveryByWeek: weeklyRecoveryAverages(dailyMetrics, program.start_date, program.duration_weeks),
+      recoveryByWeek: weeklyRecoveryAverages(
+        dailyMetrics,
+        program.start_date,
+        program.duration_weeks,
+      ),
       extras: extrasFromRows(extraRows),
     };
 
@@ -395,7 +424,11 @@ export default async function ProgramPage({
                 id: "tracker",
                 label: "Tracker",
                 content: (
-                  <SessionTracker weeks={gate.program.weeks} logs={logs} startDate={program.start_date} />
+                  <SessionTracker
+                    weeks={gate.program.weeks}
+                    logs={logs}
+                    startDate={program.start_date}
+                  />
                 ),
               },
               {
@@ -421,7 +454,13 @@ export default async function ProgramPage({
                     ),
                   }
                 : null,
-              runPaces ? { id: "vdot", label: "VDOT", content: <VdotCard paces={runPaces} /> } : null,
+              runPaces
+                ? {
+                    id: "vdot",
+                    label: "VDOT",
+                    content: <VdotCard paces={runPaces} manual={manualPaces} />,
+                  }
+                : null,
               {
                 id: "readiness",
                 label: "Readiness",
@@ -476,9 +515,13 @@ export default async function ProgramPage({
         </Link>
       </div>
       <p className="text-sm text-zinc-500">
-        {sportLabel} · {program.duration_weeks}-week {program.program_type.replace("_", " ")} program.
+        {sportLabel} · {program.duration_weeks}-week {program.program_type.replace("_", " ")}{" "}
+        program.
       </p>
-      <GenerateTrigger programId={program.id} initialStatus={status === "failed" ? "failed" : "generating"} />
+      <GenerateTrigger
+        programId={program.id}
+        initialStatus={status === "failed" ? "failed" : "generating"}
+      />
     </main>
   );
 }

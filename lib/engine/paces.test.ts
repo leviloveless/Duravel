@@ -89,3 +89,47 @@ describe("formatPace", () => {
     expect(formatPace(600)).toBe("10:00");
   });
 });
+
+describe("manual pace overrides", () => {
+  it("replaces the derived pace for a run type and drives effectivePace", () => {
+    const base = computePaces({ fiveKTime: "21:00" })!;
+    const p = computePaces({ fiveKTime: "21:00", thresholdPace: "7:30" })!;
+    // 7:30/mi = 450 s/mi overrides threshold; other paces untouched.
+    expect(p.threshold).toBe(450);
+    expect(effectivePace("threshold", p)).toBe(450);
+    expect(effectivePace("hybrid_run", p)).toBe(450); // hybrid_run uses threshold
+    expect(p.easy).toBe(base.easy);
+    expect(p.interval).toBe(base.interval);
+  });
+
+  it("an easy override also moves the long pace (L = E)", () => {
+    const p = computePaces({ fiveKTime: "21:00", easyPace: "10:00" })!;
+    expect(p.easy).toBe(600);
+    expect(p.long).toBe(600);
+  });
+
+  it("interprets km paces and converts to sec/mile", () => {
+    const p = computePaces({ fiveKTime: "21:00", intervalPace: "5:00", paceUnit: "km" })!;
+    // 5:00/km = 300 s/km × 1.609344 = ~482.8 s/mi
+    expect(p.interval).toBeCloseTo(300 * 1.609344, 3);
+  });
+
+  it("blank or invalid overrides fall back to the derived pace", () => {
+    const base = computePaces({ fiveKTime: "21:00" })!;
+    const p = computePaces({ fiveKTime: "21:00", tempoPace: "", easyPace: "abc" })!;
+    expect(p.tempo).toBe(base.tempo);
+    expect(p.easy).toBe(base.easy);
+  });
+
+  it("all four paces can be overridden at once", () => {
+    const p = computePaces({
+      fiveKTime: "21:00",
+      easyPace: "9:45",
+      thresholdPace: "7:20",
+      intervalPace: "6:40",
+      tempoPace: "7:50",
+      paceUnit: "mi",
+    })!;
+    expect([p.easy, p.threshold, p.interval, p.tempo]).toEqual([585, 440, 400, 470]);
+  });
+});

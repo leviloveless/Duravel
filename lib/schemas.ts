@@ -87,6 +87,13 @@ export const BenchmarksSchema = z.object({
   mileTime: z.string().max(TIME_STRING_MAX).optional(),
   fiveKTime: z.string().max(TIME_STRING_MAX).optional(),
   tenKTime: z.string().max(TIME_STRING_MAX).optional(),
+  // Optional athlete-entered pace overrides (min/mile or min/km per `paceUnit`).
+  // Each replaces the VDOT-derived pace for that run type — see computePaces.
+  easyPace: z.string().max(TIME_STRING_MAX).optional(),
+  thresholdPace: z.string().max(TIME_STRING_MAX).optional(),
+  intervalPace: z.string().max(TIME_STRING_MAX).optional(),
+  tempoPace: z.string().max(TIME_STRING_MAX).optional(),
+  paceUnit: z.enum(["mi", "km"]).optional(),
   fiveRmSquat: z.number().optional(),
   fiveRmBench: z.number().optional(),
   fiveRmDeadlift: z.number().optional(),

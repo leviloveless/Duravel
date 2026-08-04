@@ -23,7 +23,12 @@ import {
   type ProgramWeek,
   type Session,
 } from "@/lib/schemas";
-import type { ExperienceLevel, ProgramSkeleton, TrainingDayName, WeekSkeleton } from "@/lib/engine/types";
+import type {
+  ExperienceLevel,
+  ProgramSkeleton,
+  TrainingDayName,
+  WeekSkeleton,
+} from "@/lib/engine/types";
 import type { TrainingCaps } from "@/lib/engine/caps";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
@@ -138,7 +143,9 @@ export function daySessions(
     // Prefer an exact match (same kind AND same run type) so the AI's content is
     // kept where it already agrees with the plan; fall back to kind-only.
     let idx = pool.findIndex(
-      (s) => s.kind === slot.kind && (slot.kind !== "run" || (s.kind === "run" && s.runType === slot.runType)),
+      (s) =>
+        s.kind === slot.kind &&
+        (slot.kind !== "run" || (s.kind === "run" && s.runType === slot.runType)),
     );
     if (idx === -1) idx = pool.findIndex((s) => s.kind === slot.kind);
     if (idx !== -1) {
@@ -416,8 +423,19 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
   const b = input.profile.benchmarks;
   return {
     runningExp: input.profile.runningExp,
-    // Best of mile / 5K / 10K → VDOT (Review #2).
-    raceTimes: { mileTime: b?.mileTime, fiveKTime: b?.fiveKTime, tenKTime: b?.tenKTime },
+    // Best of mile / 5K / 10K → VDOT (Review #2), plus any athlete-entered pace
+    // overrides — these must flow through so a manual pace drives the sized
+    // mileage and not just the displayed pace.
+    raceTimes: {
+      mileTime: b?.mileTime,
+      fiveKTime: b?.fiveKTime,
+      tenKTime: b?.tenKTime,
+      easyPace: b?.easyPace,
+      thresholdPace: b?.thresholdPace,
+      intervalPace: b?.intervalPace,
+      tempoPace: b?.tempoPace,
+      paceUnit: b?.paceUnit,
+    },
     // 5RM benchmarks → periodized working weights (Review #4).
     benchmarks: {
       fiveRmSquat: b?.fiveRmSquat,
