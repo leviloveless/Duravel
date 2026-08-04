@@ -7,6 +7,7 @@ import {
   powerElementFor,
   weeklySetTarget,
   splitWeeklySets,
+  MAX_SESSION_SETS_PER_PATTERN,
   WEEKLY_SETS_PER_PATTERN,
 } from "./strength";
 
@@ -121,7 +122,6 @@ describe("weekly working-set volume (Levi 2026-08-04)", () => {
   });
 
   it("splits the weekly target across sessions, remainder to the earlier ones", () => {
-    expect(splitWeeklySets(8, 1)).toEqual([8]);
     expect(splitWeeklySets(8, 2)).toEqual([4, 4]);
     expect(splitWeeklySets(8, 3)).toEqual([3, 3, 2]);
     expect(splitWeeklySets(10, 3)).toEqual([4, 3, 3]);
@@ -129,13 +129,38 @@ describe("weekly working-set volume (Levi 2026-08-04)", () => {
     expect(splitWeeklySets(8, 0)).toEqual([]);
   });
 
-  it("never returns a zero-set session", () => {
+  it("caps one session at MAX_SESSION_SETS_PER_PATTERN, spilling to sessions with headroom", () => {
+    // A pattern trained ONCE cannot receive its whole weekly target: an advanced
+    // athlete's 10 sets on a single day is 25+ minutes of one movement.
+    expect(MAX_SESSION_SETS_PER_PATTERN).toBe(6);
+    expect(splitWeeklySets(8, 1)).toEqual([6]); // week lands 2 short, deliberately
+    expect(splitWeeklySets(10, 1)).toEqual([6]);
+    expect(splitWeeklySets(6, 1)).toEqual([6]); // beginner still hits target on one day
+    // Two sessions: the split is already under the cap, so nothing is lost.
+    expect(splitWeeklySets(10, 2)).toEqual([5, 5]);
+    // An explicit cap that binds spills the surplus onto the session with headroom
+    // before dropping any of it.
+    expect(splitWeeklySets(10, 2, 6)).toEqual([5, 5]);
+    expect(splitWeeklySets(11, 2, 6)).toEqual([6, 5]);
+    expect(splitWeeklySets(20, 2, 6)).toEqual([6, 6]); // nowhere left — 8 sets dropped
+  });
+
+  it("never returns a zero-set session, and never exceeds the per-session cap", () => {
     for (const n of [1, 2, 3, 5, 7, 9]) {
       for (const target of [1, 4, 6, 8, 10]) {
         const split = splitWeeklySets(target, n);
         expect(split).toHaveLength(n);
-        for (const s of split) expect(s).toBeGreaterThanOrEqual(1);
-        if (target >= n) expect(split.reduce((a, b) => a + b, 0)).toBe(target);
+        for (const s of split) {
+          expect(s).toBeGreaterThanOrEqual(1);
+          expect(s).toBeLessThanOrEqual(MAX_SESSION_SETS_PER_PATTERN);
+        }
+        // The weekly target is met exactly whenever the sessions can hold it —
+        // it is only ever missed because the cap ran out of room, never by
+        // arithmetic.
+        const capacity = n * MAX_SESSION_SETS_PER_PATTERN;
+        if (target >= n && target <= capacity) {
+          expect(split.reduce((a, b) => a + b, 0)).toBe(target);
+        }
       }
     }
   });

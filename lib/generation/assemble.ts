@@ -32,6 +32,7 @@ import type {
 import type { TrainingCaps } from "@/lib/engine/caps";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
+import { repsForWorkMiles } from "@/lib/engine/interval-structure";
 import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
 import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
 import {
@@ -39,8 +40,9 @@ import {
   powerElementFor,
   suggestedWeight,
   pickExercise,
-  splitWeeklySets,
-  weeklySetTarget,
+  spreadPatternSessions,
+  applyWeeklySetVolume,
+  PATTERN_HOME,
 } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
@@ -53,17 +55,6 @@ import {
 import { getSport } from "@/lib/engine/sports";
 
 type MovementPattern = (typeof REQUIRED_MOVEMENT_PATTERNS)[number];
-
-/** Preferred lift split for a pattern, used when patching a missing one in. */
-const PATTERN_HOME: Record<MovementPattern, "upper" | "lower" | "full"> = {
-  squat: "lower",
-  hip_hinge: "lower",
-  lunge: "lower",
-  horizontal_press: "upper",
-  vertical_press: "upper",
-  horizontal_pull: "upper",
-  vertical_pull: "upper",
-};
 
 export interface AssembleResult {
   program: ProgramData;
@@ -252,6 +243,38 @@ function describeSessions(
 }
 
 /**
+ * Rewrite the interval/threshold how-to from each run's FINAL work distance.
+ *
+ * BUG FIX (Levi 2026-08-04). `describeSessions` runs before the volume
+ * reconciler, using the fixed per-experience rep tables. The reconciler then
+ * resizes `distanceMiles` to hit the week's mileage target — and nothing put the
+ * text back in agreement, so a run stored at 1.8 miles of work still told the
+ * athlete to run 3 × 1 mile. In an 87-run audit every single interval/threshold
+ * session mismatched, the worst by 3.7 miles.
+ *
+ * `setRunMiles` now snaps quality runs to a whole number of reps, so the rep
+ * count is exact here rather than a rounding of an arbitrary distance.
+ */
+function redescribeQualityRuns(
+  days: ProgramDay[],
+  runningExp: ExperienceLevel,
+  paces: RunPaces | null,
+): void {
+  for (const d of days) {
+    for (const s of d.sessions) {
+      if (s.kind !== "run") continue;
+      // A run with no distance is a placeholder the AI never filled (race weeks
+      // skip resizing). Telling the athlete to run six reps of a workout the plan
+      // has sized at zero is worse than leaving the generic text in place.
+      if (!(s.distanceMiles > 0)) continue;
+      const reps = repsForWorkMiles(s.runType, s.distanceMiles, runningExp);
+      if (reps === null) continue; // not a rep-based run — its text never drifts
+      s.description = runDescription(s.runType, runningExp, paces, reps);
+    }
+  }
+}
+
+/**
  * Replace Peak simulation-flagged hybrid slots with an engine-built full race
  * simulation: the 8 race stations in order, each preceded by a 1 km run, at race
  * spec (Review #9). Deterministic — the AI's content for that slot is discarded.
@@ -334,6 +357,13 @@ function buildWeek(
     { avoidDays: restDayKeys, preferDays: ["sat", "sun"] },
     caps,
   );
+
+  // Descriptions were written BEFORE reconciliation, from the experience-level
+  // rep defaults. The reconciler has since resized every run to make the week hit
+  // its mileage target, so rewrite the rep-based ones from the distance each run
+  // actually ended up with — otherwise the text prescribes a workout that is not
+  // the workout the headline and the weekly total describe.
+  redescribeQualityRuns(days, runningExp, paces);
 
   return {
     weekNumber: skel.weekNumber,
@@ -486,6 +516,11 @@ export function applyStrengthSchemes(
     .flatMap((d) => d.sessions)
     .filter((s): s is Extract<Session, { kind: "lift" }> => s.kind === "lift");
 
+  // Get patterns onto two lift days BEFORE prescribing, so the injected
+  // movements are scheme'd like any other and the weekly split has two places to
+  // put the volume.
+  spreadPatternSessions(liftSessions);
+
   const fullBody = liftSessions.filter((s) => s.liftType === "full");
   const lightSession = fullBody.length >= 2 ? fullBody[fullBody.length - 1] : undefined;
 
@@ -514,34 +549,6 @@ export function applyStrengthSchemes(
   });
 
   applyWeeklySetVolume(liftSessions, liftingExp, week.microWeek);
-}
-
-/**
- * Rewrite each movement's set count so the WEEKLY total per movement pattern hits
- * the athlete's target, split across the sessions that train it (earlier =
- * heavier = the extra set). Runs after the per-session schemes, which supply
- * everything else about the prescription; only `sets` is touched here.
- */
-function applyWeeklySetVolume(
-  liftSessions: Extract<Session, { kind: "lift" }>[],
-  liftingExp: ExperienceLevel,
-  microWeek: ProgramWeek["microWeek"],
-): void {
-  const target = weeklySetTarget(liftingExp, microWeek);
-  const byPattern = new Map<string, Extract<Session, { kind: "lift" }>["movements"]>();
-  for (const session of liftSessions) {
-    for (const m of session.movements) {
-      const list = byPattern.get(m.pattern);
-      if (list) list.push(m);
-      else byPattern.set(m.pattern, [m]);
-    }
-  }
-  for (const movements of byPattern.values()) {
-    const shares = splitWeeklySets(target, movements.length);
-    movements.forEach((m, i) => {
-      m.sets = shares[i] ?? m.sets;
-    });
-  }
 }
 
 /**

@@ -106,12 +106,36 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
     expect(runsOf(days).some((r) => r.runType === "long")).toBe(true);
   });
 
-  it("A/B race weeks untouched (taper weeks keep their built sessions)", () => {
+  it("A/B race weeks keep their built sessions, but still get their overhead stamped", () => {
+    // The taper protocol owns the sessions in an A/B race week, so nothing is
+    // resized and no filler is added. The runs DO still need their warmup/cooldown
+    // (and between-rep recovery) stamped: without it the final week reports work
+    // miles only and silently undercounts itself against every other week.
     for (const priority of ["A", "B"] as const) {
       const days = daysOf([run("easy")], [{ kind: "race", priority }]);
-      const snap = JSON.stringify(days);
+      const before = runsOf(days).map((r) => ({
+        distanceMiles: r.distanceMiles,
+        durationMin: r.durationMin,
+        paceMinMile: r.paceMinMile,
+      }));
+      const dayCount = days.length;
+      const sessionKinds = days.map((d) => d.sessions.map((s) => s.kind).join(","));
+
       reconcileWeekVolume(days, 11.5, 250, P, "intermediate");
-      expect(JSON.stringify(days)).toBe(snap);
+
+      // Prescription untouched — no resizing, no added cardio blocks.
+      expect(days).toHaveLength(dayCount);
+      expect(days.map((d) => d.sessions.map((s) => s.kind).join(","))).toEqual(sessionKinds);
+      expect(
+        runsOf(days).map((r) => ({
+          distanceMiles: r.distanceMiles,
+          durationMin: r.durationMin,
+          paceMinMile: r.paceMinMile,
+        })),
+      ).toEqual(before);
+      // ...but the on-feet overhead is now counted.
+      for (const r of runsOf(days)) expect(r.overheadMiles).toBeGreaterThan(0);
+      expect(weekMileage({ days })).toBeGreaterThan(weekWorkMileage({ days }));
     }
   });
 

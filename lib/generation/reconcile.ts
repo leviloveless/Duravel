@@ -30,7 +30,12 @@ import {
   weekMileage,
 } from "@/lib/session-volume";
 import { round1 } from "@/lib/engine/math";
-import { recoveryFactor, recoveryMinutes } from "@/lib/engine/interval-structure";
+import {
+  recoveryFactor,
+  recoveryMinutesForReps,
+  repsForWorkMiles,
+  REP_DISTANCE_MILES,
+} from "@/lib/engine/interval-structure";
 import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
 
 type RunSession = Extract<Session, { kind: "run" }>;
@@ -239,7 +244,15 @@ export function reconcileWeekVolume(
   const raceSession = days
     .flatMap((d) => d.sessions)
     .find((s): s is Extract<Session, { kind: "race" }> => s.kind === "race");
-  if (raceSession && raceSession.priority !== "C") return;
+  if (raceSession && raceSession.priority !== "C") {
+    // Taper/event week: the reduced sessions come from the taper protocol and must
+    // not be resized. They still need their warmup/cooldown and between-rep
+    // recovery stamped — without it a race week's runs report WORK miles only, so
+    // the final week silently undercounts itself against every other week in the
+    // program (the same class of gap as the interval/threshold text drift).
+    stampRunOverhead(days, effectivePace("easy", paces) / 60, runningExp);
+    return;
+  }
 
   rewriteHybridPaces(days, paces.threshold);
 
@@ -713,7 +726,11 @@ function stampRunOverhead(days: ProgramDay[], easyPaceMin: number, exp: Experien
     for (const s of d.sessions) {
       if (s.kind !== "run") continue;
       s.overheadMiles = runOverheadMiles(s.runType, easyPaceMin);
-      const rec = recoveryMinutes(s.runType, exp, s.durationMin);
+      // Recovery follows the run's ACTUAL rep count (derived from the distance it
+      // was resized to), not the experience default — so the jog the athlete is
+      // told to run is the jog counted in the week's mileage.
+      const reps = repsForWorkMiles(s.runType, s.distanceMiles, exp);
+      const rec = reps === null ? 0 : recoveryMinutesForReps(s.runType, reps, s.durationMin);
       if (rec > 0) {
         s.recoveryMin = rec;
         s.recoveryMiles = round1(rec / easyPaceMin);
@@ -737,7 +754,24 @@ function setRunMiles(
   const overhead = runOverhead(s.runType);
   const maxWorkMin = workBudget(sessionCap, overhead, s.runType, exp);
   const maxMi = maxWorkMin / paceMin;
-  s.distanceMiles = Math.max(MIN_RUN_MILES, Math.min(round1(miles), round1(maxMi)));
+  let work = Math.max(MIN_RUN_MILES, Math.min(round1(miles), round1(maxMi)));
+
+  // A quality run is a WHOLE number of reps — 1 km intervals, 1-mile threshold
+  // reps — and its prescription text is written from that rep count. Leaving the
+  // distance off a rep boundary is what let the text say "3 x 1 mile" while the
+  // stored distance (and therefore the headline and the weekly total) said 1.8.
+  // Snap here, at the single place run distances are written, so text and number
+  // can never drift apart again. The leftover fraction is picked up by the
+  // residual pass, which lands it on the long run — not rep-based, so exact.
+  const repMiles = REP_DISTANCE_MILES[s.runType];
+  if (repMiles !== undefined) {
+    let reps = Math.max(1, Math.round(work / repMiles));
+    const repsUnderCap = Math.floor(round1(maxMi) / repMiles);
+    if (repsUnderCap >= 1) reps = Math.min(reps, repsUnderCap);
+    work = round1(reps * repMiles);
+  }
+
+  s.distanceMiles = work;
   s.durationMin = Math.min(maxWorkMin, Math.max(1, Math.round(s.distanceMiles * paceMin)));
 }
 

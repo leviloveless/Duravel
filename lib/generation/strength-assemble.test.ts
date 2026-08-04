@@ -231,3 +231,118 @@ describe("the second full-body lift of a week runs light", () => {
     expect(weeklySets(w, "horizontal_press")).toBe(8); // 4 + 4 across the two fulls
   });
 });
+
+// --- spreading patterns across days + the per-session set ceiling -------------
+//
+// Levi's rule (2026-08-04, round 2). The weekly target alone produced sessions
+// nobody could finish: a pattern trained on ONE lift day received its entire
+// weekly target there, so an advanced upper day came out four movements at ten
+// sets each — 40 working sets against the 45-minute working block a strength
+// session is billed at. The fix is two-part and ordered: SPREAD each pattern
+// onto a second lift day first (same weekly sets, twice the practice, each
+// session recoverable), then CAP what one session may carry as a backstop.
+
+describe("patterns are spread onto a second lift day", () => {
+  it("gives a once-a-week pattern a second home, halving the load on each day", () => {
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "upper", patterns: ["horizontal_press"] },
+      { day: "thu", liftType: "full", patterns: ["squat"] },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "advanced");
+    const [upper, full] = lifts(w);
+    // horizontal_press started on the upper day only; the full day accepts it.
+    expect(full!.movements.map((m) => m.pattern)).toContain("horizontal_press");
+    expect(weeklySets(w, "horizontal_press")).toBe(10); // target still met exactly
+    for (const s of lifts(w)) {
+      const press = s.movements.find((m) => m.pattern === "horizontal_press");
+      expect(press!.sets).toBe(5); // 5 + 5, not 10 + 0
+    }
+    expect(upper!.movements.map((m) => m.pattern)).not.toContain("squat"); // upper day
+  });
+
+  it("respects the lift split — a lower pattern never lands on an upper day", () => {
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "upper", patterns: ["horizontal_press"] },
+      { day: "thu", liftType: "upper", patterns: ["vertical_pull"] },
+      { day: "sat", liftType: "lower", patterns: ["squat"] },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "intermediate");
+    const [a, b, lower] = lifts(w);
+    for (const upper of [a!, b!]) {
+      for (const m of upper.movements) {
+        expect(["squat", "hip_hinge", "lunge"]).not.toContain(m.pattern);
+      }
+    }
+    // squat has nowhere legal to go (one lower day, no full/power day), so it
+    // stays once a week and the cap keeps it honest.
+    expect(lower!.movements.filter((m) => m.pattern === "squat")).toHaveLength(1);
+    expect(weeklySets(w, "squat")).toBe(6); // capped: 2 short of the 8 target
+  });
+
+  it("leaves a pattern already trained twice alone", () => {
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ["squat"] },
+      { day: "thu", liftType: "full", patterns: ["squat"] },
+      { day: "sat", liftType: "full", patterns: ["horizontal_press"] },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "intermediate");
+    const squatDays = lifts(w).filter((s) => s.movements.some((m) => m.pattern === "squat"));
+    expect(squatDays).toHaveLength(2);
+    expect(weeklySets(w, "squat")).toBe(8);
+  });
+
+  it("does nothing when the week has a single lift session", () => {
+    const w = makeWeek("taper", "taper", [{ day: "tue", liftType: "full", patterns: ["squat"] }]);
+    applyStrengthSchemes(w, undefined, "lbs", "advanced");
+    expect(lifts(w)).toHaveLength(1);
+    expect(lifts(w)[0]!.movements).toHaveLength(1);
+  });
+});
+
+describe("no lift session exceeds the working-set ceiling", () => {
+  const ALL = [
+    "squat",
+    "hip_hinge",
+    "lunge",
+    "horizontal_press",
+    "vertical_press",
+    "horizontal_pull",
+    "vertical_pull",
+  ];
+  const sessionSets = (s: Lift) => s.movements.reduce((n, m) => n + m.sets, 0);
+
+  it("holds a seven-pattern full-body day to 24 sets instead of 35", () => {
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ALL },
+      { day: "thu", liftType: "full", patterns: ALL },
+      { day: "sat", liftType: "full", patterns: ALL },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "advanced");
+    for (const s of lifts(w)) expect(sessionSets(s)).toBeLessThanOrEqual(24);
+  });
+
+  it("moves the trimmed sets to a lighter day rather than dropping them", () => {
+    // Advanced, three lift days, every pattern on every day: 7 x 10 = 70 weekly
+    // sets against 3 x 24 = 72 slots, so the whole week still fits.
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ALL },
+      { day: "thu", liftType: "full", patterns: ALL },
+      { day: "sat", liftType: "full", patterns: ALL },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "advanced");
+    const total = lifts(w).reduce((n, s) => n + sessionSets(s), 0);
+    expect(total).toBe(70);
+  });
+
+  it("never drives a movement below one set", () => {
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ALL },
+      { day: "thu", liftType: "full", patterns: ALL },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "advanced");
+    for (const s of lifts(w)) {
+      expect(sessionSets(s)).toBeLessThanOrEqual(24);
+      for (const m of s.movements) expect(m.sets).toBeGreaterThanOrEqual(1);
+    }
+  });
+});

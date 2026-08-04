@@ -44,6 +44,58 @@ export function repCount(runType: RunType, exp: ExperienceLevel): number | null 
   return null;
 }
 
+/** 1 km expressed in miles. Local so this module stays dependency-free. */
+const KM_IN_MILES = 0.621371;
+
+/**
+ * WORK distance of a single rep, in miles: interval reps are 1 km, threshold reps
+ * 1 mile. Undefined for run types that aren't rep-based.
+ */
+export const REP_DISTANCE_MILES: Partial<Record<RunType, number>> = {
+  interval: KM_IN_MILES,
+  threshold: 1,
+};
+
+/**
+ * The rep count a quality run ACTUALLY carries, derived from its work distance.
+ *
+ * BUG FIX (Levi 2026-08-04): `INTERVAL_REPS` / `THRESHOLD_REPS` are fixed per
+ * experience level, but `reconcile.ts` resizes every run's `distanceMiles` up or
+ * down to make the week hit its mileage target. Nothing reconciled the two, so
+ * the workout TEXT kept prescribing "3 × 1 mile" while the stored work distance
+ * was 1.8 — and the headline, the description and the weekly total all disagreed.
+ * Across 87 audited interval/threshold runs, 100% mismatched, the worst by 3.7
+ * miles (a headline reading 0 mi against a text prescribing 6 × 1 km).
+ *
+ * Distance is the thing the athlete's week is actually constrained by, so
+ * distance wins and the rep count follows it. The experience tables survive as
+ * the STARTING structure the skeleton is built from, and as the fallback when a
+ * run has no distance yet.
+ *
+ * Returns null for run types that aren't rep-based.
+ */
+export function repsForWorkMiles(
+  runType: RunType,
+  workMiles: number,
+  exp: ExperienceLevel,
+): number | null {
+  const repMiles = REP_DISTANCE_MILES[runType];
+  if (repMiles === undefined) return null;
+  if (!(workMiles > 0)) return repCount(runType, exp); // no distance yet — keep the default
+  return Math.max(1, Math.round(workMiles / repMiles));
+}
+
+/**
+ * Work miles snapped to a WHOLE number of reps, so the prescription text and the
+ * stored distance describe the same workout. Non-rep run types pass through.
+ */
+export function snapWorkMiles(runType: RunType, workMiles: number, exp: ExperienceLevel): number {
+  const repMiles = REP_DISTANCE_MILES[runType];
+  if (repMiles === undefined || !(workMiles > 0)) return workMiles;
+  const reps = repsForWorkMiles(runType, workMiles, exp) ?? 1;
+  return Math.round(reps * repMiles * 10) / 10;
+}
+
 /**
  * Recovery minutes as a fraction of the session's total REP time.
  *
@@ -52,9 +104,13 @@ export function repCount(runType: RunType, exp: ExperienceLevel): number | null 
  * this wrong overstates an interval session by a full rep.
  */
 export function recoveryFactor(runType: RunType, exp: ExperienceLevel): number {
+  return recoveryFactorForReps(runType, repCount(runType, exp) ?? 0);
+}
+
+/** The same factor for a rep count already derived from the run's real distance. */
+export function recoveryFactorForReps(runType: RunType, reps: number): number {
   const ratio = REST_RATIO[runType];
-  const reps = repCount(runType, exp);
-  if (ratio === undefined || reps === null || reps < 2) return 0;
+  if (ratio === undefined || reps < 2) return 0;
   return (ratio * (reps - 1)) / reps;
 }
 
@@ -69,4 +125,19 @@ export function recoveryMinutes(runType: RunType, exp: ExperienceLevel, workMinu
   // the recovery round up too let a 90-minute session cap ship 91- and 92-minute
   // sessions off nothing but double rounding.
   return Math.floor(workMinutes * recoveryFactor(runType, exp));
+}
+
+/**
+ * Between-rep recovery for a session whose ACTUAL rep count is known (derived
+ * from its work distance rather than assumed from experience). This is what the
+ * reconciler uses once a run has been resized, so the recovery jog the athlete is
+ * told to run is the recovery jog counted in the week's mileage.
+ */
+export function recoveryMinutesForReps(
+  runType: RunType,
+  reps: number,
+  workMinutes: number,
+): number {
+  if (workMinutes <= 0) return 0;
+  return Math.floor(workMinutes * recoveryFactorForReps(runType, reps));
 }
