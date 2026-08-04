@@ -5,9 +5,9 @@ import SessionLink from "./session-link";
 import { AddExtraWorkout, ExtraWorkoutList } from "@/components/program/extra-workout";
 import { extraSummaryLabel, extrasForDay, extrasForWeek } from "@/lib/extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
-import ResultCardLauncher from "./result-card-launcher";
 import CoachSessionEdit from "./coach-session-edit";
-import { sessionCardFromLog } from "./session-card-data";
+import SessionShare from "./session-share";
+import { sessionSummary } from "@/lib/program/session-summary";
 import { sessionKey, type SyncActivitySummary } from "@/lib/wearables/suggest-data";
 import { sessionMiles, weekTimeByCategory } from "@/lib/session-volume";
 import {
@@ -155,6 +155,8 @@ function MobileDayList({
   zoneBands,
   logging,
   athleteName,
+  programName,
+  stravaWriteEnabled,
   coach,
 }: {
   week: ProgramWeek;
@@ -163,6 +165,10 @@ function MobileDayList({
   zoneBands?: ZoneBands;
   logging?: WeekLogging;
   athleteName?: string;
+  /** Program name — shown in the Duravel tag on shared cards / Strava text. */
+  programName?: string | null;
+  /** Whether the Strava activity-write path is switched on (STRAVA_WRITE_ENABLED). */
+  stravaWriteEnabled?: boolean;
   coach?: { programId: string };
 }) {
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
@@ -232,11 +238,18 @@ function MobileDayList({
                           frozen={logging.frozen}
                         />
                       )}
-                      {logging && !isRace && log?.status === "completed" && (
-                        <ResultCardLauncher
-                          label="Share"
-                          className="text-xs font-medium text-lime-700 transition-colors hover:text-lime-900"
-                          initial={sessionCardFromLog(s, log, athleteName ?? "")}
+                      {!isRace && (
+                        <SessionShare
+                          summary={sessionSummary(s, {
+                            athlete: athleteName ?? "",
+                            programName,
+                            weekNumber: week.weekNumber,
+                            log,
+                          })}
+                          activityId={linkFor(logging, week.weekNumber, dayKey, si)?.activityId}
+                          programName={programName}
+                          weekNumber={week.weekNumber}
+                          stravaWriteEnabled={stravaWriteEnabled}
                         />
                       )}
                     </span>
@@ -288,6 +301,8 @@ export default function WeekCard({
   zoneBands,
   logging,
   athleteName,
+  programName,
+  stravaWriteEnabled,
   coach,
 }: {
   week: ProgramWeek;
@@ -296,6 +311,8 @@ export default function WeekCard({
   zoneBands?: ZoneBands;
   logging?: WeekLogging;
   athleteName?: string;
+  programName?: string | null;
+  stravaWriteEnabled?: boolean;
   coach?: { programId: string };
 }) {
   const colors = PHASE_COLORS[week.phase];
@@ -395,6 +412,8 @@ export default function WeekCard({
         zoneBands={zoneBands}
         logging={logging}
         athleteName={athleteName}
+        programName={programName}
+        stravaWriteEnabled={stravaWriteEnabled}
         coach={coach}
       />
 
@@ -540,11 +559,18 @@ export default function WeekCard({
                               frozen={logging.frozen}
                             />
                           )}
-                          {!isRace && log?.status === "completed" && (
-                            <ResultCardLauncher
-                              label="Share"
-                              className="text-xs font-medium text-lime-700 transition-colors hover:text-lime-900"
-                              initial={sessionCardFromLog(s, log, athleteName ?? "")}
+                          {!isRace && (
+                            <SessionShare
+                              summary={sessionSummary(s, {
+                                athlete: athleteName ?? "",
+                                programName,
+                                weekNumber: week.weekNumber,
+                                log,
+                              })}
+                              activityId={linkFor(logging, week.weekNumber, dayKey, si)?.activityId}
+                              programName={programName}
+                              weekNumber={week.weekNumber}
+                              stravaWriteEnabled={stravaWriteEnabled}
                             />
                           )}
                         </div>

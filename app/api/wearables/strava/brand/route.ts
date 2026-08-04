@@ -20,6 +20,9 @@ const BodySchema = z.object({
   programName: z.string().max(120).optional(),
   weekNumber: z.number().int().min(1).max(52).optional(),
   sessionLabel: z.string().max(80).optional(),
+  /** Full workout summary to write. Omitted → the legacy one-line tag. Strava
+   *  descriptions are capped well above this; 4k is a generous safety bound. */
+  description: z.string().max(4000).optional(),
 });
 
 export async function POST(request: Request) {
@@ -37,8 +40,13 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "invalid" }, { status: 400 });
 
   try {
-    const { activityId, programName, weekNumber, sessionLabel } = parsed.data;
-    await brandStravaActivity(user.id, activityId, { programName, weekNumber, sessionLabel });
+    const { activityId, programName, weekNumber, sessionLabel, description } = parsed.data;
+    await brandStravaActivity(
+      user.id,
+      activityId,
+      { programName, weekNumber, sessionLabel },
+      description,
+    );
     return NextResponse.json({ branded: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "brand_failed";

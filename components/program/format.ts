@@ -9,6 +9,7 @@
 
 import type { ProgramWeek, Session } from "@/lib/schemas";
 import type { PhaseName } from "@/lib/engine/types";
+import { patternLabel, RUN_TYPE_LABEL } from "@/lib/session-labels";
 import {
   sessionTiming,
   sessionMiles,
@@ -23,6 +24,14 @@ import {
 // canonical implementations now live in lib/session-volume.ts (shared with the
 // deterministic volume reconciler so display and reconciliation always agree).
 export { sessionTiming, weekMileage, weekCardioMinutes, HYBRID_MIN_WORK, HYBRID_MAX_WORK };
+// Session/pattern labels now live in lib so non-UI code (the Strava description
+// generator) can share them; re-exported here so existing importers are unchanged.
+export {
+  RUN_TYPE_LABEL,
+  LIFT_TYPE_LABEL,
+  patternLabel,
+  sessionTypeLabel,
+} from "@/lib/session-labels";
 export type { SessionTiming };
 
 type RunSession = Extract<Session, { kind: "run" }>;
@@ -31,24 +40,6 @@ type HybridSession = Extract<Session, { kind: "hybrid" }>;
 type Movement = LiftSession["movements"][number];
 
 // --- Labels ---
-
-export const RUN_TYPE_LABEL: Record<RunSession["runType"], string> = {
-  easy: "Easy run",
-  fartlek: "Fartlek run",
-  progression: "Progression run",
-  long: "Long run",
-  tempo: "Tempo run",
-  threshold: "Threshold run",
-  interval: "Interval run",
-  hybrid_run: "Hybrid run",
-};
-
-export const LIFT_TYPE_LABEL: Record<LiftSession["liftType"], string> = {
-  upper: "Upper body",
-  lower: "Lower body",
-  full: "Full body",
-  power: "Power / explosive",
-};
 
 export const DAY_LABEL: Record<string, string> = {
   mon: "Monday",
@@ -74,12 +65,6 @@ export const MICRO_LABEL: Record<ProgramWeek["microWeek"], string> = {
   taper: "Taper",
   race: "Race week",
 };
-
-/** "horizontal_press" → "Horizontal press" */
-export function patternLabel(pattern: string): string {
-  const spaced = pattern.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 /** Display rep ranges with an en dash: "5-7" → "5–7". */
 function enDash(range: string): string {
@@ -133,18 +118,6 @@ export function elementLine(el: HybridSession["elements"][number]): string {
 
 export function raceLabel(priority: "A" | "B" | "C"): string {
   return `Race day — ${priority} race`;
-}
-
-/** Short workout-type label for the weekly table. */
-export function sessionTypeLabel(session: Session): string {
-  if (session.kind === "run") return RUN_TYPE_LABEL[session.runType];
-  if (session.kind === "lift") return `${LIFT_TYPE_LABEL[session.liftType]} lift`;
-  if (session.kind === "hybrid") return session.simulation ? "Race Simulation" : "Hybrid (HYROX)";
-  if (session.kind === "cardio") return "Zone 1–2 cardio";
-  if (session.kind === "swim") return `${session.sessionType.replace(/_/g, " ")} swim`;
-  if (session.kind === "bike") return `${session.sessionType.replace(/_/g, " ")} ride`;
-  if (session.kind === "brick") return "Brick (bike→run)";
-  return `${session.priority} race`;
 }
 
 /** Pace column value, or "—" when pace doesn't apply. */

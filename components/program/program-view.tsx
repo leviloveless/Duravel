@@ -57,6 +57,7 @@ export default function ProgramView({
   linking,
   lock,
   hideSummary,
+  stravaWriteEnabled,
   coach,
 }: {
   program: ProgramData;
@@ -71,6 +72,9 @@ export default function ProgramView({
   };
   /** Paywall preview (#18): set when weeks are hidden behind a subscription. */
   lock?: { lockedWeeks: number };
+  /** Whether the Strava activity-write path is enabled (STRAVA_WRITE_ENABLED).
+   *  Read on the server and passed down — the client can't see env. */
+  stravaWriteEnabled?: boolean;
   /** In the tabbed program view, hide the internal weekly summary (it becomes
    *  its own tab). */
   hideSummary?: boolean;
@@ -84,7 +88,8 @@ export default function ProgramView({
     logsByWeek.set(l.weekNumber, list);
   }
   const totalSessions = program.weeks.reduce(
-    (n, w) => n + w.days.reduce((m, d) => m + d.sessions.filter((se) => se.kind !== "race").length, 0),
+    (n, w) =>
+      n + w.days.reduce((m, d) => m + d.sessions.filter((se) => se.kind !== "race").length, 0),
     0,
   );
   const completedSessions = (activity?.logs ?? []).filter((l) => l.status === "completed").length;
@@ -99,7 +104,8 @@ export default function ProgramView({
           <div>
             <h1 className="text-2xl font-semibold">{meta.name}</h1>
             <p className="text-sm text-zinc-500">
-              {meta.durationWeeks} weeks · {PROGRAM_TYPE_LABEL[meta.programType] ?? meta.programType}
+              {meta.durationWeeks} weeks ·{" "}
+              {PROGRAM_TYPE_LABEL[meta.programType] ?? meta.programType}
             </p>
           </div>
           <div className="flex items-center gap-3 print:hidden">
@@ -159,6 +165,8 @@ export default function ProgramView({
             maxHR={meta.maxHR}
             zoneBands={meta.zoneBands}
             athleteName={meta.athleteName}
+            programName={meta.name}
+            stravaWriteEnabled={stravaWriteEnabled}
             logging={
               activity
                 ? {
@@ -177,13 +185,16 @@ export default function ProgramView({
 
         {lock && lock.lockedWeeks > 0 && (
           <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-center">
-            <span aria-hidden className="text-2xl">🔒</span>
+            <span aria-hidden className="text-2xl">
+              🔒
+            </span>
             <h2 className="text-lg font-semibold">
               {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"} in this plan
             </h2>
             <p className="max-w-md text-sm text-zinc-600">
-              You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the full
-              periodized program — every week through race day, plus weekly adaptation and readiness.
+              You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the
+              full periodized program — every week through race day, plus weekly adaptation and
+              readiness.
             </p>
             <Link
               href="/pricing"

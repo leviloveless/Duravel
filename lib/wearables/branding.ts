@@ -40,7 +40,8 @@ export function stripBrandTag(description: string | null | undefined): string {
 export function brandTagLine(ctx: BrandContext): string {
   const parts: string[] = [BRAND_MARKER];
   if (ctx.sessionLabel) parts.push(ctx.sessionLabel.trim());
-  if (typeof ctx.weekNumber === "number" && ctx.weekNumber > 0) parts.push(`Week ${ctx.weekNumber}`);
+  if (typeof ctx.weekNumber === "number" && ctx.weekNumber > 0)
+    parts.push(`Week ${ctx.weekNumber}`);
   if (ctx.programName) parts.push(ctx.programName.trim());
   parts.push(BRAND_DOMAIN);
   return parts.join(" · ");
@@ -54,8 +55,14 @@ export function brandTagLine(ctx: BrandContext): string {
 export function buildBrandedDescription(
   existing: string | null | undefined,
   ctx: BrandContext,
+  body?: string | null,
 ): string {
   const base = stripBrandTag(existing);
-  const tag = brandTagLine(ctx);
-  return base.length ? `${base}\n\n${tag}` : tag;
+  // `body`, when given, is the full workout summary from
+  // `lib/program/session-summary.ts`. It already opens with BRAND_MARKER and ends
+  // with its own tag line, which is what keeps this idempotent: `stripBrandTag`
+  // above removes the entire previously-written block, body included, so a
+  // re-write replaces rather than stacks.
+  const block = body?.trim() ? body.trim() : brandTagLine(ctx);
+  return base.length ? `${base}\n\n${block}` : block;
 }
