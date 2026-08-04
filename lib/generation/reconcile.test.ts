@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reconcileWeekVolume } from "./reconcile";
+import { reconcileWeekVolume, weekCardioCapacity } from "./reconcile";
 import {
   weekMileage,
   weekWorkMileage,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/session-volume";
 import { computePaces, formatPace } from "@/lib/engine/paces";
 import type { ProgramDay, Session } from "@/lib/schemas";
+import { DEFAULT_CAPS } from "@/lib/engine/caps";
 
 type RunS = Extract<Session, { kind: "run" }>;
 const P = computePaces("26:00")!; // 5K 26:00 → 5k pace ≈ 8:22/mi
@@ -172,12 +173,17 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
           sessions.push([lift()]);
           while (sessions.length < 7) sessions.push([]);
           const days = daysOf(...sessions);
+          const capacity = weekCardioCapacity(days, DEFAULT_CAPS);
           reconcileWeekVolume(days, mi, min, P, "intermediate");
           // Total on-feet mileage is filled up to the target; it never undershoots a
           // feasible target and only overshoots when the week's run minimums already
           // exceed it (an unrealistic many-runs/tiny-target combo).
           expect(weekMileage({ days })).toBeGreaterThanOrEqual(mi - 0.05);
-          expect(weekCardioMinutes({ days })).toBe(min);
+          // Cardio is hit exactly up to what the week can physically hold. These
+          // targets are deliberately generous (22 min per prescribed mile), so the
+          // largest of them exceed the day caps — and a target the days cannot hold
+          // is delivered at capacity rather than pretended to (Levi, 2026-08-04).
+          expect(weekCardioMinutes({ days })).toBe(Math.min(min, capacity));
           expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
         }
       }

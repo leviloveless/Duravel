@@ -249,6 +249,7 @@ export const MovementPattern = z.enum([
   "vertical_press",
   "horizontal_pull",
   "vertical_pull",
+  "chest_fly",
 ]);
 
 /** The engine's run subtypes. Named so `lib/engine/types.ts` can derive its
@@ -588,7 +589,10 @@ export interface WorkoutLog {
   actualDay?: z.infer<typeof TrainingDay> | null;
 }
 
-/** The 7 non-negotiable lifting movement patterns (spec §5b). */
+/** The 8 non-negotiable lifting movement patterns (spec §5b).
+ *  `chest_fly` added 2026-08-04 (Levi) — it was in his canonical pattern list but
+ *  had never existed in the engine, so horizontal pressing carried the whole
+ *  chest stimulus and the weekly set budget was short a pattern. */
 export const REQUIRED_MOVEMENT_PATTERNS = [
   "squat",
   "hip_hinge",
@@ -597,4 +601,5 @@ export const REQUIRED_MOVEMENT_PATTERNS = [
   "vertical_press",
   "horizontal_pull",
   "vertical_pull",
+  "chest_fly",
 ] as const;

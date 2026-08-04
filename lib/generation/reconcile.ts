@@ -26,6 +26,7 @@ import {
   hybridRunMiles,
   runOverhead,
   runOverheadMiles,
+  STRENGTH_SESSION_MIN,
   sessionTiming,
   weekMileage,
 } from "@/lib/session-volume";
@@ -154,6 +155,44 @@ function cardioFloor(day: ProgramDay): number {
 }
 
 /**
+ * The most cardio minutes this week's day layout can physically hold.
+ *
+ * Levi's call (2026-08-04): the prescribed `targetCardioMinutes` used to be set
+ * purely from volume progression, with no reference to whether the athlete's
+ * chosen days could hold it. In a 480-week audit, 193 weeks (~40%) finished under
+ * target — the worst by 626 minutes — because the minutes simply had nowhere to
+ * go, and the same cramped shapes emitted 150–490 minute over-cap blocks through
+ * the "pile the overflow onto the last block" fallback. `reconcile` then reported
+ * the total as exact, which it was not.
+ *
+ A day holds at most `caps.day` minutes of training. A LIFT is not cardio but
+ * still spends `STRENGTH_SESSION_MIN` of that budget, so a lift day offers
+ * strictly less cardio room. Race days and the athlete's chosen rest days offer
+ * none at all.
+ *
+ * Verified against the worst case in the audit: an advanced, highly-trained
+ * athlete training 3 days a week was prescribed 1116 cardio minutes (18.6 hours
+ * across three days) and could place 539. This formula predicts 540.
+ *
+ * Sizing the target to this makes the prescription honest: the athlete sees the
+ * volume their week can actually take, and the reconciler stops silently missing.
+ */
+export function weekCardioCapacity(
+  days: ProgramDay[],
+  caps: TrainingCaps,
+  avoidDays: readonly string[] = [],
+): number {
+  let capacity = 0;
+  for (const d of days) {
+    if (isRaceDay(d)) continue;
+    if (avoidDays.includes(d.day)) continue; // the athlete asked to keep this clear
+    const liftMinutes = d.sessions.filter((s) => s.kind === "lift").length * STRENGTH_SESSION_MIN;
+    capacity += Math.max(0, caps.day - liftMinutes);
+  }
+  return capacity;
+}
+
+/**
  * Where the reconciler is allowed to put the filler it adds (the non-running
  * Zone 1–2 blocks and any extra easy runs).
  *   - `avoidDays`: the athlete's preferred rest days. Filler used to land here by
@@ -246,13 +285,36 @@ export function reconcileWeekVolume(
     .find((s): s is Extract<Session, { kind: "race" }> => s.kind === "race");
   if (raceSession && raceSession.priority !== "C") {
     // Taper/event week: the reduced sessions come from the taper protocol and must
-    // not be resized. They still need their warmup/cooldown and between-rep
-    // recovery stamped — without it a race week's runs report WORK miles only, so
-    // the final week silently undercounts itself against every other week in the
-    // program (the same class of gap as the interval/threshold text drift).
+    // not be resized. Two things still have to happen.
+    //
+    // First, a run the AI omitted arrives here as a PLACEHOLDER — zero distance,
+    // zero duration, empty pace — and because race weeks skip resizing, nothing
+    // ever filled it in. The athlete's final week shipped an "Easy run — 0 min @
+    // /mile — 0 miles" on the calendar. Size those (and only those) to the run's
+    // own minimum so the session is real; everything the taper actually
+    // prescribed is left untouched.
+    for (const d of days) {
+      if (isRaceDay(d)) continue;
+      for (const s of d.sessions) {
+        if (s.kind !== "run" || s.distanceMiles > 0) continue;
+        const paceMin = effectivePace(s.runType, paces) / 60;
+        setRunMiles(s, minMiles(s.runType, paceMin, runOverhead(s.runType)), paceMin, caps.session, runningExp);
+        s.paceMinMile = paceLabel(s.runType, paces);
+      }
+    }
+    // Second, stamp warmup/cooldown and between-rep recovery — without it a race
+    // week's runs report WORK miles only, so the final week silently undercounts
+    // itself against every other week in the program (the same class of gap as the
+    // interval/threshold text drift).
     stampRunOverhead(days, effectivePace("easy", paces) / 60, runningExp);
     return;
   }
+
+  // Size the prescription to what these days can actually hold. Anything above
+  // this could never be placed — it only produced a week that quietly missed its
+  // own stated total, or an over-cap block absorbing the overflow.
+  const capacity = weekCardioCapacity(days, caps, place.avoidDays ?? []);
+  const cardioTarget = Math.min(targetCardioMinutes, capacity);
 
   rewriteHybridPaces(days, paces.threshold);
 
@@ -339,7 +401,7 @@ export function reconcileWeekVolume(
     for (const s of d.sessions) {
       if (s.kind === "run" || s.kind === "hybrid") runningCardio += sessionTiming(s).total;
     }
-  const gap = Math.round(targetCardioMinutes) - runningCardio;
+  const gap = Math.round(cardioTarget) - runningCardio;
   // A gap this small is rounding, not a training stimulus. When the week's runs
   // already cover almost all the prescribed cardio, the leftover used to be emitted
   // as its own block — a 9-minute "session" on the calendar. Letting the weekly

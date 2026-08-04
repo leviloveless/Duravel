@@ -138,3 +138,33 @@ describe("generated programs: text, headline and weekly total agree", () => {
     }
   });
 });
+
+describe("race-week placeholders are real sessions", () => {
+  it("never ships a run with zero distance or an empty pace", () => {
+    // A/B race weeks skip resizing, so a session the AI omitted used to survive as
+    // its placeholder — "Easy run — 0 min @ /mile — 0 miles" on the athlete's
+    // calendar in the most important week of the program.
+    for (const [exp, days] of [
+      ["beginner", ["mon", "wed", "fri"]],
+      ["intermediate", ["mon", "tue", "wed", "thu", "fri", "sat"]],
+      ["advanced", ["mon", "tue", "wed", "thu", "fri"]],
+    ] as const) {
+      const gen = input(exp, [...days]);
+      const skeleton = buildSkeleton(toEngineInput(gen, START));
+      const { program } = assembleProgram(skeleton, [], exp, {
+        fiveKTime: "22:00",
+        tenKTime: "46:00",
+      });
+      for (const w of program.weeks) {
+        for (const d of w.days) {
+          for (const s of d.sessions) {
+            if (s.kind !== "run") continue;
+            expect(s.distanceMiles, `wk${w.weekNumber} ${d.day} ${s.runType}`).toBeGreaterThan(0);
+            expect(s.paceMinMile, `wk${w.weekNumber} ${d.day} ${s.runType}`).not.toBe("");
+            expect(s.durationMin).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+});

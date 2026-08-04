@@ -20,9 +20,11 @@ import { microcyclePattern } from "../microcycles";
 import { parseTimeToSeconds } from "../paces";
 import { clampInt } from "../math";
 import { applyBandZoneShift, bandTriHours } from "../time-budget";
+import { spreadPatternSessions, applyWeeklySetVolume } from "../strength";
 import type {
   EngineInput,
   EngineRace,
+  ExperienceLevel,
   MicroWeekType,
   PhaseName,
   ProgramSkeleton,
@@ -524,7 +526,14 @@ function brickContent(segments: { discipline: string; durationMin: number; goalZ
   return `Brick — bike→run in one session. ${bikePart}, then transition fast and ${runPart} at a controlled Zone 3 effort. Your legs feel heavy the first km — hold target pace through it. The single most race-specific session.`;
 }
 
-/** Canonical periodized full-body strength session (feature C). */
+/** Canonical periodized full-body strength session (feature C).
+ *
+ *  Sets are a STARTING value only: `applyTriWeeklySetVolume` rewrites them from
+ *  the athlete's lifting experience once the whole week is known, because weekly
+ *  volume per pattern is a weekly property, not a per-session one. Reps, load
+ *  emphasis and pattern selection stay triathlon-specific — a triathlete's lifts
+ *  are not HYROX lifts, so this deliberately does NOT route through
+ *  `applyStrengthSchemes`. */
 function liftSession(phase: PhaseName): Session {
   const strength = phase === "build" || phase === "peak";
   const sets = strength ? 4 : 3;
@@ -593,11 +602,26 @@ function slotToSession(slot: SessionSlot, a: TriAnchors, phase: PhaseName): Sess
 }
 
 /** Map one skeleton week (slots already resolved) to a ProgramWeek. */
-export function triWeekToProgramWeek(w: WeekSkeleton, anchors: TriAnchors = {}): ProgramWeek {
+export function triWeekToProgramWeek(
+  w: WeekSkeleton,
+  anchors: TriAnchors = {},
+  liftingExp: ExperienceLevel = "intermediate",
+): ProgramWeek {
   const days: ProgramDay[] = w.days.map((d) => ({
     day: d.day,
     sessions: d.sessions.map((s) => slotToSession(s, anchors, w.phase)).filter((s): s is Session => s !== null),
   }));
+
+  // Levi's weekly working-set rule (6 / 8 / 10 by lifting experience) applies to
+  // triathletes too — it was HYROX/DEKA-only because the triathlon builder makes
+  // its own lift sessions and never passed through assembly. Only `sets` is
+  // rewritten; the tri-specific patterns, rep ranges and emphasis are untouched.
+  const liftSessions = days
+    .flatMap((d) => d.sessions)
+    .filter((s): s is Extract<Session, { kind: "lift" }> => s.kind === "lift");
+  spreadPatternSessions(liftSessions);
+  applyWeeklySetVolume(liftSessions, liftingExp, w.microWeek);
+
   return {
     weekNumber: w.weekNumber,
     phase: w.phase,
@@ -612,10 +636,14 @@ export function triWeekToProgramWeek(w: WeekSkeleton, anchors: TriAnchors = {}):
   };
 }
 
-export function buildTriProgramData(skeleton: ProgramSkeleton, anchors: TriAnchors = {}): ProgramData {
+export function buildTriProgramData(
+  skeleton: ProgramSkeleton,
+  anchors: TriAnchors = {},
+  liftingExp: ExperienceLevel = "intermediate",
+): ProgramData {
   return {
     generatedAt: new Date().toISOString(),
-    weeks: skeleton.weeks.map((w) => triWeekToProgramWeek(w, anchors)),
+    weeks: skeleton.weeks.map((w) => triWeekToProgramWeek(w, anchors, liftingExp)),
   };
 }
 
@@ -638,5 +666,8 @@ export function rebuildTriWeek(
   const raceLast = input.races.find((r) => r.weekNumber === week.weekNumber - 1);
   const days = assembleTriDays(input, cfg, week.phase, week.targetCardioMinutes, idx, { raceThis, raceLast });
   const skeletonWeek: WeekSkeleton = { ...week, days };
-  return { skeletonWeek, programWeek: triWeekToProgramWeek(skeletonWeek, anchors) };
+  return {
+    skeletonWeek,
+    programWeek: triWeekToProgramWeek(skeletonWeek, anchors, input.liftingExp),
+  };
 }

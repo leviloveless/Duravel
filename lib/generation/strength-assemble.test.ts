@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyStrengthSchemes } from "./assemble";
+import { REQUIRED_MOVEMENT_PATTERNS } from "@/lib/schemas";
 import type { ProgramWeek, Session } from "@/lib/schemas";
 
 function weekWith(phase: ProgramWeek["phase"], micro: ProgramWeek["microWeek"]): ProgramWeek {
@@ -343,6 +344,48 @@ describe("no lift session exceeds the working-set ceiling", () => {
     for (const s of lifts(w)) {
       expect(sessionSets(s)).toBeLessThanOrEqual(24);
       for (const m of s.movements) expect(m.sets).toBeGreaterThanOrEqual(1);
+    }
+  });
+});
+
+describe("chest fly is a first-class movement pattern", () => {
+  it("is required in a full week and runs high-rep, never as a heavy compound", () => {
+    expect(REQUIRED_MOVEMENT_PATTERNS).toContain("chest_fly");
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ["chest_fly"] },
+      { day: "thu", liftType: "upper", patterns: ["chest_fly"] },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "intermediate");
+    for (const s of lifts(w)) {
+      const fly = s.movements.find((m) => m.pattern === "chest_fly")!;
+      // Isolation movement: endurance emphasis on every lift type, including the
+      // full-body day that makes every other pattern max-strength.
+      expect(fly.emphasis).toBe("endurance");
+      expect(fly.exercise).toMatch(/Fly/);
+    }
+    expect(weeklySets(w, "chest_fly")).toBe(8);
+  });
+
+  it("counts toward the weekly set budget like any other pattern", () => {
+    const ALL8 = [
+      "squat",
+      "hip_hinge",
+      "lunge",
+      "horizontal_press",
+      "vertical_press",
+      "horizontal_pull",
+      "vertical_pull",
+      "chest_fly",
+    ];
+    const w = makeWeek("base", "increase", [
+      { day: "tue", liftType: "full", patterns: ALL8 },
+      { day: "thu", liftType: "full", patterns: ALL8 },
+      { day: "sat", liftType: "full", patterns: ALL8 },
+    ]);
+    applyStrengthSchemes(w, undefined, "lbs", "intermediate");
+    for (const p of ALL8) expect(weeklySets(w, p)).toBeGreaterThan(0);
+    for (const s of lifts(w)) {
+      expect(s.movements.reduce((n, m) => n + m.sets, 0)).toBeLessThanOrEqual(24);
     }
   });
 });

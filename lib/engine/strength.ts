@@ -11,7 +11,9 @@
  *   - Upper/lower days run a MODERATE strength scheme (6–10 reps, dropping
  *     toward peak) — strength-biased, not the old hypertrophy 12–15.
  *   - The LUNGE pattern (HYROX sandbag lunges) keeps HIGH-REP MUSCULAR
- *     ENDURANCE — the one place high reps are sport-specific.
+ *     ENDURANCE — the one place high reps are sport-specific. The CHEST FLY runs
+ *     high-rep too, for the opposite reason: it is an isolation movement and has
+ *     no business carrying a heavy compound load.
  *   - Load PROGRESSES across the microcycle (intensity climbs on increase weeks,
  *     backs off on deloads) and is autoregulated with an RIR (reps-in-reserve)
  *     target (Helms 2016), so it isn't a static number.
@@ -116,7 +118,10 @@ export function patternEmphasis(
   light = false,
 ): StrengthEmphasis {
   if (light) return "endurance";
-  if (pattern === "lunge") return "endurance";
+  // The lunge is HYROX's sport-specific muscular-endurance pattern. The chest fly
+  // is a single-joint ISOLATION movement — loading it like a compound press is how
+  // shoulders get hurt — so it also runs high-rep, whatever the day.
+  if (pattern === "lunge" || pattern === "chest_fly") return "endurance";
   return liftType === "full" || liftType === "power" ? "max_strength" : "strength";
 }
 
@@ -290,6 +295,7 @@ export const PATTERN_HOME: Record<LiftPattern, "upper" | "lower" | "full"> = {
   vertical_press: "upper",
   horizontal_pull: "upper",
   vertical_pull: "upper",
+  chest_fly: "upper",
 };
 
 /** True when a lift day of this type may legitimately train this pattern. */
@@ -466,6 +472,7 @@ export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
   vertical_press: ["Standing Overhead Press", "Push Press"],
   horizontal_pull: ["Barbell Bent-Over Row", "Chest-Supported Row"],
   vertical_pull: ["Pull-Up", "Lat Pulldown"],
+  chest_fly: ["Dumbbell Chest Fly", "Cable Chest Fly"],
 };
 
 /**

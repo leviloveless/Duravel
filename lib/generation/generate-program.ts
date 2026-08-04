@@ -119,6 +119,7 @@ export async function generateProgram(
       const program = buildTriProgramData(
         skeleton,
         triAnchorsFromBenchmarks(input.profile.benchmarks),
+        input.profile.liftingExp,
       );
       await persist(supabase, programId, program, skeleton);
       return { ok: true, status: "ready", issues: [] };

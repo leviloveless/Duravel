@@ -398,7 +398,7 @@ function liftCount(week: ProgramWeek): number {
 }
 
 /**
- * Ensure a full training week carries all 7 movement patterns; inject any that
+ * Ensure a full training week carries all 8 movement patterns; inject any that
  * are missing into an appropriate lift session. Returns the patterns injected.
  */
 export function patchMovementPatterns(week: ProgramWeek): MovementPattern[] {
@@ -642,7 +642,7 @@ export interface VerifyResult {
 
 /**
  * Verify a finished program (architecture-plan.md §5 step 4 exit test):
- * schema-valid and every full training week has all 7 movement patterns.
+ * schema-valid and every full training week has all 8 movement patterns.
  */
 export function verifyProgram(program: ProgramData): VerifyResult {
   const issues: string[] = [];

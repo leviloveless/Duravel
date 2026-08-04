@@ -39,7 +39,7 @@ Rules:
 - Return one "days" entry for every training day that the skeleton marks with a run/lift/hybrid slot. Do NOT return entries for rest days or race days — those are handled separately.
 - The sessions you return for a day MUST match, in kind and order, the slots the skeleton lists for that day. Fill in content only.
 - Match each run's runType and each session's goalZone to what the skeleton specifies for that slot.
-- Every full training week (weeks with 3 lift slots) must include all 7 movement patterns across its lift sessions.
+- Every full training week (weeks with 3 lift slots) must include all 8 movement patterns across its lift sessions.
 - Keep numbers realistic and internally consistent (durationMin ≈ distanceMiles × paceMinMile).`;
 
 // Framing around the sport's coach persona (was philosophy.philosophyRules()).

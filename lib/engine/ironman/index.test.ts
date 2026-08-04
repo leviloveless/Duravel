@@ -9,8 +9,15 @@ import {
 } from "./index";
 import { tri_70_3, tri_140_6 } from "../sports/triathlon";
 import { weekIronmanTime } from "@/lib/session-volume";
-import type { EngineInput, EngineRace, SessionSlot, WeekSkeleton } from "../types";
-import type { Session } from "@/lib/schemas";
+import { weeklySetTarget, MAX_SESSION_WORKING_SETS } from "../strength";
+import type {
+  EngineInput,
+  EngineRace,
+  ExperienceLevel,
+  SessionSlot,
+  WeekSkeleton,
+} from "../types";
+import type { ProgramWeek, Session } from "@/lib/schemas";
 
 // --- helpers ----------------------------------------------------------------
 
@@ -150,22 +157,70 @@ describe("(C) periodized strength counts by phase", () => {
     const valid = ["squat", "hip_hinge", "lunge", "horizontal_press", "vertical_press", "horizontal_pull", "vertical_pull"];
     for (const m of lift.movements) {
       expect(valid).toContain(m.pattern);
-      expect(m.sets).toBe(3); // base hypertrophy 3×8-12
-      expect(m.repRange).toBe("8-12");
+      expect(m.repRange).toBe("8-12"); // base hypertrophy
+      expect(m.sets).toBeGreaterThanOrEqual(1);
     }
+    // Levi's weekly set rule (2026-08-04) now reaches triathlon: the REP RANGE
+    // stays tri-specific, but `sets` is whatever the weekly-per-pattern target
+    // divides into, not the old flat 3.
+    expectWeeklySetTarget(pw, "intermediate");
   });
 
-  it("build/peak lifts are strength (4×4-6)", () => {
+  it("build/peak lifts are strength (4-6 reps), with weekly set volume applied", () => {
     const { weeks } = buildTriathlonSkeleton(makeInput(), tri_140_6);
     const build = firstOfPhase(weeks, "build");
     const pw = triWeekToProgramWeek(build);
     const lift = pw.days.flatMap((d) => d.sessions).find((s): s is Extract<Session, { kind: "lift" }> => s.kind === "lift")!;
     for (const m of lift.movements) {
-      expect(m.sets).toBe(4);
       expect(m.repRange).toBe("4-6");
+      expect(m.sets).toBeGreaterThanOrEqual(1);
+    }
+    expectWeeklySetTarget(pw, "intermediate");
+  });
+
+  it("weekly set volume scales with LIFTING experience (6 / 8 / 10 per pattern)", () => {
+    const { weeks } = buildTriathlonSkeleton(makeInput(), tri_140_6);
+    const base = firstOfPhase(weeks, "base");
+    for (const exp of ["beginner", "intermediate", "advanced"] as const) {
+      expectWeeklySetTarget(triWeekToProgramWeek(base, {}, exp), exp);
+    }
+  });
+
+  it("no triathlon lift session exceeds the working-set ceiling", () => {
+    const { weeks } = buildTriathlonSkeleton(makeInput(), tri_140_6);
+    for (const w of weeks) {
+      const pw = triWeekToProgramWeek(w, {}, "advanced");
+      for (const d of pw.days) {
+        for (const s of d.sessions) {
+          if (s.kind !== "lift") continue;
+          const total = s.movements.reduce((n, m) => n + m.sets, 0);
+          expect(total).toBeLessThanOrEqual(MAX_SESSION_WORKING_SETS);
+        }
+      }
     }
   });
 });
+
+/** Every pattern trained in the week hits its weekly working-set target, unless
+ *  the per-session ceiling genuinely had nowhere left to put the volume. */
+function expectWeeklySetTarget(pw: ProgramWeek, liftingExp: ExperienceLevel): void {
+  const lifts = pw.days
+    .flatMap((d) => d.sessions)
+    .filter((s): s is Extract<Session, { kind: "lift" }> => s.kind === "lift");
+  if (lifts.length === 0) return;
+  const target = weeklySetTarget(liftingExp, pw.microWeek);
+  const byPattern = new Map<string, number>();
+  for (const s of lifts) {
+    for (const m of s.movements) byPattern.set(m.pattern, (byPattern.get(m.pattern) ?? 0) + m.sets);
+  }
+  expect(byPattern.size).toBeGreaterThan(0);
+  for (const [pattern, total] of byPattern) {
+    expect(total, `${pattern} weekly sets`).toBeLessThanOrEqual(target);
+    expect(total, `${pattern} weekly sets`).toBeGreaterThanOrEqual(
+      Math.min(target, lifts.length),
+    );
+  }
+}
 
 // --- (D) race periodization -------------------------------------------------
 
