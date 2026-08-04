@@ -10,6 +10,7 @@
  */
 import type { WeeklyHoursBand } from "@/lib/schemas";
 import type { ExperienceLevel, PhaseName, ZoneDistribution } from "./types";
+import type { SportFamily } from "./sports/types";
 
 /**
  * Starting weekly running mileage for a single-currency sport (HYROX / DEKA /
@@ -131,6 +132,51 @@ export const BAND_MIN_TRAINING_DAYS: Record<WeeklyHoursBand, number> = {
 
 export function bandMinTrainingDays(band: WeeklyHoursBand): number {
   return BAND_MIN_TRAINING_DAYS[band];
+}
+
+/**
+ * The largest weekly-hours band a sport family may offer (Levi, 2026-08-04).
+ *
+ * **30-40 hours is not a HYROX or DEKA band.** Two sessions a day across 7 days is
+ * 14 slots; 40 hours across 14 sessions averages 171 minutes EACH, which for a
+ * station-hybrid athlete means three-hour runs. That is not HYROX training — it is
+ * Ironman training. The band stays available for triathlon, where 30-40 hours is
+ * a normal age-group build.
+ *
+ * Families without an entry offer every band.
+ */
+export const MAX_BAND_BY_FAMILY: Partial<Record<SportFamily, WeeklyHoursBand>> = {
+  station_hybrid: "h20_30",
+};
+
+/** Bands in ascending order — the single source of truth for "how big is this band". */
+export const WEEKLY_HOURS_ORDER: readonly WeeklyHoursBand[] = [
+  "h0_5",
+  "h5_10",
+  "h10_20",
+  "h20_30",
+  "h30_40",
+];
+
+/** Is this band offered for this sport family? */
+export function bandAllowedForFamily(family: SportFamily, band: WeeklyHoursBand): boolean {
+  const max = MAX_BAND_BY_FAMILY[family];
+  if (!max) return true;
+  return WEEKLY_HOURS_ORDER.indexOf(band) <= WEEKLY_HOURS_ORDER.indexOf(max);
+}
+
+/** Every band this sport family offers, ascending. */
+export function bandsForFamily(family: SportFamily): WeeklyHoursBand[] {
+  return WEEKLY_HOURS_ORDER.filter((b) => bandAllowedForFamily(family, b));
+}
+
+/**
+ * Clamp a band to what the family allows. Belt-and-braces for the ENGINE: a
+ * stored program from before this rule (or a hand-edited input snapshot) must not
+ * be able to generate a 40-hour HYROX week on recalculate.
+ */
+export function clampBandToFamily(family: SportFamily, band: WeeklyHoursBand): WeeklyHoursBand {
+  return bandAllowedForFamily(family, band) ? band : MAX_BAND_BY_FAMILY[family]!;
 }
 
 /**

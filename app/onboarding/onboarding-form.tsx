@@ -4,7 +4,8 @@ import { startTransition, useActionState, useRef, useState, type KeyboardEvent }
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
-import { bandMinTrainingDays } from "@/lib/engine/time-budget";
+import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
+import { getSport } from "@/lib/engine/sports";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 
 const initialState: OnboardingState = { error: null };
@@ -562,6 +563,13 @@ export default function OnboardingForm({
   const isTriathlon = sport === "tri_olympic" || sport === "tri_70_3" || sport === "tri_140_6";
   // Only HYROX and DEKA Fit prescribe runs paced off a 5K, so only they require it.
   const requiresFiveK = sport === "hyrox" || sport === "deka_fit";
+  // 30-40 h/week is not a HYROX or DEKA band (Levi, 2026-08-04): 40 hours across
+  // the 14 slots a week has (7 days x 2 sessions) averages ~171 min per session,
+  // which for a station-hybrid athlete means three-hour runs. It stays available
+  // for triathlon, where it is a normal age-group build.
+  const sportFamily = getSport(sport as Parameters<typeof getSport>[0]).family;
+  const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForFamily(sportFamily, b.value));
+  const bandOffered = offeredBands.some((b) => b.value === weeklyHours);
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
@@ -670,7 +678,10 @@ export default function OnboardingForm({
     }
     if (current === 2) {
       if (days.length < 3) return "Pick at least 3 training days.";
-      if (!weeklyHours) return "Select how much time you can train each week.";
+      // `!bandOffered` also catches a band carried over from a sport that offered
+      // it — switching to HYROX leaves no radio checked, so re-selecting is the
+      // right prompt.
+      if (!weeklyHours || !bandOffered) return "Select how much time you can train each week.";
       // The time budget and the day count are one decision: a week holds at most
       // two sessions a day, so a big budget across too few days cannot physically
       // be delivered. See BAND_MIN_TRAINING_DAYS.
@@ -1156,7 +1167,7 @@ export default function OnboardingForm({
             what&apos;s realistic and we&apos;ll get the most out of the time you have.
           </p>
           <div className="flex flex-col gap-2">
-            {BUDGET_BANDS.map((b) => {
+            {offeredBands.map((b) => {
               const c = budgetCopy[b.value];
               const selected = weeklyHours === b.value;
               return (

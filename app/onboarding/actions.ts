@@ -3,7 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/schemas";
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
-import { bandMinTrainingDays } from "@/lib/engine/time-budget";
+import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
+import { getSport } from "@/lib/engine/sports";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -193,6 +194,15 @@ function parseGenerationInput(
   // at most `days x 2` sessions — a 20-30 hour budget spread over 3 days cannot
   // be delivered, and the engine used to resolve that by silently dropping half
   // the prescription and stacking five sessions on one day.
+  // 30-40 h/week is not a HYROX or DEKA band (Levi, 2026-08-04). The form no
+  // longer offers it for those sports; this is the server-side guard.
+  if (!bandAllowedForFamily(getSport(input.sport).family, input.profile.weeklyHours)) {
+    return {
+      error:
+        "That weekly time budget isn't available for this sport. Pick a smaller budget — 30–40 hours a week is a triathlon volume, not a HYROX or DEKA one.",
+    };
+  }
+
   const minDays = bandMinTrainingDays(input.profile.weeklyHours);
   if ((input.profile.trainingDays?.length ?? 0) < minDays) {
     return {

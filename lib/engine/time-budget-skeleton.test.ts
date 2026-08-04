@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { EngineInput } from "./types";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 import { buildSkeleton } from "./skeleton";
+import { bandAllowedForFamily } from "./time-budget";
 
 const BANDS: WeeklyHoursBand[] = ["h0_5", "h5_10", "h10_20", "h20_30", "h30_40"];
 
@@ -50,16 +51,24 @@ function dekaFitInput(band: WeeklyHoursBand): EngineInput {
   };
 }
 
+// 30-40 h is not a HYROX/DEKA band (Levi, 2026-08-04) — the engine clamps it to
+// 20-30, so snapshotting those two would just duplicate the h20_30 snapshots and
+// imply a configuration the product no longer offers. Triathlon keeps all five.
+const STATION_BANDS = BANDS.filter((b) => bandAllowedForFamily("station_hybrid", b));
+
 describe("time-budget skeletons (band-driven; snapshots auto-created on first run)", () => {
-  for (const band of BANDS) {
+  for (const band of STATION_BANDS) {
     it(`HYROX @ ${band}`, () => {
       expect(buildSkeleton(hyroxInput(band))).toMatchSnapshot();
     });
-    it(`70.3 @ ${band}`, () => {
-      expect(buildSkeleton(triInput(band))).toMatchSnapshot();
-    });
     it(`DEKA FIT @ ${band}`, () => {
       expect(buildSkeleton(dekaFitInput(band))).toMatchSnapshot();
+    });
+  }
+  // Triathlon offers the full range, 30-40 h included.
+  for (const band of BANDS) {
+    it(`70.3 @ ${band}`, () => {
+      expect(buildSkeleton(triInput(band))).toMatchSnapshot();
     });
   }
 

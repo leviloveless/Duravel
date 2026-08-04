@@ -19,7 +19,13 @@ import type { GenerationInput, WeeklyHoursBand } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
 import { sessionTiming } from "@/lib/session-volume";
-import { bandMinTrainingDays, bandMaxWeeklyMinutes } from "@/lib/engine/time-budget";
+import {
+  bandMinTrainingDays,
+  bandMaxWeeklyMinutes,
+  bandAllowedForFamily,
+  bandsForFamily,
+  clampBandToFamily,
+} from "@/lib/engine/time-budget";
 
 const START = "2026-08-10";
 
@@ -152,5 +158,45 @@ describe("no week exceeds the time budget the athlete selected", () => {
       expect(d).toBeGreaterThanOrEqual(prev);
       prev = d;
     }
+  });
+});
+
+// --- 30-40 hours is not a HYROX/DEKA band -----------------------------------
+
+describe("weekly-hours bands are limited by sport family", () => {
+  it("offers 30-40 h to triathlon but not to HYROX or DEKA", () => {
+    expect(bandAllowedForFamily("triathlon", "h30_40")).toBe(true);
+    expect(bandAllowedForFamily("station_hybrid", "h30_40")).toBe(false);
+    // Everything up to 20-30 h stays available everywhere.
+    for (const b of ["h0_5", "h5_10", "h10_20", "h20_30"] as WeeklyHoursBand[]) {
+      expect(bandAllowedForFamily("station_hybrid", b)).toBe(true);
+      expect(bandAllowedForFamily("triathlon", b)).toBe(true);
+    }
+    expect(bandsForFamily("station_hybrid")).toEqual(["h0_5", "h5_10", "h10_20", "h20_30"]);
+    expect(bandsForFamily("triathlon")).toHaveLength(5);
+  });
+
+  it("clamps a stored HYROX program that still carries the old band", () => {
+    // A program SAVED before this rule would otherwise regenerate a 40-hour
+    // station-hybrid week on recalculate. The engine normalizes at its entry.
+    expect(clampBandToFamily("station_hybrid", "h30_40")).toBe("h20_30");
+    expect(clampBandToFamily("station_hybrid", "h10_20")).toBe("h10_20");
+    expect(clampBandToFamily("triathlon", "h30_40")).toBe("h30_40");
+  });
+
+  it("a HYROX skeleton built with h30_40 behaves exactly like h20_30", () => {
+    const build = (band: WeeklyHoursBand) => {
+      const input = gen("advanced", band);
+      // gen() derives training days from the band; pin both to 7 so the only
+      // difference under test is the band itself.
+      (input.profile as { trainingDays: string[] }).trainingDays = [...WEEK];
+      return buildSkeleton(toEngineInput(input, START));
+    };
+    const clamped = build("h30_40");
+    const explicit = build("h20_30");
+    expect(clamped.weeks.map((w) => w.targetCardioMinutes)).toEqual(
+      explicit.weeks.map((w) => w.targetCardioMinutes),
+    );
+    expect(clamped.caps).toEqual(explicit.caps);
   });
 });

@@ -43,6 +43,7 @@ import {
   bandStartCardioMinutes,
   bandSessionCap,
   bandMaxWeeklyMinutes,
+  clampBandToFamily,
   bandAnchorRunFloor,
   runImpactFactor,
 } from "./time-budget";
@@ -53,12 +54,27 @@ import { clamp, round1 } from "./math";
 /**
  * Build the full deterministic program skeleton from a normalized EngineInput.
  */
+/**
+ * Hold a stored program to the bands its sport actually offers. Only ever lowers
+ * the band, and only for families with a ceiling (`MAX_BAND_BY_FAMILY`).
+ */
+function normalizeBandForSport(input: EngineInput, cfg: SportConfig): EngineInput {
+  if (!input.weeklyHours) return input;
+  const clamped = clampBandToFamily(cfg.family, input.weeklyHours);
+  return clamped === input.weeklyHours ? input : { ...input, weeklyHours: clamped };
+}
+
 export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   const D = input.durationWeeks;
   // Resolve the sport config (P0 rewire). For HYROX these values are the same
   // references as the module constants, so output is byte-identical; a different
   // sport supplies different counts / zone targets / starting volume.
   const cfg = getSport(input.sport);
+  // 30-40 hours is not a HYROX/DEKA band (Levi, 2026-08-04). Onboarding no longer
+  // offers it for those sports, but a program SAVED before this rule would still
+  // carry it and would regenerate a 40-hour station-hybrid week on recalculate —
+  // so the engine normalizes it here, once, at the single entry point.
+  input = normalizeBandForSport(input, cfg);
   const counts: SessionCountTables = {
     run: (cfg.sessionCounts.run as SessionCountTables["run"] | undefined) ?? DEFAULT_COUNTS.run,
     hybrid:
@@ -465,6 +481,13 @@ function toKg(weight: number | undefined, unit: "lbs" | "kg" | undefined): numbe
 export function toEngineInput(input: GenerationInput, startDate?: string): EngineInput {
   const start = startDate ? new Date(startDate) : undefined;
   const sportCfg = getSport(input.sport);
+  // 30-40 h is not a HYROX/DEKA band (Levi, 2026-08-04). Onboarding no longer
+  // offers it there, but a program SAVED before this rule still carries it — and
+  // this is the single door every generation and recalculate comes through, so
+  // the band is normalized here, BEFORE it reaches the caps or the volume tables.
+  const weeklyHours = input.profile.weeklyHours
+    ? clampBandToFamily(sportCfg.family, input.profile.weeklyHours)
+    : undefined;
 
   const rawRaces = input.races ?? [];
   let races: EngineRace[] = [];
@@ -502,7 +525,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     // Carried through at P0 (unconsumed) so the band reaches the engine when
     // volume/zone scaling is wired in a later phase. buildSkeleton ignores it
     // today, so HYROX output stays byte-identical.
-    weeklyHours: input.profile.weeklyHours,
+    weeklyHours,
     subGoal: input.subGoal,
     trainingClass: input.profile.trainingClass,
     age: input.profile.age,
@@ -534,7 +557,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
         hybridExp: input.profile.hybridExp,
         liftingExp: input.profile.liftingExp,
       },
-      input.profile.weeklyHours,
+      weeklyHours,
     ),
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,
