@@ -49,6 +49,10 @@ const MIN_CARDIO_TOTAL = 45; // every standalone cardio session ≥ 45 min
 // days are wrong; 90 surplus minutes become 45 + 45, not 30 + 30 + 30.
 const MIN_CARDIO_BLOCK = 45;
 const MIN_BRICK_CARDIO = 30;
+// Below this, a leftover isn't worth putting on the calendar at all: the week's
+// prescribed cardio total is allowed to land a few minutes short rather than ship a
+// token block. Every gap at or above it is still filled exactly.
+const MIN_MEANINGFUL_CARDIO = 15;
 const EASY_LONG_MIN_MI = 3;
 const MIN_RUN_MILES = 0.3;
 
@@ -323,7 +327,12 @@ export function reconcileWeekVolume(
       if (s.kind === "run" || s.kind === "hybrid") runningCardio += sessionTiming(s).total;
     }
   const gap = Math.round(targetCardioMinutes) - runningCardio;
-  if (gap > 0) {
+  // A gap this small is rounding, not a training stimulus. When the week's runs
+  // already cover almost all the prescribed cardio, the leftover used to be emitted
+  // as its own block — a 9-minute "session" on the calendar. Letting the weekly
+  // total land a few minutes short is the better trade (Levi, 2026-08-04); every
+  // gap big enough to matter is still hit exactly.
+  if (gap >= MIN_MEANINGFUL_CARDIO) {
     for (const { day, minutes } of planFiller(days, gap, place, caps)) {
       day.sessions.push(makeCardio(minutes));
     }

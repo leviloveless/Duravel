@@ -468,19 +468,25 @@ describe("Zone 1–2 blocks respect the 45-minute floor", () => {
             // Beside a run/hybrid: a brick tail, floor 30.
             expect(b.minutes, why).toBeGreaterThanOrEqual(30);
           }
-          // The remaining case is a week whose runs already cover almost all of the
-          // prescribed cardio: the few leftover minutes have to land somewhere for the
-          // total to stay exact, and beside the long run is the least-bad place. (It
-          // used to land on an empty weekday as a standalone 9-minute "session".)
+          // Whatever the case, a block is never a token: a leftover under 15 minutes
+          // is dropped rather than put on the calendar.
+          expect(b.minutes, why).toBeGreaterThanOrEqual(15);
         }
-        // Exact whenever the target is reachable — a week whose runs alone already
-        // exceed a very low target simply overshoots (nothing is deleted to fit).
+        // Exact whenever the target is reachable — with two deliberate exceptions: a
+        // week whose runs alone already exceed a very low target simply overshoots
+        // (nothing is deleted to fit), and a sub-15-minute leftover is dropped instead
+        // of shipped as a token block.
         const runMinutes = days
           .flatMap((d) => d.sessions)
           .filter((s) => s.kind === "run" || s.kind === "hybrid")
           .reduce((n, s) => n + sessionTiming(s).total, 0);
-        if (runMinutes <= target)
-          expect(weekCardioMinutes({ days } as never), `shape ${i}/${target}`).toBe(target);
+        if (runMinutes <= target) {
+          const shortfall = target - weekCardioMinutes({ days } as never);
+          expect(shortfall, `shape ${i}/${target}`).toBeGreaterThanOrEqual(0);
+          expect(shortfall, `shape ${i}/${target}`).toBeLessThan(15);
+          if (target - runMinutes >= 15)
+            expect(weekCardioMinutes({ days } as never), `shape ${i}/${target}`).toBe(target);
+        }
       }
     }
   });
