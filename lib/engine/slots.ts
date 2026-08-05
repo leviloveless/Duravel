@@ -35,6 +35,7 @@ import {
   pairLegLiftWithCardio,
   spreadRuns,
   capSessionsPerDay,
+  sessionMovability,
   separateLiftDays,
   fillEmptyDays,
 } from "./sequencing";
@@ -738,11 +739,26 @@ export function assignDays(
   // An A/B race week (microWeek "race") uses the reduced taper sessions; a C
   // race keeps its normal microcycle label and trains through, so it falls to
   // the normal plan below and just has the race overlaid on the race day.
+  // A week can hold at most `trainingDays x 2` sessions — two a day is an absolute
+  // engine rule. That ceiling was never fed back into session PLANNING, so a
+  // 3-day athlete could be planned 11 sessions and the round-robin below simply
+  // stacked them: 227 of 420 audited legacy weeks had a day with 3+ sessions, the
+  // worst carrying 6.4 hours. Banded athletes were accidentally shielded because
+  // `weeklySessionCap` happened to keep the count low; nothing protected anyone
+  // else. Fold the day-derived ceiling into the same cap so the EXISTING trimming
+  // (easy filler runs first, then surplus hybrids — never the research lift dose)
+  // does the work.
+  const dayCapacity = trainingDays.length * MAX_WORKOUTS_PER_DAY;
+  const cappedCounts: SessionCountTables = {
+    ...counts,
+    weeklySessionCap: Math.min(counts.weeklySessionCap ?? Number.POSITIVE_INFINITY, dayCapacity),
+  };
+
   let ordered: SessionSlot[];
   if (race && microWeek === "race") {
     ordered = raceWeekSlots(race.priority, counts.runCharacter === "maintenance");
   } else {
-    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, counts);
+    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, cappedCounts);
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
     const runs = buildRunSlots(
@@ -750,10 +766,10 @@ export function assignDays(
       plan.runs,
       pos,
       bias?.runEmphasis ?? "none",
-      counts.runCharacter ?? "full",
-      counts.guaranteeQuality ?? false,
+      cappedCounts.runCharacter ?? "full",
+      cappedCounts.guaranteeQuality ?? false,
     );
-    const lifts = buildLiftSlots(plan.lifts, counts.researchLifts ?? false);
+    const lifts = buildLiftSlots(plan.lifts, cappedCounts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
     const simulate = phase === "peak" && (microWeek === "rebound" || microWeek === "increase");
     const hybrids = buildHybridSlots(plan.hybrids, simulate);
@@ -792,13 +808,26 @@ export function assignDays(
         : nonRestDays; // wraps, doubling up on training days before touching rest
   const idxByDay = new Map(days.map((d, i) => [d.day, i]));
 
+  // Round-robin, but NEVER a third session on a day. The old loop was a bare
+  // `di % length` wrap with no per-day bound, which is what let a 3-day week end
+  // up 4/4/3. `ordered` is interleaved hardest-first, so when a week genuinely
+  // cannot hold everything the sessions that fall off the end are its lightest —
+  // and they are DROPPED rather than stacked, because a 6.4-hour day is not a
+  // week the athlete can train.
   let di = 0;
   for (const s of ordered) {
-    // safe: distributionDays is non-empty here, so di % length is in-bounds, and
-    // every distribution day has an entry in idxByDay pointing at a real day slot.
-    const dayKey = distributionDays[di % distributionDays.length]!;
-    days[idxByDay.get(dayKey)!]!.sessions.push(s);
-    di += 1;
+    let placed = false;
+    for (let probe = 0; probe < distributionDays.length; probe++) {
+      // safe: distributionDays is non-empty here, and every entry maps to a day.
+      const dayKey = distributionDays[(di + probe) % distributionDays.length]!;
+      const day = days[idxByDay.get(dayKey)!]!;
+      if (day.sessions.length >= MAX_WORKOUTS_PER_DAY) continue;
+      day.sessions.push(s);
+      di += probe + 1;
+      placed = true;
+      break;
+    }
+    if (!placed) break; // every day is full — the rest of the week won't fit
   }
 
   // If the week genuinely overflowed onto a preferred rest day, make sure what
@@ -914,6 +943,37 @@ export function assignDays(
     const keepClear = new Set<TrainingDayName>(restSet);
     if (raceDayKey) keepClear.add(raceDayKey);
     fillEmptyDays(days, keepClear);
+
+    // FINAL word on the 2-a-day rule.
+    //
+    // `capSessionsPerDay` above runs mid-pipeline with the FULL protected set —
+    // pinned long-run, hybrid anchor and preferred lift days included — so on a
+    // tight week it has nowhere legal to relocate to and gives up best-effort.
+    // Worse, `separateLiftDays` and `fillEmptyDays` run AFTER it and can put a
+    // third session back on a day. A general-fitness 4-day week shipped 8 days
+    // with 3 sessions because of exactly that ordering.
+    //
+    // Re-run it last, protecting only what the ATHLETE asked for (rest days) and
+    // the race day, so it can actually move things. Preferences are soft; two
+    // sessions a day is not.
+    capSessionsPerDay(days, keepClear);
+
+    // `capSessionsPerDay` RELOCATES; it cannot drop. When every day is already at
+    // two, a week planned with more sessions than `days x 2` has no legal home for
+    // the remainder and the pass gives up, leaving a third session in place. Shed
+    // the surplus instead — the least-movable-first ordering means what goes is
+    // the week's lightest work, never the long run or the race.
+    for (const d of days) {
+      while (d.sessions.filter((sl) => sl.kind !== "rest").length > MAX_WORKOUTS_PER_DAY) {
+        const droppable = d.sessions
+          .map((sl, i) => ({ sl, i }))
+          .filter((x) => x.sl.kind !== "rest" && x.sl.kind !== "race" && !isLongRun(x.sl))
+          .sort((a, b) => sessionMovability(a.sl) - sessionMovability(b.sl));
+        const victim = droppable[0];
+        if (!victim) break; // nothing legal to shed
+        d.sessions.splice(victim.i, 1);
+      }
+    }
   }
 
   if (race) {

@@ -31,8 +31,7 @@ const START = "2026-08-10";
 
 /** Levi's rule (2026-08-04): 0-5 h needs 4 days, 5-10 h needs 5, 10+ h needs 7. */
 const WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const REQUIRED_DAYS = (band: WeeklyHoursBand): string[] =>
-  WEEK.slice(0, bandMinTrainingDays(band));
+const REQUIRED_DAYS = (band: WeeklyHoursBand): string[] => WEEK.slice(0, bandMinTrainingDays(band));
 
 function gen(exp: "beginner" | "intermediate" | "advanced", band: WeeklyHoursBand) {
   return {
@@ -198,5 +197,102 @@ describe("weekly-hours bands are limited by sport family", () => {
       explicit.weeks.map((w) => w.targetCardioMinutes),
     );
     expect(clamped.caps).toEqual(explicit.caps);
+  });
+});
+
+// --- two a day is absolute, on EVERY path ------------------------------------
+//
+// The band work masked this: `BAND_SESSION_CAP` kept banded weeks small enough
+// that days rarely doubled past two. Programs with NO weekly-hours band — every
+// program saved before that field existed, which still regenerate on Recalculate
+// — had no such protection. A 420-week audit of the bandless path found 227 days
+// carrying THREE sessions, the worst totalling 6.4 hours.
+//
+// Three separate places had to change: the day round-robin in `assignDays` wrapped
+// with no per-day bound; `capSessionsPerDay` ran mid-pipeline with the full
+// protected set (so it had nowhere to relocate) and was undone by later passes;
+// and `leastLoadedUnderCap` in the reconciler fell back to a cap-IGNORING helper
+// when every day was full.
+
+describe("legacy programs with no weekly-hours band are still legal", () => {
+  const LEGACY_DAYS = [3, 4, 5, 6, 7];
+
+  function legacyInput(
+    exp: "beginner" | "intermediate" | "advanced",
+    days: number,
+    cls: "non_highly_trained" | "highly_trained",
+  ) {
+    return {
+      profile: {
+        firstName: "L",
+        age: 35,
+        bodyWeight: 80,
+        weightUnit: "kg",
+        runningExp: exp,
+        hybridExp: exp,
+        liftingExp: exp,
+        trainingClass: cls,
+        trainingDays: WEEK.slice(0, days),
+        sex: "male",
+        // NO weeklyHours — this is the whole point.
+        benchmarks: { fiveKTime: "22:00", tenKTime: "46:00", ski2kTime: "7:30", row2kTime: "7:20" },
+      },
+      programType: "goal_event",
+      durationWeeks: 16,
+      races: [{ raceDate: "2026-11-24", priority: "A" }],
+      startDate: START,
+    } as unknown as GenerationInput;
+  }
+
+  it("never ships a third session on a day, and never exceeds a session cap", () => {
+    let checked = 0;
+    for (const exp of LEVELS) {
+      for (const cls of ["non_highly_trained", "highly_trained"] as const) {
+        for (const days of LEGACY_DAYS) {
+          const input = legacyInput(exp, days, cls);
+          const skeleton = buildSkeleton(toEngineInput(input, START));
+          const caps = skeleton.caps!;
+          const { program } = assembleProgram(skeleton, [], exp, {
+            fiveKTime: "22:00",
+            tenKTime: "46:00",
+          });
+          for (const w of program.weeks) {
+            for (const d of w.days) {
+              const workouts = d.sessions.filter((s) => s.kind !== "race");
+              expect(
+                workouts.length,
+                `${exp}/${cls}/${days}d wk${w.weekNumber} ${d.day}`,
+              ).toBeLessThanOrEqual(2);
+              for (const s of d.sessions) {
+                if (s.kind === "race" || s.kind === "lift") continue;
+                const limit = s.kind === "cardio" ? caps.cardioSession : caps.session;
+                expect(
+                  sessionTiming(s).total,
+                  `${exp}/${cls}/${days}d wk${w.weekNumber} ${d.day} ${s.kind}`,
+                ).toBeLessThanOrEqual(limit);
+                checked++;
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(2000);
+  });
+
+  it("keeps a bandless day inside the day cap", () => {
+    const skeleton = buildSkeleton(
+      toEngineInput(legacyInput("advanced", 3, "highly_trained"), START),
+    );
+    const { program } = assembleProgram(skeleton, [], "advanced", {
+      fiveKTime: "22:00",
+      tenKTime: "46:00",
+    });
+    for (const w of program.weeks) {
+      for (const d of w.days) {
+        const total = d.sessions.reduce((n, s) => n + sessionTiming(s).total, 0);
+        expect(total, `wk${w.weekNumber} ${d.day}`).toBeLessThanOrEqual(skeleton.caps!.day);
+      }
+    }
   });
 });

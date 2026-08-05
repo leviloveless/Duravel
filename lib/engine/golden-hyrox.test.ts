@@ -53,6 +53,12 @@ describe("GOLDEN HYROX — deterministic skeleton must stay byte-identical throu
     ).toMatchSnapshot();
   });
 
+  // ⚠️ BASELINE MOVED 2026-08-05, deliberately. This case previously produced
+  // EIGHT days carrying three sessions (a 4-day week planned ~9 sessions, and the
+  // day round-robin simply wrapped). Two workouts a day is an absolute engine
+  // rule, so the skeleton now trims to `trainingDays x 2` and re-caps after the
+  // pinning passes. Measured on this exact input: days-over-2 went 8 → 0.
+  // Every HYROX case in this file is still byte-identical — the oracle's job.
   it("general fitness (fixed_duration), beginner x3, 12wk, 4d, no races", () => {
     expect(
       buildSkeleton(

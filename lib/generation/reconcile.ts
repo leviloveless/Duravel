@@ -221,20 +221,6 @@ export interface FillerPlacement {
 
 const WEEKEND_DAYS: readonly string[] = ["sat", "sun"];
 
-function leastLoadedDay(days: ProgramDay[], place: FillerPlacement = {}): number {
-  let best = -1;
-  // safe: i is bounded by days.length; best is -1 or a prior in-bounds index.
-  for (let i = 0; i < days.length; i++) {
-    if (isRaceDay(days[i]!)) continue; // never load a race day
-    if (place.avoidDays?.includes(days[i]!.day)) continue; // never load a rest day
-    if (best === -1 || days[i]!.sessions.length < days[best]!.sessions.length) best = i;
-  }
-  if (best !== -1) return best;
-  // Everything is a race/rest day — fall back to the first non-race day.
-  const any = days.findIndex((d) => !isRaceDay(d));
-  return any === -1 ? 0 : any;
-}
-
 /**
  * Least-loaded day that still has room under the per-day workout cap (default 2),
  * so reconciler-added cardio/easy-run blocks don't stack a 3rd session on a day.
@@ -258,7 +244,11 @@ function leastLoadedUnderCap(days: ProgramDay[], cap = 2, place: FillerPlacement
     if (d.sessions.length >= cap) continue;
     if (best === -1 || score(d) > score(days[best]!)) best = i;
   }
-  return best === -1 ? leastLoadedDay(days, place) : best;
+  // No day has room. Return -1 rather than falling back to `leastLoadedDay`,
+  // which ignores the cap: that fallback is how an added easy run became a THIRD
+  // session on a day. Two a day is absolute, so the caller drops the run and the
+  // week lands short — the same trade the cardio filler already makes.
+  return best;
 }
 
 /** Rewrite the pace token in a hybrid session's run elements to threshold pace. */
@@ -311,7 +301,13 @@ export function reconcileWeekVolume(
       for (const s of d.sessions) {
         if (s.kind !== "run" || s.distanceMiles > 0) continue;
         const paceMin = effectivePace(s.runType, paces) / 60;
-        setRunMiles(s, minMiles(s.runType, paceMin, runOverhead(s.runType)), paceMin, caps.session, runningExp);
+        setRunMiles(
+          s,
+          minMiles(s.runType, paceMin, runOverhead(s.runType)),
+          paceMin,
+          caps.session,
+          runningExp,
+        );
         s.paceMinMile = paceLabel(s.runType, paces);
       }
     }
@@ -319,7 +315,7 @@ export function reconcileWeekVolume(
     // week's runs report WORK miles only, so the final week silently undercounts
     // itself against every other week in the program (the same class of gap as the
     // interval/threshold text drift).
-    stampRunOverhead(days, effectivePace("easy", paces) / 60, runningExp);
+    stampRunOverhead(days, effectivePace("easy", paces) / 60, runningExp, caps.session);
     return;
   }
 
@@ -374,7 +370,11 @@ export function reconcileWeekVolume(
   }
 
   // Place added easy runs before the mileage true-up so they count.
-  for (const s of added) days[leastLoadedUnderCap(days, 2, place)]!.sessions.push(s); // cap-aware: avoid a 3rd session on a day
+  for (const s of added) {
+    const target = leastLoadedUnderCap(days, 2, place);
+    if (target === -1) break; // every day is at two workouts — nowhere legal left
+    days[target]!.sessions.push(s);
+  }
 
   // The prescribed weekly mileage is the athlete's TOTAL on-feet distance:
   // warmup/cooldown AND between-rep recovery jogging all count toward it. Stamp
@@ -382,12 +382,12 @@ export function reconcileWeekVolume(
   // shrinking (or growing) the run distances — re-stamping each pass because a
   // run's recovery distance scales with its (changing) work time.
   for (let iter = 0; iter < 6; iter++) {
-    stampRunOverhead(days, easyPaceMin, runningExp);
+    stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
     const diff = round1(targetMileage - weekMileage({ days }));
     if (Math.abs(diff) < 0.05) break;
     adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session);
   }
-  stampRunOverhead(days, easyPaceMin, runningExp);
+  stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
   // A proportional shrink can leave a sub-tenth residual (a 0.1 remainder spread
   // across many runs rounds away on each), so snap it onto the longest run — its
   // fixed overhead and (for the long run) zero recovery make that exact.
@@ -404,7 +404,7 @@ export function reconcileWeekVolume(
         caps.session,
         runningExp,
       );
-      stampRunOverhead(days, easyPaceMin, runningExp);
+      stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
     }
   }
 
@@ -620,8 +620,7 @@ function absorb(plan: FillerAllocation[], minutes: number, caps: TrainingCaps): 
   for (const a of plan) {
     if (left <= 0) break;
     // The block isn't written to the day yet, so its own minutes are not in the total.
-    const headroom =
-      Math.min(caps.cardioSession, caps.day - dayTotalMinutes(a.day)) - a.minutes;
+    const headroom = Math.min(caps.cardioSession, caps.day - dayTotalMinutes(a.day)) - a.minutes;
     const add = Math.min(left, Math.max(0, headroom));
     a.minutes += add;
     left -= add;
@@ -820,7 +819,12 @@ function runDescriptionEasy(_exp: ExperienceLevel): string {
 /** Stamp each run's warmup/cooldown + between-rep recovery distance from its fixed
  *  overhead minutes and recovery minutes at easy pace. Both are miles on the feet,
  *  so — now that the weekly target is a TOTAL — they count toward it. */
-function stampRunOverhead(days: ProgramDay[], easyPaceMin: number, exp: ExperienceLevel): void {
+function stampRunOverhead(
+  days: ProgramDay[],
+  easyPaceMin: number,
+  exp: ExperienceLevel,
+  sessionCap = Number.POSITIVE_INFINITY,
+): void {
   for (const d of days) {
     for (const s of d.sessions) {
       if (s.kind !== "run") continue;
@@ -829,7 +833,13 @@ function stampRunOverhead(days: ProgramDay[], easyPaceMin: number, exp: Experien
       // was resized to), not the experience default — so the jog the athlete is
       // told to run is the jog counted in the week's mileage.
       const reps = repsForWorkMiles(s.runType, s.distanceMiles, exp);
-      const rec = reps === null ? 0 : recoveryMinutesForReps(s.runType, reps, s.durationMin);
+      let rec = reps === null ? 0 : recoveryMinutesForReps(s.runType, reps, s.durationMin);
+      // `workBudget` reserves room for recovery using the EXPERIENCE-default rep
+      // count, but recovery is now derived from the run's ACTUAL reps — more reps
+      // means a higher fraction (N-1 gaps over N), so a resized run could end up a
+      // couple of minutes past its session cap. Keep the whole session legal.
+      const room = sessionCap - runOverhead(s.runType) - s.durationMin;
+      if (Number.isFinite(room)) rec = Math.max(0, Math.min(rec, Math.floor(room)));
       if (rec > 0) {
         s.recoveryMin = rec;
         s.recoveryMiles = round1(rec / easyPaceMin);
