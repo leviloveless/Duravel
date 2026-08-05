@@ -1242,7 +1242,9 @@ export default function OnboardingForm({
             })}
           </div>
           <span className="text-xs text-zinc-500">
-            Tell us what you can train with — we&apos;ll factor it in as this feature rolls out.
+            Tell us what you can train with and we&apos;ll only prescribe lifts you can actually do
+            — a barbell squat becomes a goblet or bodyweight squat if that&apos;s what you have.
+            Leave it blank if you train in a full gym.
           </span>
         </fieldset>
 

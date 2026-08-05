@@ -162,6 +162,7 @@ export async function generateProgram(
       a.sex,
       a.catalog,
       a.liftingExp,
+      a.equipment,
     );
     const verdict = verifyProgram(program);
     if (!verdict.ok) {

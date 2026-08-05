@@ -71,6 +71,11 @@ export interface EngineInput {
    *  engine derives these from running experience (see volume.ts). */
   startMileage?: number;
   startCardioMinutes?: number;
+  /** How many days a week the athlete trains TODAY (onboarding, optional) — a
+   *  starting-FITNESS signal, distinct from `trainingDays` (what they've committed
+   *  to). Pitches the STARTING volume toward their real current base; see
+   *  `startVolumeReadiness` in time-budget.ts. Omitted → no adjustment. */
+  currentDaysPerWeek?: number;
   /** Optional preferred day(s) for the weekly long run (new-additions #4;
    *  multi-day selection added later). The engine uses the first (most-preferred)
    *  trained day consistently, so the long run lands on the same day every week. */
@@ -154,14 +159,7 @@ export interface BrickSlot {
   segments: BrickSegment[];
 }
 export type SessionSlot =
-  | RunSlot
-  | LiftSlot
-  | HybridSlot
-  | RestSlot
-  | RaceSlot
-  | SwimSlot
-  | BikeSlot
-  | BrickSlot;
+  RunSlot | LiftSlot | HybridSlot | RestSlot | RaceSlot | SwimSlot | BikeSlot | BrickSlot;
 
 /** A predicate over engine session slots (used by slot placement + sequencing). */
 export type SlotPredicate = (slot: SessionSlot) => boolean;

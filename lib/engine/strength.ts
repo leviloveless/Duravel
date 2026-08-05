@@ -27,6 +27,7 @@
 
 import type { z } from "zod";
 import { MovementPattern, StrengthEmphasis as StrengthEmphasisEnum } from "@/lib/schemas";
+import type { EquipmentKey } from "@/lib/schemas";
 import type { ExperienceLevel, MicroWeekType, PhaseName } from "./types";
 import { clamp, round5, EPLEY_5RM_TO_1RM } from "./math";
 
@@ -464,6 +465,133 @@ export function applyWeeklySetVolume<S extends VolumeSession>(
 export type ABExercise = readonly [a: string, b: string];
 
 /** A (odd weeks) / B (even weeks) exercise per movement pattern. */
+/**
+ * What each exercise needs. An exercise with an EMPTY list needs nothing — it is
+ * a bodyweight movement and is always available.
+ *
+ * Used to substitute a movement the athlete cannot actually perform. Onboarding
+ * has collected an equipment list since the field shipped and told athletes
+ * "we'll factor it in as this feature rolls out" — nothing ever read it, so a
+ * bodyweight-only athlete was still being prescribed "Back Squat — 4 x 5-6 @ 285
+ * lbs" (Levi, backlog #17).
+ */
+export const EXERCISE_EQUIPMENT: Record<string, EquipmentKey[]> = {
+  // Squat
+  "Back Squat": ["barbell", "squat_rack"],
+  "Front Squat": ["barbell"],
+  "Goblet Squat": ["dumbbells"],
+  "Kettlebell Goblet Squat": ["kettlebells"],
+  "Bodyweight Squat": [],
+  // Hip hinge
+  "Conventional Deadlift": ["barbell"],
+  "Romanian Deadlift": ["barbell"],
+  "Dumbbell Romanian Deadlift": ["dumbbells"],
+  "Kettlebell Swing": ["kettlebells"],
+  "Single-Leg Hip Hinge": [],
+  // Lunge
+  "Walking Lunge": [],
+  "Reverse Lunge": [],
+  // Horizontal press
+  "Barbell Bench Press": ["barbell", "bench"],
+  "Dumbbell Bench Press": ["dumbbells", "bench"],
+  "Dumbbell Floor Press": ["dumbbells"],
+  "Push-Up": [],
+  // Vertical press
+  "Standing Overhead Press": ["barbell"],
+  "Push Press": ["barbell"],
+  "Dumbbell Shoulder Press": ["dumbbells"],
+  "Pike Push-Up": [],
+  // Horizontal pull
+  "Barbell Bent-Over Row": ["barbell"],
+  "Chest-Supported Row": ["dumbbells", "bench"],
+  "Dumbbell Bent-Over Row": ["dumbbells"],
+  "Inverted Row": ["pull_up_bar"],
+  "Prone Y-T-W Raise": [],
+  // Vertical pull
+  "Pull-Up": ["pull_up_bar"],
+  "Lat Pulldown": ["pull_up_bar"],
+  "Band Lat Pulldown": [],
+  // Chest fly
+  "Dumbbell Chest Fly": ["dumbbells"],
+  "Cable Chest Fly": ["dumbbells"],
+  "Wide Push-Up": [],
+};
+
+/**
+ * Substitution ladder per pattern, best first. `pickExercise` walks this when the
+ * athlete's equipment rules out the A/B variant, so the pattern is still trained
+ * with whatever they actually own — ending in a bodyweight movement that always
+ * works.
+ */
+export const EXERCISE_FALLBACKS: Record<LiftPattern, string[]> = {
+  squat: [
+    "Back Squat",
+    "Front Squat",
+    "Goblet Squat",
+    "Kettlebell Goblet Squat",
+    "Bodyweight Squat",
+  ],
+  hip_hinge: [
+    "Conventional Deadlift",
+    "Romanian Deadlift",
+    "Dumbbell Romanian Deadlift",
+    "Kettlebell Swing",
+    "Single-Leg Hip Hinge",
+  ],
+  lunge: ["Walking Lunge", "Reverse Lunge"],
+  horizontal_press: [
+    "Barbell Bench Press",
+    "Dumbbell Bench Press",
+    "Dumbbell Floor Press",
+    "Push-Up",
+  ],
+  vertical_press: [
+    "Standing Overhead Press",
+    "Push Press",
+    "Dumbbell Shoulder Press",
+    "Pike Push-Up",
+  ],
+  horizontal_pull: [
+    "Barbell Bent-Over Row",
+    "Chest-Supported Row",
+    "Dumbbell Bent-Over Row",
+    "Inverted Row",
+    "Prone Y-T-W Raise",
+  ],
+  vertical_pull: ["Pull-Up", "Lat Pulldown", "Band Lat Pulldown"],
+  chest_fly: ["Dumbbell Chest Fly", "Cable Chest Fly", "Wide Push-Up"],
+};
+
+/** True when the athlete's kit covers everything this exercise needs. */
+export function canPerform(exercise: string, equipment?: readonly EquipmentKey[]): boolean {
+  // No list = we don't know what they have, so assume a full gym. This is what
+  // keeps every existing program byte-identical.
+  if (!equipment || equipment.length === 0) return true;
+  const needs = EXERCISE_EQUIPMENT[exercise];
+  if (!needs) return true; // unknown exercise (AI-authored) — don't second-guess it
+  if (needs.length === 0) return true; // bodyweight
+  if (equipment.includes("bodyweight_only")) return false;
+  return needs.every((n) => equipment.includes(n));
+}
+
+/** A movement that needs nothing — no %1RM load should be suggested for it. */
+export function isBodyweight(exercise: string): boolean {
+  return EXERCISE_EQUIPMENT[exercise]?.length === 0;
+}
+
+/**
+ * Does the athlete's 5RM benchmark apply to this exercise?
+ *
+ * The benchmarks are barbell squat / deadlift / bench numbers. Projecting them
+ * onto a substituted variant produced nonsense — a "Goblet Squat — 285 lbs" and a
+ * "Dumbbell Romanian Deadlift — 370 lbs". Only a BARBELL movement inherits the
+ * absolute load; everything else keeps the %1RM + RIR cue with no number, which
+ * is the honest prescription when we don't know their dumbbell strength.
+ */
+export function usesBarbellBenchmark(exercise: string): boolean {
+  return EXERCISE_EQUIPMENT[exercise]?.includes("barbell") ?? false;
+}
+
 export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
   squat: ["Back Squat", "Front Squat"],
   hip_hinge: ["Conventional Deadlift", "Romanian Deadlift"],
@@ -481,10 +609,21 @@ export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
  * for a pattern. Falls back to a spaced pattern name if a pattern is ever missing
  * from the library (defensive; the record is exhaustive today).
  */
-export function pickExercise(pattern: LiftPattern, weekNumber: number): string {
+export function pickExercise(
+  pattern: LiftPattern,
+  weekNumber: number,
+  equipment?: readonly EquipmentKey[],
+): string {
   const pair = EXERCISE_AB[pattern];
   if (!pair) return pattern.replace(/_/g, " ");
-  return weekNumber % 2 === 1 ? pair[0] : pair[1];
+  const preferred = weekNumber % 2 === 1 ? pair[0] : pair[1];
+  if (canPerform(preferred, equipment)) return preferred;
+
+  // The rotation's pick is off the table. Keep alternating among what the athlete
+  // CAN do, so weeks still vary, then fall down the ladder.
+  const usable = (EXERCISE_FALLBACKS[pattern] ?? []).filter((e) => canPerform(e, equipment));
+  if (usable.length === 0) return preferred; // nothing fits — better a name than nothing
+  return usable[(weekNumber - 1) % usable.length]!;
 }
 
 // --- suggested working weight from a 5RM benchmark ---------------------------

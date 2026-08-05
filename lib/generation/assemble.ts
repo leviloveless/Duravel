@@ -22,6 +22,7 @@ import {
   type ProgramDay,
   type ProgramWeek,
   type Session,
+  type EquipmentKey,
 } from "@/lib/schemas";
 import type {
   ExperienceLevel,
@@ -40,6 +41,8 @@ import {
   powerElementFor,
   suggestedWeight,
   pickExercise,
+  isBodyweight,
+  usesBarbellBenchmark,
   spreadPatternSessions,
   applyWeeklySetVolume,
   PATTERN_HOME,
@@ -443,6 +446,9 @@ export interface AssembleArgs {
   runningExp: ExperienceLevel;
   /** Drives the WEEKLY working-set target per movement pattern (6/8/10). */
   liftingExp: ExperienceLevel;
+  /** The athlete's kit. Drives exercise SUBSTITUTION — an empty/absent list means
+   *  "assume a full gym", which keeps every existing program unchanged. */
+  equipment?: EquipmentKey[];
   raceTimes: RaceInput;
   benchmarks: StrengthBenchmarks;
   weightUnit: "lbs" | "kg";
@@ -460,6 +466,7 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
     // Weekly working sets per movement pattern come from LIFTING experience, not
     // running experience — the two are routinely different for a hybrid athlete.
     liftingExp: input.profile.liftingExp,
+    equipment: input.profile.equipment,
     // Best of mile / 5K / 10K → VDOT (Review #2), plus any athlete-entered pace
     // overrides — these must flow through so a manual pace drives the sized
     // mileage and not just the displayed pace.
@@ -509,6 +516,8 @@ export function applyStrengthSchemes(
   benchmarks?: StrengthBenchmarks,
   weightUnit: "lbs" | "kg" = "lbs",
   liftingExp: ExperienceLevel = "intermediate",
+  /** The athlete's kit. Absent/empty = assume a full gym (existing behaviour). */
+  equipment?: readonly EquipmentKey[],
 ): void {
   // Calendar order — the light full-body day and the weekly set split both depend
   // on which session comes first.
@@ -533,10 +542,19 @@ export function applyStrengthSchemes(
       m.intensityPct = scheme.intensityPct;
       m.rir = scheme.rir;
       m.emphasis = scheme.emphasis;
-      m.suggestedWeight = suggestedWeight(scheme, m.pattern, benchmarks, weightUnit);
-      // Tasks #10: name a specific A/B exercise for the pattern, alternating by
-      // week so consecutive weeks don't repeat the identical lift (overuse).
-      m.exercise = pickExercise(m.pattern, week.weekNumber);
+      m.exercise = pickExercise(m.pattern, week.weekNumber, equipment);
+      // A bodyweight substitution has no load to suggest, and the athlete's 5RM is
+      // a BARBELL number — projecting it onto a dumbbell or band variant gave
+      // "Goblet Squat — 285 lbs". Non-barbell variants keep the %1RM + RIR cue
+      // without an absolute weight.
+      m.suggestedWeight = isBodyweight(m.exercise)
+        ? undefined
+        : suggestedWeight(
+            scheme,
+            m.pattern,
+            usesBarbellBenchmark(m.exercise) ? benchmarks : undefined,
+            weightUnit,
+          );
     }
     const power = powerElementFor(
       week.phase,
@@ -591,6 +609,7 @@ export function assembleProgram(
   sex: StationSex = "male",
   catalog: StationCatalog = HYROX_CATALOG,
   liftingExp: ExperienceLevel = "intermediate",
+  equipment?: readonly EquipmentKey[],
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
@@ -616,7 +635,7 @@ export function assembleProgram(
       issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
     // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
     // applied deterministically over whatever the AI returned.
-    applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp);
+    applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp, equipment);
     // Review #6: progress hybrid station prescriptions toward race spec.
     applyStationProgression(week, division, sex, catalog);
     return week;

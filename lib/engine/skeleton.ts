@@ -46,6 +46,7 @@ import {
   clampBandToFamily,
   bandAnchorRunFloor,
   runImpactFactor,
+  startVolumeReadiness,
 } from "./time-budget";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
 import { analyzeNeedsForSport } from "./needs-atlas";
@@ -127,21 +128,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
 
   // 1. Continuous microcycle progression across the non-taper weeks.
   //    User-supplied starting volume overrides the experience-derived defaults.
-  const startMi =
-    input.startMileage ??
-    (input.weeklyHours
-      ? round1(
-          bandStartMileage(input.weeklyHours) *
-            runImpactFactor(input.runningExp, input.bodyWeightLbs),
-        )
-      : cfg.volume.kind === "single_currency"
-        ? cfg.volume.startMileageByExp[input.runningExp]
-        : startingMileage(input.runningExp));
-  const startCa =
-    input.startCardioMinutes ??
-    (input.weeklyHours
-      ? bandStartCardioMinutes(input.weeklyHours)
-      : startingCardioMinutes(startMi));
+  const { startMi, startCa } = seedStartVolume(input, cfg);
   const seq = sequenceMicrocycles(nonTaperWeeks, input.trainingClass, startMi, startCa, input.age);
 
   // 2. Assemble full-length base arrays; apply the peak-phase volume drop.
@@ -364,6 +351,46 @@ const SUBGOAL_ROTATION: Record<string, string[]> = {
 const BLOCK_WEEKS = 4;
 
 /**
+ * Where the microcycle progression STARTS — one place, shared by the race-block
+ * and general-fitness paths (they were duplicate blocks that had to be kept in
+ * sync by hand).
+ *
+ * Order of precedence:
+ *   1. An explicit `startMileage` / `startCardioMinutes` the athlete typed. Their
+ *      own number is a measurement, not an estimate — it is never adjusted.
+ *   2. The band tables, scaled by run-impact (experience + bodyweight).
+ *   3. The legacy experience defaults, when there is no band.
+ *
+ * Then `startVolumeReadiness` pitches the DERIVED seed toward how many days the
+ * athlete trains today. Note the legacy branch derives cardio FROM mileage, so
+ * the factor is applied to mileage only there — applying it to both would
+ * discount the same signal twice.
+ */
+function seedStartVolume(
+  input: EngineInput,
+  cfg: SportConfig,
+): { startMi: number; startCa: number } {
+  const readiness = startVolumeReadiness(input.currentDaysPerWeek, input.trainingDays.length);
+
+  const derivedMi = input.weeklyHours
+    ? bandStartMileage(input.weeklyHours) * runImpactFactor(input.runningExp, input.bodyWeightLbs)
+    : cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.runningExp]
+      : startingMileage(input.runningExp);
+
+  const startMi = input.startMileage ?? round1(derivedMi * readiness);
+
+  const startCa =
+    input.startCardioMinutes ??
+    (input.weeklyHours
+      ? Math.round(bandStartCardioMinutes(input.weeklyHours) * readiness)
+      : // already carries `readiness` through startMi — do not apply it twice
+        startingCardioMinutes(startMi));
+
+  return { startMi, startCa };
+}
+
+/**
  * Build a general-fitness skeleton: repeating ~4-week emphasis blocks
  * (strength/aerobic/mixed) instead of Base→Build→Peak→Taper. Microcycles run
  * continuously across all weeks (rising baseline), there is no taper, and each
@@ -375,21 +402,7 @@ function buildRotationSkeleton(
   counts: SessionCountTables,
 ): ProgramSkeleton {
   const D = input.durationWeeks;
-  const startMi =
-    input.startMileage ??
-    (input.weeklyHours
-      ? round1(
-          bandStartMileage(input.weeklyHours) *
-            runImpactFactor(input.runningExp, input.bodyWeightLbs),
-        )
-      : cfg.volume.kind === "single_currency"
-        ? cfg.volume.startMileageByExp[input.runningExp]
-        : startingMileage(input.runningExp));
-  const startCa =
-    input.startCardioMinutes ??
-    (input.weeklyHours
-      ? bandStartCardioMinutes(input.weeklyHours)
-      : startingCardioMinutes(startMi));
+  const { startMi, startCa } = seedStartVolume(input, cfg);
   // Continuous progression across ALL weeks (no taper carve-out) → rising baseline.
   const seq = sequenceMicrocycles(D, input.trainingClass, startMi, startCa, input.age);
 
@@ -547,6 +560,7 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
     races,
     startMileage: input.startMileage,
     startCardioMinutes: input.startCardioMinutes,
+    currentDaysPerWeek: input.profile.currentDaysPerWeek,
     bodyWeightLbs: toLbs(input.profile.bodyWeight, input.profile.weightUnit),
     longRunDays: normalizeLongRunDays(input.profile.dayPreferences),
     restDays: input.profile.dayPreferences?.restDays,

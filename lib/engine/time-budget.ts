@@ -135,6 +135,63 @@ export function bandMinTrainingDays(band: WeeklyHoursBand): number {
 }
 
 /**
+ * Floor on the starting-volume readiness factor (see `startVolumeReadiness`).
+ *
+ * ⚠️ The number matters more than it looks, because the microcycle progression is
+ * MULTIPLICATIVE — `increaseCardioStep` grows the CURRENT value by 10%, so a
+ * discount applied at week 1 is still there, proportionally, at the peak. This is
+ * not a ramp that heals; it is a haircut on the whole block. Any floor chosen here
+ * is therefore also the fraction of their chosen band a fully-detrained athlete
+ * ends up training.
+ *
+ * 0.8 is set by that constraint, not by taste. The line it has to clear: a
+ * fully-detrained athlete must still FINISH the block training more than the
+ * band's own week-1 prescription — 12 weeks of work has to leave them fitter than
+ * the band's starting point, in every band. 0.75 misses that line at h5_10 by a
+ * single minute (359 vs 360), so 0.8 is the nearest clean number that clears it
+ * everywhere with room. Pinned by `start-readiness.test.ts`: raise it and week 1
+ * eases less, lower it and the athlete stops getting the band they chose.
+ */
+export const MIN_START_READINESS = 0.8;
+
+/**
+ * How far to pitch STARTING volume down toward where the athlete actually is
+ * today (Tasks #17 — the onboarding field says "Helps us pitch your starting
+ * volume to where you are now"). `currentDaysPerWeek` has been collected,
+ * validated and persisted since that field shipped, and read by nothing. This is
+ * what reads it.
+ *
+ * The band tables (`BAND_START_MILEAGE`, `BAND_START_CARDIO_MIN`, `BAND_TRI_HOURS`)
+ * are calibrated for an athlete ALREADY training the days they signed up for.
+ * Someone training 2 days a week who commits to 6 is not that athlete, and a week-1
+ * prescription built for a 6-day base is how a program gets abandoned in the first
+ * fortnight.
+ *
+ *   factor = MIN_START_READINESS + (1 - MIN_START_READINESS) x (current / target)
+ *
+ *   0 of 6 days -> 0.80    3 of 6 -> 0.90    6 of 6 -> 1.00    7 of 6 -> 1.00
+ *
+ * Deliberate properties:
+ *   - It NEVER scales UP. Training more days than you signed up for does not earn
+ *     extra week-1 volume; the band ceiling is still the ceiling.
+ *   - It is a no-op when `currentDaysPerWeek` is absent — every program generated
+ *     before this shipped, and every athlete who skips the optional field. That is
+ *     what keeps the golden-HYROX oracle byte-identical.
+ *   - The discount PERSISTS proportionally across the block (see
+ *     `MIN_START_READINESS`), so it is deliberately shallow. It is a nudge toward
+ *     the athlete's real base, not a separate volume model.
+ */
+export function startVolumeReadiness(
+  currentDaysPerWeek: number | undefined,
+  targetDays: number,
+): number {
+  if (typeof currentDaysPerWeek !== "number" || !Number.isFinite(currentDaysPerWeek)) return 1;
+  if (!(targetDays > 0)) return 1;
+  const ratio = Math.min(1, Math.max(0, currentDaysPerWeek) / targetDays);
+  return MIN_START_READINESS + (1 - MIN_START_READINESS) * ratio;
+}
+
+/**
  * The largest weekly-hours band a sport family may offer (Levi, 2026-08-04).
  *
  * **30-40 hours is not a HYROX or DEKA band.** Two sessions a day across 7 days is

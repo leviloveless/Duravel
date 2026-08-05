@@ -19,7 +19,7 @@ import { allocateMesocycles, expandPhases } from "../mesocycles";
 import { microcyclePattern } from "../microcycles";
 import { parseTimeToSeconds } from "../paces";
 import { clampInt } from "../math";
-import { applyBandZoneShift, bandTriHours } from "../time-budget";
+import { applyBandZoneShift, bandTriHours, startVolumeReadiness } from "../time-budget";
 import { spreadPatternSessions, applyWeeklySetVolume } from "../strength";
 import { trainingCaps, MAX_SESSIONS_PER_DAY, type TrainingCaps } from "../caps";
 import { bandMaxWeeklyMinutes } from "../time-budget";
@@ -66,8 +66,20 @@ export function triVolumeLevel(input: EngineInput): Level {
 const A_TAPER = [0.8, 0.6]; // 2-week end-of-program taper factors from peak
 const DELOAD = 0.65;
 
-const SWIM_ZONE: Record<string, number> = { technique: 2, css: 4, threshold: 4, endurance: 2, open_water: 2 };
-const BIKE_ZONE: Record<string, number> = { endurance: 2, sweet_spot: 3, threshold: 4, vo2: 5, recovery: 1 };
+const SWIM_ZONE: Record<string, number> = {
+  technique: 2,
+  css: 4,
+  threshold: 4,
+  endurance: 2,
+  open_water: 2,
+};
+const BIKE_ZONE: Record<string, number> = {
+  endurance: 2,
+  sweet_spot: 3,
+  threshold: 4,
+  vo2: 5,
+  recovery: 1,
+};
 
 /** Distance key used to look up per-level hours ("olympic" | "70_3" | "140_6"). */
 function distanceKey(sport: string): string {
@@ -123,7 +135,10 @@ function n(table: PhaseCountTable | undefined, phase: PhaseName, idx: number): n
 }
 
 /** Discipline time-share for a phase, read from the SportConfig (not imported). */
-function balanceFor(cfg: SportConfig, phase: PhaseName): { swim: number; bike: number; run: number } {
+function balanceFor(
+  cfg: SportConfig,
+  phase: PhaseName,
+): { swim: number; bike: number; run: number } {
   const b =
     cfg.volume.kind === "per_discipline" ? cfg.volume.disciplineBalanceByPhase[phase] : undefined;
   return { swim: b?.["swim"] ?? 0.2, bike: b?.["bike"] ?? 0.5, run: b?.["run"] ?? 0.3 };
@@ -136,7 +151,12 @@ function balanceFor(cfg: SportConfig, phase: PhaseName): { swim: number; bike: n
  * The long ride is emitted as a discrete Z2 bike→run BRICK (feature B); the long
  * run is a capped ramp (feature A). Strength is placed separately (feature C).
  */
-function triCardioSlots(phase: PhaseName, totalMin: number, cfg: SportConfig, idx: number): SessionSlot[] {
+function triCardioSlots(
+  phase: PhaseName,
+  totalMin: number,
+  cfg: SportConfig,
+  idx: number,
+): SessionSlot[] {
   const bal = balanceFor(cfg, phase);
   const swimN = n(cfg.sessionCounts.swim, phase, idx);
   const bikeN = n(cfg.sessionCounts.bike, phase, idx);
@@ -156,8 +176,14 @@ function triCardioSlots(phase: PhaseName, totalMin: number, cfg: SportConfig, id
 
   // Swim
   for (let k = 0; k < swimN; k++) {
-    const sessionType = k === 0 && phase !== "base" ? "css" : phase === "base" ? "technique" : "endurance";
-    slots.push({ kind: "swim", goalZone: SWIM_ZONE[sessionType]!, durationMin: swimMin, sessionType });
+    const sessionType =
+      k === 0 && phase !== "base" ? "css" : phase === "base" ? "technique" : "endurance";
+    slots.push({
+      kind: "swim",
+      goalZone: SWIM_ZONE[sessionType]!,
+      durationMin: swimMin,
+      sessionType,
+    });
   }
 
   // Bike — k === 0 is the weekly long ride, now a discrete Z2 brick (feature B).
@@ -176,15 +202,31 @@ function triCardioSlots(phase: PhaseName, totalMin: number, cfg: SportConfig, id
       continue;
     }
     const sessionType = phase === "build" || phase === "peak" ? "sweet_spot" : "endurance";
-    slots.push({ kind: "bike", goalZone: BIKE_ZONE[sessionType]!, durationMin: bikeMin, isLong: false, sessionType });
+    slots.push({
+      kind: "bike",
+      goalZone: BIKE_ZONE[sessionType]!,
+      durationMin: bikeMin,
+      isLong: false,
+      sessionType,
+    });
   }
 
   // Run — k === 0 is the long run: min(1.4× easy, phase cap) (feature A).
   for (let k = 0; k < runN; k++) {
     const isLong = k === 0;
-    const runType = isLong ? "long" : k === 1 && (phase === "build" || phase === "peak") ? "tempo" : "easy";
+    const runType = isLong
+      ? "long"
+      : k === 1 && (phase === "build" || phase === "peak")
+        ? "tempo"
+        : "easy";
     const durationMin = isLong ? Math.min(Math.round(runMin * 1.4), longRunCap) : runMin;
-    slots.push({ kind: "run", runType, goalZone: runType === "tempo" ? 3 : 2, isLong, durationMin });
+    slots.push({
+      kind: "run",
+      runType,
+      goalZone: runType === "tempo" ? 3 : 2,
+      isLong,
+      durationMin,
+    });
   }
 
   // Dedicated mid-week race-specific bricks (Z3), kept as-is.
@@ -214,7 +256,8 @@ function triCardioSlots(phase: PhaseName, totalMin: number, cfg: SportConfig, id
  * to the ordinary `session` cap.
  */
 function triSlotCap(slot: SessionSlot, caps: TrainingCaps): number {
-  const zone = slot.kind === "lift" || slot.kind === "race" || slot.kind === "rest" ? 0 : slot.goalZone;
+  const zone =
+    slot.kind === "lift" || slot.kind === "race" || slot.kind === "rest" ? 0 : slot.goalZone;
   return zone <= 2 ? caps.cardioSession : caps.session;
 }
 
@@ -312,12 +355,30 @@ function toActiveRecovery(slots: SessionSlot[]): SessionSlot[] {
   for (const s of slots) {
     if (s.kind === "brick") continue; // no bricks in a recovery week
     if (s.kind === "swim") {
-      const sessionType = s.sessionType === "threshold" || s.sessionType === "css" ? "endurance" : s.sessionType;
-      out.push({ ...s, sessionType, goalZone: SWIM_ZONE[sessionType]!, durationMin: Math.min(s.durationMin, RECOVERY_CAP.swim) });
+      const sessionType =
+        s.sessionType === "threshold" || s.sessionType === "css" ? "endurance" : s.sessionType;
+      out.push({
+        ...s,
+        sessionType,
+        goalZone: SWIM_ZONE[sessionType]!,
+        durationMin: Math.min(s.durationMin, RECOVERY_CAP.swim),
+      });
     } else if (s.kind === "bike") {
-      out.push({ kind: "bike", sessionType: "endurance", goalZone: BIKE_ZONE.endurance!, isLong: false, durationMin: Math.min(s.durationMin, RECOVERY_CAP.bike) });
+      out.push({
+        kind: "bike",
+        sessionType: "endurance",
+        goalZone: BIKE_ZONE.endurance!,
+        isLong: false,
+        durationMin: Math.min(s.durationMin, RECOVERY_CAP.bike),
+      });
     } else if (s.kind === "run") {
-      out.push({ kind: "run", runType: "easy", goalZone: 2, isLong: false, durationMin: Math.min(s.durationMin ?? 40, RECOVERY_CAP.run) });
+      out.push({
+        kind: "run",
+        runType: "easy",
+        goalZone: 2,
+        isLong: false,
+        durationMin: Math.min(s.durationMin ?? 40, RECOVERY_CAP.run),
+      });
     } else {
       out.push(s);
     }
@@ -477,8 +538,19 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
       input.weeklyHours,
     );
   const bandHours = input.weeklyHours ? bandTriHours(input.weeklyHours) : null;
-  const hours = bandHours ?? (cfg.volume.kind === "per_discipline" ? (cfg.volume.hoursPerWeekByLevel[key] ?? [8, 14]) : [8, 14]);
-  const [baseH, peakH] = hours as [number, number];
+  const hours =
+    bandHours ??
+    (cfg.volume.kind === "per_discipline"
+      ? (cfg.volume.hoursPerWeekByLevel[key] ?? [8, 14])
+      : [8, 14]);
+  const [rawBaseH, peakH] = hours as [number, number];
+  // Pitch the START toward the athlete's real current training frequency; the PEAK
+  // is untouched, so the held level simply climbs a little more steeply to the same
+  // place. No-op when `currentDaysPerWeek` wasn't supplied.
+  const baseH = Math.min(
+    peakH,
+    rawBaseH * startVolumeReadiness(input.currentDaysPerWeek, input.trainingDays.length),
+  );
   const nonTaper = alloc.base + alloc.build + alloc.peak;
 
   // Held-level progression: the held (peak-of-cycle) volume steps up only on
@@ -536,7 +608,10 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
     const liftN = raceThis || postRaceWeek ? 0 : LIFT_BY_PHASE[phase];
     let totalMin = Math.round(hoursThis * 60);
     if (input.weeklyHours) {
-      const ceiling = Math.max(0, bandMaxWeeklyMinutes(input.weeklyHours) - liftN * STRENGTH_SESSION_MIN);
+      const ceiling = Math.max(
+        0,
+        bandMaxWeeklyMinutes(input.weeklyHours) - liftN * STRENGTH_SESSION_MIN,
+      );
       totalMin = Math.min(totalMin, ceiling);
     }
 
@@ -550,7 +625,14 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
         ? applyBandZoneShift(cfg.phaseZoneTargets[phase], input.weeklyHours)
         : { ...cfg.phaseZoneTargets[phase] },
       days: assembleTriDays(input, cfg, phase, totalMin, idx, { raceThis, raceLast }, caps),
-      ...(raceThis ? { raceDay: { priority: raceThis.priority, ...(raceThis.date ? { date: raceThis.date } : {}) } } : {}),
+      ...(raceThis
+        ? {
+            raceDay: {
+              priority: raceThis.priority,
+              ...(raceThis.date ? { date: raceThis.date } : {}),
+            },
+          }
+        : {}),
     });
   }
 
@@ -634,7 +716,12 @@ function bikeHr(lo: number, hi: number | null): string {
 }
 
 /** Bike set built to the prescribed duration, paced off FTP when known. */
-function bikeContent(type: string, durationMin: number, isLong: boolean | undefined, a: TriAnchors): string {
+function bikeContent(
+  type: string,
+  durationMin: number,
+  isLong: boolean | undefined,
+  a: TriAnchors,
+): string {
   // The weekly long ride is now a discrete brick; a long steady ride keeps only
   // the fueling/hydration rehearsal cue (the mini-brick sentence moved to the brick).
   const longNote = isLong ? " Rehearse race fuel + hydration on this ride." : "";
@@ -674,17 +761,25 @@ function runContentTri(runType: string, durationMin: number): string {
 }
 
 /** Brick content from the ordered segments (long-ride Z2 brick or race Z3 brick). */
-function brickContent(segments: { discipline: string; durationMin: number; goalZone: number }[]): string {
+function brickContent(
+  segments: { discipline: string; durationMin: number; goalZone: number }[],
+): string {
   const bike = segments.find((s) => s.discipline === "bike");
   const run = segments.find((s) => s.discipline === "run");
   const long = (run?.goalZone ?? 3) <= 2;
   if (long) {
     const bikePart = bike ? `Ride ${bike.durationMin} min steady Zone 2` : "Ride the long bike";
-    const runPart = run ? `run ${run.durationMin} min easy Zone 2 immediately off the bike` : "run easy off the bike";
+    const runPart = run
+      ? `run ${run.durationMin} min easy Zone 2 immediately off the bike`
+      : "run easy off the bike";
     return `Long-ride brick — the aerobic cornerstone. ${bikePart}, rehearsing race fuel + hydration, then transition fast and ${runPart} to rehearse race legs. Hold form as your legs come around.`;
   }
-  const bikePart = bike ? `Ride ${bike.durationMin} min building to Zone 2–3` : "Ride the bike segment";
-  const runPart = run ? `run ${run.durationMin} min immediately off the bike` : "run immediately off the bike";
+  const bikePart = bike
+    ? `Ride ${bike.durationMin} min building to Zone 2–3`
+    : "Ride the bike segment";
+  const runPart = run
+    ? `run ${run.durationMin} min immediately off the bike`
+    : "run immediately off the bike";
   return `Brick — bike→run in one session. ${bikePart}, then transition fast and ${runPart} at a controlled Zone 3 effort. Your legs feel heavy the first km — hold target pace through it. The single most race-specific session.`;
 }
 
@@ -701,7 +796,13 @@ function liftSession(phase: PhaseName): Session {
   const sets = strength ? 4 : 3;
   const repRange = strength ? "4-6" : "8-12";
   const emphasis: "strength" | "endurance" = strength ? "strength" : "endurance";
-  const patterns: MovementPattern[] = ["squat", "hip_hinge", "horizontal_press", "horizontal_pull", "vertical_press"];
+  const patterns: MovementPattern[] = [
+    "squat",
+    "hip_hinge",
+    "horizontal_press",
+    "horizontal_pull",
+    "vertical_press",
+  ];
   return {
     kind: "lift",
     liftType: "full",
@@ -738,7 +839,8 @@ function slotToSession(slot: SessionSlot, a: TriAnchors, phase: PhaseName): Sess
           discipline: s.discipline,
           durationMin: s.durationMin,
           goalZone: s.goalZone,
-          note: s.discipline === "run" ? "Off the bike — controlled effort, quick cadence." : undefined,
+          note:
+            s.discipline === "run" ? "Off the bike — controlled effort, quick cadence." : undefined,
         })),
         description: brickContent(slot.segments),
       };
@@ -771,7 +873,9 @@ export function triWeekToProgramWeek(
 ): ProgramWeek {
   const days: ProgramDay[] = w.days.map((d) => ({
     day: d.day,
-    sessions: d.sessions.map((s) => slotToSession(s, anchors, w.phase)).filter((s): s is Session => s !== null),
+    sessions: d.sessions
+      .map((s) => slotToSession(s, anchors, w.phase))
+      .filter((s): s is Session => s !== null),
   }));
 
   // Levi's weekly working-set rule (6 / 8 / 10 by lifting experience) applies to
@@ -823,7 +927,11 @@ export function rebuildTriWeek(
 ): { skeletonWeek: WeekSkeleton; programWeek: ProgramWeek } {
   const idx = EXP_INDEX[triVolumeLevel(input)] ?? 1;
   const raceThis = week.raceDay
-    ? input.races.find((r) => r.weekNumber === week.weekNumber) ?? { weekNumber: week.weekNumber, priority: week.raceDay.priority, date: week.raceDay.date }
+    ? (input.races.find((r) => r.weekNumber === week.weekNumber) ?? {
+        weekNumber: week.weekNumber,
+        priority: week.raceDay.priority,
+        date: week.raceDay.date,
+      })
     : undefined;
   const raceLast = input.races.find((r) => r.weekNumber === week.weekNumber - 1);
   const caps =
@@ -833,7 +941,15 @@ export function rebuildTriWeek(
       { runningExp: input.runningExp, hybridExp: input.hybridExp, liftingExp: input.liftingExp },
       input.weeklyHours,
     );
-  const days = assembleTriDays(input, cfg, week.phase, week.targetCardioMinutes, idx, { raceThis, raceLast }, caps);
+  const days = assembleTriDays(
+    input,
+    cfg,
+    week.phase,
+    week.targetCardioMinutes,
+    idx,
+    { raceThis, raceLast },
+    caps,
+  );
   const skeletonWeek: WeekSkeleton = { ...week, days };
   return {
     skeletonWeek,
