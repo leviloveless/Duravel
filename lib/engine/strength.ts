@@ -791,6 +791,90 @@ export function suggestedWeight(
   return cue;
 }
 
+/**
+ * How many ballistic movements open a heavy lift session, by phase. Small on
+ * purpose: this is a primer, not a session. Peak trims to two because the
+ * movements themselves get more specific and the athlete is carrying race load.
+ */
+const POWER_BLOCK_SIZE: Record<PhaseName, number> = {
+  base: 3,
+  build: 3,
+  peak: 2,
+  taper: 2,
+};
+
+export interface PowerBlockMovement {
+  pattern: LiftPattern;
+  exercise: string;
+  sets: number;
+  reps: string;
+  intensityPct: number;
+  restSeconds: number;
+  note: string;
+}
+
+/**
+ * The explosive block that OPENS a heavy lift day (Levi, 2026-08-05 — power at
+ * "the front of the heavy day").
+ *
+ * Why this shape rather than a standalone power day: a separate power day could
+ * not be placed well. Measured across 496 generated power sessions, 31% shared a
+ * day with a Zone 4+ effort and 29% landed directly after the heavy full-body
+ * lift — 43% compromised either way — and relabelling which lift day carried it
+ * only reached 42%, because the heavy-lift spacing rule and the pinned long-run /
+ * hybrid anchors have already claimed every fresh day. Putting the work at the
+ * front of the heavy session makes both failure modes impossible by construction:
+ * it is always the first thing done, always on a day the athlete arrived fresh
+ * for, and it can never follow yesterday's heavy lift because it IS the heavy day.
+ *
+ * Ordered by how much they reward a fresh nervous system, so a trimmed block
+ * keeps the most valuable work. Rotates by week like the strength library.
+ */
+export function powerBlockFor(
+  phase: PhaseName,
+  microWeek: MicroWeekType,
+  weekNumber: number,
+  equipment?: readonly EquipmentKey[],
+  /** Exercise names already prescribed on this day, so the block never doubles up.
+   *  Without it a week landed "Push Press" in BOTH the power block and the heavy
+   *  work — the same movement asked for twice, at two different intents. */
+  avoid: ReadonlySet<string> = new Set(),
+): PowerBlockMovement[] {
+  // Recovery weeks carry no explosive work at all — same rule as the plyometrics.
+  if (microWeek === "deload" || microWeek === "race") return [];
+  const scheme = movementScheme("squat", "power", phase, microWeek);
+  const order: LiftPattern[] = ["hip_hinge", "squat", "vertical_press", "lunge"];
+  const size = POWER_BLOCK_SIZE[phase];
+  const taken = new Set(avoid);
+  const out: PowerBlockMovement[] = [];
+  for (const pattern of order) {
+    if (out.length >= size) break;
+    // Walk the pattern's ballistic options until one is neither already on the
+    // day nor already in the block.
+    let exercise = "";
+    const options = POWER_EXERCISE[pattern] ?? [];
+    for (let k = 0; k < Math.max(1, options.length); k++) {
+      const candidate = pickExercise(pattern, weekNumber + out.length + k, equipment, "power");
+      if (!taken.has(candidate)) {
+        exercise = candidate;
+        break;
+      }
+    }
+    if (!exercise) continue; // every option for this pattern is spoken for
+    taken.add(exercise);
+    out.push({
+      pattern,
+      exercise,
+      sets: scheme.sets,
+      reps: scheme.repRange,
+      intensityPct: scheme.intensityPct,
+      restSeconds: POWER_REST_SECONDS,
+      note: POWER_CUE,
+    });
+  }
+  return out;
+}
+
 // --- plyometric / reactive element ------------------------------------------
 
 export interface PowerElement {

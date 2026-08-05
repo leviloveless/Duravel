@@ -346,6 +346,29 @@ export const LiftSessionSchema = z.object({
   ),
   /** Optional plyometric/reactive element (Review #4), added at assembly in Base/Build. */
   power: PowerElementSchema.optional(),
+  /**
+   * Explosive work at the FRONT of a heavy lift session (Levi, 2026-08-05).
+   *
+   * Deliberately NOT part of `movements`. The weekly set-volume passes
+   * (`spreadPatternSessions`, `applyWeeklySetVolume`, `capSessionWorkingSets`)
+   * key off `movements[].pattern`, so a power squat and a heavy squat in the same
+   * array would be summed as one pattern and the power sets would be rewritten to
+   * hit a strength target — inflating the exact thing that has to stay low. A
+   * separate field keeps power out of that arithmetic entirely.
+   */
+  powerBlock: z
+    .array(
+      z.object({
+        pattern: MovementPattern,
+        exercise: z.string(),
+        sets: z.number().int(),
+        reps: z.string(),
+        intensityPct: z.number().optional(),
+        restSeconds: z.number().int().optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const HybridSessionSchema = z.object({

@@ -17,6 +17,7 @@ import {
   MAX_POWER_SESSION_SETS,
   MAX_SESSION_WORKING_SETS,
   capSessionWorkingSets,
+  powerBlockFor,
   type LiftPattern,
 } from "./strength";
 import type { PhaseName } from "./types";
@@ -127,5 +128,47 @@ describe("the power day is short", () => {
     capSessionWorkingSets(sessions);
     const total = sessions[0]!.movements.reduce((n, m) => n + m.sets, 0);
     expect(total).toBeLessThanOrEqual(MAX_POWER_SESSION_SETS);
+  });
+});
+
+describe("the power block that opens the heavy day", () => {
+  it("is short — a primer, not a session", () => {
+    for (const phase of PHASES) {
+      const block = powerBlockFor(phase, "rebound", 1);
+      expect(block.length).toBeGreaterThan(0);
+      expect(block.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("carries the power scheme and full recovery on every movement", () => {
+    for (const m of powerBlockFor("build", "rebound", 1)) {
+      expect(Number(m.reps)).toBeLessThanOrEqual(3);
+      expect(m.intensityPct).toBeLessThanOrEqual(67);
+      expect(m.restSeconds).toBeGreaterThanOrEqual(150);
+      expect(m.note).toContain("bar speed");
+    }
+  });
+
+  it("is empty on recovery weeks — same rule as the plyometrics", () => {
+    expect(powerBlockFor("base", "deload", 1)).toEqual([]);
+    expect(powerBlockFor("peak", "race", 1)).toEqual([]);
+  });
+
+  it("never repeats an exercise already prescribed on the day", () => {
+    // A week landed "Push Press" in BOTH the block and the heavy work.
+    const avoid = new Set(["Push Press", "Kettlebell Swing"]);
+    const block = powerBlockFor("build", "rebound", 2, undefined, avoid);
+    for (const m of block) expect(avoid.has(m.exercise)).toBe(false);
+  });
+
+  it("never repeats an exercise WITHIN the block", () => {
+    for (let wk = 1; wk <= 12; wk++) {
+      const names = powerBlockFor("base", "rebound", wk).map((m) => m.exercise);
+      expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  it("still fills for a bodyweight-only athlete", () => {
+    expect(powerBlockFor("build", "rebound", 1, ["bodyweight_only"]).length).toBeGreaterThan(0);
   });
 });

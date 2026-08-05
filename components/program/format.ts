@@ -87,6 +87,7 @@ const EMPHASIS_LABEL: Record<string, string> = {
   max_strength: "Max strength",
   strength: "Strength",
   endurance: "Muscular endurance",
+  power: "Power",
 };
 
 /** `Back Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR) · Max strength`.
@@ -96,6 +97,25 @@ export function movementLine(m: Movement): string {
   let line = `${m.exercise ?? patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
   if (m.suggestedWeight) line += ` — ${m.suggestedWeight}`;
   if (m.emphasis && EMPHASIS_LABEL[m.emphasis]) line += ` · ${EMPHASIS_LABEL[m.emphasis]}`;
+  return line;
+}
+
+/**
+ * `Kettlebell Swing — 4 × 3 @ 55% · 2:45 rest` — one line of the explosive block
+ * that opens a heavy lift day (Levi, 2026-08-05).
+ *
+ * Rest is spelled out rather than left implicit: full recovery between sets is
+ * what separates power work from fatigue work, and it is the instruction athletes
+ * skip. The velocity cue is shown once above the block, not on every line.
+ */
+export function powerBlockLine(m: NonNullable<LiftSession["powerBlock"]>[number]): string {
+  let line = `${m.exercise} — ${m.sets} × ${enDash(m.reps)}`;
+  if (m.intensityPct) line += ` @ ~${m.intensityPct}% 1RM`;
+  if (m.restSeconds) {
+    const mins = Math.floor(m.restSeconds / 60);
+    const secs = m.restSeconds % 60;
+    line += ` · rest ${mins}:${String(secs).padStart(2, "0")}`;
+  }
   return line;
 }
 

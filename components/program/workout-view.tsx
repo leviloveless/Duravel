@@ -9,6 +9,7 @@ import {
   hybridHeader,
   movementLine,
   powerElementLine,
+  powerBlockLine,
   raceLabel,
   runLine,
 } from "./format";
@@ -49,7 +50,9 @@ function sessionItems(s: Session): string[] {
     case "run":
       return [runLine(s)];
     case "lift": {
-      const items = s.movements.map(movementLine);
+      // The power block leads — it is done first, while fresh.
+      const items = (s.powerBlock ?? []).map((m) => `Power: ${powerBlockLine(m)}`);
+      items.push(...s.movements.map(movementLine));
       const power = powerElementLine(s.power);
       if (power) items.push(power);
       return items;
@@ -58,7 +61,8 @@ function sessionItems(s: Session): string[] {
       return s.elements.map(elementLine);
     case "brick":
       return s.segments.map(
-        (seg) => `${cap(seg.discipline)} — ${Math.round(seg.durationMin)} min — Zone ${seg.goalZone}`,
+        (seg) =>
+          `${cap(seg.discipline)} — ${Math.round(seg.durationMin)} min — Zone ${seg.goalZone}`,
       );
     case "swim":
     case "bike":
@@ -136,7 +140,9 @@ function SessionBlock({
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-      <h2 className="text-base font-semibold tracking-tight text-zinc-900">{sessionTitle(session)}</h2>
+      <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+        {sessionTitle(session)}
+      </h2>
 
       <ul className="mt-3 flex flex-col gap-1.5">
         {items.map((label, i) => {
