@@ -4,6 +4,7 @@ import type { Session } from "@/lib/schemas";
 import { getConnection, upsertConnection } from "./connections";
 import { refreshAccessToken, createManualActivity } from "./strava-api";
 import { isTokenExpired, expiresAtIso, hasWriteScope } from "./strava";
+import { sessionSummary } from "@/lib/program/session-summary";
 
 /**
  * Auto-post a just-logged session to Strava as a NEW manual activity (opt-out;
@@ -25,19 +26,6 @@ const KIND_TO_SPORT: Record<string, string> = {
   race: "Workout",
 };
 
-/** Session kind → human label for the activity name. */
-const KIND_LABEL: Record<string, string> = {
-  run: "Run",
-  bike: "Ride",
-  swim: "Swim",
-  brick: "Brick",
-  lift: "Strength",
-  strength: "Strength",
-  hybrid: "Hybrid",
-  cardio: "Cardio",
-  race: "Race",
-};
-
 export interface AutoPostContext {
   session: Session;
   status: "completed" | "partial";
@@ -47,6 +35,8 @@ export interface AutoPostContext {
   programName?: string | null;
   weekNumber: number;
   sportLabel?: string;
+  /** Calendar day key ("mon"…"sun") — the middle field of the Strava title. */
+  dayKey?: string | null;
 }
 
 function plannedDurationMin(s: Session): number | undefined {
@@ -94,18 +84,18 @@ export async function autoPostSessionToStrava(
     const s = ctx.session;
     const durMin = ctx.actualDurationMin ?? plannedDurationMin(s) ?? 45;
     const distMiles = ctx.actualDistanceMiles ?? plannedDistanceMiles(s);
-    const label = KIND_LABEL[s.kind] ?? "Workout";
-    const name = `Duravel ${label} — Week ${ctx.weekNumber}`;
-    const description = [
-      ctx.programName ?? "Duravel training program",
-      `Week ${ctx.weekNumber}${ctx.sportLabel ? ` · ${ctx.sportLabel}` : ""}`,
-      ctx.rpe ? `RPE ${ctx.rpe}/10` : null,
-      ctx.status === "partial" ? "(partial)" : null,
-      "",
-      "Logged with Duravel — duravel.app",
-    ]
-      .filter((l): l is string => l !== null)
-      .join("\n");
+    // Title + description come from the SAME place the "To Strava" button uses
+    // (Levi, 2026-08-05 — "the autoupload ... should look like this"). This path
+    // used to build its own: `Duravel Run — Week 1` over a four-line program
+    // blurb, which is what actually appeared on Strava while the manual button
+    // wrote the real workout. One source, one format, both paths.
+    const summary = sessionSummary(s, {
+      programName: ctx.programName,
+      weekNumber: ctx.weekNumber,
+      dayKey: ctx.dayKey,
+    });
+    const name = summary.stravaTitle;
+    const description = summary.stravaDescription;
 
     await createManualActivity(accessToken, {
       name,

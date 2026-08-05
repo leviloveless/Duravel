@@ -56,7 +56,10 @@ export async function POST(request: Request) {
   }
   if (session.kind === "race" && input.status !== "completed" && input.status !== "skipped") {
     // Races are loggable (finish + RPE + note) but never partial.
-    return NextResponse.json({ error: "Race days can only be completed or skipped" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Race days can only be completed or skipped" },
+      { status: 400 },
+    );
   }
 
   // Frozen once this week's review has been applied (it fed an adaptation).
@@ -104,6 +107,9 @@ export async function POST(request: Request) {
       actualDistanceMiles: input.actuals?.distanceMiles,
       programName: (program as { name?: string | null }).name ?? null,
       weekNumber: input.weekNumber,
+      // The day the session was PLANNED for — the title reads "Week 1 - Monday
+      // - Interval Run" off the program, not off when it happened to be logged.
+      dayKey: input.day,
     });
   }
 
