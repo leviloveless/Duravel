@@ -24,8 +24,16 @@ describe("power-focus strength session", () => {
     expect(powerElementFor("peak", "race", 0, true)).toBeNull();
   });
 
-  it("treats a power lift as heavy/explosive (max_strength), not hypertrophy", () => {
-    expect(patternEmphasis("squat", "power")).toBe("max_strength");
+  /**
+   * Rewritten 2026-08-05. This previously asserted `max_strength` — which is
+   * precisely how the power day became a duplicate of the heavy full-body day,
+   * only harder (6 x 4-5 @ 85% 1RM, 24 working sets). Power is its own emphasis
+   * now: submaximal load, 2-3 reps, full recovery, governed by bar speed.
+   * See lib/engine/power-session.test.ts for the rest of the behaviour.
+   */
+  it("treats a power lift as POWER — not as another max-strength day", () => {
+    expect(patternEmphasis("squat", "power")).toBe("power");
+    expect(patternEmphasis("squat", "full")).toBe("max_strength");
     expect(patternEmphasis("squat", "upper")).toBe("strength");
   });
 });

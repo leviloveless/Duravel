@@ -82,6 +82,53 @@ const LIGHT_FULL: Record<PhaseName, SchemeBase> = {
   taper: { sets: 2, repRange: "12-15", intensityPct: 50, rir: 3 },
 };
 
+/**
+ * POWER / EXPLOSIVE — the dedicated power-day prescription (Levi, 2026-08-05).
+ *
+ * Before this existed, a `power` lift day routed straight into `MAX_STRENGTH` and
+ * was indistinguishable from the heavy full-body day except that it had FEWER
+ * patterns and MORE sets of each. A real generated week shipped a "power" session
+ * of Front Squat / Push Press / Lat Pulldown at 6 x 4-5 @ 85% 1RM with 2 RIR plus
+ * an 18-rep reverse lunge — 24 working sets of grinding, near-failure work. That
+ * is the hardest session of the week and the precise opposite of power training,
+ * which is defined by BAR SPEED, not by load.
+ *
+ * The physiology this encodes:
+ *   - **Submaximal load, maximal intent.** Peak mechanical power for ballistic
+ *     movements sits near 30-60% 1RM. Load climbs a little toward peak because the
+ *     movements get more specific — never because the athlete grinds harder.
+ *   - **2-3 reps.** Power is a RATE quality. The moment bar speed drops, the set
+ *     has stopped training power and started training fatigue.
+ *   - **Full recovery** (`POWER_REST_SECONDS`), not the 60-90 s a hypertrophy set
+ *     takes. Most-skipped rule in the gym, and the one that decides whether the
+ *     session trains power at all.
+ *   - **Never near failure.** The RIR figures are high on purpose; the real
+ *     stopping rule is velocity, which `POWER_CUE` states in words.
+ */
+const POWER: Record<PhaseName, SchemeBase> = {
+  base: { sets: 4, repRange: "3", intensityPct: 45, rir: 5 },
+  build: { sets: 4, repRange: "3", intensityPct: 55, rir: 4 },
+  peak: { sets: 5, repRange: "2", intensityPct: 62, rir: 4 },
+  taper: { sets: 3, repRange: "2", intensityPct: 55, rir: 4 },
+};
+
+/** Rest between power sets. Long on purpose — see `POWER`. */
+export const POWER_REST_SECONDS = 165;
+
+/**
+ * What actually governs a power set, shown instead of a RIR figure — "2 reps in
+ * reserve" invites an athlete to grind, and grinding is the exact failure mode
+ * this session type exists to avoid.
+ */
+export const POWER_CUE = "move fast — end the set the moment bar speed drops";
+
+/**
+ * Total working sets allowed on a power day. Far below `MAX_SESSION_WORKING_SETS`
+ * (24): quality collapses long before 24 sets of anything explosive, and the whole
+ * point of the day is that it leaves the athlete fresher than it found them.
+ */
+export const MAX_POWER_SESSION_SETS = 12;
+
 /** High-rep muscular endurance — the lunge pattern (HYROX sandbag lunges). */
 const ENDURANCE: Record<PhaseName, SchemeBase> = {
   base: { sets: 3, repRange: "15", intensityPct: 55, rir: 3 },
@@ -104,6 +151,11 @@ const PCT_CAP: Record<StrengthEmphasis, number> = {
   max_strength: 90,
   strength: 85,
   endurance: 60,
+  // Hard ceiling on a power day. Above roughly two-thirds of 1RM a "ballistic"
+  // lift stops being ballistic — the bar decelerates through the back half of the
+  // range and the session quietly becomes another heavy day, which is exactly the
+  // bug this emphasis was introduced to fix.
+  power: 67,
 };
 const PCT_FLOOR = 45;
 
@@ -119,16 +171,21 @@ export function patternEmphasis(
   light = false,
 ): StrengthEmphasis {
   if (light) return "endurance";
+  // A POWER day is explosive throughout — checked BEFORE the lunge/fly overrides,
+  // because on a power day the lunge is a split-squat JUMP, not a 20-rep carry.
+  // (`chest_fly` never reaches a power day at all; see POWER_PATTERNS.)
+  if (liftType === "power") return "power";
   // The lunge is HYROX's sport-specific muscular-endurance pattern. The chest fly
   // is a single-joint ISOLATION movement — loading it like a compound press is how
   // shoulders get hurt — so it also runs high-rep, whatever the day.
   if (pattern === "lunge" || pattern === "chest_fly") return "endurance";
-  return liftType === "full" || liftType === "power" ? "max_strength" : "strength";
+  return liftType === "full" ? "max_strength" : "strength";
 }
 
 function baseScheme(emphasis: StrengthEmphasis, phase: PhaseName, light: boolean): SchemeBase {
   if (light) return LIGHT_FULL[phase];
   if (emphasis === "endurance") return ENDURANCE[phase];
+  if (emphasis === "power") return POWER[phase];
   if (emphasis === "max_strength") return MAX_STRENGTH[phase];
   return STRENGTH[phase];
 }
@@ -299,9 +356,17 @@ export const PATTERN_HOME: Record<LiftPattern, "upper" | "lower" | "full"> = {
   chest_fly: "upper",
 };
 
-/** True when a lift day of this type may legitimately train this pattern. */
+/**
+ * True when a lift day of this type may legitimately train this pattern.
+ *
+ * A POWER day is NOT a wildcard. It used to return true for everything, which is
+ * how `spreadPatternSessions` came to treat it as a dumping ground for overflow
+ * sets — the direct cause of power sessions shipping 6 sets of every pattern at
+ * 85% 1RM. It now accepts only patterns with a real ballistic expression.
+ */
 export function acceptsPattern(liftType: LiftType, pattern: string): boolean {
-  if (liftType === "full" || liftType === "power") return true;
+  if (liftType === "power") return POWER_PATTERNS.includes(pattern as LiftPattern);
+  if (liftType === "full") return true;
   return PATTERN_HOME[pattern as LiftPattern] === liftType;
 }
 
@@ -394,10 +459,15 @@ export function spreadPatternSessions<S extends VolumeSession>(liftSessions: S[]
  */
 export function capSessionWorkingSets<S extends VolumeSession>(liftSessions: S[]): void {
   const total = (s: S) => s.movements.reduce((n, m) => n + (m.sets ?? 0), 0);
+  // A power day gets a much tighter ceiling than everything else — explosive
+  // quality is gone long before 24 sets, and the day is supposed to leave the
+  // athlete fresh (Levi, 2026-08-05).
+  const ceiling = (s: S) =>
+    s.liftType === "power" ? MAX_POWER_SESSION_SETS : MAX_SESSION_WORKING_SETS;
 
   for (const session of liftSessions) {
     // Bounded: every iteration removes exactly one set from this session.
-    while (total(session) > MAX_SESSION_WORKING_SETS) {
+    while (total(session) > ceiling(session)) {
       const donor = session.movements.reduce((best, m) =>
         (m.sets ?? 0) > (best.sets ?? 0) ? m : best,
       );
@@ -409,10 +479,10 @@ export function capSessionWorkingSets<S extends VolumeSession>(liftSessions: S[]
       let bestHeadroom = 0;
       for (const other of liftSessions) {
         if (other === session) continue;
-        if (total(other) >= MAX_SESSION_WORKING_SETS) continue;
+        if (total(other) >= ceiling(other)) continue;
         const match = other.movements.find((m) => m.pattern === donor.pattern);
         if (!match || (match.sets ?? 0) >= MAX_SESSION_SETS_PER_PATTERN) continue;
-        const headroom = MAX_SESSION_WORKING_SETS - total(other);
+        const headroom = ceiling(other) - total(other);
         if (headroom > bestHeadroom) {
           bestHeadroom = headroom;
           receiver = match;
@@ -604,16 +674,71 @@ export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
 };
 
 /**
+ * Ballistic + sport-transfer movements for a POWER day (Levi, 2026-08-05 —
+ * "ballistic + sport transfer").
+ *
+ * A power day cannot just re-use `EXERCISE_AB`: a Back Squat at 45% is a slow
+ * squat, not a power movement. Each pattern maps instead to something genuinely
+ * ballistic — the athlete either leaves the ground, throws an implement, or
+ * accelerates through the whole range with nothing to decelerate against.
+ *
+ * The B slot of each pair leans HYROX/DEKA-specific wherever the pattern has a
+ * station analogue, so the day transfers to the race rather than staying abstract:
+ * sled push (compromised horizontal drive), wall ball (triple extension into a
+ * throw), sandbag over shoulder, burpee broad jump.
+ *
+ * Ordered like `EXERCISE_FALLBACKS`: most equipment-hungry first, ending in
+ * something a bodyweight-only athlete can do, so no equipment profile can leave a
+ * power slot unfillable.
+ */
+export const POWER_EXERCISE: Record<LiftPattern, string[]> = {
+  squat: ["Trap-Bar Jump", "Jump Squat", "Box Jump"],
+  hip_hinge: ["Hang High Pull", "Kettlebell Swing", "Broad Jump"],
+  lunge: ["Dumbbell Split-Squat Jump", "Sandbag Over-Shoulder", "Split-Squat Jump"],
+  horizontal_press: ["Med-Ball Chest Pass", "Sled Push", "Plyo Push-Up"],
+  vertical_press: ["Push Press", "Wall Ball", "Med-Ball Overhead Throw"],
+  horizontal_pull: ["Explosive Barbell Row", "Med-Ball Rotational Throw", "Burpee Broad Jump"],
+  vertical_pull: ["Kettlebell High Pull", "Explosive Lat Pulldown", "Explosive Pull-Up"],
+  // chest_fly never reaches a power day — see POWER_PATTERNS.
+  chest_fly: ["Med-Ball Chest Pass", "Plyo Push-Up"],
+};
+
+/**
+ * Patterns a POWER day may train. `chest_fly` is deliberately absent: a
+ * single-joint isolation movement has no explosive expression and no place on a
+ * day built around whole-body rate of force development. Everything else has a
+ * legitimate ballistic variant in `POWER_EXERCISE`.
+ */
+export const POWER_PATTERNS: readonly LiftPattern[] = [
+  "squat",
+  "hip_hinge",
+  "lunge",
+  "horizontal_press",
+  "vertical_press",
+  "horizontal_pull",
+  "vertical_pull",
+];
+
+/**
  * The specific exercise for a pattern on a given program week. Odd weeks → the A
  * variant, even weeks → B, so consecutive weeks never repeat the same exercise
  * for a pattern. Falls back to a spaced pattern name if a pattern is ever missing
  * from the library (defensive; the record is exhaustive today).
+ *
+ * On a POWER day the ballistic library is used instead, with the same rotation
+ * and the same equipment filtering.
  */
 export function pickExercise(
   pattern: LiftPattern,
   weekNumber: number,
   equipment?: readonly EquipmentKey[],
+  liftType?: LiftType,
 ): string {
+  if (liftType === "power") {
+    const opts = (POWER_EXERCISE[pattern] ?? []).filter((e) => canPerform(e, equipment));
+    const pool = opts.length > 0 ? opts : (POWER_EXERCISE[pattern] ?? []);
+    if (pool.length > 0) return pool[(weekNumber - 1) % pool.length]!;
+  }
   const pair = EXERCISE_AB[pattern];
   if (!pair) return pattern.replace(/_/g, " ");
   const preferred = weekNumber % 2 === 1 ? pair[0] : pair[1];
@@ -650,7 +775,13 @@ export function suggestedWeight(
   benchmarks?: { fiveRmSquat?: number; fiveRmDeadlift?: number; fiveRmBench?: number },
   weightUnit: "lbs" | "kg" = "lbs",
 ): string {
-  const cue = `~${scheme.intensityPct}% 1RM · ${scheme.rir} RIR`;
+  // A power set is governed by bar SPEED, not by reps in reserve. Printing
+  // "4 RIR" next to a jump squat invites exactly the grinding this emphasis
+  // exists to prevent, so power movements carry the velocity rule instead.
+  const cue =
+    scheme.emphasis === "power"
+      ? `~${scheme.intensityPct}% 1RM · ${POWER_CUE}`
+      : `~${scheme.intensityPct}% 1RM · ${scheme.rir} RIR`;
   const fiveRm = benchmarkForPattern(pattern, benchmarks);
   if (fiveRm && fiveRm > 0) {
     const oneRm = fiveRm * EPLEY_5RM_TO_1RM;

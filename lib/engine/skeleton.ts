@@ -47,6 +47,9 @@ import {
   bandAnchorRunFloor,
   runImpactFactor,
   startVolumeReadiness,
+  inferBandFromStartCardio,
+  maxBandForTrainingDays,
+  minBand,
 } from "./time-budget";
 import { buildTriathlonSkeleton, swimLevelFromCss, bikeLevelFromFtp } from "./sports/triathlon";
 import { analyzeNeedsForSport } from "./needs-atlas";
@@ -491,6 +494,43 @@ function toKg(weight: number | undefined, unit: "lbs" | "kg" | undefined): numbe
   return unit === "lbs" ? weight * 0.453592 : weight;
 }
 
+/**
+ * The band a pre-`weeklyHours` program should be treated as having, reconstructed
+ * from the volume it was actually built with.
+ *
+ * Uses the SAME start-volume derivation the legacy engine path uses, so the
+ * inferred band describes the program the athlete really has rather than a guess:
+ * an explicit `startCardioMinutes` if they typed one, else their stored
+ * `startMileage` x `AVG_MIN_PER_MILE`, else the sport's own experience default.
+ *
+ * Then bounded by the athlete's TRAINING-DAY COUNT. This bound is the important
+ * half. A band is not just a volume label — `trainingCaps` takes the MAX of the
+ * experience tier and the band, so a band RAISES the session and day caps. That is
+ * the right direction for the problem being solved (legacy weeks were landing
+ * short because 90-minute sessions couldn't hold the prescription), but only if
+ * there are days to spend it on. An athlete training 3 days a week must not
+ * inherit 10-20 hour caps, so the inference is capped at what their week can hold.
+ */
+function legacyStartVolume(
+  input: GenerationInput,
+  cfg: SportConfig,
+): { startMi: number; startCa: number } {
+  const startMi =
+    input.startMileage ??
+    (cfg.volume.kind === "single_currency"
+      ? cfg.volume.startMileageByExp[input.profile.runningExp]
+      : startingMileage(input.profile.runningExp));
+  const startCa = input.startCardioMinutes ?? startingCardioMinutes(startMi);
+  return { startMi, startCa };
+}
+
+function inferBandForLegacy(input: GenerationInput, cfg: SportConfig): WeeklyHoursBand {
+  const { startCa } = legacyStartVolume(input, cfg);
+  const fromVolume = inferBandFromStartCardio(startCa);
+  const fromDays = maxBandForTrainingDays(input.profile.trainingDays.length);
+  return minBand(fromVolume, fromDays);
+}
+
 export function toEngineInput(input: GenerationInput, startDate?: string): EngineInput {
   const start = startDate ? new Date(startDate) : undefined;
   const sportCfg = getSport(input.sport);
@@ -498,9 +538,35 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
   // offers it there, but a program SAVED before this rule still carries it — and
   // this is the single door every generation and recalculate comes through, so
   // the band is normalized here, BEFORE it reaches the caps or the volume tables.
+  //
+  // A program from BEFORE `weeklyHours` existed carries no band at all, and a
+  // bandless program bypasses every band rule on recalculate — session cap, day
+  // cap, hour ceiling, session budget, zone shift. So when the band is missing it
+  // is INFERRED from the volume the program already had (Levi, 2026-08-05 —
+  // "yes back fill").
+  //
+  // ⚠️ SCOPE: the inferred band feeds the CAPS ONLY. It is deliberately not
+  // written to `weeklyHours`, so nothing else in the engine sees it.
+  //
+  // The wider version — treating a legacy program as a full band program — was
+  // built and measured first, and it is too big a change to apply to someone
+  // mid-program. Volume stayed correct, but the training CHARACTER did not: on a
+  // real 5-day legacy HYROX week the zone mix went Z1 25%->19%, Z5 3%->11%
+  // (nearly 4x the VO2 work), the week lost a training day to the band session
+  // budget, and easy/fartlek runs became interval and threshold runs. Nobody
+  // signed up for that by clicking "recalculate".
+  //
+  // Caps alone fix the problem that was actually reported. A bandless program
+  // took its session cap from the lowest experience tier — 90 minutes — which is
+  // why legacy triathlon weeks landed an average of 476 minutes under their
+  // prescription: a 70.3 build needs three-hour rides and had a 90-minute
+  // ceiling. Raising the ceiling to what the athlete's own volume implies keeps
+  // every other aspect of their program exactly as it is.
   const weeklyHours = input.profile.weeklyHours
     ? clampBandToFamily(sportCfg.family, input.profile.weeklyHours)
     : undefined;
+  const capBand =
+    weeklyHours ?? clampBandToFamily(sportCfg.family, inferBandForLegacy(input, sportCfg));
 
   const rawRaces = input.races ?? [];
   let races: EngineRace[] = [];
@@ -571,7 +637,9 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
         hybridExp: input.profile.hybridExp,
         liftingExp: input.profile.liftingExp,
       },
-      weeklyHours,
+      // `capBand`, not `weeklyHours` — a legacy program gets the caps its own
+      // volume implies without becoming a band program in any other respect.
+      capBand,
     ),
     liftDays: input.profile.dayPreferences?.liftDays,
     hybridDays: input.profile.dayPreferences?.hybridDays,

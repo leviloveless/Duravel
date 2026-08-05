@@ -46,6 +46,9 @@ import {
   spreadPatternSessions,
   applyWeeklySetVolume,
   PATTERN_HOME,
+  acceptsPattern,
+  POWER_REST_SECONDS,
+  POWER_CUE,
 } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
@@ -535,6 +538,13 @@ export function applyStrengthSchemes(
 
   liftSessions.forEach((session, liftIndex) => {
     const light = session === lightSession;
+    const isPower = session.liftType === "power";
+    // A power day trains only patterns with a real ballistic expression. Anything
+    // the AI (or an older stored program) put there that doesn't belong — chest
+    // fly above all — is dropped rather than prescribed explosively.
+    if (isPower) {
+      session.movements = session.movements.filter((m) => acceptsPattern("power", m.pattern));
+    }
     for (const m of session.movements) {
       const scheme = movementScheme(m.pattern, session.liftType, week.phase, week.microWeek, light);
       m.sets = scheme.sets;
@@ -542,7 +552,14 @@ export function applyStrengthSchemes(
       m.intensityPct = scheme.intensityPct;
       m.rir = scheme.rir;
       m.emphasis = scheme.emphasis;
-      m.exercise = pickExercise(m.pattern, week.weekNumber, equipment);
+      m.exercise = pickExercise(m.pattern, week.weekNumber, equipment, session.liftType);
+      // Power sets are governed by BAR SPEED and full recovery, not by reps in
+      // reserve. Say so on the movement, and give it the long rest that makes the
+      // difference between training power and training fatigue.
+      if (isPower) {
+        m.restSeconds = POWER_REST_SECONDS;
+        m.note = POWER_CUE;
+      }
       // A bodyweight substitution has no load to suggest, and the athlete's 5RM is
       // a BARBELL number — projecting it onto a dumbbell or band variant gave
       // "Goblet Squat — 285 lbs". Non-barbell variants keep the %1RM + RIR cue

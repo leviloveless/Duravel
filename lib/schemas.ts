@@ -291,7 +291,16 @@ export const RunSessionSchema = z.object({
   description: z.string().optional(),
 });
 
-export const StrengthEmphasis = z.enum(["max_strength", "strength", "endurance"]);
+/**
+ * `power` added 2026-08-05 (Levi — "we need to create a workout specific for
+ * power / explosiveness"). It is NOT a heavier `max_strength`; it is close to the
+ * opposite prescription — submaximal load moved as fast as possible, 2-3 reps,
+ * full recovery, never near failure. See `POWER` in lib/engine/strength.ts.
+ *
+ * APPENDED to the enum, never inserted, and `emphasis` is optional on every
+ * movement — so programs stored before today still parse unchanged.
+ */
+export const StrengthEmphasis = z.enum(["max_strength", "strength", "endurance", "power"]);
 
 /** A plyometric / reactive-strength element (Review #4) — Base/Build only. */
 export const PowerElementSchema = z.object({
@@ -326,6 +335,13 @@ export const LiftSessionSchema = z.object({
       intensityPct: z.number().optional(),
       rir: z.number().optional(),
       emphasis: StrengthEmphasis.optional(),
+      /** Prescribed rest between sets, in seconds. Set at assembly for POWER
+       *  movements, where full recovery is what separates training power from
+       *  training fatigue; omitted elsewhere (the athlete rests as usual). */
+      restSeconds: z.number().int().optional(),
+      /** Short coaching cue shown with the movement. Used by power days to state
+       *  the real stopping rule (bar speed) instead of a misleading RIR figure. */
+      note: z.string().optional(),
     }),
   ),
   /** Optional plyometric/reactive element (Review #4), added at assembly in Base/Build. */

@@ -135,6 +135,31 @@ export function bandMinTrainingDays(band: WeeklyHoursBand): number {
 }
 
 /**
+ * The largest band a given number of training days can legitimately hold — the
+ * inverse of `BAND_MIN_TRAINING_DAYS`.
+ *
+ * Matters for the legacy back-fill: a band does not only describe volume, it
+ * RAISES the session and day caps (`trainingCaps` takes the max of the experience
+ * tier and the band). Inferring a big band for a program that only trains 3 days a
+ * week would hand it 20-hour caps and no days to spend them on — exactly the
+ * "20-30 hours across 3 days" week that stacked five sessions on a Monday.
+ * Programs chosen through onboarding can't do this (the day minimum is validated
+ * there); back-filled ones have no such guarantee, so the ceiling is applied here.
+ */
+export function maxBandForTrainingDays(trainingDays: number): WeeklyHoursBand {
+  let best: WeeklyHoursBand = WEEKLY_HOURS_ORDER[0]!;
+  for (const band of WEEKLY_HOURS_ORDER) {
+    if (BAND_MIN_TRAINING_DAYS[band] <= trainingDays) best = band;
+  }
+  return best;
+}
+
+/** The smaller of two bands. */
+export function minBand(a: WeeklyHoursBand, b: WeeklyHoursBand): WeeklyHoursBand {
+  return WEEKLY_HOURS_ORDER.indexOf(a) <= WEEKLY_HOURS_ORDER.indexOf(b) ? a : b;
+}
+
+/**
  * Floor on the starting-volume readiness factor (see `startVolumeReadiness`).
  *
  * ⚠️ The number matters more than it looks, because the microcycle progression is
@@ -205,6 +230,48 @@ export function startVolumeReadiness(
 export const MAX_BAND_BY_FAMILY: Partial<Record<SportFamily, WeeklyHoursBand>> = {
   station_hybrid: "h20_30",
 };
+
+/**
+ * How close (fractionally) a legacy program's starting cardio may sit BELOW a
+ * band's own starting cardio and still be classified into it. See
+ * `inferBandFromStartCardio`.
+ *
+ * Without a tolerance the advanced legacy default (35 mi/wk -> 630 min) misses
+ * h10_20's 666 by 36 minutes and lands in h5_10 — classifying a 35-mile-a-week
+ * athlete as a 5-to-10-hour trainee. 10% is wide enough to catch that and narrow
+ * enough that the beginner (216 vs 360, 40% below) and intermediate (396 vs 666,
+ * 41% below) defaults stay exactly where they belong.
+ */
+export const BAND_INFER_TOLERANCE = 0.1;
+
+/**
+ * Infer a weekly-hours band from a legacy program's STARTING cardio minutes
+ * (Levi, 2026-08-05 — "yes back fill").
+ *
+ * Programs generated before `weeklyHours` existed carry no band, and a bandless
+ * program bypasses every band rule on recalculate: no session cap, no day cap, no
+ * hour ceiling, no band zone shift. 63% of their weeks were landing >=15 min under
+ * prescribed cardio as a result. This gives those programs a band so they get the
+ * same guarantees as everything generated since.
+ *
+ * The comparison is deliberately cardio-to-cardio (legacy start vs
+ * `BAND_START_CARDIO_MIN`) rather than against total training time — mixing lift
+ * minutes into one side of the comparison and not the other over-classifies every
+ * athlete by roughly a band.
+ *
+ * Returns the LARGEST band whose starting cardio the athlete's own start reaches
+ * (within `BAND_INFER_TOLERANCE`), so the inference never hands an athlete MORE
+ * volume than their program already had — it only brings the ceiling down onto a
+ * program that previously had none. `h0_5` is the floor: every athlete gets a band.
+ */
+export function inferBandFromStartCardio(startCardioMinutes: number): WeeklyHoursBand {
+  let best: WeeklyHoursBand = "h0_5";
+  for (const band of WEEKLY_HOURS_ORDER) {
+    const threshold = BAND_START_CARDIO_MIN[band] * (1 - BAND_INFER_TOLERANCE);
+    if (startCardioMinutes >= threshold) best = band;
+  }
+  return best;
+}
 
 /** Bands in ascending order — the single source of truth for "how big is this band". */
 export const WEEKLY_HOURS_ORDER: readonly WeeklyHoursBand[] = [
