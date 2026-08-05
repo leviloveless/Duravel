@@ -21,7 +21,16 @@ export type SyncSuggestion = {
 
 /** Compact synced-activity descriptor for the in-program-view link control. */
 export type SyncActivitySummary = {
+  /** Duravel's row id — used for linking/unlinking within Duravel. */
   activityId: string;
+  /** Which service the activity came from. */
+  provider?: string;
+  /**
+   * The PROVIDER's own activity id. Strava's API keys off this, NOT `activityId`
+   * — sending the Duravel UUID made the branded-write fail 400 in production
+   * (a 36-char UUID against a 32-char field, and Strava would have 404'd anyway).
+   */
+  externalId?: string | null;
   title: string;
   detail: string;
 };
@@ -47,7 +56,9 @@ function detailLine(startTime: string, durationS: number | null, distanceM: numb
   const parts: string[] = [];
   const d = new Date(startTime);
   if (!Number.isNaN(d.getTime())) {
-    parts.push(d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }));
+    parts.push(
+      d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+    );
   }
   if (distanceM) {
     const dist = formatDistanceMiles(distanceM);
@@ -61,6 +72,8 @@ function detailLine(startTime: string, durationS: number | null, distanceM: numb
 function toSummary(a: ActivityRow): SyncActivitySummary {
   return {
     activityId: a.id,
+    provider: a.provider,
+    externalId: a.external_id,
     title: formatActivityType(a.type),
     detail: detailLine(a.start_time ?? "", a.duration_s, a.distance_m),
   };
@@ -97,7 +110,8 @@ export async function getProgramSyncData(programId: string): Promise<ProgramSync
   const linkedBySession: Record<string, SyncActivitySummary> = {};
   for (const a of activities) {
     if (a.linked && a.link && a.link.program_id === programId) {
-      linkedBySession[sessionKey(a.link.week_number, a.link.day, a.link.session_index)] = toSummary(a);
+      linkedBySession[sessionKey(a.link.week_number, a.link.day, a.link.session_index)] =
+        toSummary(a);
     }
   }
 
@@ -108,7 +122,11 @@ export async function getProgramSyncData(programId: string): Promise<ProgramSync
   const suggestions: SyncSuggestion[] = [];
   for (const a of activities) {
     if (a.linked || !a.start_time) continue;
-    const match = programDayForDate(program.start_date, program.duration_weeks, new Date(a.start_time));
+    const match = programDayForDate(
+      program.start_date,
+      program.duration_weeks,
+      new Date(a.start_time),
+    );
     if (!match) continue;
     const week = pdata.weeks.find((w) => w.weekNumber === match.weekNumber);
     const dayObj = week?.days.find((d) => d.day === match.day);

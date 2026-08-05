@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -410,7 +410,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                       athleteName: snapshotProfile?.firstName ?? undefined,
                     }}
                     activity={activity}
-                    stravaWriteEnabled={env.STRAVA_WRITE_ENABLED === "true"}
+                    stravaWriteEnabled={envFlag(env.STRAVA_WRITE_ENABLED)}
                     suggestions={syncData.suggestions}
                     linking={{
                       linkableActivities: syncData.linkableActivities,

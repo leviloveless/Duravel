@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 
 /**
  * Subscription / entitlement helpers (billing).
@@ -43,7 +43,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * until you set BILLING_ENABLED=true — lets you ship the Stripe plumbing and test
  * checkout end-to-end before flipping the app to paid.
  */
-export const billingEnabled = env.BILLING_ENABLED === "true";
+export const billingEnabled = envFlag(env.BILLING_ENABLED);
 
 /** The signed-in user's subscription row, or null. */
 export async function getSubscription(): Promise<SubscriptionRow | null> {

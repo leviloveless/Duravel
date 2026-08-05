@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 import { brandStravaActivity } from "@/lib/wearables/strava-brand";
 
 /**
@@ -32,12 +32,15 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  if (env.STRAVA_WRITE_ENABLED !== "true") {
+  if (!envFlag(env.STRAVA_WRITE_ENABLED)) {
     return NextResponse.json({ error: "not_enabled" }, { status: 403 });
   }
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "invalid" }, { status: 400 });
+  if (!parsed.success) {
+    console.error("[strava/brand] invalid body", parsed.error.issues);
+    return NextResponse.json({ error: "invalid" }, { status: 400 });
+  }
 
   try {
     const { activityId, programName, weekNumber, sessionLabel, description } = parsed.data;
@@ -50,6 +53,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ branded: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "brand_failed";
+    // Log the underlying reason. Without this the route returned a bare 400 with
+    // the cause invisible in production — diagnosing one real failure took a
+    // browser session and a code read (2026-08-04).
+    console.error("[strava/brand] failed", {
+      userId: user.id,
+      activityId: parsed.data.activityId,
+      reason: msg,
+    });
     if (msg === "strava_write_scope" || msg === "strava_write_forbidden") {
       return NextResponse.json({ error: "reconnect_required" }, { status: 409 });
     }

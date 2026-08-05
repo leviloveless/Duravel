@@ -10,7 +10,10 @@ import type { WearableProvider } from "./types";
  * dedupe writer (lib/wearables/pipeline) picks the primary per cluster.
  */
 export type ActivityRow = {
+  /** Duravel's own row id (a UUID). NOT the provider's id. */
   id: string;
+  /** The PROVIDER's activity id — what Strava's API expects. */
+  external_id: string | null;
   provider: WearableProvider;
   type: string | null;
   start_time: string | null;
@@ -30,13 +33,12 @@ export async function getUserActivities(limit = 200): Promise<ActivityRow[]> {
 
   const { data: acts } = await supabase
     .from("wearable_activities")
-    .select("id, provider, type, start_time, duration_s, distance_m, avg_hr")
+    .select("id, external_id, provider, type, start_time, duration_s, distance_m, avg_hr")
     .eq("user_id", user.id)
     .eq("is_primary", true)
     .order("start_time", { ascending: false })
     .limit(limit);
-  const activities =
-    (acts as Omit<ActivityRow, "linked" | "link">[] | null) ?? [];
+  const activities = (acts as Omit<ActivityRow, "linked" | "link">[] | null) ?? [];
   if (activities.length === 0) return [];
 
   // Which activities are already linked (workout_logs that point back at them).
@@ -47,7 +49,13 @@ export async function getUserActivities(limit = 200): Promise<ActivityRow[]> {
 
   const linkByActivity = new Map<string, ActivityRow["link"]>();
   for (const l of (logs as
-    | { wearable_activity_id: string; program_id: string; week_number: number; day: string; session_index: number }[]
+    | {
+        wearable_activity_id: string;
+        program_id: string;
+        week_number: number;
+        day: string;
+        session_index: number;
+      }[]
     | null) ?? []) {
     if (l.wearable_activity_id) {
       linkByActivity.set(l.wearable_activity_id, {

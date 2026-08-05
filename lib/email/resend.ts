@@ -1,6 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 
 /**
  * Singleton Resend client — SERVER ONLY. Mirrors how lib/supabase/admin and lib/stripe
@@ -19,5 +19,5 @@ export const EMAIL_FROM = env.EMAIL_FROM ?? "Duravel <coach@send.duravel.app>";
 export const EMAIL_REPLY_TO = env.EMAIL_REPLY_TO ?? "levi.loveless@duravel.app";
 
 export function emailEnabled(): boolean {
-  return env.EMAIL_ENABLED === "true" && !!key;
+  return envFlag(env.EMAIL_ENABLED) && !!key;
 }

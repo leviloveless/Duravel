@@ -134,3 +134,21 @@ if (!parsed.success) {
 // At runtime the parse succeeds (vars are present) → validated data. During the
 // build phase, if it didn't, fall back to the raw values (unused for compilation).
 export const env = (parsed.success ? parsed.data : rawEnv) as z.infer<typeof EnvSchema>;
+
+/**
+ * Read a boolean feature flag from the environment, tolerantly.
+ *
+ * These flags were compared with `=== "true"`, which is exact and
+ * case-SENSITIVE — so `STRAVA_WRITE_ENABLED=TRUE`, set in the Vercel dashboard,
+ * read as OFF and the feature silently stayed dark with no error anywhere
+ * (2026-08-04). A deployment flag that fails closed on a plausible spelling of
+ * its own value is a footgun, and `BILLING_ENABLED` sits on the same pattern.
+ *
+ * Accepts `true` / `1` / `yes` / `on` in any case, with surrounding whitespace.
+ * Anything else — including unset — is false.
+ */
+export function envFlag(value: string | undefined | null): boolean {
+  if (!value) return false;
+  const v = value.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes" || v === "on";
+}

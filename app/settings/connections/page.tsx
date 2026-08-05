@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 import { getConnectionStatuses } from "@/lib/wearables/connections";
 import ConnectionsPanel from "@/components/settings/connections-panel";
 import StravaAutopostToggle from "@/components/settings/strava-autopost-toggle";
@@ -20,7 +20,7 @@ export default async function ConnectionsPage({
 
   const [statuses, sp] = await Promise.all([getConnectionStatuses(user.id), searchParams]);
 
-  const stravaWrite = env.STRAVA_WRITE_ENABLED === "true" && !!env.STRAVA_CLIENT_ID;
+  const stravaWrite = envFlag(env.STRAVA_WRITE_ENABLED) && !!env.STRAVA_CLIENT_ID;
   let stravaAutopost = true;
   if (stravaWrite) {
     const { data: prof } = await supabase

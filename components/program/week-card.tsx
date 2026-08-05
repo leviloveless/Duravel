@@ -147,6 +147,22 @@ function linkFor(
   return logging?.linkedBySession?.[sessionKey(weekNumber, day, sessionIndex)] ?? null;
 }
 
+/**
+ * The id STRAVA understands for a linked activity.
+ *
+ * `SyncActivitySummary.activityId` is DURAVEL's row id (a UUID) — right for
+ * linking inside Duravel, wrong for Strava's API. Passing it to the branded-write
+ * endpoint failed 400 in production: a 36-char UUID against a 32-char field, and
+ * Strava would have 404'd it anyway. Strava keys off `external_id`.
+ *
+ * Returns undefined for a non-Strava activity, so "To Strava" simply doesn't
+ * render for, say, an Oura or Garmin import.
+ */
+function stravaActivityId(linked: SyncActivitySummary | null): string | undefined {
+  if (!linked || linked.provider !== "strava") return undefined;
+  return linked.externalId ?? undefined;
+}
+
 /** Mobile layout: one stacked block per day (no horizontal scroll). */
 function MobileDayList({
   week,
@@ -246,7 +262,9 @@ function MobileDayList({
                             weekNumber: week.weekNumber,
                             log,
                           })}
-                          activityId={linkFor(logging, week.weekNumber, dayKey, si)?.activityId}
+                          activityId={stravaActivityId(
+                            linkFor(logging, week.weekNumber, dayKey, si),
+                          )}
                           programName={programName}
                           weekNumber={week.weekNumber}
                           stravaWriteEnabled={stravaWriteEnabled}
@@ -567,7 +585,9 @@ export default function WeekCard({
                                 weekNumber: week.weekNumber,
                                 log,
                               })}
-                              activityId={linkFor(logging, week.weekNumber, dayKey, si)?.activityId}
+                              activityId={stravaActivityId(
+                                linkFor(logging, week.weekNumber, dayKey, si),
+                              )}
                               programName={programName}
                               weekNumber={week.weekNumber}
                               stravaWriteEnabled={stravaWriteEnabled}

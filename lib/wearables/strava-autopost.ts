@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
+import { env, envFlag } from "@/lib/env";
 import type { Session } from "@/lib/schemas";
 import { getConnection, upsertConnection } from "./connections";
 import { refreshAccessToken, createManualActivity } from "./strava-api";
@@ -62,7 +62,7 @@ export async function autoPostSessionToStrava(
   ctx: AutoPostContext,
 ): Promise<{ posted: boolean }> {
   try {
-    if (env.STRAVA_WRITE_ENABLED !== "true") return { posted: false };
+    if (!envFlag(env.STRAVA_WRITE_ENABLED)) return { posted: false };
 
     // Cheapest checks first: skip the profile read entirely when not connected.
     const conn = await getConnection(userId, "strava");
