@@ -674,6 +674,67 @@ export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
 };
 
 /**
+ * The patterns a power day must not ship without (Levi's live program, 2026-08-05).
+ *
+ * Two regressions showed up together once `acceptsPattern("power", …)` stopped
+ * being a wildcard, one of them visible on Levi's real Wednesday:
+ *
+ *   1. **All-upper power days.** His session came back Med-Ball Chest Pass /
+ *      Kettlebell High Pull / Push Press / Explosive Barbell Row — four upper
+ *      patterns, no jump, no swing. For a HYROX athlete that is the wrong half of
+ *      the body: sled push, wall balls and burpee broad jumps are all lower-body
+ *      triple extension. A deterministic sweep put 10% of power sessions in that
+ *      state, up from 0% before.
+ *   2. **Empty power days.** Non-empty power sessions fell 224 -> 160 across the
+ *      same sweep, because patterns the power day now refuses (chest fly) used to
+ *      be what filled it.
+ *
+ * `ensurePowerSessionPatterns` fixes both: a power session always trains at least
+ * one of squat/hip_hinge, and is never left with nothing.
+ */
+const POWER_LOWER_PATTERNS: readonly LiftPattern[] = ["squat", "hip_hinge"];
+
+/** The shape a power day falls back to when nothing usable survived filtering. */
+const POWER_DEFAULT_PATTERNS: readonly LiftPattern[] = [
+  "hip_hinge",
+  "squat",
+  "vertical_press",
+  "horizontal_pull",
+];
+
+/**
+ * Guarantee a power session is trainable and lower-body-inclusive.
+ *
+ * Runs BEFORE the schemes are applied so injected movements get prescribed like
+ * any other. Mutates in place; returns nothing. A no-op on a session that already
+ * carries a squat or hinge, which is the common case.
+ */
+export function ensurePowerSessionPatterns<
+  S extends {
+    liftType: LiftType;
+    movements: { pattern: LiftPattern; sets: number; repRange: string }[];
+  },
+>(session: S, weekNumber = 1): void {
+  if (session.liftType !== "power") return;
+  const have = new Set(session.movements.map((m) => m.pattern));
+
+  if (session.movements.length === 0) {
+    for (const pattern of POWER_DEFAULT_PATTERNS) {
+      session.movements.push({ pattern, sets: 3, repRange: "3" });
+      have.add(pattern);
+    }
+    return;
+  }
+
+  if (POWER_LOWER_PATTERNS.some((p) => have.has(p))) return;
+  // Alternate which lower pattern is added so consecutive weeks differ.
+  const pick = POWER_LOWER_PATTERNS[(weekNumber - 1) % POWER_LOWER_PATTERNS.length]!;
+  // Lower-body power leads the session — it is the most transferable work and
+  // wants the freshest nervous system.
+  session.movements.unshift({ pattern: pick, sets: 3, repRange: "3" });
+}
+
+/**
  * Ballistic + sport-transfer movements for a POWER day (Levi, 2026-08-05 —
  * "ballistic + sport transfer").
  *

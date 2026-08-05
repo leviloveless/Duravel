@@ -47,6 +47,7 @@ import {
   applyWeeklySetVolume,
   PATTERN_HOME,
   acceptsPattern,
+  ensurePowerSessionPatterns,
   POWER_REST_SECONDS,
   POWER_CUE,
 } from "@/lib/engine/strength";
@@ -549,6 +550,9 @@ export function applyStrengthSchemes(
     // fly above all — is dropped rather than prescribed explosively.
     if (isPower) {
       session.movements = session.movements.filter((m) => acceptsPattern("power", m.pattern));
+      // …and make sure what's left is actually a power session: never empty, and
+      // never upper-body-only. See `ensurePowerSessionPatterns`.
+      ensurePowerSessionPatterns(session, week.weekNumber);
     }
     for (const m of session.movements) {
       const scheme = movementScheme(m.pattern, session.liftType, week.phase, week.microWeek, light);

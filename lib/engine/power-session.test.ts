@@ -17,6 +17,7 @@ import {
   MAX_POWER_SESSION_SETS,
   MAX_SESSION_WORKING_SETS,
   capSessionWorkingSets,
+  ensurePowerSessionPatterns,
   type LiftPattern,
 } from "./strength";
 import type { PhaseName } from "./types";
@@ -127,5 +128,54 @@ describe("the power day is short", () => {
     capSessionWorkingSets(sessions);
     const total = sessions[0]!.movements.reduce((n, m) => n + m.sets, 0);
     expect(total).toBeLessThanOrEqual(MAX_POWER_SESSION_SETS);
+  });
+});
+
+describe("a power session is always trainable and lower-body inclusive", () => {
+  const mk = (patterns: LiftPattern[]) => ({
+    liftType: "power" as const,
+    movements: patterns.map((pattern) => ({ pattern, sets: 3, repRange: "3" })),
+  });
+
+  it("adds a squat or hinge to an all-upper power day", () => {
+    // Levi's live Wednesday: Med-Ball Chest Pass / Kettlebell High Pull /
+    // Push Press / Explosive Barbell Row — four upper patterns, no jump, no swing.
+    const s = mk(["horizontal_press", "vertical_pull", "vertical_press", "horizontal_pull"]);
+    ensurePowerSessionPatterns(s, 1);
+    expect(s.movements.some((m) => m.pattern === "squat" || m.pattern === "hip_hinge")).toBe(true);
+  });
+
+  it("puts the lower-body work FIRST — it wants the freshest nervous system", () => {
+    const s = mk(["vertical_press", "horizontal_pull"]);
+    ensurePowerSessionPatterns(s, 1);
+    expect(["squat", "hip_hinge"]).toContain(s.movements[0]!.pattern);
+  });
+
+  it("alternates which lower pattern it adds across weeks", () => {
+    const a = mk(["vertical_press"]);
+    const b = mk(["vertical_press"]);
+    ensurePowerSessionPatterns(a, 1);
+    ensurePowerSessionPatterns(b, 2);
+    expect(a.movements[0]!.pattern).not.toBe(b.movements[0]!.pattern);
+  });
+
+  it("never leaves a power session empty", () => {
+    const s = mk([]);
+    ensurePowerSessionPatterns(s, 1);
+    expect(s.movements.length).toBeGreaterThan(0);
+    expect(s.movements.some((m) => m.pattern === "squat" || m.pattern === "hip_hinge")).toBe(true);
+  });
+
+  it("leaves a session that already has lower-body work alone", () => {
+    const s = mk(["squat", "vertical_press"]);
+    const before = s.movements.map((m) => m.pattern);
+    ensurePowerSessionPatterns(s, 1);
+    expect(s.movements.map((m) => m.pattern)).toEqual(before);
+  });
+
+  it("does nothing to a non-power session", () => {
+    const s = { liftType: "full" as const, movements: [] };
+    ensurePowerSessionPatterns(s, 1);
+    expect(s.movements).toEqual([]);
   });
 });
