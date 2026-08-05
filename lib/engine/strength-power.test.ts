@@ -38,16 +38,35 @@ describe("power-focus strength session", () => {
   });
 });
 
-describe("research lift split (max 2 heavy days/week)", () => {
-  it("distributes heavy/power with heavy capped at 2", () => {
+/**
+ * Levi's lift-day priority, 2026-08-05:
+ *
+ *     1 day  -> strength
+ *     2 days -> strength, power
+ *     3 days -> strength, power, light
+ *
+ * "light" is a full-body slot that `applyStrengthSchemes` runs at 12-15 reps —
+ * only the FIRST full-body day of a week is heavy — so the slot shape here is
+ * `full, power, full` and the third comes out light. The alternating shape is
+ * also what `separateLiftDays` uses to keep heavy days off consecutive dates.
+ */
+describe("lift-day priority: strength, then power, then light", () => {
+  it("gives one lift day the strength workout", () => {
     expect(researchLiftSplit(1)).toEqual(["full"]);
-    expect(researchLiftSplit(2)).toEqual(["full", "power"]);
-    expect(researchLiftSplit(3)).toEqual(["full", "power", "full"]); // 2 heavy, 1 power
-    expect(researchLiftSplit(4)).toEqual(["full", "power", "full", "power"]); // 2 heavy, 2 power
   });
-  it("never programs more than 2 heavy days", () => {
-    for (const n of [1, 2, 3, 4]) {
-      expect(researchLiftSplit(n).filter((t) => t === "full").length).toBeLessThanOrEqual(2);
+  it("gives two lift days strength and power", () => {
+    expect(researchLiftSplit(2)).toEqual(["full", "power"]);
+  });
+  it("gives three lift days strength, power and light", () => {
+    expect(researchLiftSplit(3)).toEqual(["full", "power", "full"]);
+  });
+  it("adds further days as more LIGHT volume, never a second power day", () => {
+    expect(researchLiftSplit(4)).toEqual(["full", "power", "full", "full"]);
+    for (const n of [2, 3, 4, 5]) {
+      expect(researchLiftSplit(n).filter((t) => t === "power").length).toBe(1);
     }
+  });
+  it("is empty for a week with no lift days", () => {
+    expect(researchLiftSplit(0)).toEqual([]);
   });
 });

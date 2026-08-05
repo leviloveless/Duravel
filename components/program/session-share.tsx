@@ -82,6 +82,7 @@ export default function SessionShare({
         body: JSON.stringify({
           activityId,
           description: summary.stravaDescription,
+          title: summary.stravaTitle,
           programName: programName ?? undefined,
           weekNumber,
           sessionLabel: summary.cardData.sessType,

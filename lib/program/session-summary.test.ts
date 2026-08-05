@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import type { Session, WorkoutLog } from "@/lib/schemas";
 import { sessionSummary } from "./session-summary";
-import { stripBrandTag, BRAND_MARKER, buildBrandedDescription } from "@/lib/wearables/branding";
+import { BRAND_MARKER, buildBrandedDescription, stripWorkoutBlock } from "@/lib/wearables/branding";
 
 const run: Session = {
   kind: "run",
@@ -47,7 +47,9 @@ describe("sessionSummary", () => {
     expect(s.cardData.athlete).toBe("Levi");
     expect(s.cardData.sessVol).toBe("6 mi");
     expect(s.stravaDescription).toContain("3 x 1 mile");
-    expect(s.stravaDescription).toContain("Planned: 6 mi");
+    // Levi, 2026-08-05: the description is the WORKOUT and nothing else — no
+    // Planned/Actual block, no Duravel footer.
+    expect(s.stravaDescription).not.toContain("Planned:");
     expect(s.stravaDescription).not.toContain("Actual:");
   });
 
@@ -64,9 +66,9 @@ describe("sessionSummary", () => {
     expect(s.cardData.sessTime).toBe("54 min");
     expect(s.cardData.sessHr).toBe("Avg 161 bpm");
     expect(s.cardData.coachNote).toBe("Legs felt great.");
-    // The plan is still shown alongside what actually happened.
-    expect(s.stravaDescription).toContain("Planned: 6 mi · 45 min · Zone 4"); // 12 wu + 25 work + 8 cd
-    expect(s.stravaDescription).toContain("Actual: 6.2 mi · 54 min · avg 161 bpm · RPE 7");
+    // The CARD carries the actuals; the Strava description stays the prescription.
+    expect(s.stravaDescription).toContain("3 x 1 mile");
+    expect(s.stravaDescription).not.toContain("Actual:");
   });
 
   it("writes the lift prescription, sets x reps and load included", () => {
@@ -77,23 +79,43 @@ describe("sessionSummary", () => {
     expect(s.cardData.sessMain).toContain("Back Squat");
   });
 
-  it("ends with the Duravel tag and starts with the marker so a re-write can't stack", () => {
-    // The block OPENS with BRAND_MARKER on purpose: stripBrandTag cuts from the
-    // first marker to the end, so opening with it makes the whole block —
-    // description included — replaceable. Without that, re-writing an activity
-    // would strip only the footer and append the body again.
-    const s = sessionSummary(run, CTX);
-    expect(s.stravaDescription.startsWith(BRAND_MARKER)).toBe(true);
-    expect(s.stravaDescription.trimEnd().endsWith("duravel.app")).toBe(true);
-    expect(s.stravaDescription).toContain("Week 6");
-    expect(s.stravaDescription).toContain("Fall prep");
+  /**
+   * Levi's format, 2026-08-05:
+   *
+   *     Week 1 - Monday - Interval Run
+   *     Warm up: …
+   *     Work: …
+   *
+   * The title line doubles as the idempotency anchor now that the Duravel footer
+   * is gone — `stripWorkoutBlock` cuts from it to the end.
+   */
+  it("writes Levi's title format and keeps re-writes idempotent", () => {
+    const s = sessionSummary(run, { ...CTX, dayKey: "mon" });
+    expect(s.stravaTitle).toBe("Week 6 - Monday - Threshold Run");
+    expect(s.stravaDescription.startsWith("Week 6 - Monday - Threshold Run\n")).toBe(true);
+    // No branding noise — the athlete asked for the workout.
+    expect(s.stravaDescription).not.toContain("duravel.app");
+    expect(s.stravaDescription).not.toContain(BRAND_MARKER);
 
     const athletesOwnText = "Beautiful morning out there.";
     const first = buildBrandedDescription(athletesOwnText, {}, s.stravaDescription);
     const second = buildBrandedDescription(first, {}, s.stravaDescription);
     expect(second).toBe(first); // idempotent
-    expect(stripBrandTag(first)).toBe(athletesOwnText); // athlete's text survives
-    expect(first.match(/Back Squat|3 x 1 mile/g)?.length).toBe(1); // body written once
+    expect(stripWorkoutBlock(first)).toBe(athletesOwnText); // athlete's text survives
+    expect(first.match(/3 x 1 mile/g)?.length).toBe(1); // body written once
+  });
+
+  it("replaces a LEGACY brand-tag block rather than stranding it", () => {
+    const s = sessionSummary(run, { ...CTX, dayKey: "tue" });
+    const legacy = "My own note.\n\n— Duravel · Threshold run · Week 6 · duravel.app";
+    const out = buildBrandedDescription(legacy, {}, s.stravaDescription);
+    expect(out).not.toContain("duravel.app");
+    expect(out.startsWith("My own note.")).toBe(true);
+  });
+
+  it("degrades gracefully when the week or day is missing", () => {
+    expect(sessionSummary(run, {}).stravaTitle).toBe("Threshold Run");
+    expect(sessionSummary(run, { weekNumber: 3 }).stravaTitle).toBe("Week 3 - Threshold Run");
   });
 
   it("falls back to the one-line tag when no body is supplied (legacy callers)", () => {
@@ -120,10 +142,11 @@ describe("sessionSummary", () => {
       },
     ] as unknown as Session[];
     for (const s of kinds) {
-      const out = sessionSummary(s, CTX);
+      const out = sessionSummary(s, { ...CTX, dayKey: "wed" });
       expect(out.title.length).toBeGreaterThan(0);
-      expect(out.stravaDescription.startsWith(BRAND_MARKER)).toBe(true);
-      expect(out.stravaDescription).toContain("duravel.app");
+      expect(out.stravaTitle.startsWith("Week 6 - Wednesday - ")).toBe(true);
+      expect(out.stravaDescription.startsWith(out.stravaTitle)).toBe(true);
+      expect(out.stravaDescription).not.toContain(BRAND_MARKER);
       expect(out.cardData.type).toBe("session");
     }
   });

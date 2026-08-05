@@ -465,7 +465,10 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                 : null,
               {
                 id: "readiness",
-                label: "Readiness",
+                // "Weekly check-in" / "Daily HR/HRV" — the tab labels now say the
+                // CADENCE, which is what made the two feel duplicative (Levi,
+                // 2026-08-05). "Readiness" named neither when nor how often.
+                label: "Weekly check-in",
                 content: (
                   <ReadinessForm
                     programId={program.id}

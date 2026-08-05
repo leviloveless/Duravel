@@ -67,7 +67,9 @@ export async function fetchRecentActivities(
   });
   if (!res.ok) throw new Error(`Strava activities fetch failed (${res.status})`);
   const arr = (await res.json()) as unknown;
-  return Array.isArray(arr) ? arr.map((a) => normalizeStravaActivity(a as Record<string, unknown>)) : [];
+  return Array.isArray(arr)
+    ? arr.map((a) => normalizeStravaActivity(a as Record<string, unknown>))
+    : [];
 }
 
 /** Fetch a single activity's detail: name + description (for branding, without
@@ -112,6 +114,9 @@ export async function updateActivityDescription(
   accessToken: string,
   activityId: string,
   description: string,
+  /** Activity NAME. Duravel writes `Week 1 - Monday - Interval Run` (Levi,
+   *  2026-08-05). Omitted → the athlete's existing title is left alone. */
+  name?: string,
 ): Promise<void> {
   const res = await fetch(`${STRAVA_API_BASE}/activities/${activityId}`, {
     method: "PUT",
@@ -119,7 +124,7 @@ export async function updateActivityDescription(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ description }),
+    body: JSON.stringify(name ? { description, name } : { description }),
   });
   if (res.status === 403) throw new Error("strava_write_forbidden");
   if (!res.ok) throw new Error(`Strava activity update failed (${res.status})`);
@@ -152,7 +157,8 @@ export async function createManualActivity(
     elapsed_time: String(Math.max(1, Math.round(a.elapsedSeconds))),
   });
   if (a.description) body.set("description", a.description);
-  if (a.distanceMeters && a.distanceMeters > 0) body.set("distance", String(Math.round(a.distanceMeters)));
+  if (a.distanceMeters && a.distanceMeters > 0)
+    body.set("distance", String(Math.round(a.distanceMeters)));
   const res = await fetch(`${STRAVA_API_BASE}/activities`, {
     method: "POST",
     headers: {

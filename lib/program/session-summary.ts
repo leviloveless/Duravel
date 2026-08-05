@@ -24,7 +24,7 @@
 import type { Session, WorkoutLog } from "@/lib/schemas";
 import { sessionTiming, sessionMiles } from "@/lib/session-volume";
 import { sessionTypeLabel, patternLabel } from "@/lib/session-labels";
-import { brandTagLine, BRAND_MARKER, type BrandContext } from "@/lib/wearables/branding";
+import type { BrandContext } from "@/lib/wearables/branding";
 
 /** The result-card "session" seed shape (kept structural so `lib` needn't import UI). */
 export interface SessionCardSeed {
@@ -43,11 +43,15 @@ export interface SessionSummaryContext extends BrandContext {
   athlete?: string;
   /** The athlete's log, when there is one — actuals replace the planned numbers. */
   log?: WorkoutLog | null;
+  /** Calendar day key ("mon"…"sun") — the middle field of the Strava title. */
+  dayKey?: string | null;
 }
 
 export interface SessionSummary {
-  /** Headline, e.g. "Threshold run — 2.5 mi". */
+  /** Headline, e.g. "Threshold run — 2.5 mi". Used on the card. */
   title: string;
+  /** Strava activity NAME, e.g. "Week 1 - Monday - Interval Run". */
+  stravaTitle: string;
   /** Seed for the existing 1080px card renderer. */
   cardData: SessionCardSeed;
   /** Multi-line text ready to paste (or write) into a Strava activity. */
@@ -102,7 +106,8 @@ export function sessionMainSet(session: Session): string {
  *
  * Runs already carry an engine-written how-to (warmup / work / cooldown / ratio)
  * whose rep count is derived from the run's real distance, so it is quoted
- * verbatim. Lifts, hybrids and the triathlon disciplines are built here.
+ * verbatim — that is exactly the text Levi asked to see on Strava. Lifts, hybrids
+ * and the triathlon disciplines are built here.
  */
 function prescriptionLines(session: Session): string[] {
   switch (session.kind) {
@@ -113,22 +118,23 @@ function prescriptionLines(session: Session): string[] {
     case "lift": {
       const lines = session.movements.map((m) => {
         const name = m.exercise ?? patternLabel(m.pattern);
-        const reps = m.repRange.replace(/-/g, "–");
-        const load = m.suggestedWeight ? ` — ${m.suggestedWeight}` : "";
-        return `${name} — ${m.sets} x ${reps}${load}`;
+        const reps = m.repRange.replace(/-/g, "\u2013");
+        const load = m.suggestedWeight ? ` \u2014 ${m.suggestedWeight}` : "";
+        return `${name} \u2014 ${m.sets} x ${reps}${load}`;
       });
       if (session.power) {
         lines.push(
-          `Plyometrics: ${session.power.exercise} — ${session.power.sets} x ${session.power.reps}`,
+          `Plyometrics: ${session.power.exercise} \u2014 ${session.power.sets} x ${session.power.reps}`,
         );
       }
       return lines;
     }
     case "hybrid":
-      return session.elements.map((el) => `${el.exercise} — ${el.prescription}`);
+      return session.elements.map((el) => `${el.exercise} \u2014 ${el.prescription}`);
     case "brick":
       return session.segments.map(
-        (seg) => `${seg.discipline} — ${Math.round(seg.durationMin)} min, Zone ${seg.goalZone}`,
+        (seg) =>
+          `${seg.discipline} \u2014 ${Math.round(seg.durationMin)} min, Zone ${seg.goalZone}`,
       );
     case "swim":
     case "bike":
@@ -137,33 +143,45 @@ function prescriptionLines(session: Session): string[] {
       ];
     case "cardio":
       return [
-        `${Math.round(session.durationMin)} min ${session.modality ?? "Zone 1–2 cardio"}, Zone ${session.goalZone}`,
+        `${Math.round(session.durationMin)} min ${session.modality ?? "Zone 1\u20132 cardio"}, Zone ${session.goalZone}`,
       ];
     default:
       return [];
   }
 }
 
-/** "2.5 mi · 28 min · Zone 4" — whichever of those the session actually has. */
-function plannedLine(session: Session): string {
-  const parts: string[] = [];
-  const miles = session.kind === "run" ? sessionMiles(session) : 0;
-  if (miles > 0) parts.push(fmtMiles(miles));
-  const total = sessionTiming(session).total;
-  if (total > 0) parts.push(`${total} min`);
-  if ("goalZone" in session && session.goalZone) parts.push(`Zone ${session.goalZone}`);
-  return parts.join(" · ");
+const DAY_NAME: Record<string, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+
+/** "Interval run" -> "Interval Run". Strava titles read as titles. */
+function titleCase(label: string): string {
+  return label.replace(/\S+/g, (w) => (w.length > 2 ? w[0]!.toUpperCase() + w.slice(1) : w));
 }
 
-function actualLine(log: WorkoutLog | null | undefined): string | null {
-  const a = actualsOf(log);
-  if (!a) return null;
+/**
+ * `Week 1 - Monday - Interval Run` (Levi, 2026-08-05).
+ *
+ * Every field is dropped gracefully when missing — a session with no week number
+ * or day still yields a sensible title rather than "Week undefined - ".
+ */
+export function stravaTitleLine(
+  dayKey: string | null | undefined,
+  weekNumber: number | null | undefined,
+  label: string,
+): string {
   const parts: string[] = [];
-  if (typeof a.distanceMiles === "number") parts.push(fmtMiles(a.distanceMiles));
-  if (typeof a.durationMin === "number") parts.push(`${Math.round(a.durationMin)} min`);
-  if (typeof a.avgHr === "number") parts.push(`avg ${Math.round(a.avgHr)} bpm`);
-  if (typeof log?.rpe === "number") parts.push(`RPE ${log.rpe}`);
-  return parts.length ? parts.join(" · ") : null;
+  if (typeof weekNumber === "number" && weekNumber > 0) parts.push(`Week ${weekNumber}`);
+  const day = dayKey ? DAY_NAME[dayKey.toLowerCase()] : undefined;
+  if (day) parts.push(day);
+  parts.push(titleCase(label));
+  return parts.join(" - ");
 }
 
 /**
@@ -207,36 +225,25 @@ export function sessionSummary(session: Session, ctx: SessionSummaryContext = {}
     coachNote,
   };
 
-  // --- Strava description ---
+  // --- Strava title + description (Levi, 2026-08-05) ---
   //
-  // The block OPENS with a line starting `BRAND_MARKER`. That is deliberate and
-  // load-bearing: `stripBrandTag` removes everything from the first marker to the
-  // end, so opening with it makes the whole block — body included — replaceable.
-  // Without it, a re-write would strip only the footer tag and append the body a
-  // second time, stacking the workout text on every sync.
-  const blocks: string[] = [`${BRAND_MARKER} · ${title}`];
+  // The exact shape Levi asked for:
+  //
+  //     Week 1 - Monday - Interval Run
+  //     Warm up: 15 min easy (~1.1 mi) @ 13:20/mi with 3-4 short strides
+  //     Work: 4 x 1km at 7:40/mi ...
+  //     Cooldown: 10 min easy (~0.8 mi) @ 13:20/mi
+  //
+  // The title is the Strava activity NAME; the description is the workout
+  // prescription verbatim and nothing else. No "Planned/Actual" block and no
+  // Duravel footer — the athlete asked for the workout, so the workout is what
+  // goes on. `stravaTitleLine` doubles as the idempotency anchor (see
+  // `replaceWorkoutBlock` in lib/wearables/branding.ts): a re-write finds the
+  // previous title line and replaces from there, so re-syncing never stacks.
+  const stravaTitle = stravaTitleLine(ctx.dayKey, ctx.weekNumber, label);
+  const stravaDescription = [stravaTitle, ...prescriptionLines(session)].join("\n");
 
-  const pres = prescriptionLines(session);
-  if (pres.length) blocks.push(pres.join("\n"));
-
-  const planned = plannedLine(session);
-  const actual = actualLine(ctx.log);
-  const stats: string[] = [];
-  if (planned) stats.push(`Planned: ${planned}`);
-  if (actual) stats.push(`Actual: ${actual}`);
-  if (stats.length) blocks.push(stats.join("\n"));
-
-  // The Duravel tag stays LAST so `stripBrandTag` can replace the whole block on
-  // a re-write. Never insert anything after it.
-  blocks.push(
-    brandTagLine({
-      programName: ctx.programName,
-      weekNumber: ctx.weekNumber,
-      sessionLabel: ctx.sessionLabel ?? label,
-    }),
-  );
-
-  return { title, cardData, stravaDescription: blocks.join("\n\n") };
+  return { title, stravaTitle, cardData, stravaDescription };
 }
 
 function defaultNote(session: Session, logged: boolean): string {

@@ -49,7 +49,6 @@ import {
   acceptsPattern,
   POWER_REST_SECONDS,
   POWER_CUE,
-  powerBlockFor,
 } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
@@ -534,37 +533,13 @@ export function applyStrengthSchemes(
   // put the volume.
   spreadPatternSessions(liftSessions);
 
-  // Explosive work now rides at the FRONT of the heavy day rather than owning a
-  // day (Levi, 2026-08-05). The skeleton still plans `[full, power, full]` and
-  // MUST keep doing so — the `power` slots are what hold the heavy full-body days
-  // apart, and `separateLiftDays` / `spreadFullLiftTypes` space the week using
-  // exactly that distinction. Collapsing every lift day to `full` broke Levi's
-  // hard rule (two heavy days landed consecutively) in the first three weeks.
-  //
-  // So the spacing stays skeleton-side, and the CONTENT changes here: a planned
-  // `power` day becomes a LIGHT full-body day, and the week's first heavy session
-  // opens with the explosive block.
-  const powerHost = liftSessions.find((s) => s.liftType === "full") ?? liftSessions[0];
-  const relabelled = new Set<Extract<Session, { kind: "lift" }>>();
-  for (const s of liftSessions) {
-    if (s.liftType === "power") {
-      s.liftType = "full";
-      relabelled.add(s);
-    }
-  }
+  // Exactly ONE heavy day a week: the first full-body session. Everything
+  // full-body after it runs light (Levi's rule from 2026-08-04, generalized
+  // 2026-08-05 to the `1 -> strength / 2 -> strength+power / 3 -> strength+power+
+  // light` priority). Keying off "the LAST full session" was equivalent for two
+  // full days but would have shipped two maximal days at four lift days a week.
   const fullBody = liftSessions.filter((s) => s.liftType === "full");
-  // Levi's rule from 2026-08-04 is unchanged: when a week carries more than one
-  // full-body lift, the LATER ones run light — one maximal-strength exposure a
-  // week on top of the running, not two. The host of the power block is that one
-  // heavy day; everything else full-body, including the days the skeleton planned
-  // as `power`, runs light.
-  //
-  // An ex-`power` day in particular MUST run light: the skeleton spaced the heavy
-  // days assuming those slots were not heavy, so promoting one would put two
-  // maximal days on consecutive calendar days.
-  const lightSessions = new Set<Extract<Session, { kind: "lift" }>>(
-    fullBody.filter((s) => s !== powerHost),
-  );
+  const lightSessions = new Set(fullBody.slice(1));
 
   liftSessions.forEach((session, liftIndex) => {
     const light = lightSessions.has(session);
@@ -611,20 +586,6 @@ export function applyStrengthSchemes(
     );
     if (power) session.power = power;
     else delete session.power;
-
-    if (session === powerHost) {
-      const block = powerBlockFor(
-        week.phase,
-        week.microWeek,
-        week.weekNumber,
-        equipment,
-        new Set(session.movements.map((m) => m.exercise).filter((e): e is string => !!e)),
-      );
-      if (block.length) session.powerBlock = block;
-      else delete session.powerBlock;
-    } else {
-      delete session.powerBlock;
-    }
   });
 
   applyWeeklySetVolume(liftSessions, liftingExp, week.microWeek);

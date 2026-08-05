@@ -70,24 +70,31 @@ export const HYBRID_COUNT: Record<PhaseName, number> = {
 };
 
 const LIFT_SPLIT: Array<"upper" | "lower" | "full"> = ["full", "upper", "lower"];
-/** Research heavy/power lift split with AT MOST 2 heavy days/week (heavy first,
- *  interleaved): 1 -> [heavy]; 2 -> [heavy, power]; 3 -> [heavy, power, heavy];
- *  4 -> [heavy, power, heavy, power]. "full" = heavy, "power" = power/plyo. */
+/**
+ * What a week's lift days are, by how many there are (Levi, 2026-08-05):
+ *
+ *     1 day  -> strength
+ *     2 days -> strength, power
+ *     3 days -> strength, power, light
+ *     4+     -> strength, power, light, light, ...
+ *
+ * Priority order, and it is a priority order: the heavy STRENGTH day is the one
+ * an athlete gets if they only have one; POWER is what the second day buys; LIGHT
+ * volume is what everything after that is for. Exactly ONE heavy day and exactly
+ * ONE power day, however many lift days the week has.
+ *
+ * `"full"` here means full-body — the FIRST is heavy and the rest run light, which
+ * `applyStrengthSchemes` applies (it owns the heavy/light distinction because the
+ * scheme tables live there). The alternating `full`/`power` shape also matters
+ * structurally: `separateLiftDays` and `spreadFullLiftTypes` space the heavy days
+ * using exactly this distinction, so a week of all-`full` slots would put two
+ * maximal days on consecutive calendar days.
+ */
 export function researchLiftSplit(count: number): Array<"full" | "power"> {
-  let heavy = count <= 2 ? Math.min(1, count) : 2;
-  let power = count - heavy;
-  const out: Array<"full" | "power"> = [];
-  while (heavy > 0 || power > 0) {
-    if (heavy > 0) {
-      out.push("full");
-      heavy -= 1;
-    }
-    if (power > 0) {
-      out.push("power");
-      power -= 1;
-    }
-  }
-  return out;
+  if (count <= 0) return [];
+  if (count === 1) return ["full"];
+  // heavy, power, then light full-body days for the remainder
+  return ["full", "power", ...new Array(count - 2).fill("full" as const)];
 }
 
 /**

@@ -23,6 +23,8 @@ const BodySchema = z.object({
   /** Full workout summary to write. Omitted → the legacy one-line tag. Strava
    *  descriptions are capped well above this; 4k is a generous safety bound. */
   description: z.string().max(4000).optional(),
+  /** Activity title, e.g. "Week 1 - Monday - Interval Run". */
+  title: z.string().max(200).optional(),
 });
 
 export async function POST(request: Request) {
@@ -43,12 +45,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { activityId, programName, weekNumber, sessionLabel, description } = parsed.data;
+    const { activityId, programName, weekNumber, sessionLabel, description, title } = parsed.data;
     await brandStravaActivity(
       user.id,
       activityId,
       { programName, weekNumber, sessionLabel },
       description,
+      title,
     );
     return NextResponse.json({ branded: true });
   } catch (e) {

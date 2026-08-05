@@ -31,9 +31,15 @@ export default function DailyMetricsForm({ today }: { today: string }) {
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">Daily resting HR &amp; HRV</h2>
-        <span className="text-xs text-zinc-400">Log on waking · weekly averages show in the summary</span>
+        <h2 className="text-lg font-semibold">Daily HR &amp; HRV</h2>
+        <span className="text-xs text-zinc-400">Every morning on waking</span>
       </div>
+      <p className="mt-1 text-sm text-zinc-600">
+        One entry a day builds your personal baseline, so the engine can tell a genuinely bad day
+        from a normal one. It does <strong>not</strong> replace the <strong>Weekly check-in</strong>
+        — that is where you rate sleep, fatigue, stress and soreness, and it is what adjusts the
+        plan.
+      </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1 text-sm">

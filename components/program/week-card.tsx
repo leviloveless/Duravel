@@ -260,6 +260,7 @@ function MobileDayList({
                             athlete: athleteName ?? "",
                             programName,
                             weekNumber: week.weekNumber,
+                            dayKey,
                             log,
                           })}
                           activityId={stravaActivityId(
@@ -583,6 +584,7 @@ export default function WeekCard({
                                 athlete: athleteName ?? "",
                                 programName,
                                 weekNumber: week.weekNumber,
+                                dayKey,
                                 log,
                               })}
                               activityId={stravaActivityId(

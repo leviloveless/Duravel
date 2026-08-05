@@ -5,7 +5,6 @@ import {
   hybridHeader,
   movementLine,
   powerElementLine,
-  powerBlockLine,
   raceLabel,
   runLine,
 } from "./format";
@@ -56,20 +55,6 @@ export default function SessionCard({ session }: { session: Session }) {
         <Tag kind="lift" />
         <div className="text-sm text-zinc-800">
           <p className="font-medium">{LIFT_TYPE_LABEL[session.liftType]}</p>
-          {session.powerBlock && session.powerBlock.length > 0 && (
-            <div className="mt-1 rounded border-l-2 border-lime-500 pl-2">
-              <p className="text-xs font-medium text-lime-800">
-                Power — first, while fresh · {session.powerBlock[0]!.note}
-              </p>
-              <ul className="mt-0.5 flex flex-col gap-0.5">
-                {session.powerBlock.map((m, i) => (
-                  <li key={i} className="text-zinc-700">
-                    {powerBlockLine(m)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
           <ul className="mt-0.5 flex flex-col gap-0.5">
             {session.movements.map((m, i) => (
               <li key={i} className="text-zinc-700">

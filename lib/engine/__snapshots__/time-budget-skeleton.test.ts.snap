@@ -13969,7 +13969,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -13984,7 +13984,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -13993,7 +13993,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14049,7 +14049,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14064,7 +14064,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14073,7 +14073,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14201,7 +14201,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14216,7 +14216,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14225,7 +14225,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14281,7 +14281,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14296,7 +14296,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14305,7 +14305,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14433,7 +14433,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14448,7 +14448,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14457,7 +14457,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14513,7 +14513,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14528,7 +14528,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14537,7 +14537,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14671,7 +14671,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14686,7 +14686,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14695,7 +14695,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14751,7 +14751,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14766,7 +14766,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14775,7 +14775,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14910,7 +14910,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14925,7 +14925,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -14934,7 +14934,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -14991,7 +14991,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -15006,7 +15006,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -15015,7 +15015,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -18727,7 +18727,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18742,7 +18742,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18751,7 +18751,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -18807,7 +18807,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18822,7 +18822,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18831,7 +18831,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -18959,7 +18959,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18974,7 +18974,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -18983,7 +18983,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19039,7 +19039,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19054,7 +19054,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19063,7 +19063,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19191,7 +19191,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19206,7 +19206,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19215,7 +19215,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19271,7 +19271,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19286,7 +19286,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19295,7 +19295,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19429,7 +19429,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19444,7 +19444,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19453,7 +19453,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19509,7 +19509,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19524,7 +19524,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19533,7 +19533,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19668,7 +19668,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19683,7 +19683,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19692,7 +19692,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },
@@ -19749,7 +19749,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19764,7 +19764,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
             },
             {
               "kind": "lift",
-              "liftType": "power",
+              "liftType": "full",
             },
           ],
         },
@@ -19773,7 +19773,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "sessions": [
             {
               "kind": "lift",
-              "liftType": "full",
+              "liftType": "power",
             },
           ],
         },

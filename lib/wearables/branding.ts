@@ -52,17 +52,35 @@ export function brandTagLine(ctx: BrandContext): string {
  * stripped) followed by a fresh tag block. Idempotent — passing an
  * already-branded description in yields the same output.
  */
+/**
+ * A Duravel workout block opens with its own title line — `Week 1 - Monday -
+ * Interval Run` (Levi, 2026-08-05). That line IS the idempotency anchor.
+ *
+ * The block used to open with `BRAND_MARKER`, which `stripBrandTag` found. Levi
+ * asked for a clean description — the workout and nothing else, no Duravel
+ * footer — so the marker is gone and this pattern replaces it. Without an anchor
+ * a re-sync would append the workout a second time on every write.
+ */
+const WORKOUT_TITLE_RE = /^Week \d+ - .+$/m;
+
+/** Remove a previously-written Duravel workout block (title line to the end). */
+export function stripWorkoutBlock(description: string | null | undefined): string {
+  const text = description ?? "";
+  const m = WORKOUT_TITLE_RE.exec(text);
+  if (!m || m.index === undefined) return text;
+  return text.slice(0, m.index).replace(/\s+$/, "");
+}
+
 export function buildBrandedDescription(
   existing: string | null | undefined,
   ctx: BrandContext,
   body?: string | null,
 ): string {
-  const base = stripBrandTag(existing);
-  // `body`, when given, is the full workout summary from
-  // `lib/program/session-summary.ts`. It already opens with BRAND_MARKER and ends
-  // with its own tag line, which is what keeps this idempotent: `stripBrandTag`
-  // above removes the entire previously-written block, body included, so a
-  // re-write replaces rather than stacks.
+  // Strip BOTH shapes: the legacy `— Duravel …` tag block AND the current
+  // workout block. An activity branded before today carries the old one, and
+  // re-writing it must replace that rather than leave it stranded above the new
+  // text.
+  const base = stripWorkoutBlock(stripBrandTag(existing)).replace(/\s+$/, "");
   const block = body?.trim() ? body.trim() : brandTagLine(ctx);
   return base.length ? `${base}\n\n${block}` : block;
 }

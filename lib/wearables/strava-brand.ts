@@ -16,6 +16,8 @@ export async function brandStravaActivity(
   ctx: BrandContext,
   /** Full workout description (session-summary). Omitted → the one-line tag only. */
   body?: string | null,
+  /** Activity title, e.g. "Week 1 - Monday - Interval Run". Omitted → unchanged. */
+  title?: string | null,
 ): Promise<{ branded: true }> {
   const conn = await getConnection(userId, "strava");
   if (!conn) throw new Error("strava_not_connected");
@@ -38,6 +40,6 @@ export async function brandStravaActivity(
 
   const detail = await fetchActivityDetail(accessToken, activityId);
   const description = buildBrandedDescription(detail.description, ctx, body);
-  await updateActivityDescription(accessToken, activityId, description);
+  await updateActivityDescription(accessToken, activityId, description, title ?? undefined);
   return { branded: true };
 }
