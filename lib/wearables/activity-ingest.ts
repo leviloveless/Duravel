@@ -107,3 +107,30 @@ export async function ingestActivities(
 function isManual(raw: unknown): boolean {
   return !!(raw && typeof raw === "object" && (raw as { wasManualEntry?: boolean }).wasManualEntry);
 }
+
+/**
+ * Claim an activity Duravel itself just created (migration 0040).
+ *
+ * Called by the Strava auto-post the moment the activity exists on the provider,
+ * BEFORE any sync can import it. Writes a stub row on the same
+ * (user, provider, external_id) key the sync upserts on; the later sync fills in
+ * type/duration/distance/raw and — because `activityToCanonicalRow` never lists
+ * `self_posted` — leaves the flag alone.
+ *
+ * Best-effort by design: it runs inside the auto-post's own try/catch, and a
+ * missed flag costs a spurious link suggestion, never a failed workout log.
+ */
+export async function markSelfPosted(
+  userId: string,
+  provider: WearableProvider,
+  externalId: string,
+): Promise<void> {
+  if (!externalId) return;
+  const admin = createAdminClient();
+  await admin
+    .from("wearable_activities")
+    .upsert(
+      { user_id: userId, provider, external_id: externalId, self_posted: true },
+      { onConflict: "user_id,provider,external_id" },
+    );
+}

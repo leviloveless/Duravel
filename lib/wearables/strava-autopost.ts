@@ -8,6 +8,7 @@ import { isTokenExpired, expiresAtIso, hasWriteScope } from "./strava";
 import { sessionSummary } from "@/lib/program/session-summary";
 import { sessionTiming, sessionMiles } from "@/lib/session-volume";
 import { localWallClockIso } from "@/lib/timezone";
+import { markSelfPosted } from "./activity-ingest";
 
 /**
  * Auto-post a just-logged session to Strava as a NEW manual activity (opt-out;
@@ -151,10 +152,22 @@ export async function autoPostSessionToStrava(
       });
     }
 
-    await createManualActivity(
+    const created = await createManualActivity(
       accessToken,
       buildAutoPostActivity(ctx, localWallClockIso(new Date(), prof?.timezone)),
     );
+    // Claim it BEFORE any sync can import it (migration 0040). Without this the
+    // next sync pulls Duravel's own post back in and `suggest-data` offers to
+    // link it to the session that produced it — the plan becoming its own
+    // evidence for adherence and the weekly adaptation.
+    //
+    // A stub row, not an update: the activity does not exist locally yet. The
+    // sync upsert later fills in type/duration/distance/raw on the same
+    // (user, provider, external_id) key, and because `activityToRow` doesn't
+    // list `self_posted`, ON CONFLICT DO UPDATE leaves the flag alone.
+    if (created.id) {
+      await markSelfPosted(userId, "strava", String(created.id));
+    }
     return { posted: true };
   } catch {
     // Never surface a Strava failure to the logging flow.

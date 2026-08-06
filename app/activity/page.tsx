@@ -75,7 +75,15 @@ export default async function ActivityPage() {
                   {a.avg_hr ? ` · ${Math.round(a.avg_hr)} bpm` : ""} · {a.provider}
                 </span>
               </span>
-              <ActivityLinker activityId={a.id} programs={programs} link={a.link} />
+              {a.self_posted ? (
+                // Duravel wrote this one from the plan (migration 0040). Showing
+                // it keeps the list honest — it IS on Strava — but linking it to
+                // the session that produced it would make the plan its own
+                // evidence, so there is no Link control.
+                <span className="text-xs text-zinc-400">Posted by Duravel</span>
+              ) : (
+                <ActivityLinker activityId={a.id} programs={programs} link={a.link} />
+              )}
             </li>
           ))}
         </ul>

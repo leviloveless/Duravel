@@ -52,6 +52,29 @@ export type ProgramSyncData = {
 
 const EMPTY: ProgramSyncData = { suggestions: [], linkableActivities: [], linkedBySession: {} };
 
+/**
+ * May this synced activity be attached to a planned session as its ACTUAL?
+ *
+ * Two disqualifiers, and the second is the one that matters (migration 0040):
+ *
+ *  - `linked` — already attached somewhere.
+ *  - `self_posted` — **Duravel wrote it.** The Strava auto-post copies the PLAN
+ *    to Strava; sync then imports it back, and it looked exactly like a workout
+ *    the athlete had recorded. `suggest-data` matched it to the very session that
+ *    produced it and offered "Confirm match". Accepting that makes the plan its
+ *    own evidence: the actuals become the planned numbers, so adherence,
+ *    readiness and the weekly adaptation all read a perfectly-executed week
+ *    regardless of what happened. Seen live 2026-08-06 — and the suggestion still
+ *    carried the pre-patch-21 `1.00 mi`, so it would have written a wrong actual
+ *    on top of a circular one.
+ *
+ * Pure so it can be asserted directly: the callers need Supabase, and this repo
+ * mocks nothing.
+ */
+export function isLinkCandidate(a: { linked: boolean; self_posted?: boolean }): boolean {
+  return !a.linked && a.self_posted !== true;
+}
+
 function detailLine(startTime: string, durationS: number | null, distanceM: number | null): string {
   const parts: string[] = [];
   const d = new Date(startTime);
@@ -116,12 +139,22 @@ export async function getProgramSyncData(programId: string): Promise<ProgramSync
   }
 
   // Unlinked synced workouts — attachable to any planned session, newest first.
-  const linkableActivities = activities.filter((a) => !a.linked).map(toSummary);
+  //
+  // `self_posted` is excluded from BOTH lists (migration 0040). An activity
+  // Duravel auto-posted is a copy of the PLAN, not a record of the training — it
+  // only came back through sync because it was written to Strava in the first
+  // place. Offering it as a link candidate let the plan become its own evidence:
+  // confirm the match and the "actuals" ARE the planned numbers, so adherence,
+  // readiness and the weekly adaptation all read a perfectly-executed week
+  // whatever the athlete actually did. Seen live 2026-08-06 — and the suggestion
+  // carried a stale pre-patch-21 distance, so it would have written a wrong
+  // actual too. Not hand-linkable either: it is never the right answer.
+  const linkableActivities = activities.filter(isLinkCandidate).map(toSummary);
 
   // Same-day suggestions (rules #2.1 / #2.2) from the unlinked, dated activities.
   const suggestions: SyncSuggestion[] = [];
   for (const a of activities) {
-    if (a.linked || !a.start_time) continue;
+    if (!isLinkCandidate(a) || !a.start_time) continue;
     const match = programDayForDate(
       program.start_date,
       program.duration_weeks,
