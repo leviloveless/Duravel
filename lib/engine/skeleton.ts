@@ -18,6 +18,7 @@ import type {
   PhaseName,
   ProgramSkeleton,
   SessionSlot,
+  TrainingDayName,
   WeekSkeleton,
 } from "./types";
 import { allocateMesocycles, expandPhases } from "./mesocycles";
@@ -31,7 +32,7 @@ import {
   DEFAULT_COUNTS,
   type SessionCountTables,
 } from "./slots";
-import { spreadFullLiftTypes } from "./sequencing";
+import { spreadFullLiftTypes, isLongRunSlot } from "./sequencing";
 import { trainingCaps } from "./caps";
 import { STRENGTH_SESSION_MIN } from "@/lib/session-volume";
 import type { WeeklyHoursBand } from "@/lib/schemas";
@@ -44,6 +45,7 @@ import {
   bandSessionCap,
   bandMaxWeeklyMinutes,
   clampBandToFamily,
+  clampTrainingDaysToBand,
   bandAnchorRunFloor,
   runImpactFactor,
   startVolumeReadiness,
@@ -231,7 +233,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
 
   // After a B race, open the following week with a full rest day then two
   // easy days (48–72h recovery) before resuming normal training.
-  applyPostBRaceRecovery(weeks, input.races);
+  applyPostBRaceRecovery(weeks, input.races, input.restDays);
   clampCardioToBand(weeks, input.weeklyHours);
 
   return {
@@ -283,13 +285,33 @@ function workoutCount(day: WeekSkeleton["days"][number]): number {
  * B race could end up with **zero strength work** for an entire Build week (an
  * athlete who pins their lifts to early-week days lost all of them at once).
  *
- * Displaced LIFT and HYBRID sessions are now re-homed onto the later days of the
- * same week — 4+ days after the race, so recovery is untouched. Displaced RUNS
- * are deliberately NOT carried over: `reconcileWeekVolume` re-sizes whatever runs
- * remain to hit the week's prescribed mileage exactly, so a dropped run loses no
- * volume, while a dropped lift or hybrid is simply gone.
+ * Displaced LIFT, HYBRID and LONG-RUN sessions are re-homed onto the later days
+ * of the same week — 4+ days after the race, so recovery is untouched. Other
+ * displaced RUNS are deliberately NOT carried over: `reconcileWeekVolume`
+ * re-sizes whatever runs remain to hit the week's prescribed mileage exactly, so
+ * a dropped easy run loses no volume, while a dropped lift, hybrid or long run
+ * is simply gone.
+ *
+ * ⚠️ This pass runs LAST — after every guard inside `assignDays` — so whatever it
+ * does is final. It is the only mover in the engine that used to receive no day
+ * preferences at all (Levi, 2026-08-06). Three consequences, all now fixed:
+ *
+ *   1. It wrote an easy run onto a **preferred rest day** whenever one fell in
+ *      the first three training days. Every other pass takes a `protectedDays`
+ *      set precisely to prevent that, and `day-balance.test.ts` asserts a rest
+ *      day "stays empty by design". A protected day in the recovery window now
+ *      simply stays rest — which serves recovery better than an easy run anyway.
+ *   2. It **destroyed the long run** if it was pinned to one of those days. Only
+ *      lifts and hybrids were rescued; an athlete who runs long on Monday lost it
+ *      outright, and the week shipped with no long run at all.
+ *   3. The re-home loop could drop a lift or hybrid **onto** a preferred rest day.
  */
-function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): void {
+function applyPostBRaceRecovery(
+  weeks: WeekSkeleton[],
+  races: EngineRace[],
+  restDays?: TrainingDayName[],
+): void {
+  const protectedDays = new Set(restDays ?? []);
   for (const race of races) {
     if (race.priority !== "B") continue;
     const nextWeek = weeks[race.weekNumber]; // weekNumber is 1-based → index = the next week
@@ -300,21 +322,34 @@ function applyPostBRaceRecovery(weeks: WeekSkeleton[], races: EngineRace[]): voi
     for (const idx of [0, 1, 2]) {
       const day = d[idx];
       if (!day) continue;
-      for (const s of day.sessions) if (s.kind === "lift" || s.kind === "hybrid") displaced.push(s);
+      for (const s of day.sessions) {
+        if (s.kind === "lift" || s.kind === "hybrid" || isLongRunSlot(s)) displaced.push(s);
+      }
     }
 
-    if (d[0]) d[0].sessions = [{ kind: "rest" }];
-    if (d[1]) d[1].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
-    if (d[2]) d[2].sessions = [{ kind: "run", runType: "easy", goalZone: 2 }];
+    // A protected rest day inside the window keeps resting; it does not get an
+    // easy run written onto it, and it does not consume one of the two easy slots.
+    const setDay = (idx: number, sessions: SessionSlot[]): void => {
+      const day = d[idx];
+      if (!day) return;
+      day.sessions = protectedDays.has(day.day) ? [{ kind: "rest" }] : sessions;
+    };
+    setDay(0, [{ kind: "rest" }]);
+    setDay(1, [{ kind: "run", runType: "easy", goalZone: 2 }]);
+    setDay(2, [{ kind: "run", runType: "easy", goalZone: 2 }]);
 
     // Re-home onto the emptiest later day, keeping the engine's standing rules:
-    // at most 2 workouts a day and never two lifts on the same day.
+    // at most 2 workouts a day, never two lifts on the same day, and never onto a
+    // day the athlete asked to keep clear.
     for (const sess of displaced) {
       let best = -1;
       for (let i = 3; i < d.length; i++) {
         const day = d[i]!; // safe: i < d.length
+        if (protectedDays.has(day.day)) continue;
         if (workoutCount(day) >= 2) continue;
         if (sess.kind === "lift" && day.sessions.some((x) => x.kind === "lift")) continue;
+        // Two long runs in a week is not a week anyone should train.
+        if (isLongRunSlot(sess) && day.sessions.some(isLongRunSlot)) continue;
         if (best === -1 || workoutCount(day) < workoutCount(d[best]!)) best = i;
       }
       if (best === -1) continue; // genuinely no room left — drop, as before
@@ -622,7 +657,23 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
       ),
     programType: input.programType,
     durationWeeks,
-    trainingDays: input.profile.trainingDays,
+    // The day count follows the band, the same way the band follows the family
+    // twenty lines up. Onboarding has validated this since 2026-08-04, but a
+    // program SAVED before that rule came back through here every recalculate
+    // with a week the band could not physically fit — 504 audited days shipped
+    // two lifts, every one of them an h20_30 band on 4 days.
+    //
+    // ⚠️ SCOPE: only when the athlete EXPLICITLY chose a band. `capBand` (the
+    // legacy back-fill) is deliberately not used — inferring a band from volume
+    // and then adding training days off that inference would rewrite the week of
+    // every bandless program in the system, including the golden fixtures.
+    trainingDays: weeklyHours
+      ? clampTrainingDaysToBand(
+          input.profile.trainingDays,
+          weeklyHours,
+          input.profile.dayPreferences?.restDays,
+        )
+      : input.profile.trainingDays,
     races,
     startMileage: input.startMileage,
     startCardioMinutes: input.startCardioMinutes,

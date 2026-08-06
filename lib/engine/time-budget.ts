@@ -9,7 +9,7 @@
  * snapshot tests freeze the resulting skeletons for review.
  */
 import type { WeeklyHoursBand } from "@/lib/schemas";
-import type { ExperienceLevel, PhaseName, ZoneDistribution } from "./types";
+import type { ExperienceLevel, PhaseName, TrainingDayName, ZoneDistribution } from "./types";
 import type { SportFamily } from "./sports/types";
 
 /**
@@ -152,6 +152,56 @@ export function maxBandForTrainingDays(trainingDays: number): WeeklyHoursBand {
     if (BAND_MIN_TRAINING_DAYS[band] <= trainingDays) best = band;
   }
   return best;
+}
+
+/** Calendar order — the order days are added when a week has to grow. */
+const CALENDAR_DAYS: readonly TrainingDayName[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+/**
+ * Raise a day count to what the band requires (Levi, 2026-08-06).
+ *
+ * The MIRROR of `clampBandToFamily`, for the other half of the same decision.
+ * Onboarding validates the band minimum on both the client and the server, but
+ * `toEngineInput` never did — so a program SAVED before that rule (2026-08-04)
+ * regenerated an impossible week on every recalculate. An audit found 504 days
+ * shipping two weight sessions, and every single one was an `h20_30` band on a
+ * 4-day week: more lifts prescribed than lift-free days exist. The engine had no
+ * legal arrangement available and thrashed producing the least-bad one.
+ *
+ * Only ever ADDS days, never removes: the athlete said they could train that
+ * much, and the band is the thing they chose most recently. Removing days would
+ * silently shrink a week that was already being delivered.
+ *
+ * Day choice is deterministic (recalculate must be idempotent) and preference-
+ * aware: calendar order, but days the athlete asked to keep as REST are taken
+ * last — only when there is no other way to reach the minimum. A 7-day band
+ * necessarily consumes them all, which is exactly what onboarding tells a new
+ * athlete choosing that band.
+ */
+export function clampTrainingDaysToBand(
+  trainingDays: readonly TrainingDayName[],
+  band: WeeklyHoursBand,
+  restDays?: readonly TrainingDayName[],
+): TrainingDayName[] {
+  const min = BAND_MIN_TRAINING_DAYS[band];
+  const have = trainingDays.filter((d, i) => trainingDays.indexOf(d) === i);
+  if (have.length >= min) return [...have];
+
+  const rest = new Set(restDays ?? []);
+  const missing = CALENDAR_DAYS.filter((d) => !have.includes(d));
+  // Preferred rest days sort last; calendar order breaks ties within each group.
+  const candidates = [
+    ...missing.filter((d) => !rest.has(d)),
+    ...missing.filter((d) => rest.has(d)),
+  ];
+
+  const out = [...have];
+  for (const d of candidates) {
+    if (out.length >= min) break;
+    out.push(d);
+  }
+  // Return in calendar order so the week reads normally downstream.
+  return CALENDAR_DAYS.filter((d) => out.includes(d));
 }
 
 /** The smaller of two bands. */

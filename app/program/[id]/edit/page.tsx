@@ -68,6 +68,9 @@ export default async function EditProgramPage({
     day_preferences: p.dayPreferences ?? null,
     equipment: p.equipment ?? null,
     current_days_per_week: p.currentDaysPerWeek ?? null,
+    // The form re-reads the browser's zone on mount, so this is only what the
+    // snapshot happened to carry (migration 0039).
+    timezone: p.timezone ?? null,
     created_at: "",
     updated_at: "",
   };

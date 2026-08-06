@@ -84,3 +84,67 @@ describe("post-B-race recovery keeps the week's strength + hybrid work", () => {
     expect(JSON.stringify(withB.weeks[4])).toBe(JSON.stringify(withoutB.weeks[4]));
   });
 });
+
+/**
+ * REGRESSION (Levi, 2026-08-06) — the recovery pass runs LAST, after every guard
+ * inside `assignDays`, and used to receive no day preferences at all. It was the
+ * only mover in the engine with no `protectedDays` concept, so it could undo
+ * exactly what every other pass had just guaranteed.
+ */
+describe("post-B-race recovery respects day preferences", () => {
+  const dayOf = (w: WeekSkeleton, day: TrainingDayName) => w.days.find((d) => d.day === day)!;
+  const isLongRun = (s: { kind: string; isLong?: boolean; runType?: string }) =>
+    s.kind === "run" && (s.isLong === true || s.runType === "long");
+
+  it("never writes an easy run onto a preferred rest day", () => {
+    // "tue" is the SECOND training day — squarely inside the protocol window,
+    // and the slot the protocol used to fill with an easy run unconditionally.
+    const sk = buildSkeleton(base({ restDays: ["tue"] }));
+    expect(dayOf(sk.weeks[7]!, "tue").sessions).toEqual([{ kind: "rest" }]);
+  });
+
+  it("never re-homes displaced work ONTO a preferred rest day", () => {
+    const sk = buildSkeleton(
+      base({ restDays: ["sun"], liftDays: ["mon", "tue", "wed"], longRunDays: ["sat"] }),
+    );
+    expect(dayOf(sk.weeks[7]!, "sun").sessions.filter((s) => s.kind !== "rest")).toEqual([]);
+  });
+
+  it("keeps the long run when it was pinned to a day the protocol overwrites", () => {
+    // An athlete who runs long on Monday: index 0 is the rest day, so the long
+    // run used to be deleted outright — only lifts and hybrids were rescued.
+    const sk = buildSkeleton(base({ longRunDays: ["mon"], restDays: [] }));
+    const after = sk.weeks[7]!;
+    expect(after.days.flatMap((d) => d.sessions).filter(isLongRun).length).toBe(1);
+    // ...and it lands after the recovery window, not back on top of it.
+    const idx = after.days.findIndex((d) => d.sessions.some(isLongRun));
+    expect(idx).toBeGreaterThanOrEqual(3);
+  });
+
+  it("never ends up with two long runs in the recovery week", () => {
+    for (const longRunDays of [["mon"], ["tue"], ["wed"], ["sat"]] as TrainingDayName[][]) {
+      const after = buildSkeleton(base({ longRunDays })).weeks[7]!;
+      expect(
+        after.days.flatMap((d) => d.sessions).filter(isLongRun).length,
+        `${longRunDays}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("still honours the protocol on the days that are NOT protected", () => {
+    const d = buildSkeleton(base({ restDays: ["tue"] })).weeks[7]!.days;
+    expect(d[0]!.sessions).toEqual([{ kind: "rest" }]); // mon — rest
+    expect(d[1]!.sessions).toEqual([{ kind: "rest" }]); // tue — protected, stays rest
+    expect(d[2]!.sessions.some((s) => s.kind === "run" && s.runType === "easy")).toBe(true);
+  });
+
+  it("still caps the recovery week at 2 workouts and 1 lift a day", () => {
+    const sk = buildSkeleton(
+      base({ restDays: ["sun"], liftDays: ["mon", "tue", "wed"], longRunDays: ["mon"] }),
+    );
+    for (const day of sk.weeks[7]!.days) {
+      expect(day.sessions.filter((s) => s.kind !== "rest").length).toBeLessThanOrEqual(2);
+      expect(day.sessions.filter((s) => s.kind === "lift").length).toBeLessThanOrEqual(1);
+    }
+  });
+});

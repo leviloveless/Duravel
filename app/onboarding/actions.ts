@@ -165,6 +165,9 @@ function parseGenerationInput(
       equipment,
       currentDaysPerWeek,
       weeklyHours: str(formData, "weeklyHours"),
+      // Hidden field written by the browser (see onboarding-form.tsx). Absent on
+      // any non-browser caller; every reader falls back to UTC.
+      timezone: str(formData, "timezone"),
     },
     sport: sportVal,
     subGoal: isGenFit ? (str(formData, "subGoal") ?? "balanced") : undefined,
@@ -255,6 +258,9 @@ function profileUpsertRow(userId: string, input: GenerationInput, email: string 
     day_preferences: input.profile.dayPreferences ?? null,
     equipment: input.profile.equipment ?? null,
     current_days_per_week: input.profile.currentDaysPerWeek ?? null,
+    // Only ever WRITTEN when the browser supplied one — a missing value must not
+    // wipe a zone captured on an earlier visit.
+    ...(input.profile.timezone ? { timezone: input.profile.timezone } : {}),
     updated_at: new Date().toISOString(),
   };
 }

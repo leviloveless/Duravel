@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "@/components/nav-bar";
+import TimezoneSync from "@/components/timezone-sync";
 
 export const metadata: Metadata = {
   title: "Duravel",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-sans">
         <NavBar />
+        <TimezoneSync />
         <div className="flex-1">{children}</div>
       </body>
     </html>

@@ -367,7 +367,7 @@ const isLift: SlotPredicate = (s) => s.kind === "lift";
 /** The weekly long run is pinned to its (preferred or weekend-default) day by
  *  assignDays; these load guards must never relocate it. Protected-day checks
  *  only guard a DESTINATION, so the long run needs an explicit exemption here. */
-const isLongRunSlot: SlotPredicate = (s) =>
+export const isLongRunSlot: SlotPredicate = (s) =>
   s.kind === "run" && (s.isLong === true || s.runType === "long");
 
 /** Non-rest workouts on a day (rest slots aren't added until after the guards). */

@@ -1,6 +1,13 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState, type KeyboardEvent } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
@@ -571,6 +578,18 @@ export default function OnboardingForm({
   const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForFamily(sportFamily, b.value));
   const bandOffered = offeredBands.some((b) => b.value === weeklyHours);
 
+  // Read AFTER mount, not in the initializer: `Intl` resolves to UTC on the
+  // server, and a server/client mismatch on a rendered value is a hydration
+  // error. Empty until mount, which is fine — submit is a click away.
+  const [browserTimeZone, setBrowserTimeZone] = useState("");
+  useEffect(() => {
+    try {
+      setBrowserTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
+    } catch {
+      /* no Intl zone available — the server falls back to UTC */
+    }
+  }, []);
+
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
   const [customZones, setCustomZones] = useState<boolean>(!!profile?.hr_zones);
@@ -743,6 +762,13 @@ export default function OnboardingForm({
       onKeyDown={handleKeyDown}
       className="flex flex-col gap-6"
     >
+      {/* The athlete's IANA zone, read from the browser (migration 0039). Only
+          the browser knows it — the server sees a UTC clock and a Vercel edge
+          region. Empty on the server and filled after mount so the markup
+          matches during hydration; the form is only ever submitted by a click,
+          long after that. */}
+      <input type="hidden" name="timezone" value={browserTimeZone} />
+
       {/* Progress indicator */}
       <ol className="flex items-center gap-2 text-xs">
         {STEPS.map((label, i) => (

@@ -207,6 +207,11 @@ export const ProfileSchema = z.object({
    *  for back-compat + golden-HYROX safety; REQUIRED by the onboarding form for
    *  new programs. Drives volume (and, later, intensity distribution). */
   weeklyHours: WeeklyHours.optional(),
+  /** IANA time zone captured from the browser (migration 0039). Optional: a
+   *  program generated before the column existed carries none, and every reader
+   *  falls back to UTC. Bounded because it lands in a `text` column otherwise
+   *  unvalidated — the longest real IANA name is well under 64 characters. */
+  timezone: z.string().max(64).optional(),
 });
 
 export const RaceSchema = z.object({

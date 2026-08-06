@@ -40,6 +40,9 @@ export type ProfileRow = {
   equipment: string[] | null;
   /** How many days per week they currently train (Tasks #17). */
   current_days_per_week: number | null;
+  /** IANA time zone from the browser (migration 0039). NULL until captured;
+   *  every reader falls back to UTC. */
+  timezone: string | null;
   created_at: string;
   updated_at: string;
 };

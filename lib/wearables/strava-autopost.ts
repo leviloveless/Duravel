@@ -7,6 +7,7 @@ import type { ManualActivityInput } from "./strava-api";
 import { isTokenExpired, expiresAtIso, hasWriteScope } from "./strava";
 import { sessionSummary } from "@/lib/program/session-summary";
 import { sessionTiming, sessionMiles } from "@/lib/session-volume";
+import { localWallClockIso } from "@/lib/timezone";
 
 /**
  * Auto-post a just-logged session to Strava as a NEW manual activity (opt-out;
@@ -111,12 +112,28 @@ export async function autoPostSessionToStrava(
     const conn = await getConnection(userId, "strava");
     if (!conn || !hasWriteScope(conn.scope)) return { posted: false };
 
-    // Opt-out preference (default ON when the row/column is absent).
-    const { data: prof } = await supabase
+    // Opt-out preference (default ON when the row/column is absent). The same
+    // read fetches the athlete's zone — `start_date_local` is a LOCAL wall clock
+    // (see `localWallClockIso`), and sending UTC there stamped every activity
+    // hours late. `timezone` is selected defensively: a deploy that lands before
+    // migration 0039 is applied would 400 on the unknown column and kill the
+    // whole auto-post, so it falls back to the narrow select.
+    let prof: { strava_autopost?: boolean | null; timezone?: string | null } | null = null;
+    const withTz = await supabase
       .from("profiles")
-      .select("strava_autopost")
+      .select("strava_autopost, timezone")
       .eq("id", userId)
       .maybeSingle();
+    if (withTz.error) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("strava_autopost")
+        .eq("id", userId)
+        .maybeSingle();
+      prof = data;
+    } else {
+      prof = withTz.data;
+    }
     if (prof && prof.strava_autopost === false) return { posted: false };
 
     let accessToken = conn.access_token;
@@ -134,7 +151,10 @@ export async function autoPostSessionToStrava(
       });
     }
 
-    await createManualActivity(accessToken, buildAutoPostActivity(ctx, new Date().toISOString()));
+    await createManualActivity(
+      accessToken,
+      buildAutoPostActivity(ctx, localWallClockIso(new Date(), prof?.timezone)),
+    );
     return { posted: true };
   } catch {
     // Never surface a Strava failure to the logging flow.
