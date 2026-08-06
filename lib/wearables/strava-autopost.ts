@@ -3,8 +3,10 @@ import { env, envFlag } from "@/lib/env";
 import type { Session } from "@/lib/schemas";
 import { getConnection, upsertConnection } from "./connections";
 import { refreshAccessToken, createManualActivity } from "./strava-api";
+import type { ManualActivityInput } from "./strava-api";
 import { isTokenExpired, expiresAtIso, hasWriteScope } from "./strava";
 import { sessionSummary } from "@/lib/program/session-summary";
+import { sessionTiming, sessionMiles } from "@/lib/session-volume";
 
 /**
  * Auto-post a just-logged session to Strava as a NEW manual activity (opt-out;
@@ -39,11 +41,62 @@ export interface AutoPostContext {
   dayKey?: string | null;
 }
 
+/**
+ * The WHOLE session, not its main set.
+ *
+ * These used to read `s.durationMin` and `s.distanceMiles` straight off the
+ * session. On a run those two fields are the WORK portion only — the warmup and
+ * cooldown live in `RUN_WARMUP_COOLDOWN` / `overheadMiles`. So a 28-minute,
+ * 2.5-mile threshold run auto-posted to Strava as `8 min / 1.00 mi` while the
+ * description written by the SAME call said "Warm up: 12 min … Work: 1 x 1 mile
+ * … Cooldown: 8 min". The activity contradicted its own text (seen live
+ * 2026-08-06, week 1 Thursday).
+ *
+ * A lift was worse: it carries no `durationMin` at all, so it fell through to
+ * the hardcoded `?? 45` when a strength session is a fixed 60.
+ *
+ * `sessionTiming` / `sessionMiles` are the same totals the program table and the
+ * result card already show, so Strava now agrees with the app.
+ */
 function plannedDurationMin(s: Session): number | undefined {
-  return "durationMin" in s && typeof s.durationMin === "number" ? s.durationMin : undefined;
+  const total = sessionTiming(s).total;
+  return total > 0 ? total : undefined;
 }
 function plannedDistanceMiles(s: Session): number | undefined {
-  return s.kind === "run" ? s.distanceMiles : undefined;
+  const miles = sessionMiles(s);
+  return miles > 0 ? miles : undefined;
+}
+
+/**
+ * The exact Strava payload for one logged session — pure, so it can be asserted
+ * without a network or a Supabase client. `autoPostSessionToStrava` is the
+ * gating + token half; this is the "what actually gets posted" half.
+ */
+export function buildAutoPostActivity(
+  ctx: AutoPostContext,
+  startLocalIso: string,
+): ManualActivityInput {
+  const s = ctx.session;
+  const durMin = ctx.actualDurationMin ?? plannedDurationMin(s) ?? 45;
+  const distMiles = ctx.actualDistanceMiles ?? plannedDistanceMiles(s);
+  // Title + description come from the SAME place the "To Strava" button uses
+  // (Levi, 2026-08-05 — "the autoupload ... should look like this"). This path
+  // used to build its own: `Duravel Run — Week 1` over a four-line program
+  // blurb, which is what actually appeared on Strava while the manual button
+  // wrote the real workout. One source, one format, both paths.
+  const summary = sessionSummary(s, {
+    programName: ctx.programName,
+    weekNumber: ctx.weekNumber,
+    dayKey: ctx.dayKey,
+  });
+  return {
+    name: summary.stravaTitle,
+    sportType: KIND_TO_SPORT[s.kind] ?? "Workout",
+    startLocalIso,
+    elapsedSeconds: Math.round(durMin * 60),
+    description: summary.stravaDescription,
+    distanceMeters: distMiles ? distMiles * 1609.34 : undefined,
+  };
 }
 
 export async function autoPostSessionToStrava(
@@ -81,30 +134,7 @@ export async function autoPostSessionToStrava(
       });
     }
 
-    const s = ctx.session;
-    const durMin = ctx.actualDurationMin ?? plannedDurationMin(s) ?? 45;
-    const distMiles = ctx.actualDistanceMiles ?? plannedDistanceMiles(s);
-    // Title + description come from the SAME place the "To Strava" button uses
-    // (Levi, 2026-08-05 — "the autoupload ... should look like this"). This path
-    // used to build its own: `Duravel Run — Week 1` over a four-line program
-    // blurb, which is what actually appeared on Strava while the manual button
-    // wrote the real workout. One source, one format, both paths.
-    const summary = sessionSummary(s, {
-      programName: ctx.programName,
-      weekNumber: ctx.weekNumber,
-      dayKey: ctx.dayKey,
-    });
-    const name = summary.stravaTitle;
-    const description = summary.stravaDescription;
-
-    await createManualActivity(accessToken, {
-      name,
-      sportType: KIND_TO_SPORT[s.kind] ?? "Workout",
-      startLocalIso: new Date().toISOString(),
-      elapsedSeconds: Math.round(durMin * 60),
-      description,
-      distanceMeters: distMiles ? distMiles * 1609.34 : undefined,
-    });
+    await createManualActivity(accessToken, buildAutoPostActivity(ctx, new Date().toISOString()));
     return { posted: true };
   } catch {
     // Never surface a Strava failure to the logging flow.
