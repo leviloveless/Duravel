@@ -32,6 +32,18 @@ export const HYBRID_MIN_WORK = 25;
 export const HYBRID_MAX_WORK = 60;
 
 /**
+ * Warmup / cooldown MINUTES on a hybrid session (Levi, 2026-08-06).
+ *
+ * These numbers are not new — `sessionTiming` has always budgeted 10 + 5 around
+ * the hybrid work. What was missing is that nobody told the athlete what to DO
+ * with them, and the jogging in them counted toward no mileage at all. Both are
+ * now derived from these two constants, so the prescription, the session length
+ * and the weekly mileage can never disagree.
+ */
+export const HYBRID_WARMUP = 10;
+export const HYBRID_COOLDOWN = 5;
+
+/**
  * Fixed total length of a strength session (Tasks addition #4: all strength
  * workouts are 60 minutes). Split into a 10-min warmup, 45-min working block,
  * and 5-min cooldown so the displayed estimate and the weekly time tracker both
@@ -98,7 +110,12 @@ export function sessionTiming(session: Session): SessionTiming {
   }
   if (session.kind === "hybrid") {
     const work = clamp(Math.round(session.elements.length * 5), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
-    return { warmup: 10, work, cooldown: 5, total: 10 + work + 5 };
+    return {
+      warmup: HYBRID_WARMUP,
+      work,
+      cooldown: HYBRID_COOLDOWN,
+      total: HYBRID_WARMUP + work + HYBRID_COOLDOWN,
+    };
   }
   if (session.kind === "cardio") {
     // The block IS the cardio work; its duration is the whole session.
@@ -139,6 +156,10 @@ export function sessionMiles(session: Session): number {
   if (session.kind === "run") {
     return round1(work + (session.overheadMiles ?? 0) + (session.recoveryMiles ?? 0));
   }
+  // A hybrid's warmup/cooldown jog is on-feet distance exactly like a run's, so
+  // it counts (Levi, 2026-08-06). `overheadMiles` is absent on a program built
+  // before this rule, which then reads as it always did.
+  if (session.kind === "hybrid") return round1(work + (session.overheadMiles ?? 0));
   return work;
 }
 
@@ -160,6 +181,18 @@ export function runOverheadMiles(runType: RunSession["runType"], easyPaceMinPerM
   const [w, c] = RUN_WARMUP_COOLDOWN[runType];
   const leg = (min: number) => Math.round((min / easyPaceMinPerMile) * 10) / 10;
   return Math.round((leg(w) + leg(c)) * 10) / 10;
+}
+
+/**
+ * Warmup + cooldown distance for a HYBRID session, from its fixed overhead
+ * MINUTES at easy pace. Same construction as `runOverheadMiles`, including
+ * rounding each leg SEPARATELY so the two figures printed in the prescription
+ * add up to the number counted in the week's mileage.
+ */
+export function hybridOverheadMiles(easyPaceMinPerMile: number): number {
+  if (!Number.isFinite(easyPaceMinPerMile) || easyPaceMinPerMile <= 0) return 0;
+  const leg = (min: number) => Math.round((min / easyPaceMinPerMile) * 10) / 10;
+  return Math.round((leg(HYBRID_WARMUP) + leg(HYBRID_COOLDOWN)) * 10) / 10;
 }
 
 /** Warmup + cooldown minutes for a run type (fixed overhead not counted as work). */

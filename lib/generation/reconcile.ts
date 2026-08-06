@@ -22,13 +22,15 @@
 import type { ProgramDay, Session } from "@/lib/schemas";
 import type { ExperienceLevel, RunType } from "@/lib/engine/types";
 import { effectivePace, formatPace, paceLabel, type RunPaces } from "@/lib/engine/paces";
+import { hybridWarmupLine, hybridCooldownLine } from "@/lib/engine/run-descriptions";
 import {
-  hybridRunMiles,
   runOverhead,
   runOverheadMiles,
   STRENGTH_SESSION_MIN,
   sessionTiming,
   weekMileage,
+  hybridRunMiles,
+  hybridOverheadMiles,
 } from "@/lib/session-volume";
 import { round1 } from "@/lib/engine/math";
 import {
@@ -326,6 +328,11 @@ export function reconcileWeekVolume(
   const cardioTarget = Math.min(targetCardioMinutes, capacity);
 
   rewriteHybridPaces(days, paces.threshold);
+  // The hybrid warm-up/cooldown JOG (Levi, 2026-08-06). Stamped before the run
+  // budget is computed so those miles are part of the week's total from the
+  // start — the athlete's prescribed mileage does not go up, the runs come down
+  // to make room, exactly as a run's own overhead behaves.
+  stampHybridOverhead(days, paces);
 
   // Fixed hybrid contribution.
   let hybridMi = 0;
@@ -333,7 +340,14 @@ export function reconcileWeekVolume(
   for (const d of days)
     for (const s of d.sessions) {
       if (s.kind === "hybrid") {
-        hybridMi += hybridRunMiles(s);
+        // WORK miles only, deliberately. `sessionMiles` now also counts the
+        // hybrid warm-up/cooldown jog, but feeding that into the run BUDGET
+        // would shrink `RM` enough to trip the consolidation loop below, which
+        // DELETES a run outright rather than shortening it. The overhead is
+        // still counted — the convergence loop further down converges
+        // `weekMileage` (which includes it) onto the target, so the runs give
+        // the distance back by getting shorter. Same total, no lost session.
+        hybridMi += hybridRunMiles(s) + (s.overheadMiles ?? 0);
         hybridMin += sessionTiming(s).total;
       }
     }
@@ -819,6 +833,26 @@ function runDescriptionEasy(_exp: ExperienceLevel): string {
 /** Stamp each run's warmup/cooldown + between-rep recovery distance from its fixed
  *  overhead minutes and recovery minutes at easy pace. Both are miles on the feet,
  *  so — now that the weekly target is a TOTAL — they count toward it. */
+/**
+ * Stamp a hybrid session's warm-up/cooldown jog — the distance AND the two lines
+ * that tell the athlete to run it (Levi, 2026-08-06).
+ *
+ * Fixed per session (10 + 5 minutes at easy pace), so unlike `stampRunOverhead`
+ * this does not need re-running as distances converge — it is applied once,
+ * before the run budget is computed.
+ */
+function stampHybridOverhead(days: ProgramDay[], paces: RunPaces): void {
+  const easyPaceMin = paces.easy / 60;
+  for (const d of days) {
+    for (const s of d.sessions) {
+      if (s.kind !== "hybrid") continue;
+      s.overheadMiles = hybridOverheadMiles(easyPaceMin);
+      s.warmup = hybridWarmupLine(paces);
+      s.cooldown = hybridCooldownLine(paces);
+    }
+  }
+}
+
 function stampRunOverhead(
   days: ProgramDay[],
   easyPaceMin: number,

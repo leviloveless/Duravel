@@ -599,7 +599,14 @@ describe("filler is planned before it is written", () => {
       [hybrid()],
     );
     const before = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
-    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place, CAP);
+    // 14, not 12.5. This week holds a 6-mile long run plus a hybrid that is now
+    // ~6.4 miles on its feet (station runs + the warm-up/cooldown jog counted
+    // since 2026-08-06), so at 12.5 there is genuinely no room left for the
+    // interval and threshold runs and `sizeRuns` CORRECTLY consolidates one
+    // away. That is the consolidation path, which has its own coverage — this
+    // test is about leaving a week alone when there IS room for it, so the
+    // target is set where that is true.
+    reconcileWeekVolume(days, 14, 300, P, "intermediate", 1, place, CAP);
     const after = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
     expect(after).toBe(before);
     expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length).toBe(3);

@@ -86,11 +86,15 @@ function SessionDetail({ session }: { session: Session }) {
   if (session.kind === "hybrid") {
     return (
       <div className="flex flex-col gap-1">
+        {/* The warm-up jog is prescribed work and counts toward the week's
+            mileage, so it reads in the table like a run's does. */}
+        {session.warmup && <p className="mt-0.5 text-zinc-500">{session.warmup}</p>}
         <ul className="mt-0.5 flex flex-col gap-0.5 text-zinc-500">
           {session.elements.map((el, i) => (
             <li key={i}>{elementLine(el)}</li>
           ))}
         </ul>
+        {session.cooldown && <p className="text-zinc-500">{session.cooldown}</p>}
         {session.description && (
           <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">
             {session.description}

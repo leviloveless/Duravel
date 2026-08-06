@@ -11,6 +11,7 @@
 
 import type { ExperienceLevel, RunType } from "./types";
 import { formatPace, METERS_PER_MILE, type RunPaces } from "./paces";
+import { HYBRID_WARMUP, HYBRID_COOLDOWN } from "@/lib/session-volume";
 import { RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
 
 const PROGRESSION_BEGINNER =
@@ -141,6 +142,23 @@ export function runDescription(
  * hybrid session during assembly so the athlete always sees the rationale for
  * running straight off a weighted/erg station.
  */
+/**
+ * Warm-up / cooldown lines for a HYBRID session (Levi, 2026-08-06).
+ *
+ * `sessionTiming` has always budgeted 10 min before and 5 min after the hybrid
+ * work, but nothing ever told the athlete to RUN them and the distance counted
+ * toward no mileage at all. These reuse `overheadLine` — the same builder the
+ * quality runs use — so a hybrid's warm-up reads exactly like a threshold run's,
+ * and the distance it states is the distance the week counts.
+ */
+export function hybridWarmupLine(paces: RunPaces | null): string {
+  return overheadLine("Warm up", HYBRID_WARMUP, paces);
+}
+
+export function hybridCooldownLine(paces: RunPaces | null): string {
+  return overheadLine("Cooldown", HYBRID_COOLDOWN, paces);
+}
+
 export function hybridDescription(): string {
   return 'This is your compromised-running work. In a HYROX race you run on legs already fatigued by the weighted stations (sled, lunges, wall balls, ergs); running well in that pre-fatigued state is called "compromised running," and it is what decides your finish. By alternating threshold-pace runs with stations here, you train your body to hold pace when your legs are cooked, so your race-day running does not fall apart. Your weekly long run stays a separate, straightforward aerobic long run -- the compromised running is built here, in the hybrid sessions.';
 }

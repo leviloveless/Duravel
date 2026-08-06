@@ -130,7 +130,13 @@ function prescriptionLines(session: Session): string[] {
       return lines;
     }
     case "hybrid":
-      return session.elements.map((el) => `${el.exercise} \u2014 ${el.prescription}`);
+      // Warm-up first, cooldown last — the jog is prescribed work and is counted
+      // in the week's mileage, so the Strava description states it too.
+      return [
+        ...(session.warmup ? [session.warmup] : []),
+        ...session.elements.map((el) => `${el.exercise} \u2014 ${el.prescription}`),
+        ...(session.cooldown ? [session.cooldown] : []),
+      ];
     case "brick":
       return session.segments.map(
         (seg) =>

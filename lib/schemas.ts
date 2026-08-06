@@ -367,6 +367,17 @@ export const HybridSessionSchema = z.object({
   /** 1-2 sentence explanation of the hybrid session, including the compromised-
    *  running rationale. Attached deterministically during assembly. */
   description: z.string().optional(),
+  /** Engine-written warm-up line, e.g. "Warm up: 10 min easy (~0.8 mi) @ 13:20/mi"
+   *  (Levi, 2026-08-06). The 10 minutes were always in `sessionTiming`; the
+   *  athlete was simply never told to run them. Stamped in reconcile. */
+  warmup: z.string().optional(),
+  /** Engine-written cooldown line, same construction as `warmup`. */
+  cooldown: z.string().optional(),
+  /** Warm-up + cooldown JOG distance, in miles. Counts toward the week's
+   *  mileage exactly like a run's `overheadMiles`, so the reconciler shrinks the
+   *  week's runs to keep the prescribed total honest. Absent on programs built
+   *  before this rule, which then read as they always did. */
+  overheadMiles: z.number().nonnegative().max(20).optional(),
 });
 
 export const RaceSessionSchema = z.object({
