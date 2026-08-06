@@ -6,6 +6,7 @@ import {
   normalizeActivityType,
   type DedupeActivity,
 } from "./pipeline";
+import { looksSelfPosted } from "./self-posted";
 
 /**
  * Shared activity ingest (service role) — the ONE place activities from any
@@ -54,6 +55,28 @@ export async function ingestActivities(
     .from("wearable_activities")
     .upsert(rows, { onConflict: "user_id,provider,external_id" });
   if (upsertErr) throw new Error(`Failed to store activities: ${upsertErr.message}`);
+
+  // 1b. Claim any of OUR OWN posts that arrived unflagged.
+  //
+  // `markSelfPosted` claims an activity when the auto-post creates it, which
+  // covers everything posted since patch 23. What it cannot cover is a post made
+  // BEFORE that shipped and imported only now — migration 0040's backfill was a
+  // one-time UPDATE, so those slip through and get offered as link candidates for
+  // the session that produced them (seen live 2026-08-06, banner back to (4)).
+  //
+  // A separate UPDATE rather than a column on the upsert row, deliberately: the
+  // upsert must NEVER carry `self_posted`, or `ON CONFLICT DO UPDATE` would reset
+  // an already-claimed activity to false on every re-sync. This only ever sets
+  // true, and only for rows the narrow manual+title test recognises.
+  const ours = withId.filter((a) => looksSelfPosted(provider, a.raw)).map((a) => a.externalId);
+  if (ours.length > 0) {
+    await admin
+      .from("wearable_activities")
+      .update({ self_posted: true })
+      .eq("user_id", userId)
+      .eq("provider", provider)
+      .in("external_id", ours);
+  }
 
   // 2. Re-cluster the affected window. Bound the read to a few days around the
   //    incoming activities so we never scan the user's whole history.
