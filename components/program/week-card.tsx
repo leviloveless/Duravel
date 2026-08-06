@@ -216,6 +216,18 @@ function MobileDayList({
               const t = sessionTiming(s);
               const isRace = s.kind === "race";
               const log = logFor(logging, dayKey, si);
+              // One summary per row: the Share controls AND the post-log card
+              // nudge read the same `cardData`, so the image an athlete is
+              // offered right after logging is the one the Share link builds.
+              const shareSummary = isRace
+                ? null
+                : sessionSummary(s, {
+                    athlete: athleteName ?? "",
+                    programName,
+                    weekNumber: week.weekNumber,
+                    dayKey,
+                    log,
+                  });
               return (
                 <div key={si} className="rounded-lg bg-zinc-50 px-3 py-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -256,17 +268,12 @@ function MobileDayList({
                           isRace={isRace}
                           existing={log}
                           frozen={logging.frozen}
+                          cardData={shareSummary?.cardData}
                         />
                       )}
-                      {!isRace && (
+                      {shareSummary && (
                         <SessionShare
-                          summary={sessionSummary(s, {
-                            athlete: athleteName ?? "",
-                            programName,
-                            weekNumber: week.weekNumber,
-                            dayKey,
-                            log,
-                          })}
+                          summary={shareSummary}
                           activityId={stravaActivityId(
                             linkFor(logging, week.weekNumber, dayKey, si),
                           )}
@@ -509,6 +516,16 @@ export default function WeekCard({
                 const t = sessionTiming(s);
                 const isRace = s.kind === "race";
                 const log = logFor(logging, dayKey, si);
+                // Same summary for the Share controls and the post-log nudge.
+                const shareSummary = isRace
+                  ? null
+                  : sessionSummary(s, {
+                      athlete: athleteName ?? "",
+                      programName,
+                      weekNumber: week.weekNumber,
+                      dayKey,
+                      log,
+                    });
                 return (
                   <tr
                     key={`${dayKey}-${si}`}
@@ -570,6 +587,7 @@ export default function WeekCard({
                             isRace={isRace}
                             existing={log}
                             frozen={logging.frozen}
+                            cardData={shareSummary?.cardData}
                           />
                           {!isRace && (
                             <SessionLink
@@ -582,15 +600,9 @@ export default function WeekCard({
                               frozen={logging.frozen}
                             />
                           )}
-                          {!isRace && (
+                          {shareSummary && (
                             <SessionShare
-                              summary={sessionSummary(s, {
-                                athlete: athleteName ?? "",
-                                programName,
-                                weekNumber: week.weekNumber,
-                                dayKey,
-                                log,
-                              })}
+                              summary={shareSummary}
                               activityId={stravaActivityId(
                                 linkFor(logging, week.weekNumber, dayKey, si),
                               )}

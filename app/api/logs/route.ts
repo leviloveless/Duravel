@@ -77,29 +77,43 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error } = await supabase.from("workout_logs").upsert(
-    {
-      user_id: user.id,
-      program_id: input.programId,
-      week_number: input.weekNumber,
-      day: input.day,
-      session_index: input.sessionIndex,
-      status: input.status,
-      rpe: input.status === "skipped" ? null : (input.rpe ?? null),
-      actuals: input.actuals ?? null,
-      note: input.note?.trim() || null,
-      // Rule #5: record the actual day only when it differs from the planned day.
-      actual_day: resolveActualDay(input.day, input.actualDay ?? input.day),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "program_id,week_number,day,session_index" },
-  );
+  // `.select()` on the upsert so the Strava pointer comes back in the SAME round
+  // trip: the upsert payload deliberately omits `strava_activity_id`, so an edit
+  // preserves whatever this session already posted (migration 0041).
+  const { data: logRow, error } = await supabase
+    .from("workout_logs")
+    .upsert(
+      {
+        user_id: user.id,
+        program_id: input.programId,
+        week_number: input.weekNumber,
+        day: input.day,
+        session_index: input.sessionIndex,
+        status: input.status,
+        rpe: input.status === "skipped" ? null : (input.rpe ?? null),
+        actuals: input.actuals ?? null,
+        note: input.note?.trim() || null,
+        // Rule #5: record the actual day only when it differs from the planned day.
+        actual_day: resolveActualDay(input.day, input.actualDay ?? input.day),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "program_id,week_number,day,session_index" },
+    )
+    .select("id, strava_activity_id")
+    .maybeSingle();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   // Best-effort Strava auto-post (opt-out; never blocks or fails the log).
   if (input.status === "completed" || input.status === "partial") {
-    await autoPostSessionToStrava(supabase, user.id, {
+    // Defensive read, exactly as `getUserActivities` does for `self_posted`: a
+    // deploy that lands before migration 0041 is applied has no such column, so
+    // the select above 400s and `logRow` is null. Treating that as "no id yet"
+    // keeps today's behaviour (post every time) instead of breaking the log.
+    const existingActivityId =
+      (logRow as { strava_activity_id?: string | null } | null)?.strava_activity_id ?? null;
+
+    const { activityId } = await autoPostSessionToStrava(supabase, user.id, {
       session,
       status: input.status,
       rpe: input.rpe ?? null,
@@ -110,7 +124,22 @@ export async function POST(request: Request) {
       // The day the session was PLANNED for — the title reads "Week 1 - Monday
       // - Interval Run" off the program, not off when it happened to be logged.
       dayKey: input.day,
+      existingActivityId,
     });
+
+    // Claim the activity for this session so the NEXT save refreshes it instead
+    // of posting a second one. Only when it actually changed — a refresh returns
+    // the id it was given. Best-effort like the post itself: a failure here
+    // costs a duplicate next time, never the log.
+    if (activityId && activityId !== existingActivityId) {
+      await supabase
+        .from("workout_logs")
+        .update({ strava_activity_id: activityId })
+        .eq("program_id", input.programId)
+        .eq("week_number", input.weekNumber)
+        .eq("day", input.day)
+        .eq("session_index", input.sessionIndex);
+    }
   }
 
   return NextResponse.json({ ok: true });

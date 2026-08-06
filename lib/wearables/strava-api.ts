@@ -127,6 +127,10 @@ export async function updateActivityDescription(
     body: JSON.stringify(name ? { description, name } : { description }),
   });
   if (res.status === 403) throw new Error("strava_write_forbidden");
+  // The athlete deleted the activity on Strava's side. Distinct from a generic
+  // failure because the auto-post treats it as "my stored id is stale" and posts
+  // a fresh activity, rather than retrying a PUT that can never succeed.
+  if (res.status === 404) throw new Error("strava_activity_missing");
   if (!res.ok) throw new Error(`Strava activity update failed (${res.status})`);
 }
 

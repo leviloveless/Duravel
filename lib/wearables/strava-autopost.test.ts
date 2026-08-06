@@ -69,6 +69,10 @@ describe("auto-post payload", () => {
         "Warm up: 12 min easy (~0.9 mi) @ 13:20/mi",
         "Work: 1 x 1 mile at 8:00/mi (4:58/km)",
         "Cooldown: 8 min easy (~0.6 mi) @ 13:20/mi",
+        // An activity DURAVEL posted signs itself (Levi, 2026-08-06). The
+        // athlete's own activities stay clean — see `withAutoPostFooter`.
+        "",
+        "— Duravel · duravel.app",
       ].join("\n"),
     );
     // The title doubles as the idempotency anchor for `replaceWorkoutBlock`.

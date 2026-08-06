@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { env, envFlag } from "@/lib/env";
 import type { Session } from "@/lib/schemas";
 import { getConnection, upsertConnection } from "./connections";
-import { refreshAccessToken, createManualActivity } from "./strava-api";
+import { refreshAccessToken, createManualActivity, updateActivityDescription } from "./strava-api";
 import type { ManualActivityInput } from "./strava-api";
 import { isTokenExpired, expiresAtIso, hasWriteScope } from "./strava";
 import { sessionSummary } from "@/lib/program/session-summary";
@@ -41,6 +41,12 @@ export interface AutoPostContext {
   sportLabel?: string;
   /** Calendar day key ("mon"…"sun") — the middle field of the Strava title. */
   dayKey?: string | null;
+  /**
+   * The Strava activity this session ALREADY posted (`workout_logs
+   * .strava_activity_id`), if any. Present → this is a re-log, and the activity
+   * is refreshed rather than duplicated. See `syncAutoPost`.
+   */
+  existingActivityId?: string | null;
 }
 
 /**
@@ -81,31 +87,111 @@ export function buildAutoPostActivity(
   const s = ctx.session;
   const durMin = ctx.actualDurationMin ?? plannedDurationMin(s) ?? 45;
   const distMiles = ctx.actualDistanceMiles ?? plannedDistanceMiles(s);
-  // Title + description come from the SAME place the "To Strava" button uses
-  // (Levi, 2026-08-05 — "the autoupload ... should look like this"). This path
-  // used to build its own: `Duravel Run — Week 1` over a four-line program
-  // blurb, which is what actually appeared on Strava while the manual button
-  // wrote the real workout. One source, one format, both paths.
-  const summary = sessionSummary(s, {
+  const { name, description } = buildAutoPostText(ctx);
+  return {
+    name,
+    sportType: KIND_TO_SPORT[s.kind] ?? "Workout",
+    startLocalIso,
+    elapsedSeconds: Math.round(durMin * 60),
+    description,
+    distanceMeters: distMiles ? distMiles * 1609.34 : undefined,
+  };
+}
+
+/**
+ * The activity's TEXT — the only half of a posted activity Strava lets us change
+ * afterwards. `UpdatableActivity` carries name, description, type, gear_id,
+ * commute, trainer and private; distance, elapsed_time and start_date are fixed
+ * at creation, and there is no DELETE endpoint. So this is exactly the payload a
+ * re-log can push, and `buildAutoPostActivity` builds on it so the create path
+ * and the refresh path can never drift into two different titles.
+ *
+ * Title + description come from the SAME place the "To Strava" button uses
+ * (Levi, 2026-08-05 — "the autoupload ... should look like this"). This path
+ * used to build its own: `Duravel Run — Week 1` over a four-line program blurb,
+ * which is what actually appeared on Strava while the manual button wrote the
+ * real workout. One source, one format, every path.
+ */
+export function buildAutoPostText(ctx: AutoPostContext): { name: string; description: string } {
+  const summary = sessionSummary(ctx.session, {
     programName: ctx.programName,
     weekNumber: ctx.weekNumber,
     dayKey: ctx.dayKey,
   });
   return {
     name: summary.stravaTitle,
-    sportType: KIND_TO_SPORT[s.kind] ?? "Workout",
-    startLocalIso,
-    elapsedSeconds: Math.round(durMin * 60),
-    description: summary.stravaDescription,
-    distanceMeters: distMiles ? distMiles * 1609.34 : undefined,
+    description: withAutoPostFooter(summary.stravaDescription),
   };
+}
+
+/**
+ * The footer on an activity DURAVEL ITSELF POSTED (Levi, 2026-08-06).
+ *
+ * Deliberately narrow. On 2026-08-05 Levi asked for "a clean description — the
+ * workout and nothing else", and `branding.ts` dropped `BRAND_MARKER` from the
+ * block for exactly that reason. That still holds for the athlete's OWN
+ * activities: the Copy button and the manual "To Strava" write stay unbranded.
+ * An activity Duravel created is a different thing — it is Duravel's post — so
+ * it signs itself, and only here.
+ *
+ * Short on purpose: the description already opens with `Week 1 - Thursday -
+ * Threshold Run`, so a footer repeating the session, week and program would say
+ * everything twice.
+ *
+ * Idempotent, because the refresh path re-writes the description of an activity
+ * that already carries it, and because `stripWorkoutBlock` cuts from the
+ * `Week N - …` title line to the END — the footer sits inside that block and is
+ * removed with it, never stranded above a rewritten one.
+ */
+export const AUTOPOST_FOOTER = "— Duravel · duravel.app";
+
+export function withAutoPostFooter(description: string): string {
+  const base = description.replace(/\s+$/, "");
+  if (base.endsWith(AUTOPOST_FOOTER)) return base;
+  return base.length ? `${base}\n\n${AUTOPOST_FOOTER}` : AUTOPOST_FOOTER;
+}
+
+/**
+ * ONE LOGGED SESSION → ONE STRAVA ACTIVITY, for the whole life of that log.
+ *
+ * The I/O is injected so the rule itself is testable without a network or a
+ * Supabase client — the repo mocks nothing (`vi.mock` appears nowhere), so the
+ * seam has to be a parameter.
+ *
+ * - No stored id            → create, and hand the new id back to be stored.
+ * - Stored id               → refresh the activity's text. Never create.
+ * - Stored id, but gone     → `strava_activity_missing` (a 404 from the PUT)
+ *                             means the athlete deleted it on Strava. Post a
+ *                             fresh one and store the new id; the alternative is
+ *                             a log that can never reach Strava again.
+ *
+ * Before this, `/api/logs` upserted the log row and then created an activity
+ * unconditionally, so every correction left another copy on Strava — three for
+ * one threshold run on 2026-08-06.
+ */
+export async function syncAutoPost(
+  existingActivityId: string | null | undefined,
+  io: {
+    create: () => Promise<string>;
+    refresh: (activityId: string) => Promise<void>;
+  },
+): Promise<{ activityId: string; created: boolean }> {
+  if (existingActivityId) {
+    try {
+      await io.refresh(existingActivityId);
+      return { activityId: existingActivityId, created: false };
+    } catch (e) {
+      if ((e as Error)?.message !== "strava_activity_missing") throw e;
+    }
+  }
+  return { activityId: await io.create(), created: true };
 }
 
 export async function autoPostSessionToStrava(
   supabase: SupabaseClient,
   userId: string,
   ctx: AutoPostContext,
-): Promise<{ posted: boolean }> {
+): Promise<{ posted: boolean; activityId?: string }> {
   try {
     if (!envFlag(env.STRAVA_WRITE_ENABLED)) return { posted: false };
 
@@ -152,10 +238,25 @@ export async function autoPostSessionToStrava(
       });
     }
 
-    const created = await createManualActivity(
-      accessToken,
-      buildAutoPostActivity(ctx, localWallClockIso(new Date(), prof?.timezone)),
-    );
+    const token = accessToken;
+    const { activityId, created } = await syncAutoPost(ctx.existingActivityId, {
+      create: async () => {
+        const a = await createManualActivity(
+          token,
+          buildAutoPostActivity(ctx, localWallClockIso(new Date(), prof?.timezone)),
+        );
+        return a.id ? String(a.id) : "";
+      },
+      // Only the text: Strava freezes distance, elapsed_time and start_date at
+      // creation, so a corrected duration cannot reach an activity that already
+      // exists. Refreshing the title + prescription is the whole of what a
+      // re-log can do (Levi, 2026-08-06).
+      refresh: async (id) => {
+        const { name, description } = buildAutoPostText(ctx);
+        await updateActivityDescription(token, id, description, name);
+      },
+    });
+
     // Claim it BEFORE any sync can import it (migration 0040). Without this the
     // next sync pulls Duravel's own post back in and `suggest-data` offers to
     // link it to the session that produced it — the plan becoming its own
@@ -165,10 +266,13 @@ export async function autoPostSessionToStrava(
     // sync upsert later fills in type/duration/distance/raw on the same
     // (user, provider, external_id) key, and because `activityToRow` doesn't
     // list `self_posted`, ON CONFLICT DO UPDATE leaves the flag alone.
-    if (created.id) {
-      await markSelfPosted(userId, "strava", String(created.id));
+    //
+    // Only on create — a refresh re-touches an activity that was claimed the
+    // first time round, and by then the sync has filled the row in properly.
+    if (created && activityId) {
+      await markSelfPosted(userId, "strava", activityId);
     }
-    return { posted: true };
+    return { posted: true, activityId: activityId || undefined };
   } catch {
     // Never surface a Strava failure to the logging flow.
     return { posted: false };

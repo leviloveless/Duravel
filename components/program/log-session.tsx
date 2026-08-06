@@ -5,6 +5,8 @@ import type { WorkoutLog } from "@/lib/schemas";
 import { usePostAction } from "@/lib/hooks/use-post-action";
 import { resolveActualDay } from "@/lib/wearables/link";
 import { Button } from "@/components/ui/button";
+import ResultCardLauncher from "./result-card-launcher";
+import type { CardData } from "./result-card";
 
 const DAY_OPTIONS: { key: WorkoutLog["day"]; label: string }[] = [
   { key: "mon", label: "Mon" },
@@ -39,6 +41,14 @@ export interface LogSessionProps {
   existing: WorkoutLog | null;
   /** Week reviewed + applied → logs frozen. */
   frozen: boolean;
+  /**
+   * Seed for the result card, so a completed log can offer it on the spot. The
+   * capability shipped long ago — Strava forbids third-party photo upload, but
+   * the studio rasterizes a 1080px PNG the athlete attaches themselves — and
+   * nothing pointed anyone at it in the one moment they'd want it. Omitted (or
+   * on a race row) → no nudge, and this component behaves exactly as before.
+   */
+  cardData?: Partial<CardData>;
 }
 
 const STATUS_META: Record<WorkoutLog["status"], { label: string; badge: string; chip: string }> = {
@@ -65,6 +75,9 @@ export default function LogSession(props: LogSessionProps) {
     props.existing?.actualDay ?? props.day,
   );
   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
+  // Post-save card nudge (Levi, 2026-08-06). Shown only after a save that turned
+  // the session GREEN — a partial or a skip is not a result worth posting.
+  const [nudge, setNudge] = useState(false);
 
   const existing = override ?? props.existing;
   const needsRpe = status !== null && status !== "skipped";
@@ -170,8 +183,44 @@ export default function LogSession(props: LogSessionProps) {
     if (!r?.ok) {
       setOverride(prev);
       setOpen(true);
+      return;
     }
+    if (status === "completed" && props.cardData) setNudge(true);
   }
+
+  // The nudge is a prompt, not an alert: it clears itself so a session logged
+  // and left alone doesn't leave a card offer sitting on the screen.
+  useEffect(() => {
+    if (!nudge) return;
+    const t = setTimeout(() => setNudge(false), 12_000);
+    return () => clearTimeout(t);
+  }, [nudge]);
+
+  const cardNudge = nudge ? (
+    <div
+      role="status"
+      className="fixed inset-x-0 bottom-0 z-[70] flex justify-center px-3 pb-3 print:hidden sm:bottom-4"
+    >
+      <div className="flex w-full max-w-sm items-center gap-3 rounded-xl bg-zinc-900 px-4 py-3 text-white shadow-xl">
+        <span className="text-sm font-medium">Nice work — share it?</span>
+        <span className="ml-auto flex items-center gap-2">
+          <ResultCardLauncher
+            label="Result card"
+            initial={props.cardData}
+            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
+          />
+          <button
+            type="button"
+            onClick={() => setNudge(false)}
+            aria-label="Dismiss"
+            className="text-xs text-zinc-400 transition-colors hover:text-white"
+          >
+            ✕
+          </button>
+        </span>
+      </div>
+    </div>
+  ) : null;
 
   // --- collapsed control ---
   const trigger = existing ? (
@@ -203,11 +252,18 @@ export default function LogSession(props: LogSessionProps) {
     </button>
   );
 
-  if (!open) return <span className="print:hidden">{trigger}</span>;
+  if (!open)
+    return (
+      <span className="print:hidden">
+        {trigger}
+        {cardNudge}
+      </span>
+    );
 
   return (
     <span className="print:hidden">
       {trigger}
+      {cardNudge}
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={() => setOpen(false)}>
         <div
