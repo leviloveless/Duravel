@@ -10,6 +10,22 @@
  *
  * Generated from the pre-refactor engine. Do not update the snapshots to make a
  * refactor pass; a diff here means the refactor is wrong.
+ *
+ * ⚠️ BASELINE MOVED 2026-08-05 (2nd time, deliberately — Levi approved).
+ * `separateLifts` was the last pass in `assignDays` that could put a THIRD
+ * session on a day; it did so 10,675 times across a 47,040-week audit and left
+ * `capSessionsPerDay` to sweep up afterwards. It now takes a full destination
+ * only as a swap, so no pass anywhere in the pipeline ever produces an illegal
+ * day — the worst day at ANY stage went from 3 sessions to 2.
+ *
+ * Why the fixtures moved and live athletes did not: every fixture here predates
+ * `weeklyHours`, so it takes the legacy no-band path where the week is planned
+ * denser than the day count can hold. Re-running the same audit restricted to
+ * combinations an athlete can actually onboard today (band set AND the band's
+ * minimum training days honoured) gives byte-identical output before and after —
+ * 12,096 weeks, every metric equal. Across ALL combinations including legacy the
+ * only change is +28 days carrying two quality runs, out of 201,600.
+ * 24 of the 100 fixture weeks re-arrange; none changes session COUNT.
  */
 import { describe, it, expect } from "vitest";
 import type { EngineInput } from "./types";

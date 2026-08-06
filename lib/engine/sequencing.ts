@@ -12,6 +12,9 @@
 
 import type { DaySlot, RunType, SessionSlot, SlotPredicate, TrainingDayName } from "./types";
 
+/** Two sessions a day is absolute (mirrors `MAX_WORKOUTS_PER_DAY` in slots.ts). */
+const MAX_WORKOUTS_PER_DAY = 2;
+
 const KEY_RUN_TYPES: ReadonlySet<RunType> = new Set(["long", "interval", "threshold", "tempo"]);
 export const isKeyRun: SlotPredicate = (s) => s.kind === "run" && KEY_RUN_TYPES.has(s.runType);
 export const isHardLegLift: SlotPredicate = (s) =>
@@ -176,10 +179,69 @@ function conflictsWithKeyRun(days: DaySlot[], t: number): boolean {
 }
 
 /**
+ * The session `separateLifts` would hand BACK to the source day when the chosen
+ * destination is already at the 2-a-day ceiling, or -1 if there is none.
+ *
+ * Constraints on what may travel back: never a rest slot, never a race, never
+ * the long run (pinned), and never a lift — the source day is keeping a lift of
+ * its own, so sending one back would recreate the very two-lift day we are here
+ * to break up. And when the lift moving IN is a hard-leg lift, the destination's
+ * last cardio session may not leave: `pairLegLiftWithCardio` runs next and that
+ * cardio is the reason this day scored well in the first place.
+ *
+ * Ties break to the most movable session (`sessionMovability`), so what gets
+ * displaced is the week's lightest work.
+ */
+function giveBackIndex(
+  days: DaySlot[],
+  srcIdx: number,
+  destIdx: number,
+  incomingIsLegLift: boolean,
+): number {
+  const dest = days[destIdx]!; // safe: caller passes a valid index
+  const src = days[srcIdx]!; // safe: caller passes a valid index
+  const cardioCount = dest.sessions.filter(isCardio).length;
+  // What arriving on the SOURCE day would cost. The source keeps a lift, so a
+  // key run landing there can stack two hard runs on one day, or sit the day
+  // after a heavy-leg lift — the two things `applySequencingGuards` and
+  // `spreadRuns` exist to prevent. Penalize rather than veto: the no-two-lifts
+  // rule still has to win when nothing else is available.
+  const srcHasKeyRun = dayHas(src, isKeyRun);
+  const prevHasLegLift = srcIdx > 0 && dayHas(days[srcIdx - 1]!, isHardLegLift);
+  const cost = (s: SessionSlot): number => {
+    let c = sessionMovability(s);
+    if (isKeyRun(s)) {
+      if (srcHasKeyRun) c += 100; // two quality runs on one day
+      if (prevHasLegLift) c += 50; // quality run the day after heavy legs
+    }
+    return c;
+  };
+  const cands = dest.sessions
+    .map((s, i) => ({ s, i }))
+    .filter(
+      (x) =>
+        x.s.kind !== "rest" &&
+        x.s.kind !== "race" &&
+        x.s.kind !== "lift" &&
+        !isLongRunSlot(x.s) &&
+        !(incomingIsLegLift && isCardio(x.s) && cardioCount <= 1),
+    )
+    .sort((a, b) => cost(a.s) - cost(b.s));
+  return cands[0]?.i ?? -1;
+}
+
+/**
  * Pick a lift-free day to relocate an extra lift onto: unprotected, holding no
  * existing lift, and — for hard-leg lifts — clear of key-run fatigue. A day that
  * already has easy cardio is ideal (the moved leg lift auto-pairs); otherwise an
  * empty/light day is preferred. Returns the day index, or -1.
+ *
+ * A day already at the 2-a-day ceiling is eligible only if it has a session it
+ * can hand back to the source day (see `giveBackIndex`) — this pass used to push
+ * a third session on and leave `capSessionsPerDay` to sweep up after it, which
+ * made the 2-a-day rule true by cleanup rather than by construction. It was the
+ * ONLY pass in the pipeline that did so: an audit over 47,040 generated weeks
+ * found 10,675 over-cap days created here and none anywhere else.
  */
 function pickNoLiftDay(
   days: DaySlot[],
@@ -196,13 +258,20 @@ function pickNoLiftDay(
     if (protectedDays.has(day.day)) continue;
     if (dayHas(day, (s) => s.kind === "lift")) continue; // HARD: never two lifts on a day
     const load = day.sessions.filter((x) => x.kind !== "rest").length;
+    // HARD: never a third session on a day. A full day may still take the lift,
+    // but only as a SWAP — it has to have something legal to send back.
+    const full = load >= MAX_WORKOUTS_PER_DAY;
+    if (full && giveBackIndex(days, fromIdx, t, legLift) === -1) continue;
     const pairs = legLift && dayHas(day, isCardio) ? 1 : 0; // leg lift onto easy cardio = ideal
     // Key-run adjacency is a strong PREFERENCE, not a veto: the no-two-lifts rule
     // must always win, so we penalize a conflicting day rather than skip it (in a
     // dense peak week nearly every day is key-run-adjacent — skipping stranded the
     // extra lift and left two on one day).
     const conflict = legLift && conflictsWithKeyRun(days, t) ? 1 : 0;
-    const score = pairs * 200 + (load === 0 ? 50 : 0) - load - conflict * 500;
+    // A day with room beats a day that has to displace something, all else equal:
+    // a swap is churn, and the displaced session lands back on a day that is
+    // already carrying a lift.
+    const score = pairs * 200 + (load === 0 ? 50 : 0) - load - conflict * 500 - (full ? 25 : 0);
     if (score > bestScore) {
       bestScore = score;
       best = t;
@@ -223,8 +292,15 @@ export function separateLifts(days: DaySlot[], protectedDays: Set<TrainingDayNam
       const lift = day.sessions[moveIdx]!; // safe: moveIdx is a valid session index
       const target = pickNoLiftDay(days, i, lift, protectedDays);
       if (target === -1) break; // nowhere safe — leave it (best-effort)
+      const dest = days[target]!; // safe: pickNoLiftDay returns a valid index or -1
       day.sessions.splice(moveIdx, 1);
-      days[target]!.sessions.push(lift); // safe: pickNoLiftDay returns a valid index or -1
+      // Destination at the ceiling: trade, don't stack. `pickNoLiftDay` only
+      // returns a full day when this index exists.
+      if (dest.sessions.filter((x) => x.kind !== "rest").length >= MAX_WORKOUTS_PER_DAY) {
+        const back = giveBackIndex(days, i, target, isHardLegLift(lift));
+        if (back !== -1) day.sessions.push(dest.sessions.splice(back, 1)[0]!); // safe: back !== -1
+      }
+      dest.sessions.push(lift);
       idxs = liftIdxs(day);
     }
   }
