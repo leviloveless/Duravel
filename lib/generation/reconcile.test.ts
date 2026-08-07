@@ -151,9 +151,23 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
       [lift()],
       [{ kind: "race", priority: "C" }],
     );
-    reconcileWeekVolume(days, 15, 300, P, "intermediate", 7);
-    expect(weekMileage({ days })).toBe(15); // total sized to target, not the ~19 mi AI sum
-    expect(weekWorkMileage({ days })).toBeLessThan(15);
+    // The reconciler now RETURNS the mileage the week can actually deliver, and
+    // that is the week's real target. Here it is 16.2, not 15: with the interval
+    // and threshold runs at their minimums the long run alone cannot carry the
+    // rest without breaching the 90-minute session cap, so the week needs one
+    // more easy run — and since 2026-08-06 that run is a REAL one (45 min
+    // minimum) instead of the 0.3-mile stub the old code emitted.
+    //
+    // What must NEVER happen is landing UNDER: that is unplaced mileage, and it
+    // is exactly the regression this assertion caught when the stub was simply
+    // dropped (the week came in 2.9 mi short).
+    const effective = reconcileWeekVolume(days, 15, 300, P, "intermediate", 7);
+    expect(weekMileage({ days })).toBeGreaterThanOrEqual(15);
+    expect(weekMileage({ days })).toBe(effective); // the stated target IS what is delivered
+    expect(effective - 15).toBeLessThan(5); // and it overshoots by at most one session
+    expect(weekWorkMileage({ days })).toBeLessThan(effective);
+    // Every run it ships is a real session — no 3-minute filler runs.
+    for (const r of runsOf(days)) expect(sessionTiming(r).total).toBeGreaterThanOrEqual(44);
     expect(weekCardioMinutes({ days })).toBe(300);
     expect(maxRunTotal(days)).toBeLessThanOrEqual(90);
     // Race day still holds ONLY the race — no easy run or cardio block stacked on it.
@@ -599,18 +613,76 @@ describe("filler is planned before it is written", () => {
       [hybrid()],
     );
     const before = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
-    // 14, not 12.5. This week holds a 6-mile long run plus a hybrid that is now
-    // ~6.4 miles on its feet (station runs + the warm-up/cooldown jog counted
-    // since 2026-08-06), so at 12.5 there is genuinely no room left for the
-    // interval and threshold runs and `sizeRuns` CORRECTLY consolidates one
-    // away. That is the consolidation path, which has its own coverage — this
-    // test is about leaving a week alone when there IS room for it, so the
-    // target is set where that is true.
-    reconcileWeekVolume(days, 14, 300, P, "intermediate", 1, place, CAP);
+    // 21, and this number has now moved TWICE — 12.5 → 14 → 21 — each time
+    // because the week's accounting got MORE HONEST, never to make a red test
+    // green. What this week costs at its irreducible minimums:
+    //
+    //   hybrid                        ~6.4 mi  (station runs + the warm-up jog)
+    //   interval  ~2.5 work + 2.3 oh   ~4.8 mi
+    //   threshold ~3.0 work + 1.9 oh   ~4.9 mi
+    //   long      ~3.0 work + 1.0 oh   ~4.0 mi
+    //                                 ────────
+    //                                 ~20.1 mi
+    //
+    // At 14 there is genuinely no room for all three runs, and `sizeRuns`
+    // CORRECTLY drops one. This test's intent is "leave a week alone when there
+    // IS room", so its target belongs above what the week costs. The companion
+    // test below pins the other side of that boundary, so neither can drift.
+    reconcileWeekVolume(days, 21, 300, P, "intermediate", 1, place, CAP);
     const after = days.flatMap((d) => d.sessions).filter((s) => s.kind !== "cardio").length;
     expect(after).toBe(before);
     expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length).toBe(3);
     expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "hybrid").length).toBe(1);
+  });
+
+  it("DOES drop a quality run when the week cannot pay for its minimums", () => {
+    // The other side of that boundary, and the fix for the 2026-08-06 finding.
+    //
+    // A low-mileage week used to KEEP all three runs and shrink the long run to
+    // 0.3 mi / 13 min trying to make the arithmetic work — then land over target
+    // anyway. 196 runs (8.3% of every run the engine wrote) shipped below their
+    // own documented minimum, in 29% of weeks.
+    //
+    // Overhead is why: sizing charged only WORK miles while the week is charged
+    // work + warm-up + cool-down + recovery, so consolidation under-fired.
+    const days = daysOf(
+      [],
+      [lift()],
+      [lift()],
+      [run("interval", 3, 45)],
+      [run("threshold", 3, 45), lift()],
+      [run("long", 6, 69)],
+      [hybrid()],
+    );
+    const before = runsOf(days).length;
+    reconcileWeekVolume(days, 12.5, 300, P, "intermediate", 1, place, CAP);
+    const after = runsOf(days);
+    expect(after.length).toBeLessThan(before);
+    // The long run is never the victim...
+    expect(after.some((s) => s.runType === "long")).toBe(true);
+    // ...and everything that survives is a REAL session.
+    for (const s of after) {
+      expect(sessionTiming(s).total, `${s.runType} is not a real session`).toBeGreaterThanOrEqual(
+        44,
+      );
+    }
+    // Lifts and hybrids are never touched by run consolidation.
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length).toBe(3);
+    expect(days.flatMap((d) => d.sessions).filter((s) => s.kind === "hybrid").length).toBe(1);
+  });
+
+  it("returns the mileage it can actually deliver, and never lowers the target", () => {
+    // The contract `assembleProgram` relies on: the returned number is adopted as
+    // the week's target so the plan and the calendar cannot disagree. It rises
+    // only where the target was below the smallest real week; it must NEVER fall,
+    // or a week coming in short would silently restate itself as correct.
+    const roomy = daysOf([run("easy")], [run("long")], [lift()]);
+    expect(reconcileWeekVolume(roomy, 20, 320, P, "intermediate")).toBe(20);
+
+    const tiny = daysOf([run("interval", 3, 45)], [run("long", 6, 69)], [hybrid()]);
+    const effective = reconcileWeekVolume(tiny, 6, 200, P, "beginner");
+    expect(effective).toBeGreaterThan(6);
+    expect(effective).toBe(weekMileage({ days: tiny }));
   });
 
   it("is deterministic — same week in, same layout out", () => {

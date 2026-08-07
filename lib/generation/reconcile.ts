@@ -106,8 +106,19 @@ interface RunEntry {
   type: RunType;
   paceMin: number; // minutes per mile
   overhead: number; // warmup + cooldown minutes
-  min: number; // min miles
-  max: number; // max miles
+  /**
+   * Those overhead minutes as MILES, at easy pace — the distance this run costs
+   * the week before its main set runs a single step.
+   *
+   * It is not a rounding term. A beginner's interval session carries 25 minutes
+   * of warm-up, cool-down and between-rep jogging: 2.3 miles at 10:33/mi, on a
+   * week whose whole target might be 10.5. Sizing against work-only minimums
+   * while the week is CHARGED work + overhead is what let three quality runs be
+   * kept in a week that could never pay for them.
+   */
+  overheadMi: number;
+  min: number; // min WORK miles
+  max: number; // max WORK miles
   miles: number;
 }
 
@@ -277,8 +288,8 @@ export function reconcileWeekVolume(
   weekNumber = 1,
   place: FillerPlacement = { preferDays: WEEKEND_DAYS },
   caps: TrainingCaps = DEFAULT_CAPS,
-): void {
-  if (!paces) return; // no 5K → can't apply formula paces
+): number {
+  if (!paces) return targetMileage; // no 5K → can't apply formula paces
   // A and B race weeks are taper/event weeks: their reduced sessions are set by
   // the taper protocol, so leave them exactly as built. A C race "trains through"
   // a normal full week (spec §6), so it MUST still be reconciled to the engine's
@@ -318,7 +329,7 @@ export function reconcileWeekVolume(
     // itself against every other week in the program (the same class of gap as the
     // interval/threshold text drift).
     stampRunOverhead(days, effectivePace("easy", paces) / 60, runningExp, caps.session);
-    return;
+    return round1(weekMileage({ days }));
   }
 
   // Size the prescription to what these days can actually hold. Anything above
@@ -365,6 +376,7 @@ export function reconcileWeekVolume(
         type: s.runType,
         paceMin,
         overhead,
+        overheadMi: overhead / easyPaceMin,
         min: minMiles(s.runType, paceMin, overhead),
         max: maxMiles(paceMin, overhead, caps.session, s.runType, runningExp),
         miles: 0,
@@ -376,7 +388,9 @@ export function reconcileWeekVolume(
   const added: Session[] = [];
 
   if (runs.length === 0) {
-    if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp, caps.session));
+    // The week prescribes mileage but the AI planned no run at all — emit one,
+    // and a real one, even if the target is smaller than a session.
+    if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp, caps.session, true));
   } else {
     sizeRuns(runs, RM, days, paces, runningExp, added, caps.session);
     enforceLongRun(runs, weekNumber, caps.session);
@@ -411,14 +425,23 @@ export function reconcileWeekVolume(
     for (const d of days) for (const s of d.sessions) if (s.kind === "run") snapRefs.push(s);
     if (snapRefs.length > 0) {
       const anchor = snapRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
-      setRunMiles(
-        anchor,
-        anchor.distanceMiles + residual,
-        effectivePace(anchor.runType, paces) / 60,
-        caps.session,
-        runningExp,
-      );
-      stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
+      const anchorPace = effectivePace(anchor.runType, paces) / 60;
+      // NEVER below the run's own minimum. This snap is a rounding cleanup — a
+      // tenth of a mile the proportional shrink could not place — but it took
+      // whatever `residual` said, and on a week whose target is smaller than one
+      // real session that is a large NEGATIVE number. It clamped at
+      // MIN_RUN_MILES (0.3) and produced the 13-minute "long run" that a 0–5 h
+      // beginner was shipped in weeks 13 and 14.
+      //
+      // When the residual will not fit, the week stays honestly over its stated
+      // mileage. That is a number the athlete can read; a 13-minute long run is
+      // not a long run.
+      const floor = minMiles(anchor.runType, anchorPace, runOverhead(anchor.runType));
+      const want = Math.max(floor, anchor.distanceMiles + residual);
+      if (Math.abs(want - anchor.distanceMiles) >= 0.05) {
+        setRunMiles(anchor, want, anchorPace, caps.session, runningExp);
+        stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
+      }
     }
   }
 
@@ -439,6 +462,20 @@ export function reconcileWeekVolume(
       day.sessions.push(makeCardio(minutes));
     }
   }
+
+  // THE MILEAGE THIS WEEK ACTUALLY DELIVERS.
+  //
+  // Almost always identical to `targetMileage`. It differs only where the target
+  // is smaller than the smallest REAL week the athlete can be given — a 0–5 h
+  // beginner whose hybrid alone is 7.8 of a 7.9-mile target, with a long run
+  // still to place. There is nothing left to shrink that would not turn a session
+  // into a non-session, so the week lands over, and the PRESCRIPTION should say so
+  // rather than the plan and the calendar disagreeing (Levi, 2026-08-06).
+  //
+  // ⚠️ Never lowered — only raised. A week that comes in UNDER its target is a bug
+  // and must stay visible as one; the "generous targets" sweep asserts exactness
+  // wherever the week has room, so this cannot quietly absorb a future regression.
+  return Math.max(targetMileage, round1(weekMileage({ days })));
 }
 
 /** One filler block the plan wants: how many minutes, on which day. */
@@ -701,7 +738,20 @@ function sizeRuns(
 ): void {
   // Consolidate: while the minimums don't fit, drop the most-droppable run
   // (never the long run) and remove it from its day.
-  while (runs.length > 1 && RM < runs.reduce((a, r) => a + r.min, 0)) {
+  //
+  // ⚠️ The comparison must be against TOTAL minimums — work PLUS the run's own
+  // warm-up/cool-down/recovery distance. `RM` is a TOTAL-mile budget (it is
+  // `targetMileage` less the hybrid's total, overhead included), so testing it
+  // against work-only minimums compared two different things and consolidation
+  // under-fired badly.
+  //
+  // Measured 2026-08-06 across 675 non-race weeks: a beginner 0–5 h week kept
+  // interval + threshold + long, whose FIXED overhead alone was 6.6 miles of a
+  // 10.5-mile target. Nothing could shrink far enough, so the convergence loop
+  // drove the long run to 0.3 mi / 13 min — 196 runs (8.3%) shipped below their
+  // own documented minimum, and 99 weeks still landed over target anyway.
+  const minTotal = (r: RunEntry) => r.min + r.overheadMi;
+  while (runs.length > 1 && RM < runs.reduce((a, r) => a + minTotal(r), 0)) {
     // Drop the most-droppable run (easy first; never the long run).
     const victimIdx = runs.reduce(
       (best, r, i) =>
@@ -716,12 +766,21 @@ function sizeRuns(
     if (j !== -1) victim.day.sessions.splice(j, 1);
   }
 
-  const sumMin = runs.reduce((a, r) => a + r.min, 0);
+  const sumMin = runs.reduce((a, r) => a + minTotal(r), 0);
   if (RM <= sumMin) {
-    // Even minimums overshoot (tiny week). Scale everything down proportionally
-    // to the minimums so mileage stays exact; long run keeps the remainder.
-    const scale = sumMin > 0 ? RM / sumMin : 0;
-    for (const r of runs) r.miles = Math.max(MIN_RUN_MILES, r.min * scale);
+    // Nothing droppable is left (the long run is never a victim) and the week
+    // still cannot pay for what remains. HOLD THE MINIMUMS.
+    //
+    // This used to scale below them — `Math.max(MIN_RUN_MILES, r.min * scale)`,
+    // with `MIN_RUN_MILES` 0.3 — which is precisely how a "long run" of 0.3 mi /
+    // 13 min reached the athlete's calendar. Keeping the week's arithmetic exact
+    // was allowed to override the session being a real session, and it bought
+    // nothing: the week landed over target regardless, because the overhead it
+    // was ignoring does not shrink.
+    //
+    // A week that lands honestly over its stated mileage is a number the athlete
+    // can read. A 13-minute long run is not a long run.
+    for (const r of runs) r.miles = r.min;
   } else {
     let remainder = RM - sumMin;
     const wsum = runs.reduce((a, r) => a + TYPE_WEIGHT[r.type], 0) || runs.length;
@@ -743,7 +802,12 @@ function sizeRuns(
         r.miles += take;
         overflow -= take;
       }
-      if (overflow > 0.05) added.push(...buildEasyRuns(overflow, paces, runningExp, sessionCap));
+      // Every existing run is already at its cap, so these miles have nowhere
+      // else to go — dropping them silently loses up to 3 miles of a week's
+      // prescription. Emit a run, and `atLeastOne` makes it a REAL one (45 min
+      // minimum) rather than the 0.3-mile stub this used to produce.
+      if (overflow > 0.05)
+        added.push(...buildEasyRuns(overflow, paces, runningExp, sessionCap, true));
     }
   }
 }
@@ -798,19 +862,36 @@ function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: Experie
 }
 
 /** Build easy runs to carry `miles`, each within the easy min/max band. */
+/**
+ * `atLeastOne` — emit a run even when the leftover is too small to be one.
+ *
+ * Only the "this week has no runs at all" caller sets it. For OVERFLOW, a
+ * leftover below a real session's minimum must NOT become a session: it used to
+ * floor at `MIN_RUN_MILES` (0.3) and put "Easy run — 3 min — 0.3 miles" on the
+ * calendar. The convergence loop absorbs those miles into the runs that already
+ * exist instead. This mirrors the Zone 1–2 rule that a sub-15-minute gap is
+ * DROPPED rather than shipped as a block.
+ */
 function buildEasyRuns(
   miles: number,
   paces: RunPaces,
   runningExp: ExperienceLevel,
   sessionCap: number,
+  atLeastOne = false,
 ): RunSession[] {
   const paceMin = effectivePace("easy", paces) / 60;
   const overhead = runOverhead("easy");
   const max = maxMiles(paceMin, overhead, sessionCap, "easy", runningExp);
-  const n = Math.max(1, Math.ceil(miles / max));
+  const min = minMiles("easy", paceMin, overhead);
+  if (miles < min) {
+    if (!atLeastOne) return [];
+    miles = min; // a week that runs at all runs a REAL session
+  }
+  // Never split into slices that would each fall under the minimum.
+  const n = Math.min(Math.max(1, Math.ceil(miles / max)), Math.max(1, Math.floor(miles / min)));
   const out: RunSession[] = [];
   for (let i = 0; i < n; i++) {
-    const d = Math.max(MIN_RUN_MILES, round1(miles / n));
+    const d = Math.max(min, round1(miles / n));
     const work = Math.min(sessionCap - overhead, Math.max(1, Math.round(d * paceMin)));
     out.push({
       kind: "run",

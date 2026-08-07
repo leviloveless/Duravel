@@ -354,7 +354,13 @@ function buildWeek(
   // the reconciler refused to put anything there — guaranteeing it stayed empty
   // while other days doubled up. Only a real preference should block filler.
   const restDayKeys = restDays ?? [];
-  reconcileWeekVolume(
+  // The reconciler hands back the mileage the week can ACTUALLY deliver, and we
+  // adopt it as this week's target. It only ever rises, and only where the
+  // engine's target was smaller than the smallest real training week for this
+  // athlete (the low hours bands). Without this the skeleton keeps a number the
+  // plan was never able to honour, and the weekly ADAPTATION then reads the
+  // athlete as overshooting a target they were never actually given.
+  skel.targetMileage = reconcileWeekVolume(
     days,
     skel.targetMileage,
     skel.targetCardioMinutes,
