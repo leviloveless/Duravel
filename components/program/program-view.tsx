@@ -8,6 +8,7 @@ import WeekCard from "./week-card";
 import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
 import AdaptReview from "./adapt-review";
 import SyncSuggestions from "./sync-suggestions";
+import SyncAllButton from "./sync-all-button";
 import RegenerateButton from "@/app/program/[id]/regenerate-button";
 import ResultCardLauncher from "./result-card-launcher";
 
@@ -55,6 +56,7 @@ export default function ProgramView({
   activity,
   suggestions,
   linking,
+  sync,
   lock,
   hideSummary,
   stravaWriteEnabled,
@@ -70,6 +72,10 @@ export default function ProgramView({
     linkableActivities: SyncActivitySummary[];
     linkedBySession: Record<string, SyncActivitySummary>;
   };
+  /** Connected-source state for the header's "Sync workouts" control. Read on
+   *  the server (the connections table is service-role only) and passed down.
+   *  Omitted in contexts with no signed-in athlete — the control hides. */
+  sync?: { connectedCount: number; lastSync: string | null };
   /** Paywall preview (#18): set when weeks are hidden behind a subscription. */
   lock?: { lockedWeeks: number };
   /** Whether the Strava activity-write path is enabled (STRAVA_WRITE_ENABLED).
@@ -116,6 +122,9 @@ export default function ProgramView({
               Edit inputs
             </Link>
             <RegenerateButton programId={meta.programId} />
+            {sync && (
+              <SyncAllButton connectedCount={sync.connectedCount} lastSync={sync.lastSync} />
+            )}
             <ResultCardLauncher
               initial={{
                 type: "program",

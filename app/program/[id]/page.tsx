@@ -43,6 +43,7 @@ import GuardrailCard from "@/components/program/guardrail-card";
 import { analyzeGuardrails } from "@/lib/engine/guardrails";
 import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import { getProgramSyncData } from "@/lib/wearables/suggest-data";
+import { getConnectionStatuses } from "@/lib/wearables/connections";
 import { getEntitlement } from "@/lib/subscription";
 import { gateProgramWeeks } from "@/lib/program-access";
 import ProgramGlossary from "@/components/program/program-glossary";
@@ -255,16 +256,35 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   if (status === "ready" && data) {
     // Phase 2: logs + adaptation state for the review banner, badges and actuals.
     // Sync-Linking Increment 3: same-day suggestions for unlinked synced activities.
-    const [logRows, adaptations, readinessRows, syncData, dailyMetrics, entitlement, extraRows] =
-      await Promise.all([
-        getProgramLogs(program.id),
-        getProgramAdaptations(program.id),
-        getProgramReadiness(program.id),
-        getProgramSyncData(program.id),
-        getDailyMetrics(),
-        getEntitlement(),
-        getProgramExtras(program.id),
-      ]);
+    const [
+      logRows,
+      adaptations,
+      readinessRows,
+      syncData,
+      dailyMetrics,
+      entitlement,
+      extraRows,
+      connectionStatuses,
+    ] = await Promise.all([
+      getProgramLogs(program.id),
+      getProgramAdaptations(program.id),
+      getProgramReadiness(program.id),
+      getProgramSyncData(program.id),
+      getDailyMetrics(),
+      getEntitlement(),
+      getProgramExtras(program.id),
+      getConnectionStatuses(user.id),
+    ]);
+
+    // Header "Sync workouts" control: how many API sources are connected, and
+    // the most recent sync across all of them. The connections table is
+    // service-role only, so this has to be read here and passed down.
+    const connected = connectionStatuses.filter((s) => s.connected);
+    const lastSyncAt = connected
+      .map((s) => s.last_sync_at)
+      .filter((v): v is string => !!v)
+      .sort()
+      .at(-1);
 
     // #18: unsubscribed users (trial ended, no live sub) preview only the first
     // couple weeks. Truncate server-side so locked weeks never reach the client.
@@ -412,6 +432,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     activity={activity}
                     stravaWriteEnabled={envFlag(env.STRAVA_WRITE_ENABLED)}
                     suggestions={syncData.suggestions}
+                    sync={{ connectedCount: connected.length, lastSync: lastSyncAt ?? null }}
                     linking={{
                       linkableActivities: syncData.linkableActivities,
                       linkedBySession: syncData.linkedBySession,
