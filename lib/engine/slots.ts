@@ -255,7 +255,11 @@ function runFillers(phase: PhaseName, pos?: PhasePosition): RunType[] {
 /** Build the ordered list of run slots for a week (always exactly one long run).
  *  `emphasis` (Review #1) reorders the filler pool so, at low run counts, the
  *  athlete's needed quality leads: "aerobic" fronts easy running, "threshold"
- *  fronts tempo/threshold/interval. "none" leaves the default order untouched. */
+ *  fronts tempo/threshold/interval. "none" leaves the default order untouched.
+ *
+ *  `hybridCount` is how many hybrid sessions the same week carries. Since
+ *  2026-08-13 a hybrid is 8 km of running at race pace, so a week with one IS
+ *  already doing its threshold work — see `hybridCount` below. */
 export function buildRunSlots(
   phase: PhaseName,
   count: number,
@@ -263,6 +267,7 @@ export function buildRunSlots(
   emphasis: RunEmphasis = "none",
   character: "maintenance" | "full" = "full",
   guaranteeQuality = false,
+  hybridCount = 0,
 ): RunSlot[] {
   if (count <= 0) return [];
   // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
@@ -274,14 +279,45 @@ export function buildRunSlots(
       isLong: false,
     }));
   }
+
+  /**
+   * THE HYBRID IS THE WEEK'S THRESHOLD SESSION (Levi, 2026-08-13).
+   *
+   * Since hybrids became race-structure sessions they carry 8 × 1000 m at race
+   * pace — about 5 miles, every one of which counts toward the week's mileage.
+   * Scheduling a separate threshold run on top of that prescribes the same
+   * stimulus twice and, because hybrid mileage counts AGAINST the week's target,
+   * pays for it by shrinking the easy running. A 192-week sweep found 109 of 168
+   * hybrid weeks doing exactly that: 39% of all mileage run at threshold or
+   * harder, against just 8% easy.
+   *
+   * So a hybrid CREDITS the threshold anchor — and only the threshold anchor.
+   * The interval survives, because VO2 work is a stimulus the hybrid's
+   * steady race-pace running does not provide at all. Substituting like for
+   * like; not cutting quality wholesale.
+   *
+   * Restricted to `guaranteeQuality` (i.e. athletes on an explicit weekly-hours
+   * band), which is the same gate the seeded anchors use and leaves every legacy
+   * no-band program — including the golden HYROX oracle — byte-identical.
+   */
+  const hybridCoversThreshold = guaranteeQuality && hybridCount > 0;
+
   const types: RunType[] = ["long"]; // long run anchors every week
   // Research: threshold + VO2 are weekly anchors at EVERY budget and phase
   // (not phase-gated fillers). Seed them before the filler pool when asked.
   if (guaranteeQuality) {
-    if (count >= 3) types.push("threshold", "interval");
-    else if (count === 2) types.push("interval");
+    if (count >= 3) {
+      if (!hybridCoversThreshold) types.push("threshold");
+      types.push("interval");
+    } else if (count === 2) types.push("interval");
   }
-  const fillers = applyRunEmphasis(runFillers(phase, pos), emphasis);
+  // With the threshold box already ticked, the leftover run slots should be
+  // aerobic — otherwise the filler pool (which offers tempo/interval in build
+  // and peak) quietly reintroduces the very session we just credited. An
+  // explicit bias still wins: preferences beat defaults, by design.
+  const effectiveEmphasis: RunEmphasis =
+    hybridCoversThreshold && emphasis === "none" ? "aerobic" : emphasis;
+  const fillers = applyRunEmphasis(runFillers(phase, pos), effectiveEmphasis);
   // safe: runFillers always returns a non-empty array, so i % fillers.length is in-bounds
   for (let i = 0; types.length < count; i++) types.push(fillers[i % fillers.length]!);
 
@@ -775,6 +811,8 @@ export function assignDays(
       bias?.runEmphasis ?? "none",
       cappedCounts.runCharacter ?? "full",
       cappedCounts.guaranteeQuality ?? false,
+      // The week's hybrids are planned above; a hybrid credits the threshold run.
+      plan.hybrids,
     );
     const lifts = buildLiftSlots(plan.lifts, cappedCounts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.

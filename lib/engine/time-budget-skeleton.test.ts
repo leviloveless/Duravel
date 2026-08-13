@@ -1,3 +1,24 @@
+/**
+ * Band-driven skeleton snapshots.
+ *
+ * ⚠️ BASELINE MOVED 2026-08-13, deliberately. The HYROX and DEKA snapshots
+ * move; the triathlon ones do NOT — which is the tell that the change landed
+ * where it was aimed, since only station-hybrid sports have hybrids.
+ *
+ * A hybrid is now 8 km of running at race pace, so it IS the week's threshold
+ * session. Scheduling a separate threshold run on top prescribed the same
+ * stimulus twice and paid for it out of the easy running (hybrid mileage counts
+ * against the week's target). Every changed week reads the same way:
+ *
+ *     [long, threshold, interval]  →  [long, interval, easy]
+ *
+ * The interval survives — VO2 work is a stimulus that steady race-pace running
+ * does not provide. Session COUNTS and day placement are unchanged; only the
+ * run TYPES moved. Across 192 audited weeks this took hard running from 39.1%
+ * of weekly mileage to 31.1%, and easy running from 8.2% back up to 19.6%.
+ *
+ * A diff here still means drift. Update these only with a reason written down.
+ */
 import { describe, it, expect } from "vitest";
 import type { EngineInput } from "./types";
 import type { WeeklyHoursBand } from "@/lib/schemas";

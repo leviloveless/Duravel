@@ -9,7 +9,12 @@ Duravel — a live hybrid-endurance training app (HYROX, DEKA, triathlon plans).
 - **Web:** Next.js + Supabase (auth/data) + Stripe (LIVE billing, $19.99/mo · $119.99/yr) + Resend.
 - **iOS:** a **Capacitor 6 native shell** rendering `https://app.duravel.app` in a `WKWebView`,
   plus native plugins (HealthKit, Push, In-App Purchase, Sign in with Apple, deep links).
-- **App lives under** `hyroxai/`. Repo root is `C:\dev\duravel`.
+  ⚠️ **`app.duravel.app` currently returns Vercel `404: DEPLOYMENT_NOT_FOUND`** (checked
+  2026-08-13) — the shell points at a hostname that resolves to no deployment. The live app
+  is served from `https://duravel.app`. Open blocker.
+- **The Next.js app is at the REPO ROOT** — `app/`, `lib/`, `components/`, `supabase/`.
+  Repo root is `C:\dev\duravel`. (This line used to say the app lived under `hyroxai/`; it
+  never has since the rename, and that sent several sessions looking in the wrong place.)
 
 ## Conventions
 
@@ -49,7 +54,7 @@ All providers feed one shared ingestion pipeline — see `docs/future-phases/20-
 
 The iOS app was generated across 7 parts. Everything is under `Apple\`, one folder per part,
 each with a `MANIFEST.md` (source-of-truth for where each file goes in the repo).
-**The parts are generated but NOT yet integrated into `hyroxai/ios`.**
+**The parts are generated but NOT yet integrated — there is no `ios/` directory in the repo yet.**
 
 **If you're picking up the iOS work, read `Apple\Duravel_iOS_HANDOFF.md` first** — it has the
 full mission, the integration plan (inventory → integrate → wire → build/TestFlight/submit),
