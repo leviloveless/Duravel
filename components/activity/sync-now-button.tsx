@@ -2,18 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-function fmtSync(iso: string | null): string {
-  if (!iso) return "never";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "never";
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+import { formatInstant } from "@/lib/timezone";
 
 /**
  * "Sync now" control on the Activity page — pulls recent Strava activity via the
@@ -21,7 +10,14 @@ function fmtSync(iso: string | null): string {
  * then refreshes the page so newly imported workouts (and their same-day
  * suggestions) appear. Shown only when Strava is connected.
  */
-export default function SyncNowButton({ lastSync }: { lastSync: string | null }) {
+export default function SyncNowButton({
+  lastSync,
+  timeZone,
+}: {
+  lastSync: string | null;
+  /** Athlete's IANA zone — see `formatInstant`; an ambient one desyncs hydration. */
+  timeZone: string | null;
+}) {
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -52,7 +48,9 @@ export default function SyncNowButton({ lastSync }: { lastSync: string | null })
       >
         {syncing ? "Syncing…" : "Sync now"}
       </button>
-      <span className="text-xs text-zinc-400">{msg ?? `Last sync: ${fmtSync(lastSync)}`}</span>
+      <span className="text-xs text-zinc-400">
+        {msg ?? `Last sync: ${formatInstant(lastSync, timeZone)}`}
+      </span>
     </div>
   );
 }

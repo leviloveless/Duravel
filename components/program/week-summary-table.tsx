@@ -24,6 +24,11 @@ const CARDIO_KINDS = new Set<Session["kind"]>(["run", "hybrid", "cardio", "swim"
 
 /** Compact week-start date label (e.g. "Jul 14") for the Dates column (Tasks addition #2). */
 function weekDateLabel(startDate: string, weekNumber: number): string {
+  // SAFE, do not "fix": the Date here comes from `parseISODate`, which builds
+  // LOCAL midnight from a YYYY-MM-DD string. Both the server and the browser
+  // therefore name the same calendar day, so there is no hydration mismatch.
+  // Routing this through `formatInstant` would shift it by a zone offset and
+  // CREATE the bug that helper exists to prevent (see lib/timezone.ts).
   return weekStartDate(startDate, weekNumber).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",

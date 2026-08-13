@@ -20,16 +20,19 @@ export default async function ConnectionsPage({
 
   const [statuses, sp] = await Promise.all([getConnectionStatuses(user.id), searchParams]);
 
+  // `timezone` rides along on the profile read the page already needs. Last-sync
+  // timestamps are INSTANTS: formatting them with the ambient zone renders one
+  // string on the server and another in the browser (React #418). See
+  // `formatInstant`.
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("strava_autopost, timezone")
+    .eq("id", user.id)
+    .maybeSingle();
+  const timeZone = (prof?.timezone as string | null) ?? null;
+
   const stravaWrite = envFlag(env.STRAVA_WRITE_ENABLED) && !!env.STRAVA_CLIENT_ID;
-  let stravaAutopost = true;
-  if (stravaWrite) {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("strava_autopost")
-      .eq("id", user.id)
-      .maybeSingle();
-    stravaAutopost = prof?.strava_autopost ?? true;
-  }
+  const stravaAutopost = stravaWrite ? (prof?.strava_autopost ?? true) : true;
 
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
@@ -46,6 +49,7 @@ export default async function ConnectionsPage({
         ouraConfigured={!!env.OURA_CLIENT_ID}
         flashConnected={sp.connected ?? null}
         flashError={sp.error ?? null}
+        timeZone={timeZone}
       />
 
       {stravaWrite && <StravaAutopostToggle initial={stravaAutopost} />}

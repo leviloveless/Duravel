@@ -1,5 +1,6 @@
 import { getFundraiser } from "@/lib/fundraiser-data";
 import { formatUsd, progressPct, remainingCents } from "@/lib/fundraiser";
+import { formatInstant } from "@/lib/timezone";
 
 /**
  * Public Race for Impact tracker (#19) — a shareable progress page for Levi's
@@ -66,7 +67,7 @@ export default async function ImpactPage() {
         )}
       </div>
 
-      <p className="text-xs text-zinc-400">Updated {new Date(f.updated_at).toLocaleDateString()}</p>
+      <p className="text-xs text-zinc-400">Updated {formatInstant(f.updated_at, null, { month: "short", day: "numeric", year: "numeric" }, "")}</p>
     </main>
   );
 }

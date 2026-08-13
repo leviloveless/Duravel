@@ -75,7 +75,7 @@ export default function ProgramView({
   /** Connected-source state for the header's "Sync workouts" control. Read on
    *  the server (the connections table is service-role only) and passed down.
    *  Omitted in contexts with no signed-in athlete — the control hides. */
-  sync?: { connectedCount: number; lastSync: string | null };
+  sync?: { connectedCount: number; lastSync: string | null; timeZone: string | null };
   /** Paywall preview (#18): set when weeks are hidden behind a subscription. */
   lock?: { lockedWeeks: number };
   /** Whether the Strava activity-write path is enabled (STRAVA_WRITE_ENABLED).
@@ -123,7 +123,11 @@ export default function ProgramView({
             </Link>
             <RegenerateButton programId={meta.programId} />
             {sync && (
-              <SyncAllButton connectedCount={sync.connectedCount} lastSync={sync.lastSync} />
+              <SyncAllButton
+                connectedCount={sync.connectedCount}
+                lastSync={sync.lastSync}
+                timeZone={sync.timeZone}
+              />
             )}
             <ResultCardLauncher
               initial={{

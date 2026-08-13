@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { summarizeSyncAll, type SyncAllResult } from "@/lib/wearables/sync-all";
+import { formatInstant } from "@/lib/timezone";
 
 /**
  * "Sync workouts" control in the program header — pulls from EVERY connected
@@ -18,11 +19,17 @@ import { summarizeSyncAll, type SyncAllResult } from "@/lib/wearables/sync-all";
 export default function SyncAllButton({
   connectedCount,
   lastSync,
+  timeZone,
 }: {
   /** How many wearable sources the athlete has connected. */
   connectedCount: number;
   /** Most recent last_sync_at across all connections, ISO or null. */
   lastSync: string | null;
+  /** The athlete's IANA zone (profiles.timezone). Passed in rather than read
+   *  from the browser so the server and client render the SAME string — an
+   *  ambient-timezone timestamp here is what threw React #418 on every load of
+   *  this page. See `formatInstant`. */
+  timeZone: string | null;
 }) {
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
@@ -78,20 +85,8 @@ export default function SyncAllButton({
         {syncing ? "Syncing…" : "Sync workouts"}
       </button>
       <span className={`text-xs ${failed ? "text-amber-700" : "text-zinc-400"}`}>
-        {msg ?? `Last sync: ${formatLastSync(lastSync)}`}
+        {msg ?? `Last sync: ${formatInstant(lastSync, timeZone)}`}
       </span>
     </div>
   );
-}
-
-function formatLastSync(iso: string | null): string {
-  if (!iso) return "never";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "never";
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }

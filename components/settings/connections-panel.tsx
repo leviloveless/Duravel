@@ -4,16 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WearableConnectionStatus, WearableProvider } from "@/lib/wearables/types";
 import { disconnectProvider } from "@/app/settings/connections/actions";
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "never";
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+import { formatInstant } from "@/lib/timezone";
 
 function errorLabel(code: string): string {
   switch (code) {
@@ -41,6 +32,7 @@ function ProviderCard({
   onSync,
   syncing,
   syncMsg,
+  timeZone,
 }: {
   provider: WearableProvider;
   name: string;
@@ -51,6 +43,8 @@ function ProviderCard({
   onSync: () => void;
   syncing: boolean;
   syncMsg: string | null;
+  /** Athlete's IANA zone — see `formatInstant`. */
+  timeZone: string | null;
 }) {
   const connected = !!status?.connected;
   return (
@@ -73,7 +67,7 @@ function ProviderCard({
         <p className="text-sm text-zinc-500">{configHint}</p>
       ) : connected ? (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-zinc-500">Last sync: {fmtDate(status?.last_sync_at ?? null)}</span>
+          <span className="text-xs text-zinc-500">Last sync: {formatInstant(status?.last_sync_at ?? null, timeZone)}</span>
           <button
             onClick={onSync}
             disabled={syncing}
@@ -110,12 +104,15 @@ export default function ConnectionsPanel({
   ouraConfigured,
   flashConnected,
   flashError,
+  timeZone,
 }: {
   statuses: WearableConnectionStatus[];
   stravaConfigured: boolean;
   ouraConfigured: boolean;
   flashConnected: string | null;
   flashError: string | null;
+  /** Athlete's IANA zone (profiles.timezone) — see `formatInstant`. */
+  timeZone: string | null;
 }) {
   const router = useRouter();
   const [syncingProvider, setSyncingProvider] = useState<WearableProvider | null>(null);
@@ -162,6 +159,7 @@ export default function ConnectionsPanel({
         onSync={() => sync("oura")}
         syncing={syncingProvider === "oura"}
         syncMsg={syncMsgs.oura ?? null}
+        timeZone={timeZone}
       />
 
       <ProviderCard
@@ -174,6 +172,7 @@ export default function ConnectionsPanel({
         onSync={() => sync("strava")}
         syncing={syncingProvider === "strava"}
         syncMsg={syncMsgs.strava ?? null}
+        timeZone={timeZone}
       />
 
       {/* Garmin — parked (Developer Program paused to new apps) */}

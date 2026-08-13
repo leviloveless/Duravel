@@ -64,3 +64,48 @@ export function localWallClockIso(date: Date, tz: string | null | undefined): st
   const hour = get("hour") === "24" ? "00" : get("hour");
   return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}:${get("second")}Z`;
 }
+
+/**
+ * Render an INSTANT for display, identically on the server and in the browser.
+ *
+ * ## Why this exists
+ *
+ * `new Date(iso).toLocaleString(undefined, { … hour, minute })` is a hydration
+ * bug. Both arguments are ambient: `undefined` picks the runtime's locale, and
+ * the absent `timeZone` picks the runtime's zone. The server renders in UTC and
+ * the browser in the athlete's zone, so the two produce different TEXT and React
+ * bails out of hydrating that subtree — **`Minified React error #418`**, which
+ * the program page threw on every single load until 2026-08-13.
+ *
+ * That is not a cosmetic warning. A hydration bailout makes React discard and
+ * re-render the subtree client-side, and on 2026-08-06 that is what made the
+ * link-suggestions banner appear to vanish and sent a whole session hunting a
+ * regression that did not exist.
+ *
+ * Both knobs are therefore pinned: a fixed `en-US` locale (matching the rest of
+ * this module) and an EXPLICIT time zone. Same input, same string, everywhere.
+ *
+ * ## Note on calendar dates
+ *
+ * This is for instants — a `last_sync_at`, a `created_at`. It is NOT needed for
+ * calendar labels built from a `YYYY-MM-DD` string: `components/program/format.ts`
+ * parses those with `new Date(y, m-1, d)`, i.e. LOCAL midnight, so both runtimes
+ * already name the same calendar day. Don't "fix" those by routing them here —
+ * that would shift them by a zone offset and introduce the bug this prevents.
+ */
+export function formatInstant(
+  iso: string | null | undefined,
+  tz: string | null | undefined,
+  opts: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  },
+  fallback = "never",
+): string {
+  if (!iso) return fallback;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: resolveTimeZone(tz) }).format(d);
+}

@@ -300,6 +300,11 @@ function fmt(
   date: Date,
   opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" },
 ): string {
+  // SAFE, do not "fix": the Date here comes from `parseISODate`, which builds
+  // LOCAL midnight from a YYYY-MM-DD string. Both the server and the browser
+  // therefore name the same calendar day, so there is no hydration mismatch.
+  // Routing this through `formatInstant` would shift it by a zone offset and
+  // CREATE the bug that helper exists to prevent (see lib/timezone.ts).
   return date.toLocaleDateString(undefined, opts);
 }
 

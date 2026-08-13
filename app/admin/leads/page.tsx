@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatInstant } from "@/lib/timezone";
 
 /**
  * Admin view of the science-paper email captures (science_leads). Gated by the
@@ -71,7 +72,12 @@ export default async function AdminLeadsPage() {
                   <td className="px-4 py-2 text-zinc-500">{r.sport ?? "—"}</td>
                   <td className="px-4 py-2 text-zinc-500">{r.source}</td>
                   <td className="px-4 py-2 text-right text-zinc-500">
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
+                    {formatInstant(
+                      r.created_at,
+                      null,
+                      { month: "short", day: "numeric", year: "numeric" },
+                      "",
+                    )}
                   </td>
                 </tr>
               ))

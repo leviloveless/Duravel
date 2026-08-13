@@ -11,12 +11,12 @@ import {
 } from "@/lib/wearables/format";
 import ActivityLinker from "@/components/activity/activity-linker";
 import SyncNowButton from "@/components/activity/sync-now-button";
+import { formatInstant } from "@/lib/timezone";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+/** An activity's start time is an INSTANT — format it in the athlete's zone, not
+ *  the runtime's, or the server and client disagree (React #418). */
+function formatDate(iso: string | null, tz: string | null): string {
+  return formatInstant(iso, tz, { weekday: "short", month: "short", day: "numeric" }, "—");
 }
 
 export default async function ActivityPage() {
@@ -25,6 +25,15 @@ export default async function ActivityPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // The athlete's zone for the "Last sync" stamp — an INSTANT, so it must not be
+  // formatted with the ambient zone (React #418). See `formatInstant`.
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("timezone")
+    .eq("id", user.id)
+    .maybeSingle();
+  const timeZone = (prof?.timezone as string | null) ?? null;
 
   const [activities, programs, statuses] = await Promise.all([
     getUserActivities(),
@@ -43,7 +52,7 @@ export default async function ActivityPage() {
             counts toward your training and feeds your weekly adjustments.
           </p>
         </div>
-        {strava?.connected && <SyncNowButton lastSync={strava.last_sync_at} />}
+        {strava?.connected && <SyncNowButton lastSync={strava.last_sync_at} timeZone={timeZone} />}
       </div>
 
       {activities.length === 0 ? (
@@ -70,7 +79,7 @@ export default async function ActivityPage() {
               <span className="flex flex-col">
                 <span className="font-medium">{formatActivityType(a.type)}</span>
                 <span className="text-xs text-zinc-500">
-                  {formatDate(a.start_time)} · {formatDurationS(a.duration_s)}
+                  {formatDate(a.start_time, timeZone)} · {formatDurationS(a.duration_s)}
                   {a.distance_m ? ` · ${formatDistanceMiles(a.distance_m)}` : ""}
                   {a.avg_hr ? ` · ${Math.round(a.avg_hr)} bpm` : ""} · {a.provider}
                 </span>

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getAdmin } from "@/lib/admin";
 import { listProgramsForAdmin, listWaitlist } from "@/lib/admin-data";
 import WaitlistControls from "@/components/admin/waitlist-controls";
+import { formatInstant } from "@/lib/timezone";
 
 /**
  * Admin console (#15/#16) — programs across all users + the coaching waitlist.
@@ -17,8 +18,10 @@ const STATUS_STYLE: Record<string, string> = {
   failed: "bg-red-100 text-red-800",
 };
 
+/** UTC deliberately: this is an admin view with no athlete zone in scope, and a
+ *  pinned zone is what keeps server and client hydration identical. */
 function fmt(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return formatInstant(iso, null, { month: "short", day: "numeric", year: "numeric" }, "");
 }
 
 export default async function AdminPage() {

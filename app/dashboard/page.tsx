@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getUserPrograms, type ProgramSummaryRow } from "@/lib/supabase/queries";
+import { formatInstant } from "@/lib/timezone";
 import { signOut } from "@/app/login/actions";
 import ThisWeekCard from "@/components/dashboard/this-week-card";
 import TrialBanner from "@/components/trial-banner";
@@ -21,8 +22,10 @@ const STATUS_STYLE: Record<ProgramSummaryRow["status"], string> = {
   failed: "bg-red-100 text-red-800",
 };
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+/** `created_at` is an INSTANT — pin the zone or the server and client render
+ *  different days near midnight (React #418). See `formatInstant`. */
+function formatDate(iso: string, tz: string | null): string {
+  return formatInstant(iso, tz, { month: "short", day: "numeric", year: "numeric" }, "");
 }
 
 function programTitle(p: ProgramSummaryRow): string {
@@ -80,7 +83,7 @@ export default async function DashboardPage() {
                 <span className="flex flex-col">
                   <span className="font-medium">{programTitle(p)}</span>
                   <span className="text-xs text-zinc-500">
-                    {p.duration_weeks} weeks · {TYPE_LABEL[p.program_type] ?? p.program_type} · created {formatDate(p.created_at)}
+                    {p.duration_weeks} weeks · {TYPE_LABEL[p.program_type] ?? p.program_type} · created {formatDate(p.created_at, profile?.timezone ?? null)}
                   </span>
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[p.status]}`}>

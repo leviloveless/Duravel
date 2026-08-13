@@ -265,6 +265,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       entitlement,
       extraRows,
       connectionStatuses,
+      profileRow,
     ] = await Promise.all([
       getProgramLogs(program.id),
       getProgramAdaptations(program.id),
@@ -274,11 +275,18 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       getEntitlement(),
       getProgramExtras(program.id),
       getConnectionStatuses(user.id),
+      supabase.from("profiles").select("timezone").eq("id", user.id).maybeSingle(),
     ]);
 
     // Header "Sync workouts" control: how many API sources are connected, and
     // the most recent sync across all of them. The connections table is
     // service-role only, so this has to be read here and passed down.
+    // The athlete's IANA zone for the "Last sync" stamp. That value is an
+    // INSTANT, and formatting an instant with the ambient zone renders one
+    // string on the server and another in the browser — which is what threw
+    // React #418 on every load of this page until 2026-08-13. See `formatInstant`.
+    const timeZone = ((profileRow?.data as { timezone?: string | null } | null)?.timezone ??
+      null) as string | null;
     const connected = connectionStatuses.filter((s) => s.connected);
     const lastSyncAt = connected
       .map((s) => s.last_sync_at)
@@ -408,7 +416,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             {sportLabel}
           </span>
         </div>
-        <CoachingNotesView notes={coachNotes} />
+        <CoachingNotesView notes={coachNotes} timeZone={timeZone} />
         <ProgramTabs
           tabs={
             [
@@ -432,7 +440,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     activity={activity}
                     stravaWriteEnabled={envFlag(env.STRAVA_WRITE_ENABLED)}
                     suggestions={syncData.suggestions}
-                    sync={{ connectedCount: connected.length, lastSync: lastSyncAt ?? null }}
+                    sync={{
+                      connectedCount: connected.length,
+                      lastSync: lastSyncAt ?? null,
+                      timeZone,
+                    }}
                     linking={{
                       linkableActivities: syncData.linkableActivities,
                       linkedBySession: syncData.linkedBySession,
