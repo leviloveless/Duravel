@@ -91,6 +91,24 @@ Every other mutation in this codebase goes through `usePostAction`, which ends i
 
 Re-verified after the fix: `tsc --noEmit` exit 0, `next build` exit 0, `vitest run` 78 files / 760 tests passing.
 
-### Not yet verified
+### Recalculate-survival — verified
 
-Recalculate-survival. Extras are stored outside `program_data.weeks`, so they should be untouched by a regeneration, but that has not been exercised against the live app — recalculating burns a generation and rewrites the program, so it was left as a deliberate check rather than run unasked. Worth doing once: add an extra, hit Recalculate, confirm it is still there.
+Three extras were placed to cover the distinct cases, then Recalculate was run:
+
+- Week 1 Monday, a **rest day** — 50 min, 3.1 mi, with a note.
+- Week 1 Tuesday, a day that **already had a session** (Full body lift) — 25 min, cardio.
+- Week 12 Wednesday, a rest day in a **different week** — 40 min.
+
+All three survived intact, notes included, on the correct days and in the correct weeks. Both week headers still showed the right extras line (`2 extra workouts · 75 min · 3.1 mi` and `1 extra workout · 40 min`), and the prescribed totals were unchanged in both weeks: week 1 at 300 / 12.5 / 180 / 480 and week 12 at 264 / 10.9 / 120 / 384.
+
+The regeneration was real, not a no-op — proof is in week 12's Tuesday lift, which went from five movements to four (Reverse Lunge, 3 × 18 at ~49% 1RM, is gone). The AI rewrote session content underneath the extras and they were untouched, which is exactly the guarantee storing them outside `program_data.weeks` was meant to buy.
+
+Test data removed afterwards; the program is back to its pre-test state.
+
+### Refresh fix confirmed live
+
+Commit `b1b95da4c86ad15653f138d59773167278c93f78`, deployment `dpl_CFz6VMJh7AA1vxt94NXe8536mcek`, READY and aliased to duravel.app.
+
+Re-tested on the same rest day: saving now updates both the day row and the week header immediately, with no reload. Removing does the same. Prescribed totals held at 300 / 12.5 / 180 / 480 throughout. Test entry removed — the program is clean.
+
+The feature is done and verified end to end. The only outstanding check is Recalculate-survival, described above.
