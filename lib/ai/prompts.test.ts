@@ -2,6 +2,22 @@
  * PROMPT ORACLE — freezes the HYROX system + user prompts so the sport-config
  * rewire of the prompt layer stays byte-identical for HYROX. Generated from the
  * pre-rewire builders; a diff means the prompt drifted.
+ *
+ * ⚠️ BASELINE MOVED 2026-08-12, deliberately. Three lines, all of them fixing a
+ * prompt that was lying to the model:
+ *
+ *  1. `liftType` gained "power". The engine plans `[full, power, full]` but the
+ *     enum offered only "upper|lower|full", so the model could not express a
+ *     power day and returned "lower" for it. Assembly enforced the planned type
+ *     ONLY when it was "power", so the third slot shipped as a LOWER-body day —
+ *     costing the week its light day and stranding upper-body patterns on one
+ *     session. Assembly now enforces every lift slot; the enum makes the model
+ *     agree rather than be corrected after the fact.
+ *  2. The matching rule names liftType alongside runType.
+ *  3. Hybrid content is engine-built now, so the model is told not to bother.
+ *
+ * A diff here still means drift. Update the snapshot only with a reason like
+ * these three written down alongside it.
  */
 import { describe, it, expect } from "vitest";
 import type { GenerationInput } from "@/lib/schemas";

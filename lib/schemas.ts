@@ -364,6 +364,11 @@ export const HybridSessionSchema = z.object({
   ),
   /** True for a Peak full-race simulation (Review #9). */
   simulation: z.boolean().optional(),
+  /** Engine-estimated WORK minutes, from the athlete's own threshold pace and the
+   *  per-station work rates (Levi, 2026-08-12). Stamped during assembly, where
+   *  paces are known. `sessionTiming` prefers it and falls back to the old
+   *  element-count proxy, so programs built before this read as they always did. */
+  workMin: z.number().positive().max(300).optional(),
   /** 1-2 sentence explanation of the hybrid session, including the compromised-
    *  running rationale. Attached deterministically during assembly. */
   description: z.string().optional(),

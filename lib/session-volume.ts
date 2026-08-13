@@ -27,9 +27,18 @@ export const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]
   hybrid_run: [8, 5],
 };
 
-/** Hybrid work-time bounds (spec addition: 25–60 min of work). */
+/**
+ * Hybrid work-time bounds.
+ *
+ * The ceiling was 60, which was the whole spec when a hybrid was 4–6 AI-chosen
+ * elements. A race-structure session is 8 runs + 8 stations, and 8 km at race
+ * pace alone is 40–56 minutes depending on the athlete — so 60 truncated the
+ * estimate for everyone and hid the real cost of the session. Raised to 110
+ * (Levi, 2026-08-12); the athlete's own `caps.session` is the real constraint
+ * and `fitHybridToCap` drops stations before this ever binds.
+ */
 export const HYBRID_MIN_WORK = 25;
-export const HYBRID_MAX_WORK = 60;
+export const HYBRID_MAX_WORK = 110;
 
 /**
  * Warmup / cooldown MINUTES on a hybrid session (Levi, 2026-08-06).
@@ -109,7 +118,11 @@ export function sessionTiming(session: Session): SessionTiming {
     };
   }
   if (session.kind === "hybrid") {
-    const work = clamp(Math.round(session.elements.length * 5), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
+    // `workMin` is the engine's pace-aware estimate, stamped during assembly.
+    // The element-count proxy behind it is what programs built before that rule
+    // still read on, so they render exactly as they always did.
+    const raw = session.workMin ?? session.elements.length * 5;
+    const work = clamp(Math.round(raw), HYBRID_MIN_WORK, HYBRID_MAX_WORK);
     return {
       warmup: HYBRID_WARMUP,
       work,

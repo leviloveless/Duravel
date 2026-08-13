@@ -30,11 +30,17 @@ import type {
   TrainingDayName,
   WeekSkeleton,
 } from "@/lib/engine/types";
-import type { TrainingCaps } from "@/lib/engine/caps";
+import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
-import { weekCardioMinutes, weekMileage } from "@/lib/session-volume";
+import {
+  weekCardioMinutes,
+  weekMileage,
+  HYBRID_WARMUP,
+  HYBRID_COOLDOWN,
+  HYBRID_MIN_WORK,
+} from "@/lib/session-volume";
 import { computePaces, type RaceInput, type RunPaces } from "@/lib/engine/paces";
 import {
   movementScheme,
@@ -53,6 +59,10 @@ import {
 } from "@/lib/engine/strength";
 import {
   buildSimulationElements,
+  buildHybridElements,
+  estimateHybridWorkMinutes,
+  fitHybridToCap,
+  hybridStationScale,
   stationPrescription,
   HYROX_CATALOG,
   type Division,
@@ -150,10 +160,18 @@ export function daySessions(
     if (idx === -1) idx = pool.findIndex((s) => s.kind === slot.kind);
     if (idx !== -1) {
       const matched = pool.splice(idx, 1)[0]!; // safe: findIndex returned a valid index
-      // The engine owns liftType periodization; enforce the planned "power" day
-      // even when the AI returned a generic lift (matching here is by kind only).
-      if (slot.kind === "lift" && slot.liftType === "power" && matched.kind === "lift") {
-        matched.liftType = "power";
+      // The engine owns liftType periodization — ALL of it, not just the power
+      // day (Levi, 2026-08-12). This used to enforce only "power", so a week
+      // planned [full, power, full] shipped as [full, power, lower]: the prompt
+      // offers the model "upper|lower|full" and nothing restored the third
+      // slot's "full". That silently cost the week its LIGHT day
+      // (`lightSessions` is every full-body session after the first, so one
+      // `full` means none), stranded upper-body patterns on a single day because
+      // `acceptsPattern("lower", …)` refuses them, and turned the two-fulls
+      // spacing guard into a no-op. Runs have been overridden unconditionally
+      // for exactly this reason; lifts now match.
+      if (slot.kind === "lift" && matched.kind === "lift" && matched.liftType !== slot.liftType) {
+        matched.liftType = slot.liftType;
       }
       // The engine owns RUN TYPE too — including which day holds the long run.
       // Matching is by kind, so without this an AI that returned an "easy" run on
@@ -311,6 +329,92 @@ function replaceSimulations(
   }
 }
 
+/**
+ * Rebuild every REGULAR (non-simulation) hybrid as the race's own structure at a
+ * trainable dose: all 8 stations in race order at `HYBRID_STATION_SCALE` × the
+ * phase factor, each preceded by a FULL race-distance run (Levi, 2026-08-12).
+ *
+ * Why deterministic rather than prompted: the AI picked a subset of stations, so
+ * no session covered all 8 events and the volume it invented had no relationship
+ * to race spec. `applyStationProgression` already rewrote the loads afterwards —
+ * the model was only really choosing WHICH stations, and that is a rule, not a
+ * judgement call.
+ *
+ * The session is sized to the athlete's own cap: `fitHybridToCap` drops stations
+ * (rotating which, by week, so nothing is never trained) when 8 km of running
+ * plus eight stations will not fit in `caps.session`. `workMin` is stamped from
+ * the athlete's threshold pace so the week's time budget bills what the session
+ * actually costs.
+ */
+function replaceHybrids(
+  days: ProgramDay[],
+  skel: WeekSkeleton,
+  division: Division,
+  sex: StationSex,
+  catalog: StationCatalog,
+  paces: RunPaces | null,
+  caps: TrainingCaps | undefined,
+  emphasis: readonly string[],
+): void {
+  const thresholdPace = paces?.threshold ?? null;
+  const capWork = Math.max(
+    HYBRID_MIN_WORK,
+    (caps?.session ?? DEFAULT_CAPS.session) - HYBRID_WARMUP - HYBRID_COOLDOWN,
+  );
+
+  for (const day of days) {
+    for (let i = 0; i < day.sessions.length; i++) {
+      const session = day.sessions[i]!;
+      if (session.kind !== "hybrid") continue;
+
+      // A race simulation keeps its elements — it IS the race — but it gets the
+      // same honest clock as everything else. It never had one: `elements.length
+      // * 5` billed a full 8-station simulation at 80 minutes and the old 60-min
+      // clamp then quietly charged the week 60. The session always cost what it
+      // costs; only the accounting changes here.
+      if (session.simulation) {
+        day.sessions[i] = {
+          ...session,
+          workMin: estimateHybridWorkMinutes(
+            session.elements,
+            thresholdPace,
+            skel.phase,
+            division,
+            sex,
+            catalog,
+            true,
+            emphasis,
+          ),
+        };
+        continue;
+      }
+
+      const ids = fitHybridToCap(
+        skel.weekNumber,
+        capWork,
+        thresholdPace,
+        skel.phase,
+        division,
+        sex,
+        catalog,
+        emphasis,
+      );
+      const elements = buildHybridElements(skel.phase, division, sex, catalog, emphasis, ids);
+      const workMin = estimateHybridWorkMinutes(
+        elements,
+        thresholdPace,
+        skel.phase,
+        division,
+        sex,
+        catalog,
+        false,
+        emphasis,
+      );
+      day.sessions[i] = { ...session, elements, workMin };
+    }
+  }
+}
+
 function buildWeek(
   skel: WeekSkeleton,
   aiWeek: AiWeek | undefined,
@@ -322,6 +426,7 @@ function buildWeek(
   catalog: StationCatalog = HYROX_CATALOG,
   restDays?: TrainingDayName[],
   caps?: TrainingCaps,
+  emphasis: readonly string[] = [],
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -336,6 +441,14 @@ function buildWeek(
   // full race simulation BEFORE reconciliation, so its runs/stations are counted
   // in the week's mileage + cardio totals.
   replaceSimulations(days, skel, division, sex, catalog);
+
+  // Every REGULAR hybrid becomes the race's own structure at a trainable dose:
+  // all 8 stations in race order at half volume, each preceded by a full 1 km
+  // run (Levi, 2026-08-12). Runs FIRST-CLASS here — this must land before
+  // reconciliation, exactly like the simulation above, or the ~5 miles inside
+  // each hybrid never reach the week's mileage total and the runs are sized as
+  // if the session did not exist.
+  replaceHybrids(days, skel, division, sex, catalog, paces, caps, emphasis);
 
   // Rewrite the AI-filled run volume so the week's running mileage and cardio
   // time equal the engine's prescribed targets exactly: running is sized to the
@@ -612,6 +725,7 @@ export function applyStationProgression(
   division: Division = "open",
   sex: StationSex = "male",
   catalog: StationCatalog = HYROX_CATALOG,
+  emphasis: readonly string[] = [],
 ): void {
   for (const day of week.days) {
     for (const session of day.sessions) {
@@ -619,7 +733,13 @@ export function applyStationProgression(
       for (const el of session.elements) {
         const isRun = /run/i.test(el.exercise) || /run/i.test(el.prescription);
         if (isRun) continue;
-        const spec = stationPrescription(el.exercise, week.phase, division, sex, catalog);
+        // A regular hybrid trains at HALF race volume; only a simulation is full
+        // spec. The scale comes from `hybridStationScale`, the same function
+        // `buildHybridElements` sized the session with — so this pass re-derives
+        // the identical number instead of halving an already-halved station.
+        const id = catalog.matcher(el.exercise);
+        const scale = id ? hybridStationScale(id, session.simulation === true, emphasis) : 1;
+        const spec = stationPrescription(el.exercise, week.phase, division, sex, catalog, scale);
         if (spec) el.prescription = spec.prescription;
       }
     }
@@ -645,6 +765,11 @@ export function assembleProgram(
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
+  // The athlete's limiter stations, from the needs analysis the skeleton already
+  // carries. These used to reach the plan only as a line in the AI prompt; with
+  // hybrid content built deterministically they become real extra volume on the
+  // stations the athlete is worst at (`EMPHASIS_BOOST`).
+  const emphasis = skeleton.needs?.bias?.stationEmphasis ?? [];
   // VDOT paces from the athlete's best of mile / 5K / 10K (Review #2). A bare
   // 5K string is still accepted for backward compatibility.
   const paces = computePaces(raceTimes);
@@ -661,6 +786,7 @@ export function assembleProgram(
       catalog,
       skeleton.restDays,
       skeleton.caps,
+      emphasis,
     );
     const patched = patchMovementPatterns(week);
     if (patched.length)
@@ -669,7 +795,7 @@ export function assembleProgram(
     // applied deterministically over whatever the AI returned.
     applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp, equipment);
     // Review #6: progress hybrid station prescriptions toward race spec.
-    applyStationProgression(week, division, sex, catalog);
+    applyStationProgression(week, division, sex, catalog, emphasis);
     return week;
   });
 
