@@ -25,6 +25,15 @@
  * Plus the two things that make it safe: the session is billed at what it
  * actually costs (not `elements.length * 5`), and it is trimmed to fit the
  * athlete's own session cap rather than shipping a workout nobody can complete.
+ *
+ * ⚠️ BASELINE MOVED 2026-08-17. Rule 1 used to say ALL EIGHT stations, every
+ * session. It doesn't any more: eight couplets fixes the distance at 8 km and so
+ * lets the athlete's PACE set the threshold dose — 30 min at 6:00/mi, 60 min at
+ * 12:00/mi, against a 20–40 min window. The COUPLET COUNT now scales to running
+ * experience (`coupletsForThresholdDose`), the runs stay at the race's own 1 km,
+ * and `fitHybridToCap` rotates which stations are dropped so coverage completes
+ * across weeks instead of within one session. Rules 2 and 3 are unchanged.
+ * See `lib/engine/hybrid-threshold-dose.test.ts`.
  */
 import { describe, it, expect } from "vitest";
 import type { GenerationInput } from "@/lib/schemas";
@@ -35,6 +44,7 @@ import {
   RACE_STATION_ORDER,
   STATIONS,
   HYBRID_STATION_SCALE,
+  coupletsForThresholdDose,
   estimateHybridWorkMinutes,
   buildHybridElements,
   fitHybridToCap,
@@ -93,28 +103,49 @@ function hybrids(exp: "beginner" | "intermediate" | "advanced" = "intermediate")
 }
 
 describe("a hybrid is the race's own structure at a trainable dose", () => {
-  it("covers every race station, in race order, with a run before each", () => {
+  it("covers a dose-sized run of stations, in race order, with a run before each", () => {
     const all = hybrids();
     expect(all.length).toBeGreaterThan(0);
+    const order = RACE_STATION_ORDER.map((id) => STATIONS[id]!.label.toLowerCase());
     for (const { week, session } of all) {
       const stations = session.elements.filter((e) => !isRunElement(e)).map((e) => e.exercise);
-      expect(stations, `wk${week} station count`).toHaveLength(RACE_STATION_ORDER.length);
-      // Race order, and a run element immediately before every station.
-      const expected = RACE_STATION_ORDER.map((id) => STATIONS[id]!.label.toLowerCase());
-      expect(stations, `wk${week} order`).toEqual(expected);
+      // Count is set by the threshold dose, not by the race's station count.
+      expect(stations.length, `wk${week} station count`).toBeGreaterThanOrEqual(3);
+      expect(stations.length, `wk${week} station count`).toBeLessThanOrEqual(order.length);
+      // Whatever survives is still in RACE ORDER — the session reads like a race.
+      const ranks = stations.map((label) => order.indexOf(label));
+      expect(ranks, `wk${week} all known stations`).not.toContain(-1);
+      expect(ranks, `wk${week} race order`).toEqual([...ranks].sort((a, b) => a - b));
+      // A run element immediately precedes every station.
       for (let i = 0; i < session.elements.length; i += 2) {
         expect(isRunElement(session.elements[i]!), `wk${week} el${i} is a run`).toBe(true);
       }
     }
   });
 
-  it("runs the FULL race distance between stations — 8 km, not 4", () => {
+  it("sizes the session to the athlete's threshold dose", () => {
+    // The fixture is an intermediate athlete; the count must match what
+    // `coupletsForThresholdDose` prescribes for their threshold pace.
+    const all = hybrids("intermediate");
+    const counts = new Set(
+      all.map(({ session }) => session.elements.filter((e) => !isRunElement(e)).length),
+    );
+    // One programme, one pace → one couplet count across every regular hybrid.
+    expect(counts.size).toBe(1);
+    const n = [...counts][0]!;
+    expect(n).toBeGreaterThanOrEqual(3);
+    expect(n).toBeLessThanOrEqual(RACE_STATION_ORDER.length);
+  });
+
+  it("keeps every run leg at the race's FULL 1 km — the count flexes, not the distance", () => {
     for (const { week, session } of hybrids()) {
-      for (const el of session.elements.filter(isRunElement)) {
+      const runs = session.elements.filter(isRunElement);
+      for (const el of runs) {
         expect(el.prescription, `wk${week}`).toContain("1000m");
       }
-      // 8 × 1000 m = 4.97 mi, and it counts toward the week's mileage.
-      expect(hybridRunMiles(session), `wk${week} miles`).toBeCloseTo(4.97, 1);
+      // Mileage follows the leg count, and every one of those miles counts
+      // toward the week's total.
+      expect(hybridRunMiles(session), `wk${week} miles`).toBeCloseTo(runs.length * 0.621371, 1);
     }
   });
 
@@ -171,15 +202,15 @@ describe("a hybrid is the race's own structure at a trainable dose", () => {
     }
   });
 
-  it("drops stations only when the cap forces it, and rotates which", () => {
-    // A punishing case: a very slow athlete against a tight budget. Full
-    // coverage cannot fit, so coverage degrades — but not the same way twice.
+  it("drops stations for dose or cap, and rotates which", () => {
+    // A very slow athlete: the threshold dose alone already cuts the couplets,
+    // and a tight budget can cut further — but not the same way twice.
     const tight = 40;
     const slow = 12 * 60;
     const w1 = fitHybridToCap(1, tight, slow, "peak");
     const w2 = fitHybridToCap(2, tight, slow, "peak");
     expect(w1.length).toBeLessThan(RACE_STATION_ORDER.length);
-    expect(w1.length).toBeGreaterThanOrEqual(4); // never collapses to nothing
+    expect(w1.length).toBeGreaterThanOrEqual(3); // never collapses to nothing
     expect(w1).not.toEqual(w2); // a station dropped this week comes back next
     // Whatever survives is still in race order.
     for (const ids of [w1, w2]) {
@@ -188,8 +219,10 @@ describe("a hybrid is the race's own structure at a trainable dose", () => {
       );
       expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
     }
-    // A generous budget keeps all eight.
-    expect(fitHybridToCap(1, 200, slow, "peak")).toHaveLength(RACE_STATION_ORDER.length);
+    // A generous budget no longer means all eight — the dose still applies.
+    expect(fitHybridToCap(1, 200, slow, "peak")).toHaveLength(
+      coupletsForThresholdDose("intermediate", slow),
+    );
   });
 
   it("leaves the peak race SIMULATION at full race spec", () => {

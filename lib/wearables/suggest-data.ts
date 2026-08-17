@@ -75,6 +75,27 @@ export function isLinkCandidate(a: { linked: boolean; self_posted?: boolean }): 
   return !a.linked && a.self_posted !== true;
 }
 
+/**
+ * May this activity appear in the same-day SUGGESTIONS banner?
+ *
+ * Everything `isLinkCandidate` requires, plus: the athlete has not dismissed it
+ * (migration 0043). Dismissal is deliberately NOT part of `isLinkCandidate` —
+ * "stop suggesting this" is not "this workout never happened" (Levi,
+ * 2026-08-13). A dismissed activity stays in `linkableActivities`, so it can
+ * still be attached by hand from the week table and a mis-click costs nothing.
+ *
+ * Before 0043 the Dismiss button only set React state, so a dismissed card came
+ * back on every reload and on every `router.refresh()` — which the Sync workouts
+ * button fires on each sync.
+ */
+export function isSuggestionCandidate(a: {
+  linked: boolean;
+  self_posted?: boolean;
+  suggestion_dismissed_at?: string | null;
+}): boolean {
+  return isLinkCandidate(a) && !a.suggestion_dismissed_at;
+}
+
 function detailLine(startTime: string, durationS: number | null, distanceM: number | null): string {
   const parts: string[] = [];
   const d = new Date(startTime);
@@ -154,7 +175,9 @@ export async function getProgramSyncData(programId: string): Promise<ProgramSync
   // Same-day suggestions (rules #2.1 / #2.2) from the unlinked, dated activities.
   const suggestions: SyncSuggestion[] = [];
   for (const a of activities) {
-    if (!isLinkCandidate(a) || !a.start_time) continue;
+    // Suggestions respect dismissal; `linkableActivities` above deliberately
+    // does not — see `isSuggestionCandidate`.
+    if (!isSuggestionCandidate(a) || !a.start_time) continue;
     const match = programDayForDate(
       program.start_date,
       program.duration_weeks,

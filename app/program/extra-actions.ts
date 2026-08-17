@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ExtraWorkoutInputSchema } from "@/lib/schemas";
+import { ExtraWorkoutInputSchema, ExtraWorkoutUpdateSchema } from "@/lib/schemas";
 
 const METERS_PER_MILE = 1609.344;
 
@@ -122,4 +122,82 @@ function kindFromActivityType(type: unknown): "run" | "lift" | "hybrid" | "cardi
   if (t.includes("ride") || t.includes("bike") || t.includes("row") || t.includes("swim") || t.includes("elliptical"))
     return "cardio";
   return "other";
+}
+
+/**
+ * Edit an extra workout in place.
+ *
+ * Extras could only ever be added and deleted, so correcting a typo meant
+ * retyping the whole thing (Levi, 2026-08-13). Every field the add form writes
+ * is editable here, including week/day — a workout logged on the wrong day
+ * should be a fix, not a delete-and-retype.
+ *
+ * ## Frozen weeks
+ *
+ * Blocked once the week's review has been APPLIED, matching
+ * `linkActivityToSession`. An applied review has already fed those numbers into
+ * the next week's prescription; letting the inputs move afterwards would make
+ * the adaptation unexplainable. **Both** the week it is leaving and the week it
+ * is moving to are checked — otherwise an extra could be dragged out of a frozen
+ * week, which changes that week's reported totals just as surely.
+ *
+ * ⚠️ `deleteExtraWorkout` has NO such guard today, so a determined athlete can
+ * still delete-and-re-add around this. Flagged rather than changed: tightening
+ * delete is a behaviour change nobody asked for.
+ */
+export async function updateExtraWorkout(input: unknown): Promise<ExtraResult> {
+  const parsed = ExtraWorkoutUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid workout" };
+  }
+  const v = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  // The row must exist and be the caller's. RLS would block a foreign row, but
+  // we need its CURRENT week to decide whether it is leaving a frozen one.
+  const { data: existing } = await supabase
+    .from("extra_workouts")
+    .select("id, user_id, program_id, week_number")
+    .eq("id", v.id)
+    .maybeSingle();
+  if (!existing || existing.user_id !== user.id) return { ok: false, error: "Workout not found" };
+  if (existing.program_id !== v.programId) return { ok: false, error: "Workout not found" };
+
+  // Frozen check across BOTH the old and new week.
+  const weeks = [...new Set([existing.week_number as number, v.weekNumber])];
+  const { data: applied } = await supabase
+    .from("adaptations")
+    .select("week_number")
+    .eq("program_id", v.programId)
+    .eq("decision", "applied")
+    .in("week_number", weeks);
+  if (applied && applied.length > 0) {
+    return { ok: false, error: "That week has already been reviewed — its logs are locked." };
+  }
+
+  const { error } = await supabase
+    .from("extra_workouts")
+    .update({
+      week_number: v.weekNumber,
+      day: v.day,
+      kind: v.kind,
+      title: v.title ?? null,
+      duration_min: v.durationMin ?? null,
+      distance_miles: v.distanceMiles ?? null,
+      avg_hr: v.avgHr ?? null,
+      goal_zone: v.goalZone ?? null,
+      rpe: v.rpe ?? null,
+      note: v.note ?? null,
+    })
+    .eq("id", v.id)
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/program/${v.programId}`);
+  return { ok: true };
 }

@@ -222,3 +222,50 @@ export async function unlinkActivity(activityId: string): Promise<LinkResult> {
   revalidatePath(`/program/${log.program_id}`);
   return { ok: true };
 }
+
+/**
+ * Dismiss a same-day suggestion so it stops being offered (migration 0043).
+ *
+ * The Dismiss button used to set React state and nothing else, so the card came
+ * back on every reload and on every `router.refresh()` — which the program
+ * view's Sync workouts button fires on each sync. This writes it down.
+ *
+ * Scope is deliberately narrow: it hides the activity from the SUGGESTIONS
+ * banner only. It stays in `linkableActivities`, so the athlete can still attach
+ * it by hand from the week table afterwards and a mis-click costs nothing
+ * (Levi, 2026-08-13).
+ *
+ * Idempotent — dismissing twice is a no-op rather than an error, because the
+ * button can be double-clicked and a second call must not surface a failure.
+ * The write is RLS-scoped AND filtered on `user_id`, per the standing rule for
+ * anything reachable from a client component.
+ */
+export async function dismissSuggestion(
+  activityId: string,
+  programId: string,
+): Promise<LinkResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("wearable_activities")
+    .update({ suggestion_dismissed_at: new Date().toISOString() })
+    .eq("id", activityId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    // Pre-0043 deploys have no such column. Say so plainly rather than showing a
+    // raw Postgres error — the card will simply keep reappearing until the
+    // migration is applied, which is the old behaviour, not a new break.
+    if (error.code === "42703") {
+      return { ok: false, error: "Dismissing isn't available yet — migration 0043 is pending." };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/program/${programId}`);
+  return { ok: true };
+}

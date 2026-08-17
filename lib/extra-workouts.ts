@@ -129,3 +129,53 @@ export function extraSummaryLabel(extras: ExtraWorkout[]): string {
   if (t.miles > 0) parts.push(`${t.miles} mi`);
   return parts.join(" · ");
 }
+
+/**
+ * What extras contribute to a week's **displayed ACTUAL** totals (Levi,
+ * 2026-08-13).
+ *
+ * Extras used to be reported only alongside the summary ("1 extra workout ·
+ * 35 min — not counted in the totals above"), so a week where the athlete did
+ * real unplanned work still read as under-delivered. They now fold into the
+ * Actual figures — and ONLY those. Planned totals, compliance %, and the weekly
+ * ADAPTATION are untouched, because:
+ *
+ *  - planned is what the engine prescribed, and the athlete adding a run does
+ *    not change what they were asked to do;
+ *  - compliance is credit / planned sessions, so unplanned work must never raise
+ *    it — otherwise a week of nothing-but-extras reads as fully compliant;
+ *  - the adaptation reads `computeWeekSignals` from planned-session logs alone,
+ *    so self-added work can never trigger an earned bump and inflate next week's
+ *    prescription (Levi's call — display only).
+ *
+ * ## Two exclusions that a naive sum gets wrong
+ *
+ * **Lifts contribute no cardio minutes.** `computeWeekSignals` already skips
+ * lifts when accumulating actual cardio (`if (session.kind !== "lift")`), and an
+ * extra has to obey the same rule or the two numbers mean different things.
+ *
+ * **Only on-foot kinds contribute MILES.** The weekly line is *running*
+ * mileage. `extraTotals` sums `distanceMiles` across every kind, so a 20-mile
+ * bike ride logged as `cardio` would land in it — a wrong number that looks
+ * exactly like a right one. Only `run` and `hybrid` count here, matching
+ * `sessionMiles`, which counts runs plus the run legs inside hybrids.
+ */
+export interface ExtraActualContribution {
+  /** Minutes to add to the week's actual CARDIO time (excludes lifts). */
+  cardioMinutes: number;
+  /** Miles to add to the week's actual RUNNING mileage (run + hybrid only). */
+  miles: number;
+}
+
+/** Kinds whose recorded distance is on-foot mileage. */
+const ON_FOOT_KINDS: ReadonlySet<ExtraWorkoutKindName> = new Set(["run", "hybrid"]);
+
+export function extraActualContribution(extras: readonly ExtraWorkout[]): ExtraActualContribution {
+  let cardioMinutes = 0;
+  let miles = 0;
+  for (const x of extras) {
+    if (x.kind !== "lift") cardioMinutes += x.durationMin ?? 0;
+    if (ON_FOOT_KINDS.has(x.kind)) miles += x.distanceMiles ?? 0;
+  }
+  return { cardioMinutes: Math.round(cardioMinutes), miles: Math.round(miles * 10) / 10 };
+}

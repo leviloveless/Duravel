@@ -15,7 +15,7 @@
  * tuning; verify against the current HYROX rulebook for the target season.
  */
 
-import type { PhaseName } from "./types";
+import type { ExperienceLevel, PhaseName } from "./types";
 import { round5 } from "./math";
 
 export type Division = "open" | "pro";
@@ -403,6 +403,89 @@ export function estimateHybridWorkMinutes(
 }
 
 /**
+ * ACCUMULATED THRESHOLD MINUTES a single hybrid should carry, by RUNNING
+ * experience (Levi, 2026-08-17).
+ *
+ * The endurance literature converges on **20–40 minutes of accumulated
+ * threshold per session**, ~30 as the anchor: below ~20 the stimulus is thin,
+ * above ~40 it stops being a repeatable weekly session and becomes a race
+ * simulation you pay for over the following days.
+ *
+ * ## Why a fixed 8 × 1 km could not work
+ *
+ * The hybrid shipped with all eight race couplets, which fixes the DISTANCE at
+ * 8 km and therefore lets the athlete's pace decide the dose:
+ *
+ *     6:00/mi → 30 min    8:00/mi → 40 min
+ *    10:00/mi → 50 min   12:00/mi → 60 min
+ *
+ * Only the fastest athletes landed in range. Everyone else was over, and the
+ * slowest were at DOUBLE a beginner's appropriate dose — exactly the athletes
+ * least able to absorb it. A fixed distance does not merely fail to scale, it
+ * scales backwards.
+ *
+ * Running experience is the key, matching `caps.ts`, which already sizes
+ * station-hybrid sessions off running experience: how much threshold running an
+ * athlete can absorb is a running-durability question.
+ */
+export const HYBRID_THRESHOLD_TARGET_MINUTES: Record<ExperienceLevel, number> = {
+  beginner: 22,
+  intermediate: 30,
+  advanced: 38,
+};
+
+/**
+ * Hard ceiling on accumulated threshold minutes in one hybrid.
+ *
+ * The 20–40 window is a guideline, but rounding the couplet count can push a
+ * result just past it (an advanced athlete at 11:00/mi rounded to 6 couplets =
+ * 41 min). Stepping down once turns the ceiling into an INVARIANT that can be
+ * asserted rather than hoped for — and a testable rule is worth more than two
+ * minutes of stimulus.
+ */
+export const HYBRID_THRESHOLD_CEILING_MINUTES = 40;
+
+/** Never fewer than this many run+station couplets — below it the session stops
+ *  resembling a race at all. Coverage of the missing stations comes back through
+ *  the week-by-week rotation in `fitHybridToCap`. */
+export const MIN_HYBRID_COUPLETS = 3;
+
+/** Fallback threshold pace (sec/mile) when the athlete has no run benchmark. */
+const DEFAULT_THRESHOLD_SEC_PER_MILE = 540; // 9:00/mi
+
+/**
+ * How many run+station couplets land this athlete inside the threshold window?
+ *
+ * Runs stay at the race's own `interStationRunMeters` — Levi's call: rehearsing
+ * the real 1 km is the point, so the COUNT flexes and the distance does not.
+ * A 6:00/mi advanced athlete gets all eight; an 11:00/mi beginner gets three.
+ */
+export function coupletsForThresholdDose(
+  runningExp: ExperienceLevel,
+  thresholdSecPerMile: number | null,
+  catalog?: StationCatalog,
+): number {
+  const cat = catalog ?? HYROX_CATALOG;
+  const max = cat.raceOrder.length;
+  if (cat.interStationRunMeters <= 0) return max; // station-only formats: no runs to dose
+
+  const pace =
+    thresholdSecPerMile && thresholdSecPerMile > 0
+      ? thresholdSecPerMile
+      : DEFAULT_THRESHOLD_SEC_PER_MILE;
+  const minutesPerLeg = ((cat.interStationRunMeters / M_PER_MILE) * pace) / 60;
+  if (minutesPerLeg <= 0) return max;
+
+  const target = HYBRID_THRESHOLD_TARGET_MINUTES[runningExp];
+  let n = Math.round(target / minutesPerLeg);
+  // Never round UP through the ceiling; the floor still wins if even the minimum
+  // number of couplets exceeds it (a very slow athlete, where three 1 km reps is
+  // already 40+ min — that session is honest about what it costs).
+  while (n > MIN_HYBRID_COUPLETS && n * minutesPerLeg > HYBRID_THRESHOLD_CEILING_MINUTES) n -= 1;
+  return Math.max(MIN_HYBRID_COUPLETS, Math.min(max, n));
+}
+
+/**
  * Trim a hybrid to the stations that fit inside the athlete's session cap,
  * rotating WHICH stations get dropped by week number.
  *
@@ -424,16 +507,23 @@ export function fitHybridToCap(
   sex: StationSex = "male",
   catalog?: StationCatalog,
   emphasis: readonly string[] = [],
-  minStations = 4,
+  minStations = MIN_HYBRID_COUPLETS,
+  runningExp: ExperienceLevel = "intermediate",
 ): string[] {
   const cat = catalog ?? HYROX_CATALOG;
   const order = cat.raceOrder;
   const floor = Math.min(minStations, order.length);
 
-  for (let n = order.length; n >= floor; n--) {
+  // The THRESHOLD DOSE decides the couplet count first; the session cap can only
+  // ever lower it further. Two different constraints, applied in the order they
+  // matter: 20-40 min of threshold is a training rule that holds at every band,
+  // while the cap is a logistics ceiling that rarely binds.
+  const start = Math.max(floor, coupletsForThresholdDose(runningExp, thresholdSecPerMile, cat));
+
+  for (let n = start; n >= floor; n--) {
     // Rotate the window start so a dropped station comes back next week.
-    const start = n === order.length ? 0 : (weekNumber * (order.length - n)) % order.length;
-    const ids = Array.from({ length: n }, (_, i) => order[(start + i) % order.length]!)
+    const from = n === order.length ? 0 : (weekNumber * (order.length - n)) % order.length;
+    const ids = Array.from({ length: n }, (_, i) => order[(from + i) % order.length]!)
       // Race order, not window order: the session still reads like a race.
       .sort((a, b) => order.indexOf(a) - order.indexOf(b));
     const els = buildHybridElements(phase, division, sex, cat, emphasis, ids);

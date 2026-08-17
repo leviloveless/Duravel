@@ -355,6 +355,7 @@ function replaceHybrids(
   paces: RunPaces | null,
   caps: TrainingCaps | undefined,
   emphasis: readonly string[],
+  runningExp: ExperienceLevel,
 ): void {
   const thresholdPace = paces?.threshold ?? null;
   const capWork = Math.max(
@@ -398,6 +399,8 @@ function replaceHybrids(
         sex,
         catalog,
         emphasis,
+        undefined,
+        runningExp,
       );
       const elements = buildHybridElements(skel.phase, division, sex, catalog, emphasis, ids);
       const workMin = estimateHybridWorkMinutes(
@@ -448,7 +451,7 @@ function buildWeek(
   // reconciliation, exactly like the simulation above, or the ~5 miles inside
   // each hybrid never reach the week's mileage total and the runs are sized as
   // if the session did not exist.
-  replaceHybrids(days, skel, division, sex, catalog, paces, caps, emphasis);
+  replaceHybrids(days, skel, division, sex, catalog, paces, caps, emphasis, runningExp);
 
   // Rewrite the AI-filled run volume so the week's running mileage and cardio
   // time equal the engine's prescribed targets exactly: running is sized to the

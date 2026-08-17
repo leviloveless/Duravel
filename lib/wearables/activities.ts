@@ -23,6 +23,10 @@ export type ActivityRow = {
   /** True when DURAVEL created this activity (Strava auto-post, migration 0040).
    *  It is the PLAN, not a record of training — never a link candidate. */
   self_posted: boolean;
+  /** When the athlete dismissed this from the same-day suggestions banner
+   *  (migration 0043). NULL = never dismissed. Hides it from SUGGESTIONS only —
+   *  it stays manually linkable from the week table. */
+  suggestion_dismissed_at: string | null;
   linked: boolean;
   link: { program_id: string; week_number: number; day: string; session_index: number } | null;
 };
@@ -44,20 +48,34 @@ export async function getUserActivities(limit = 200): Promise<ActivityRow[]> {
       .order("start_time", { ascending: false })
       .limit(limit);
 
-  // `self_posted` is selected defensively: a deploy that lands before migration
-  // 0040 is applied would 400 on the unknown column and blank the whole Activity
-  // page. Falling back just loses the flag until the migration runs.
+  // The two flag columns are selected defensively: a deploy that lands before
+  // migration 0040 / 0043 is applied would 400 on the unknown column and blank
+  // the whole Activity page. Falling back just loses the flags until the
+  // migration runs — dismissals stop sticking, which is exactly the pre-0043
+  // behaviour rather than a new failure.
   let acts = null as unknown;
-  const withFlag = await select(`${BASE}, self_posted`);
-  if (withFlag.error) {
-    const { data } = await select(BASE);
-    acts = data;
+  const withFlags = await select(`${BASE}, self_posted, suggestion_dismissed_at`);
+  if (withFlags.error) {
+    const withSelfPosted = await select(`${BASE}, self_posted`);
+    if (withSelfPosted.error) {
+      const { data } = await select(BASE);
+      acts = data;
+    } else {
+      acts = withSelfPosted.data;
+    }
   } else {
-    acts = withFlag.data;
+    acts = withFlags.data;
   }
   const activities = (
-    (acts as Omit<ActivityRow, "linked" | "link" | "self_posted">[] | null) ?? []
-  ).map((a) => ({ ...a, self_posted: (a as { self_posted?: boolean }).self_posted === true }));
+    (acts as
+      Omit<ActivityRow, "linked" | "link" | "self_posted" | "suggestion_dismissed_at">[] | null) ??
+    []
+  ).map((a) => ({
+    ...a,
+    self_posted: (a as { self_posted?: boolean }).self_posted === true,
+    suggestion_dismissed_at:
+      (a as { suggestion_dismissed_at?: string | null }).suggestion_dismissed_at ?? null,
+  }));
   if (activities.length === 0) return [];
 
   // Which activities are already linked (workout_logs that point back at them).

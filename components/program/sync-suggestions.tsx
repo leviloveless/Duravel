@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { linkActivityToSession } from "@/app/activity/actions";
+import { linkActivityToSession, dismissSuggestion } from "@/app/activity/actions";
 import { encodeSessionValue, decodeSessionValue } from "@/lib/wearables/link";
 import type { SyncSuggestion } from "@/lib/wearables/suggest-data";
 
@@ -78,6 +78,22 @@ function SuggestionCard({
   const first = suggestion.candidates[0]!;
   const [sessionValue, setSessionValue] = useState<string>(encodeSessionValue(first));
   const multi = suggestion.candidates.length > 1;
+
+  /**
+   * Dismiss = "stop suggesting this", written down (migration 0043). It used to
+   * be local state only, so the card returned on every reload and on every
+   * `router.refresh()` the Sync workouts button fires. The card is hidden
+   * optimistically and stays hidden even if the write fails — the athlete asked
+   * for it gone, and the error explains why it may return.
+   */
+  function dismiss() {
+    setError(null);
+    onDone();
+    startTransition(async () => {
+      const res = await dismissSuggestion(suggestion.activityId, programId);
+      if (!res.ok) setError(res.error);
+    });
+  }
 
   function confirm() {
     setError(null);
@@ -157,8 +173,9 @@ function SuggestionCard({
         </button>
         <button
           type="button"
-          onClick={onDone}
+          onClick={dismiss}
           disabled={pending}
+          title="Stop suggesting this workout — you can still attach it by hand from the week below"
           className="rounded-md px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
         >
           Dismiss

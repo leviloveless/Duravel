@@ -3,7 +3,12 @@ import { computeWeekSignals } from "@/lib/engine/adapt";
 import LogSession from "./log-session";
 import SessionLink from "./session-link";
 import { AddExtraWorkout, ExtraWorkoutList } from "@/components/program/extra-workout";
-import { extraSummaryLabel, extrasForDay, extrasForWeek } from "@/lib/extra-workouts";
+import {
+  extraSummaryLabel,
+  extrasForDay,
+  extrasForWeek,
+  extraActualContribution,
+} from "@/lib/extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
 import CoachSessionEdit from "./coach-session-edit";
 import SessionShare from "./session-share";
@@ -350,7 +355,29 @@ export default function WeekCard({
   const hasLogs = (logging?.logs.length ?? 0) > 0;
   const actuals = hasLogs && logging ? computeWeekSignals(week, logging.logs) : null;
   const time = weekTimeByCategory(week);
-  const weekExtrasLabel = extraSummaryLabel(extrasForWeek(logging?.extras ?? [], week.weekNumber));
+  const weekExtras = extrasForWeek(logging?.extras ?? [], week.weekNumber);
+  const weekExtrasLabel = extraSummaryLabel(weekExtras);
+
+  /**
+   * Off-plan work counts toward what the athlete ACTUALLY did (Levi,
+   * 2026-08-13) — and toward nothing else.
+   *
+   * Added here at the render site rather than inside `computeWeekSignals`, and
+   * that is deliberate: those signals also feed the weekly ADAPTATION
+   * (`lib/generation/adapt-week.ts`). Folding extras in there would let
+   * self-added work read as over-delivery and trigger an earned bump, raising
+   * next week's prescription on volume the engine never asked for. Keeping the
+   * addition local makes that leak impossible rather than merely unlikely.
+   *
+   * `plannedSessions`, `compliance` and every adaptation input are untouched.
+   */
+  const extraActual = extraActualContribution(weekExtras);
+  const actualCardioWithExtras = actuals
+    ? actuals.actualCardioMinutes + extraActual.cardioMinutes
+    : null;
+  const actualMilesWithExtras = actuals
+    ? Math.round((actuals.actualMileage + extraActual.miles) * 10) / 10
+    : null;
 
   return (
     <section
@@ -390,18 +417,18 @@ export default function WeekCard({
             <span>
               <span className="block text-xs text-zinc-500">Cardio time</span>
               <span className="font-medium">{week.summary.totalCardioMinutes} min</span>
-              {actuals && (
+              {actualCardioWithExtras !== null && (
                 <span className="block text-xs text-emerald-700">
-                  Actual: {actuals.actualCardioMinutes} min
+                  Actual: {actualCardioWithExtras} min
                 </span>
               )}
             </span>
             <span>
               <span className="block text-xs text-zinc-500">Running mileage</span>
               <span className="font-medium">{week.summary.totalMileage} mi</span>
-              {actuals && (
+              {actualMilesWithExtras !== null && (
                 <span className="block text-xs text-emerald-700">
-                  Actual: {actuals.actualMileage} mi
+                  Actual: {actualMilesWithExtras} mi
                 </span>
               )}
             </span>
@@ -423,13 +450,15 @@ export default function WeekCard({
           <ZoneBars week={week} />
         </div>
 
-        {/* Off-plan work, reported alongside the prescribed volume rather than folded into it. */}
+        {/* Off-plan work. It counts toward ACTUAL (above) but never toward the
+            prescribed totals — the header still answers "what was I asked to
+            do", and this line answers "what else did I do". */}
         {weekExtrasLabel && (
           <p className="text-xs text-zinc-500">
             <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">
               extra
             </span>{" "}
-            {weekExtrasLabel} — not counted in the totals above
+            {weekExtrasLabel} — counted in Actual, not in the prescribed totals
           </p>
         )}
       </div>

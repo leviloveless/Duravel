@@ -553,6 +553,14 @@ export const ExtraWorkoutInputSchema = ExtraWorkoutSchema.omit({ id: true }).ext
 });
 export type ExtraWorkoutInput = z.infer<typeof ExtraWorkoutInputSchema>;
 
+/** What the "edit an extra workout" form submits — the same fields plus the row
+ *  id. Week/day stay editable so a workout logged on the wrong day is a fix, not
+ *  a delete-and-retype (Levi, 2026-08-13). */
+export const ExtraWorkoutUpdateSchema = ExtraWorkoutInputSchema.extend({
+  id: z.string().min(1),
+});
+export type ExtraWorkoutUpdate = z.infer<typeof ExtraWorkoutUpdateSchema>;
+
 // --- Workout logs (Phase 2 — phase2-spec.md §3a) ---
 
 export const LogStatus = z.enum(["completed", "partial", "skipped"]);

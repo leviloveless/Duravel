@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addExtraWorkout, addExtraFromActivity, deleteExtraWorkout } from "@/app/program/extra-actions";
+import {
+  addExtraWorkout,
+  addExtraFromActivity,
+  deleteExtraWorkout,
+  updateExtraWorkout,
+} from "@/app/program/extra-actions";
 import { extraDetail, extraTitle } from "@/lib/extra-workouts";
 import type { ExtraWorkout, ExtraWorkoutKindName } from "@/lib/schemas";
 import type { SyncActivitySummary } from "@/lib/wearables/suggest-data";
@@ -59,7 +64,21 @@ function ExtraWorkoutRow({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
   const detail = extraDetail(extra);
+
+  // Editing replaces the row in place rather than opening a dialog: the athlete
+  // is looking at the day it belongs to, and a modal would hide that context.
+  if (editing && !frozen) {
+    return (
+      <EditExtraWorkout
+        programId={programId}
+        extra={extra}
+        onDone={() => setEditing(false)}
+      />
+    );
+  }
+
   return (
     <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -71,23 +90,192 @@ function ExtraWorkoutRow({
           </span>
         </span>
         {!frozen && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await deleteExtraWorkout(programId, extra.id);
-                router.refresh();
-              })
-            }
-            className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
-          >
-            Remove
-          </button>
+          <span className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setEditing(true)}
+              className="text-xs text-zinc-400 transition-colors hover:text-zinc-900 disabled:opacity-50"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await deleteExtraWorkout(programId, extra.id);
+                  router.refresh();
+                })
+              }
+              className="text-xs text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </span>
         )}
       </div>
       {detail && <div className="mt-0.5 text-xs text-zinc-500">{detail}</div>}
       {extra.note && <div className="mt-1 text-xs text-zinc-600">{extra.note}</div>}
+    </div>
+  );
+}
+
+/**
+ * Edit an existing extra in place — every field the add form writes, prefilled.
+ *
+ * Extras were add-and-delete only, so fixing a mistyped duration meant retyping
+ * the whole workout (Levi, 2026-08-13). The server enforces the frozen-week
+ * rule; this component simply is not rendered when `frozen`.
+ *
+ * A numeric field left EMPTY clears that value rather than keeping the old one —
+ * an edit form that cannot unset a field is a trap, because the athlete who
+ * typed 45 minutes by mistake has no way to take it back.
+ */
+function EditExtraWorkout({
+  programId,
+  extra,
+  onDone,
+}: {
+  programId: string;
+  extra: ExtraWorkout;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const str = (n: number | undefined) => (n === undefined ? "" : String(n));
+  const [kind, setKind] = useState<ExtraWorkoutKindName>(extra.kind);
+  const [title, setTitle] = useState(extra.title ?? "");
+  const [durationMin, setDurationMin] = useState(str(extra.durationMin));
+  const [distanceMiles, setDistanceMiles] = useState(str(extra.distanceMiles));
+  const [avgHr, setAvgHr] = useState(str(extra.avgHr));
+  const [rpe, setRpe] = useState(str(extra.rpe));
+  const [note, setNote] = useState(extra.note ?? "");
+
+  function num(v: string): number | undefined {
+    const n = Number(v);
+    return v.trim() !== "" && Number.isFinite(n) ? n : undefined;
+  }
+
+  function save() {
+    setError(null);
+    const duration = num(durationMin);
+    const distance = num(distanceMiles);
+    if (duration === undefined && distance === undefined && title.trim() === "") {
+      setError("Keep at least a name, a duration, or a distance.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await updateExtraWorkout({
+        id: extra.id,
+        programId,
+        // Week and day are not edited here — moving a workout between days is a
+        // different intent, and silently sending the current values keeps this
+        // form to the fields the athlete can actually see.
+        weekNumber: extra.weekNumber,
+        day: extra.day,
+        kind,
+        title: title.trim() || undefined,
+        durationMin: duration !== undefined ? Math.round(duration) : undefined,
+        distanceMiles: distance,
+        avgHr: num(avgHr) !== undefined ? Math.round(num(avgHr)!) : undefined,
+        goalZone: extra.goalZone,
+        rpe: num(rpe) !== undefined ? Math.round(num(rpe)!) : undefined,
+        note: note.trim() || undefined,
+        activityId: extra.activityId,
+      });
+      if (res.ok) {
+        onDone();
+        router.refresh();
+      } else setError(res.error);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-3 text-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="col-span-2 flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Type</span>
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as ExtraWorkoutKindName)}
+            className={inputClass}
+          >
+            {KINDS.map((k) => (
+              <option key={k.value} value={k.value}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="col-span-2 flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Name</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Minutes</span>
+          <input
+            inputMode="numeric"
+            value={durationMin}
+            onChange={(e) => setDurationMin(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Miles</span>
+          <input
+            inputMode="decimal"
+            value={distanceMiles}
+            onChange={(e) => setDistanceMiles(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Avg HR</span>
+          <input
+            inputMode="numeric"
+            value={avgHr}
+            onChange={(e) => setAvgHr(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">RPE 1–10</span>
+          <input
+            inputMode="numeric"
+            value={rpe}
+            onChange={(e) => setRpe(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="col-span-2 flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-400">Note</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} className={inputClass} />
+        </label>
+      </div>
+
+      {error && <span className="text-xs text-red-600">{error}</span>}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={pending}
+          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+        >
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          disabled={pending}
+          className="rounded-md px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
