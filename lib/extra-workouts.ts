@@ -77,7 +77,11 @@ export function extrasForWeek(extras: ExtraWorkout[], weekNumber: number): Extra
 }
 
 /** Extras on one day of one week, in the order they were added. */
-export function extrasForDay(extras: ExtraWorkout[], weekNumber: number, day: string): ExtraWorkout[] {
+export function extrasForDay(
+  extras: ExtraWorkout[],
+  weekNumber: number,
+  day: string,
+): ExtraWorkout[] {
   return extras.filter((x) => x.weekNumber === weekNumber && x.day === day);
 }
 
@@ -178,4 +182,51 @@ export function extraActualContribution(extras: readonly ExtraWorkout[]): ExtraA
     if (ON_FOOT_KINDS.has(x.kind)) miles += x.distanceMiles ?? 0;
   }
   return { cardioMinutes: Math.round(cardioMinutes), miles: Math.round(miles * 10) / 10 };
+}
+
+/** The week's actual figures as prescribed-session logs report them. */
+export interface WeekActualSignals {
+  actualCardioMinutes: number;
+  actualMileage: number;
+}
+
+/** What the week header should print on its Actual line — `null` = print nothing. */
+export interface ActualLine {
+  cardioMinutes: number | null;
+  miles: number | null;
+}
+
+/**
+ * The week header's Actual figures, extras included.
+ *
+ * `signals` is null until at least one PLANNED session has a workout_log. The
+ * first version of the header gated the whole Actual line on that, which meant
+ * the week this feature exists for — the athlete skipped the plan and rode for
+ * an hour instead — showed no Actual at all, underneath a caption reading
+ * "counted in Actual". The promised number was not on the page.
+ *
+ * So an extra alone is enough, with the planned side contributing zero. A metric
+ * stays null only when there is genuinely nothing to say about it: no logs and
+ * no extra contribution. That keeps a lift-only week from printing "0 mi" as if
+ * the athlete had run nowhere, rather than not having run at all.
+ *
+ * Compliance is deliberately NOT computed here. Off-plan work is real training,
+ * but it does not complete a prescribed session, and "Sessions done" has to keep
+ * meaning that.
+ */
+export function actualWithExtras(
+  signals: WeekActualSignals | null,
+  extras: readonly ExtraWorkout[],
+): ActualLine {
+  const extra = extraActualContribution(extras);
+  return {
+    cardioMinutes:
+      signals || extra.cardioMinutes > 0
+        ? (signals?.actualCardioMinutes ?? 0) + extra.cardioMinutes
+        : null,
+    miles:
+      signals || extra.miles > 0
+        ? Math.round(((signals?.actualMileage ?? 0) + extra.miles) * 10) / 10
+        : null,
+  };
 }

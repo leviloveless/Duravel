@@ -6,8 +6,13 @@ import { encodeSessionValue, decodeSessionValue } from "@/lib/wearables/link";
 import type { SyncSuggestion } from "@/lib/wearables/suggest-data";
 
 const DAY_LONG: Record<string, string> = {
-  mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
-  fri: "Friday", sat: "Saturday", sun: "Sunday",
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
 };
 
 /**
@@ -75,6 +80,8 @@ function SuggestionCard({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /** Which button is in flight — the two share one transition. */
+  const [dismissing, setDismissing] = useState(false);
   const first = suggestion.candidates[0]!;
   const [sessionValue, setSessionValue] = useState<string>(encodeSessionValue(first));
   const multi = suggestion.candidates.length > 1;
@@ -82,16 +89,31 @@ function SuggestionCard({
   /**
    * Dismiss = "stop suggesting this", written down (migration 0043). It used to
    * be local state only, so the card returned on every reload and on every
-   * `router.refresh()` the Sync workouts button fires. The card is hidden
-   * optimistically and stays hidden even if the write fails — the athlete asked
-   * for it gone, and the error explains why it may return.
+   * `router.refresh()` the Sync workouts button fires.
+   *
+   * ## Why this is no longer optimistic (2026-08-17)
+   *
+   * It used to call `onDone()` first and set the error afterwards — which could
+   * never work, because `onDone()` filters this card out of `visible` and the
+   * component unmounts before the `await` resolves. `setError` then had nothing
+   * to render into. Every failure looked exactly like a success: the card
+   * vanished, no message appeared, and the suggestion returned on reload.
+   *
+   * That is precisely how the RLS bug in `dismissSuggestion` stayed invisible.
+   * The write is a single indexed UPDATE, so waiting for it costs nothing worth
+   * having, and hiding only on a confirmed `ok` means the UI can never again
+   * claim something was saved that wasn't.
    */
   function dismiss() {
     setError(null);
-    onDone();
+    setDismissing(true);
     startTransition(async () => {
       const res = await dismissSuggestion(suggestion.activityId, programId);
-      if (!res.ok) setError(res.error);
+      if (res.ok) onDone();
+      else {
+        setError(res.error);
+        setDismissing(false);
+      }
     });
   }
 
@@ -133,8 +155,7 @@ function SuggestionCard({
           </>
         ) : (
           <>
-            Matches your{" "}
-            <span className="font-medium">{first.label}</span> on{" "}
+            Matches your <span className="font-medium">{first.label}</span> on{" "}
             <span className="font-medium">
               {DAY_LONG[suggestion.day] ?? suggestion.day} · Week {suggestion.weekNumber}
             </span>
@@ -169,7 +190,7 @@ function SuggestionCard({
           disabled={pending}
           className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-800 disabled:opacity-50"
         >
-          {pending ? "Linking…" : multi ? "Link selected session" : "Confirm match"}
+          {pending && !dismissing ? "Linking…" : multi ? "Link selected session" : "Confirm match"}
         </button>
         <button
           type="button"
@@ -178,7 +199,7 @@ function SuggestionCard({
           title="Stop suggesting this workout — you can still attach it by hand from the week below"
           className="rounded-md px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
         >
-          Dismiss
+          {dismissing ? "Dismissing…" : "Dismiss"}
         </button>
       </div>
     </li>

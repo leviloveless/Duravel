@@ -7,7 +7,7 @@ import {
   extraSummaryLabel,
   extrasForDay,
   extrasForWeek,
-  extraActualContribution,
+  actualWithExtras,
 } from "@/lib/extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
 import CoachSessionEdit from "./coach-session-edit";
@@ -370,14 +370,24 @@ export default function WeekCard({
    * addition local makes that leak impossible rather than merely unlikely.
    *
    * `plannedSessions`, `compliance` and every adaptation input are untouched.
+   *
+   * ## Why these do not gate on `actuals` (fixed 2026-08-17)
+   *
+   * They used to, and `actuals` is null until at least one PLANNED session has a
+   * workout_log. So a week where the athlete skipped the plan and went for an
+   * hour's ride instead — exactly the week this feature is for — rendered no
+   * Actual line at all, while the caption underneath still read "counted in
+   * Actual". The number the caption promised was not on the page.
+   *
+   * An extra alone is now enough to show an Actual, with the planned side
+   * contributing zero. `compliance` deliberately still gates on `actuals`: off-
+   * plan work is real training, but it does not complete a prescribed session,
+   * and "Sessions done" must keep meaning that.
    */
-  const extraActual = extraActualContribution(weekExtras);
-  const actualCardioWithExtras = actuals
-    ? actuals.actualCardioMinutes + extraActual.cardioMinutes
-    : null;
-  const actualMilesWithExtras = actuals
-    ? Math.round((actuals.actualMileage + extraActual.miles) * 10) / 10
-    : null;
+  const { cardioMinutes: actualCardioWithExtras, miles: actualMilesWithExtras } = actualWithExtras(
+    actuals,
+    weekExtras,
+  );
 
   return (
     <section

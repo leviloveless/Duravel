@@ -27,7 +27,7 @@
  * let self-added work read as over-delivery and bump next week's prescription.
  */
 import { describe, it, expect } from "vitest";
-import { extraActualContribution, extraTotals } from "./extra-workouts";
+import { actualWithExtras, extraActualContribution, extraTotals } from "./extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
 
 function x(over: Partial<ExtraWorkout> = {}): ExtraWorkout {
@@ -100,5 +100,65 @@ describe("extraActualContribution", () => {
       x({ kind: "run", distanceMiles: 2.22 }),
     ]);
     expect(c.miles).toBe(3.3);
+  });
+});
+
+/**
+ * The header used to gate its whole Actual line on `signals`, which is null
+ * until a PLANNED session has a workout_log. So the week this feature exists
+ * for — plan skipped, hour-long ride done instead — printed no Actual at all,
+ * directly above a caption reading "counted in Actual". Found on Levi's own
+ * week 1: an extra Zone 1–2 cardio, sessions 0%, and nowhere on the page did
+ * that work appear as a number.
+ */
+describe("actualWithExtras — an extra alone is enough to print an Actual", () => {
+  const signals = { actualCardioMinutes: 100, actualMileage: 8 };
+
+  it("prints the extra when NOTHING planned was logged — the bug", () => {
+    const line = actualWithExtras(null, [x({ kind: "cardio", durationMin: 60 })]);
+    expect(line.cardioMinutes).toBe(60);
+  });
+
+  it("adds extras on top of logged sessions", () => {
+    const line = actualWithExtras(signals, [
+      x({ kind: "run", durationMin: 35, distanceMiles: 4.2 }),
+    ]);
+    expect(line).toEqual({ cardioMinutes: 135, miles: 12.2 });
+  });
+
+  it("still prints zeros once real logs exist — 0/150 min is information", () => {
+    expect(actualWithExtras(signals, [])).toEqual({ cardioMinutes: 100, miles: 8 });
+    expect(actualWithExtras({ actualCardioMinutes: 0, actualMileage: 0 }, [])).toEqual({
+      cardioMinutes: 0,
+      miles: 0,
+    });
+  });
+
+  it("says nothing at all when there is nothing to say", () => {
+    expect(actualWithExtras(null, [])).toEqual({ cardioMinutes: null, miles: null });
+  });
+
+  it("keeps mileage silent for a lift-only week rather than claiming 0 mi", () => {
+    // "0 mi" reads as "ran nowhere". The truth is "did not run", and with no
+    // logged sessions there is no basis for either claim.
+    const line = actualWithExtras(null, [x({ kind: "lift", durationMin: 60 })]);
+    expect(line.miles).toBeNull();
+    // A lift adds no cardio either, so this week says nothing — correctly.
+    expect(line.cardioMinutes).toBeNull();
+  });
+
+  it("keeps a bike ride's distance out of mileage even with no logs", () => {
+    const line = actualWithExtras(null, [
+      x({ kind: "cardio", durationMin: 90, distanceMiles: 20 }),
+    ]);
+    expect(line.cardioMinutes).toBe(90);
+    expect(line.miles).toBeNull();
+  });
+
+  it("rounds the combined mileage, not each side", () => {
+    const line = actualWithExtras({ actualCardioMinutes: 0, actualMileage: 3.05 }, [
+      x({ kind: "run", distanceMiles: 1.02 }),
+    ]);
+    expect(line.miles).toBe(4.1);
   });
 });

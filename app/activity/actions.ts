@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProgramData } from "@/lib/schemas";
 import { fetchStravaEffort } from "@/lib/wearables/strava-effort";
 
@@ -85,7 +86,8 @@ export async function linkActivityToSession(input: LinkInput): Promise<LinkResul
   const week = pdata?.weeks.find((w) => w.weekNumber === input.weekNumber);
   const session = week?.days.find((d) => d.day === input.day)?.sessions[input.sessionIndex];
   if (!session) return { ok: false, error: "That session no longer exists in this program." };
-  if (session.kind === "race") return { ok: false, error: "Race days can't be linked to a synced workout." };
+  if (session.kind === "race")
+    return { ok: false, error: "Race days can't be linked to a synced workout." };
 
   // --- Frozen once the week's review has been applied (it fed an adaptation) ---
   const { data: applied } = await supabase
@@ -237,8 +239,33 @@ export async function unlinkActivity(activityId: string): Promise<LinkResult> {
  *
  * Idempotent — dismissing twice is a no-op rather than an error, because the
  * button can be double-clicked and a second call must not surface a failure.
- * The write is RLS-scoped AND filtered on `user_id`, per the standing rule for
- * anything reachable from a client component.
+ *
+ * ## Why this writes with the ADMIN client (fixed 2026-08-17, after live repro)
+ *
+ * `wearable_activities` has exactly one policy, from migration 0016:
+ *
+ *     create policy "wearable_activities: select own" ... for select ...
+ *     -- Writes are service-role only (sync job): no insert/update/delete policy.
+ *
+ * The first version of this action used the request-scoped client and trusted
+ * RLS to scope the write. That is the trap: with **no** UPDATE policy, RLS does
+ * not reject the statement — it filters every row out of it. PostgREST then
+ * reports success on an update that touched nothing. The action returned
+ * `{ ok: true }`, the card vanished, and the dismissal came straight back on the
+ * next load with no error anywhere. Verified live: the server action answered
+ * 200 and the row was never written.
+ *
+ * Adding an UPDATE policy instead would have been worse. Postgres RLS cannot be
+ * scoped to a single column, so any policy permissive enough to set
+ * `suggestion_dismissed_at` would also let a user rewrite `duration_s`,
+ * `distance_m` and `linked` on their own synced rows — i.e. edit the provider's
+ * record of what they actually did. The value of synced data is precisely that
+ * the athlete cannot author it. So the service-role rule stands, and ownership
+ * is enforced here instead: `getUser()` establishes identity from the session
+ * cookie, and `.eq("user_id", user.id)` confines the write to that user's rows.
+ *
+ * `.select("id")` is what keeps this honest. A zero-row update is no longer
+ * silent — it is the failure it always was.
  */
 export async function dismissSuggestion(
   activityId: string,
@@ -250,11 +277,12 @@ export async function dismissSuggestion(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const { error } = await supabase
+  const { data, error } = await createAdminClient()
     .from("wearable_activities")
     .update({ suggestion_dismissed_at: new Date().toISOString() })
     .eq("id", activityId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id");
 
   if (error) {
     // Pre-0043 deploys have no such column. Say so plainly rather than showing a
@@ -264,6 +292,13 @@ export async function dismissSuggestion(
       return { ok: false, error: "Dismissing isn't available yet — migration 0043 is pending." };
     }
     return { ok: false, error: error.message };
+  }
+
+  // Nothing matched. The id came from this athlete's own suggestions list
+  // moments ago, so an empty result means the write did not land — never report
+  // that as success again.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Couldn't save that — the workout is no longer available." };
   }
 
   revalidatePath(`/program/${programId}`);
