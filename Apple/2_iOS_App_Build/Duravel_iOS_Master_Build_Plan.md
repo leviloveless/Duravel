@@ -42,12 +42,12 @@ files are also written to the `Training Program App` OneDrive folder.
 | Bundle identifier | **`app.duravel`** (reverse-DNS of duravel.app) |
 | Apple app category | Health & Fitness |
 | Web stack | Next.js (App Router) · Supabase (auth + DB) · Stripe (web billing, live) · Resend (email) |
-| Repo | GitHub **Duravel** · local `C:\dev\duravel` · web app under `hyroxai/` |
-| Hosted web URL | `https://app.duravel.app` *(assumption — confirm the production domain)* |
+| Repo | GitHub **Duravel** · local `C:\dev\duravel` · web app at the **repo root** (`app/`, `lib/`, `components/`) |
+| Hosted web URL | `https://duravel.app` *(confirmed live 2026-08-17; `app.duravel.app` is NOT a deployment)* |
 | Capacitor load mode | **Remote-shell first** (`server.url` → hosted app) + native plugins, with a documented path to bundled/offline later (Part 1 §Decision D1) |
 | Min iOS target | iOS 15.0 |
 | Native plugins in scope | HealthKit, Push (APNs), IAP/StoreKit, StatusBar, SplashScreen, Haptics, Preferences (secure storage), App (deep links), Browser |
-| Deep-link scheme | `duravel://` + Universal Links on `app.duravel.app` |
+| Deep-link scheme | `duravel://` + Universal Links on `duravel.app` |
 
 ---
 
@@ -121,8 +121,8 @@ Hard blockers only you can clear:
    HealthKit, Push, Sign in with Apple, and In-App Purchase capabilities.
 4. **Billing decision (D3)** — StoreKit IAP vs external. This gates Part 4's final
    wiring.
-5. **Confirm production web URL** (`app.duravel.app`?) and that it's reachable/CORS-
-   clean from a native webview.
+5. ✅ **Production web URL confirmed** — `https://duravel.app` (2026-08-17). Still to
+   check: that it renders CORS-clean inside a native webview.
 6. **Secrets** — APNs key (.p8), HealthKit is entitlement-only, App Store Connect
    API key for CI, Stripe/Supabase keys already exist.
 7. **Assets** — final 1024² app icon source + brand colors for splash (Part 2

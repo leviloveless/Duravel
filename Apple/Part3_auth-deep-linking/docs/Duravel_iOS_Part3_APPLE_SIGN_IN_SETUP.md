@@ -37,9 +37,9 @@ Apple credentials. Create:
    - Identifier: e.g. `app.duravel.signin` (this becomes Supabase's "Services ID").
    - Enable **Sign In with Apple** → Configure:
      - Primary App ID: `app.duravel`
-     - Domains: `app.duravel.app`
+     - Domains: `duravel.app`
      - Return URLs: `https://<YOUR-PROJECT-ref>.supabase.co/auth/v1/callback`
-       and `https://app.duravel.app/auth/callback`
+       and `https://duravel.app/auth/callback`
 2. **Sign in with Apple Key** (Keys → `+`).
    - Enable Sign In with Apple, pick the primary App ID.
    - Download the `.p8` key file (**one-time download** — store it in the
@@ -69,7 +69,7 @@ with the Supabase CLI / a short script (valid ≤ 6 months, must be rotated).
 Authentication → URL Configuration → **Redirect URLs**, add:
 
 ```
-https://app.duravel.app/auth/callback
+https://duravel.app/auth/callback
 duravel://auth/callback
 ```
 

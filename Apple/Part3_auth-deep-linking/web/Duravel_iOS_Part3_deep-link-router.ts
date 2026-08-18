@@ -3,7 +3,7 @@
  * Deep-link router for the Capacitor shell.
  *
  * Listens for @capacitor/app's `appUrlOpen` event (fired for BOTH Universal
- * Links https://app.duravel.app/... AND custom-scheme links duravel://...) and
+ * Links https://duravel.app/... AND custom-scheme links duravel://...) and
  * routes the incoming URL into the correct in-webview route.
  *
  * The tricky cases are Supabase's auth links:
@@ -18,7 +18,7 @@
  *   3. Errors:                   ...?error=access_denied&error_description=...
  *      → surface a friendly message on the login screen.
  *
- * Because the app already loads https://app.duravel.app via Capacitor
+ * Because the app already loads https://duravel.app via Capacitor
  * `server.url`, "navigating" in-webview is just a client-side route change.
  * We prefer replacing the location so the deep link doesn't pollute history,
  * and we strip tokens from the visible URL after consuming them.

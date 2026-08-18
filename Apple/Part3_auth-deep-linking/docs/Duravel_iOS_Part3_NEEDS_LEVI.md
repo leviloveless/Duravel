@@ -18,7 +18,7 @@ from the sandbox. Grouped by system.
       `app.duravel,app.duravel.signin` (the bundle id MUST be there or native
       token exchange fails with audience mismatch).
 - [ ] Add the Apple client-secret JWT (rotate ≤ 6 months).
-- [ ] Add redirect URLs: `https://app.duravel.app/auth/callback` and
+- [ ] Add redirect URLs: `https://duravel.app/auth/callback` and
       `duravel://auth/callback`.
 - [ ] Deploy the **`delete-account`** Edge Function and
       `supabase secrets set SERVICE_ROLE_KEY=…`.
@@ -29,13 +29,13 @@ from the sandbox. Grouped by system.
 
 ## Web app (hyroxai / Next.js on Vercel)
 - [ ] Serve the AASA at
-      `https://app.duravel.app/.well-known/apple-app-site-association`
+      `https://duravel.app/.well-known/apple-app-site-association`
       (route handler snippet in `AASA_DEPLOY.md`) — no `.json` extension,
       `application/json`, 200, no redirect.
 - [ ] Build the `/settings/account` + `/settings/account/delete` pages per
       `account-deletion-plan.md`.
 - [ ] Confirm the confirm/reset email templates point at
-      `https://app.duravel.app/...` paths that the AASA `components` cover
+      `https://duravel.app/...` paths that the AASA `components` cover
       (`/auth/*`, `/reset-password*`, `/confirm*`). Adjust either side to match.
 
 ## Decisions I made (override if wrong)

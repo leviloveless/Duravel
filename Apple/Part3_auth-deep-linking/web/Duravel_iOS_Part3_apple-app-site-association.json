@@ -30,7 +30,7 @@
           },
           {
             "/": "*",
-            "comment": "Fallback: open every other app.duravel.app path in-app",
+            "comment": "Fallback: open every other duravel.app path in-app",
             "exclude": false
           }
         ]

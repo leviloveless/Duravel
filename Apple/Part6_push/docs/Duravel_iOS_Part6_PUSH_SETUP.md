@@ -1,7 +1,7 @@
 # Duravel iOS — Part 6: Push Notifications Setup (APNs + Capacitor 6)
 
 > Scope: getting native APNs push working inside the Capacitor 6 shell that loads
-> `https://app.duravel.app`. This doc covers Apple Developer config, the Xcode
+> `https://duravel.app`. This doc covers Apple Developer config, the Xcode
 > project changes, and the Capacitor plugin wiring. The runtime TS lives in the
 > companion files; the send path lives in the edge function.
 >
@@ -134,7 +134,7 @@ const config: CapacitorConfig = {
   appName: 'Duravel',
   webDir: 'public', // n/a for remote URL shell, kept for cap tooling
   server: {
-    url: 'https://app.duravel.app',
+    url: 'https://duravel.app',
     cleartext: false,
     // allowNavigation kept narrow — see Part 1/2 shell config
   },

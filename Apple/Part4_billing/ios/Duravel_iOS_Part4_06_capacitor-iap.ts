@@ -12,7 +12,7 @@
 // (paywall gating) reads entitlement from Supabase — see Part 4.7.
 //
 // NOTE: These calls only work inside the native iOS shell. On plain web
-// (app.duravel.app in a browser) the plugin is a no-op; guard with Capacitor
+// (duravel.app in a browser) the plugin is a no-op; guard with Capacitor
 // platform checks so the same webview bundle runs both places. See `isNativeIOS`.
 // -----------------------------------------------------------------------------
 

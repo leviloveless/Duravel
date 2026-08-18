@@ -2,7 +2,7 @@
 
 Paste the relevant parts into **App Store Connect → the version → App Review Information → Notes**. Keep the demo credentials in the dedicated **Sign-In Information** fields (not free text), and use the Notes box for the walkthrough and the architecture explanation.
 
-The single biggest rejection risk for Duravel is **Guideline 4.2 (Minimum Functionality)** because the app is a Capacitor webview of `app.duravel.app`. The architecture explanation below is written specifically to preempt that. Read section 4 carefully.
+The single biggest rejection risk for Duravel is **Guideline 4.2 (Minimum Functionality)** because the app is a Capacitor webview of `duravel.app`. The architecture explanation below is written specifically to preempt that. Read section 4 carefully.
 
 ---
 
@@ -18,7 +18,7 @@ Password:          <set a stable password, e.g. DuravelReview!2026>
 
 Demo account requirements — make sure BEFORE submitting:
 
-- [ ] The account **exists in production** (app.duravel.app), not just staging.
+- [ ] The account **exists in production** (duravel.app), not just staging.
 - [ ] It has an **active, comped membership** so the reviewer sees full functionality without needing to pay. Grant the entitlement server-side (Supabase/Stripe) so all plans, live sessions, and Health features are unlocked. **Do not require the reviewer to complete a real purchase to see core features.**
 - [ ] It has **at least one plan already enrolled** (e.g. a HYROX 8-week block) with a few completed sessions, so the Progress and Home screens are populated, not empty.
 - [ ] The password does not expire and the account won't be rate-limited or locked during review.
@@ -32,7 +32,7 @@ Demo account requirements — make sure BEFORE submitting:
 Thanks for reviewing Duravel.
 
 Duravel is a hybrid-endurance training app (HYROX, DEKA, triathlon). It is a native
-iOS app (Capacitor 6) that renders our production web app, app.duravel.app, inside a
+iOS app (Capacitor 6) that renders our production web app, duravel.app, inside a
 native WKWebView and adds native capabilities via native plugins (HealthKit, Push,
 In-App Purchase, Sign in with Apple, deep links). See "Architecture" below.
 

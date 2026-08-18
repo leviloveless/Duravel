@@ -1,7 +1,7 @@
 # Duravel iOS — Part 3: Auth, secure session & deep linking
 
 Drop-in artifacts for the Capacitor 6 native shell that loads
-`https://app.duravel.app`. Everything here ships **inside the web bundle
+`https://duravel.app`. Everything here ships **inside the web bundle
 (`hyroxai/`)** except the iOS config files (entitlements, Info.plist, AASA) and
 the Supabase Edge Function / SQL. Nothing was (or can be) compiled or signed in
 this environment — these are ready-to-commit sources.
@@ -51,7 +51,7 @@ npx cap sync ios
 1. Add `Duravel.entitlements` to the target and set **Code Signing
    Entitlements** to it (or add the capabilities in Xcode).
 2. Merge the Info.plist snippet.
-3. Deploy the AASA at `https://app.duravel.app/.well-known/apple-app-site-association`.
+3. Deploy the AASA at `https://duravel.app/.well-known/apple-app-site-association`.
 4. Deploy the Edge Function and run the SQL.
 
 Then everything Levi-only is in `Duravel_iOS_Part3_NEEDS_LEVI.md`.

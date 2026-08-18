@@ -44,8 +44,8 @@ This is the biggest product/compliance fork (see compliance checklist §3).
 - [ ] Whichever you pick, **edit the billing bracket in `review-notes.md`** so the reviewer notes match reality (a mismatch here is an automatic 3.1.1 rejection).
 
 ### A5. Confirm the production URL renders in a native webview 🔴
-- [ ] Verify **https://app.duravel.app** loads cleanly inside a WKWebView (not just Safari) — no mixed-content blocks, no auth redirect that breaks in a webview, no "open in Safari" dead-ends, safe-area/notch handling OK.
-- [ ] Quick check on the Mac: once the project builds (Section B), run it in the Simulator and watch the app.duravel.app load. If anything web-side needs a webview-specific tweak, that's a web (Next.js) fix in your repo.
+- [ ] Verify **https://duravel.app** loads cleanly inside a WKWebView (not just Safari) — no mixed-content blocks, no auth redirect that breaks in a webview, no "open in Safari" dead-ends, safe-area/notch handling OK.
+- [ ] Quick check on the Mac: once the project builds (Section B), run it in the Simulator and watch the duravel.app load. If anything web-side needs a webview-specific tweak, that's a web (Next.js) fix in your repo.
 
 ### A6. Generate the APNs auth key (.p8) 🔴 *(needed for push, Part 6)*
 - [ ] In Apple Developer portal → Keys → **create a new key**, enable **Apple Push Notifications service (APNs)**.
@@ -80,7 +80,7 @@ This is where the Parts 1–6 artifacts become a real Xcode project. Work in you
 
 ### B4. Wire each native plugin & capability 🟡
 Confirm each Part's plugin is registered and its capability/entitlement is on the target:
-- [ ] **Auth + deep linking (Part 3):** Sign in with Apple capability on; Associated Domains entitlement lists `applinks:app.duravel.app`; host the **apple-app-site-association** file on app.duravel.app (`/.well-known/apple-app-site-association`, correct App ID `TEAMID.app.duravel`, no redirect, `application/json`).
+- [ ] **Auth + deep linking (Part 3):** Sign in with Apple capability on; Associated Domains entitlement lists `applinks:duravel.app`; host the **apple-app-site-association** file on duravel.app (`/.well-known/apple-app-site-association`, correct App ID `TEAMID.app.duravel`, no redirect, `application/json`).
 - [ ] **Billing (Part 4):** the purchase plugin registered; products from A4 referenced; restore-purchases works; paywall shows the subscription disclosure + Terms/Privacy links.
 - [ ] **HealthKit (Part 5):** HealthKit capability on; `NSHealthShareUsageDescription` / `NSHealthUpdateUsageDescription` strings present & truthful; the "Connect Apple Health" user action triggers the permission sheet.
 - [ ] **Push (Part 6):** Push Notifications capability on; APNs key (A6) configured on the sender; permission requested contextually; a test push delivers.

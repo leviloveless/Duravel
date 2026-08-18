@@ -29,7 +29,7 @@ For each type Apple asks three things: (1) is it **collected**, (2) is it **link
 | **Usage Data** | Product Interaction | Yes | Yes | No | App Functionality + Analytics |
 | **Diagnostics** | Crash Data | Yes | No | No | App Functionality (stability) |
 
-> If you ship **without** any analytics SDK at launch, you may drop the "Analytics" purpose and the Crash Data row — but only if nothing in the app or your web backend records it. Since app.duravel.app is your own web app and likely logs some product interaction server-side, keeping Usage Data disclosed is the safe, honest answer.
+> If you ship **without** any analytics SDK at launch, you may drop the "Analytics" purpose and the Crash Data row — but only if nothing in the app or your web backend records it. Since duravel.app is your own web app and likely logs some product interaction server-side, keeping Usage Data disclosed is the safe, honest answer.
 
 ---
 

@@ -23,7 +23,7 @@ Work top-to-bottom through Section 5. Confirm each step; don't blind-overwrite e
 - **Product:** Duravel — a live hybrid-endurance training app (HYROX, DEKA, triathlon plans).
 - **Web stack:** Next.js + Supabase (auth/data) + Stripe (LIVE billing, $19.99/mo · $119.99/yr) + Resend (email).
 - **iOS approach:** a **Capacitor 6 native shell** that renders the production web app
-  `https://app.duravel.app` inside a native `WKWebView`, plus native plugins (HealthKit, Push,
+  `https://duravel.app` inside a native `WKWebView`, plus native plugins (HealthKit, Push,
   In-App Purchase, Sign in with Apple, deep links / Universal Links).
 - **Repo:** GitHub `Duravel`; local path `C:\dev\duravel`; the app lives under `hyroxai/`.
 - **Conventions:** app name **Duravel**; bundle id **app.duravel**; min iOS **15**; **Capacitor 6**;
@@ -64,7 +64,7 @@ destination in the repo (e.g. `hyroxai/ios/App/App/...`, `scripts/...`, `hyroxai
 - Read/verify all `Apple\` artifacts and MANIFESTs.
 - Copy files to their repo destinations; merge config (`capacitor.config.ts`, `package.json`).
 - Run `npm install`, `npx cap add ios`, `npx cap sync ios`, git operations.
-- Host/verify the web-side files (e.g. `apple-app-site-association` on app.duravel.app).
+- Host/verify the web-side files (e.g. `apple-app-site-association` on duravel.app).
 - Fill out App Store Connect content from the Part 7 docs.
 
 **CANNOT do on Windows — needs macOS + Xcode:**
@@ -92,7 +92,7 @@ These gate submission — surface them early, don't try to invent answers:
    Store Connect access until active.
 3. **APNs `.p8` auth key** — Levi generates in the Apple Developer portal (for push).
 4. **1024px app-icon source** — Levi provides (no alpha, no rounded corners).
-5. **Confirm `app.duravel.app` renders correctly in a `WKWebView`** — highest webview risk; needs
+5. **Confirm `duravel.app` renders correctly in a `WKWebView`** — highest webview risk; needs
    a device/Simulator check. Any fixes here are web-side (Next.js) changes in the repo.
 6. **Signing** — App ID `app.duravel` with capabilities: HealthKit, Push, Sign in with Apple,
    In-App Purchase, Associated Domains. Certs/profiles via Xcode "auto-manage" once enrolled.

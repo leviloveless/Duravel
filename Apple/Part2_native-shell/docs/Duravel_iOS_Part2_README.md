@@ -1,7 +1,7 @@
 # Duravel iOS — Part 2: Native Shell & UX Polish
 
 Drop-in artifacts that make the Capacitor 6 shell (which loads
-`https://app.duravel.app` via `server.url`) feel like a real native iOS app:
+`https://duravel.app` via `server.url`) feel like a real native iOS app:
 app icon, splash, safe areas, status bar, dark-flash prevention, offline screen,
 haptics, keyboard/overscroll/swipe-back, and a single web↔native bridge.
 
@@ -99,7 +99,7 @@ screen). Verified as well-formed XML.
 const config: CapacitorConfig = {
   appId: 'app.duravel',
   appName: 'Duravel',
-  server: { url: 'https://app.duravel.app', cleartext: false },
+  server: { url: 'https://duravel.app', cleartext: false },
   backgroundColor: '#0B0B0F',            // webview bg — kills the white webview flash
   ios: {
     backgroundColor: '#0B0B0F',

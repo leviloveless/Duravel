@@ -90,7 +90,7 @@ The web app already grants access based on a Stripe subscription. We do **not** 
 **The rule:** every feature gate in Duravel — web and iOS — asks Supabase *"does this user have an active `pro` entitlement?"* and never asks a payment provider directly. The `entitlements` row records `source = 'stripe' | 'apple'` for support/analytics, but access is identical regardless of source.
 
 ### Identity linkage (the critical join)
-The one thing that must be right: **the iOS purchase must attach to the same Duravel `user_id` as the web account.** Because the iOS app is a Capacitor shell loading `app.duravel.app`, the webview already knows the logged-in Supabase `user_id`. We pass that into RevenueCat as the **App User ID** at login:
+The one thing that must be right: **the iOS purchase must attach to the same Duravel `user_id` as the web account.** Because the iOS app is a Capacitor shell loading `duravel.app`, the webview already knows the logged-in Supabase `user_id`. We pass that into RevenueCat as the **App User ID** at login:
 
 ```ts
 await Purchases.logIn({ appUserID: supabaseUser.id }); // RC ties the Apple purchase to the Duravel user

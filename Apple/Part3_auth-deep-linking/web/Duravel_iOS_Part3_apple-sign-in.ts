@@ -46,7 +46,7 @@ import { getSupabase } from './Duravel_iOS_Part3_supabase-client';
 /** Client ID = the app's bundle id for the NATIVE flow. */
 const APPLE_CLIENT_ID = 'app.duravel';
 /** Only needed for the web-redirect fallback below; matches Apple "Return URL". */
-const APPLE_REDIRECT_URI = 'https://app.duravel.app/auth/callback';
+const APPLE_REDIRECT_URI = 'https://duravel.app/auth/callback';
 
 /**
  * Generate a cryptographically-random raw nonce (URL-safe). We hash it to hex

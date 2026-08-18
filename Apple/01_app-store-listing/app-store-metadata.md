@@ -139,7 +139,7 @@ Answer the App Store Connect age-rating questionnaire as follows. Expected resul
 | Sexual Content or Nudity | None |
 | Graphic Sexual Content and Nudity | None |
 | Contests | None |
-| Unrestricted Web Access | **No** — the app loads only your own domain (app.duravel.app) in a controlled webview, not an open browser. |
+| Unrestricted Web Access | **No** — the app loads only your own domain (duravel.app) in a controlled webview, not an open browser. |
 | Gambling and Contests | No |
 | Made for Kids | **No** — set the "This app is not designed for kids" / age band appropriately; target audience is adults 18+. |
 

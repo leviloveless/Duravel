@@ -120,8 +120,8 @@ Every item Apple will check, with a current status and what's left to do. Status
 | Subscription disclosure in description + on paywall | 🟡 | text provided in metadata; must also appear on paywall |
 | App icon 1024px, no alpha, no rounded corners | 🔴 | Levi must provide 1024px source (morning to-do A) |
 | Launch screen / splash | ✅ | Part 2 native shell |
-| Associated Domains (Universal Links) | 🟡 | capability + apple-app-site-association on app.duravel.app |
-| Production URL renders in native webview | 🔴 | must confirm app.duravel.app loads in WKWebView (morning to-do A) |
+| Associated Domains (Universal Links) | 🟡 | capability + apple-app-site-association on duravel.app |
+| Production URL renders in native webview | 🔴 | must confirm duravel.app loads in WKWebView (morning to-do A) |
 | APNs auth key (.p8) for push | 🔴 | Levi must generate (morning to-do A) |
 | Demo account (comped, pre-populated) | 🟡 | provision in production before submit |
 | Data collection honest & minimal | ✅ | manifest + label consistent |
@@ -133,7 +133,7 @@ Every item Apple will check, with a current status and what's left to do. Status
 **Hard blockers (🔴) that will stop submission or cause rejection:**
 1. Billing IAP-vs-external decision (§3).
 2. 1024px app-icon source (§9).
-3. Confirm app.duravel.app renders in a native webview (§9 / 4.2).
+3. Confirm duravel.app renders in a native webview (§9 / 4.2).
 4. APNs .p8 key generated (§9).
 5. 4.2 minimum-functionality demonstrable (§8) — mitigated by native plugins + review notes.
 

@@ -77,6 +77,11 @@ const EnvSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  // Apple Developer Team ID (Membership page) — 10 alphanumeric chars. Signs the
+  // Universal Links association file at /.well-known/apple-app-site-association.
+  // While unset that route 404s ON PURPOSE: Apple's CDN caches what it fetches,
+  // so a placeholder would get an INVALID association cached against the domain.
+  APPLE_TEAM_ID: z.string().optional(),
 });
 
 const rawEnv = {
@@ -115,6 +120,7 @@ const rawEnv = {
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
   VAPID_SUBJECT: process.env.VAPID_SUBJECT,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  APPLE_TEAM_ID: process.env.APPLE_TEAM_ID,
 };
 
 const parsed = EnvSchema.safeParse(rawEnv);

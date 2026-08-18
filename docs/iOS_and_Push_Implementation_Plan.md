@@ -7,7 +7,7 @@
 ## Part A — iOS integration
 
 ### Current state
-- The app is a **Capacitor 6** native shell rendering `https://app.duravel.app` in a `WKWebView`, bundle id `app.duravel`, min iOS 15.
+- The app is a **Capacitor 6** native shell rendering `https://duravel.app` in a `WKWebView`, bundle id `app.duravel`, min iOS 15.
 - iOS was generated across **7 parts under `C:\dev\duravel\Apple\`** (each with a `MANIFEST.md` naming where its files go). **Not yet integrated into `hyroxai/ios`.**
 - Start docs: `Apple\Duravel_iOS_HANDOFF.md`, then `Apple\Duravel_iOS_Morning_ToDo.md`.
 
@@ -16,7 +16,7 @@
 2. **Apple Developer Program** enrollment (needs the **D-U-N-S** number — tracked as an open blocker).
 3. **Signing**: an App ID for `app.duravel`, a distribution certificate, and a provisioning profile.
 4. **APNs auth key** (`.p8`) for push (also used in Part B).
-5. **1024px app icon**; confirm `app.duravel.app` renders correctly inside a `WKWebView`.
+5. **1024px app icon**; confirm `duravel.app` renders correctly inside a `WKWebView`.
 6. **Billing decision**: Apple IAP vs. external Stripe link — a mismatch is an automatic App Store rejection. Confirm before wiring the paywall.
 
 ### Integration sequence (on the Mac)
@@ -52,8 +52,9 @@
 > actually fires the reminders in prod — trigger `/api/cron/lifecycle` manually
 > (Vercel dashboard → Crons → Run, or curl the real production domain with the
 > real `CRON_SECRET`) and check the `pushReminders` summary in the JSON. The
-> manual `<app.duravel.app>` curl returned DEPLOYMENT_NOT_FOUND only because that
-> host is the iOS-shell subdomain, not the web deployment — use the real domain.
+> manual `<app.duravel.app>` curl returned DEPLOYMENT_NOT_FOUND because no Vercel
+> project claims that hostname — the deployment is `duravel.app`. (As of 2026-08-17
+> the iOS shell points at `duravel.app` too, so there is no second host.)
 >
 > **Deferred (not started):** per-user quiet hours + smarter send time (needs a
 > `profiles.timezone` column); `streak_at_risk` trigger; native APNs (after iOS);

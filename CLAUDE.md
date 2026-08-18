@@ -7,11 +7,18 @@ Project memory for any Claude/Cowork session working in this repo. Read this fir
 Duravel — a live hybrid-endurance training app (HYROX, DEKA, triathlon plans).
 
 - **Web:** Next.js + Supabase (auth/data) + Stripe (LIVE billing, $19.99/mo · $119.99/yr) + Resend.
-- **iOS:** a **Capacitor 6 native shell** rendering `https://app.duravel.app` in a `WKWebView`,
+- **iOS:** a **Capacitor 6 native shell** rendering `https://duravel.app` in a `WKWebView`,
   plus native plugins (HealthKit, Push, In-App Purchase, Sign in with Apple, deep links).
-  ⚠️ **`app.duravel.app` currently returns Vercel `404: DEPLOYMENT_NOT_FOUND`** (checked
-  2026-08-13) — the shell points at a hostname that resolves to no deployment. The live app
-  is served from `https://duravel.app`. Open blocker.
+  ✅ **Host resolved 2026-08-17: the shell loads `duravel.app`.** It was specced against
+  `app.duravel.app`, which returns Vercel `404: DEPLOYMENT_NOT_FOUND` — no project claims
+  that hostname. Repointing was the fix rather than attaching the subdomain, because the web
+  app cannot serve a second host as built: `NEXT_PUBLIC_SITE_URL` is a single value and
+  Stripe, the Strava/Oura OAuth callbacks and password reset all read
+  `env.NEXT_PUBLIC_SITE_URL ?? request.origin`, so env wins and an athlete on the other host
+  is redirected off it mid-flow. **Universal Links are served live** from
+  `duravel.app/.well-known/apple-app-site-association` (`app/.well-known/…/route.ts`), which
+  **404s until `APPLE_TEAM_ID` is set** — deliberate, since Apple's CDN caches what it
+  fetches and a `TEAMID` placeholder would cache an invalid association.
 - **The Next.js app is at the REPO ROOT** — `app/`, `lib/`, `components/`, `supabase/`.
   Repo root is `C:\dev\duravel`. (This line used to say the app lived under `hyroxai/`; it
   never has since the rename, and that sent several sessions looking in the wrong place.)
@@ -84,5 +91,5 @@ Apple\
 ## Open blockers (owner: Levi)
 
 Developer Program enrollment (D-U-N-S), billing decision, APNs `.p8` key, 1024px app icon,
-confirm `app.duravel.app` renders in a `WKWebView`, signing capabilities on App ID `app.duravel`.
+confirm `duravel.app` renders in a `WKWebView`, signing capabilities on App ID `app.duravel`.
 Detail in `Apple\Duravel_iOS_Morning_ToDo.md` and `Apple\Part7_submission\...\compliance-checklist.md`.

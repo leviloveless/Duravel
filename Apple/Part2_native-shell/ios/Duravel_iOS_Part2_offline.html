@@ -5,7 +5,7 @@
   Fully self-contained (no external CSS/JS/fonts). Two uses:
 
   1. BUNDLED FALLBACK: copy into the native app bundle (e.g. as a local file the
-     shell can navigate to) so that if the remote shell (https://app.duravel.app)
+     shell can navigate to) so that if the remote shell (https://duravel.app)
      can't be reached at all on launch, the user sees this instead of a blank
      WKWebView. Wire it as the load-error fallback in AppDelegate (see README).
 
@@ -87,7 +87,7 @@
 
   <script>
     (function () {
-      var RETRY_URL = 'https://app.duravel.app';   // hosted shell entry point
+      var RETRY_URL = 'https://duravel.app';   // hosted shell entry point
       var btn = document.getElementById('retry');
       var label = document.getElementById('retry-label');
       var spinner = document.getElementById('spinner');

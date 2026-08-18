@@ -79,7 +79,7 @@ Add as each capability lands; listed here so nothing is missed:
   HealthKit background delivery (Part 5)
 - `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription` — only if
   profile-photo upload is enabled
-- `CFBundleURLTypes` → `duravel` scheme; Associated Domains → `applinks:app.duravel.app` (Part 3)
+- `CFBundleURLTypes` → `duravel` scheme; Associated Domains → `applinks:duravel.app` (Part 3)
 - `SKAdNetworkItems` — only if ads/attribution (not currently planned)
 
 ## 6. `.gitignore` additions
@@ -109,7 +109,7 @@ the native shell UX (icons, splash, insets, offline, haptics) on top of this.
 
 ## 9. Needs Levi
 
-- Confirm production URL (`app.duravel.app`) and that it renders without
+- Confirm production URL (`duravel.app`) and that it renders without
   X-Frame/CSP issues in a native webview.
 - Decide whether Capacitor config/`package.json` lives at repo root or in
   `hyroxai/` (I assumed root).
