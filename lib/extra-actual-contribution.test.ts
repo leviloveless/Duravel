@@ -1,6 +1,6 @@
 /**
- * Extras count toward what the athlete ACTUALLY did — and toward nothing else
- * (Levi, 2026-08-13).
+ * Extras count toward what the athlete ACTUALLY did (Levi, 2026-08-13) — and,
+ * since 2026-08-18, toward the weekly adaptation as well.
  *
  * Off-plan work used to be reported only alongside the summary ("1 extra
  * workout · 35 min — not counted in the totals above"), so a week with real
@@ -21,13 +21,20 @@
  *
  * ## What must NOT change
  *
- * Planned totals, compliance %, and every adaptation input. The addition happens
- * at the render site in `week-card.tsx`, NOT inside `computeWeekSignals` — those
- * signals also drive the weekly adaptation, and folding extras in there would
- * let self-added work read as over-delivery and bump next week's prescription.
+ * The PLANNED totals. Those are what the engine prescribed and what the revised
+ * targets are measured against; the athlete adding a run does not change what
+ * they were asked to do.
+ *
+ * Compliance and the adaptation inputs used to be on that list too — the
+ * addition happened at the render site in `week-card.tsx` precisely to keep
+ * extras out of the engine. That was reversed on 2026-08-18: `extraActual-
+ * Contribution` is now called from inside `computeWeekSignals`, so the screen
+ * and the engine share one set of arithmetic. The reasoning, and the limits
+ * still in place (compliance capped at 100%, key sessions planned-only), are in
+ * `lib/engine/adapt.ts` and `lib/engine/extras-adaptation.test.ts`.
  */
 import { describe, it, expect } from "vitest";
-import { actualWithExtras, extraActualContribution, extraTotals } from "./extra-workouts";
+import { extraActualContribution, extraTotals, weekActualLine } from "./extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
 
 function x(over: Partial<ExtraWorkout> = {}): ExtraWorkout {
@@ -104,61 +111,64 @@ describe("extraActualContribution", () => {
 });
 
 /**
- * The header used to gate its whole Actual line on `signals`, which is null
- * until a PLANNED session has a workout_log. So the week this feature exists
+ * The header used to gate its whole Actual line on `signals`, which was null
+ * until a PLANNED session had a workout_log. So the week this feature exists
  * for — plan skipped, hour-long ride done instead — printed no Actual at all,
  * directly above a caption reading "counted in Actual". Found on Levi's own
  * week 1: an extra Zone 1–2 cardio, sessions 0%, and nowhere on the page did
  * that work appear as a number.
+ *
+ * `weekActualLine` no longer does the adding — `computeWeekSignals` has already
+ * folded the extras in by the time it is called. All that is left is the
+ * null-vs-zero decision, which is what these tests are about.
  */
-describe("actualWithExtras — an extra alone is enough to print an Actual", () => {
-  const signals = { actualCardioMinutes: 100, actualMileage: 8 };
+describe("weekActualLine — when a metric has something to say", () => {
+  /** What `computeWeekSignals` would return: planned actuals + extras, combined. */
+  const signals = (cardio: number, miles: number) => ({
+    actualCardioMinutes: cardio,
+    actualMileage: miles,
+  });
 
   it("prints the extra when NOTHING planned was logged — the bug", () => {
-    const line = actualWithExtras(null, [x({ kind: "cardio", durationMin: 60 })]);
+    const ride = x({ kind: "cardio", durationMin: 60 });
+    const line = weekActualLine(signals(60, 0), [ride], false);
     expect(line.cardioMinutes).toBe(60);
   });
 
-  it("adds extras on top of logged sessions", () => {
-    const line = actualWithExtras(signals, [
-      x({ kind: "run", durationMin: 35, distanceMiles: 4.2 }),
-    ]);
+  it("prints both sides once planned sessions were logged", () => {
+    const run = x({ kind: "run", durationMin: 35, distanceMiles: 4.2 });
+    const line = weekActualLine(signals(135, 12.2), [run], true);
     expect(line).toEqual({ cardioMinutes: 135, miles: 12.2 });
   });
 
   it("still prints zeros once real logs exist — 0/150 min is information", () => {
-    expect(actualWithExtras(signals, [])).toEqual({ cardioMinutes: 100, miles: 8 });
-    expect(actualWithExtras({ actualCardioMinutes: 0, actualMileage: 0 }, [])).toEqual({
-      cardioMinutes: 0,
-      miles: 0,
-    });
+    expect(weekActualLine(signals(100, 8), [], true)).toEqual({ cardioMinutes: 100, miles: 8 });
+    expect(weekActualLine(signals(0, 0), [], true)).toEqual({ cardioMinutes: 0, miles: 0 });
   });
 
   it("says nothing at all when there is nothing to say", () => {
-    expect(actualWithExtras(null, [])).toEqual({ cardioMinutes: null, miles: null });
+    expect(weekActualLine(null, [], false)).toEqual({ cardioMinutes: null, miles: null });
   });
 
   it("keeps mileage silent for a lift-only week rather than claiming 0 mi", () => {
     // "0 mi" reads as "ran nowhere". The truth is "did not run", and with no
     // logged sessions there is no basis for either claim.
-    const line = actualWithExtras(null, [x({ kind: "lift", durationMin: 60 })]);
+    const lift = x({ kind: "lift", durationMin: 60 });
+    const line = weekActualLine(signals(0, 0), [lift], false);
     expect(line.miles).toBeNull();
     // A lift adds no cardio either, so this week says nothing — correctly.
     expect(line.cardioMinutes).toBeNull();
   });
 
   it("keeps a bike ride's distance out of mileage even with no logs", () => {
-    const line = actualWithExtras(null, [
-      x({ kind: "cardio", durationMin: 90, distanceMiles: 20 }),
-    ]);
+    const ride = x({ kind: "cardio", durationMin: 90, distanceMiles: 20 });
+    const line = weekActualLine(signals(90, 0), [ride], false);
     expect(line.cardioMinutes).toBe(90);
     expect(line.miles).toBeNull();
   });
 
-  it("rounds the combined mileage, not each side", () => {
-    const line = actualWithExtras({ actualCardioMinutes: 0, actualMileage: 3.05 }, [
-      x({ kind: "run", distanceMiles: 1.02 }),
-    ]);
-    expect(line.miles).toBe(4.1);
+  it("rounds what it prints, so the header never shows 4.070000000000001", () => {
+    const run = x({ kind: "run", distanceMiles: 1.02 });
+    expect(weekActualLine(signals(0, 4.07), [run], true).miles).toBe(4.1);
   });
 });

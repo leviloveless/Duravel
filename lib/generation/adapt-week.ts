@@ -9,12 +9,19 @@
  *
  * The AI never decides volume: it receives the engine's revised targets and a
  * digest of last week's logs (so it can react to notes within those targets).
+ *
+ * Off-plan extras are loaded alongside the logs (Levi, 2026-08-18) and go into
+ * the same signals — including across the full ACWR window, so the chronic
+ * baseline and the acute week are measured the same way. Loading extras for the
+ * reviewed week alone would make every week look like a spike against a
+ * baseline that never counted the athlete's extra work.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   GenerationInputSchema,
   ProgramDataSchema,
+  type ExtraWorkout,
   type GenerationInput,
   type ProgramData,
   type ProgramWeek,
@@ -32,6 +39,7 @@ import {
   type WeekSignals,
 } from "@/lib/engine/adapt";
 import { computeLoadMetrics } from "@/lib/engine/load";
+import { extrasFromRows } from "@/lib/extra-workouts";
 import { computeReadiness, type ReadinessCheckin } from "@/lib/engine/readiness";
 import { generateChunk } from "@/lib/ai/generate-week";
 import { assembleArgsFromInput, assembleProgram } from "./assemble";
@@ -67,6 +75,10 @@ interface LoadedProgram {
   logs: WorkoutLog[];
   /** Logs across the ACWR window (up to 4 weeks) for load metrics (Review #5). */
   allLogs: WorkoutLog[];
+  /** The reviewed week's off-plan workouts. */
+  extras: ExtraWorkout[];
+  /** Extras across the same ACWR window, for the chronic baseline. */
+  allExtras: ExtraWorkout[];
   /** Readiness check-ins up to the reviewed week (Review #7). */
   readinessCheckins: ReadinessCheckin[];
   prevSignals: WeekSignals | null;
@@ -136,11 +148,28 @@ async function loadForAdaptation(
     .lte("week_number", weekNumber);
   const logs = (logRows ?? []).map(toWorkoutLog);
 
+  // Off-plan workouts over the same window. Rows that no longer validate are
+  // dropped by `extrasFromRows` rather than half-counted.
+  const { data: extraRows } = await supabase
+    .from("extra_workouts")
+    .select(
+      "id, week_number, day, kind, title, duration_min, distance_miles, avg_hr, goal_zone, rpe, note, activity_id",
+    )
+    .eq("program_id", programId)
+    .gte("week_number", Math.max(1, weekNumber - 3))
+    .lte("week_number", weekNumber);
+  const allExtras = extrasFromRows(extraRows ?? []);
+
   let prevSignals: WeekSignals | null = null;
   const prevWeek = programData.weeks.find((w) => w.weekNumber === weekNumber - 1);
   if (prevWeek) {
     const prevLogs = logs.filter((l) => l.weekNumber === weekNumber - 1);
-    if (prevLogs.length > 0) prevSignals = computeWeekSignals(prevWeek, prevLogs);
+    const prevExtras = allExtras.filter((x) => x.weekNumber === weekNumber - 1);
+    // A week with nothing but extras still has a compliance trend worth reading —
+    // gating on logs alone would hide it from the re-anchor and deload trends.
+    if (prevLogs.length > 0 || prevExtras.length > 0) {
+      prevSignals = computeWeekSignals(prevWeek, prevLogs, prevExtras);
+    }
   }
 
   // Weekly readiness check-ins up to this week, for the forward signal (Review #7).
@@ -177,6 +206,8 @@ async function loadForAdaptation(
     nextWeekSkeleton,
     logs: logs.filter((l) => l.weekNumber === weekNumber),
     allLogs: logs,
+    extras: allExtras.filter((x) => x.weekNumber === weekNumber),
+    allExtras,
     readinessCheckins,
     prevSignals,
     lastRule: (lastAdaptation?.rule_applied as AdaptRuleCode | undefined) ?? null,
@@ -187,10 +218,15 @@ function decide(
   loaded: LoadedProgram,
   weekNumber: number,
 ): { signals: WeekSignals; decision: AdaptDecision } {
-  const signals = computeWeekSignals(loaded.reviewedWeek, loaded.logs);
+  const signals = computeWeekSignals(loaded.reviewedWeek, loaded.logs, loaded.extras);
   const reviewedSkeleton = loaded.skeleton.weeks.find((w) => w.weekNumber === weekNumber);
   // ACWR + monotony across the loaded window (Review #5).
-  const load = computeLoadMetrics(loaded.programData.weeks, loaded.allLogs, weekNumber);
+  const load = computeLoadMetrics(
+    loaded.programData.weeks,
+    loaded.allLogs,
+    weekNumber,
+    loaded.allExtras,
+  );
   // Forward readiness (Review #7): the reviewed week's check-in vs personal baseline.
   const currentReadiness =
     loaded.readinessCheckins.find((c) => c.weekNumber === weekNumber) ?? null;
@@ -236,12 +272,17 @@ export async function previewAdaptation(
   };
 }
 
-/** Per-session log digest fed to the refill prompt (notes verbatim). */
+/** Per-session log digest fed to the refill prompt (notes verbatim).
+ *
+ *  Extras are listed too. The engine has already priced them into the revised
+ *  targets, but the model writes the actual sessions — if the athlete has added
+ *  three rides of their own, that belongs in front of it. */
 export function buildAdaptationContext(
   reviewedWeek: ProgramWeek,
   logs: WorkoutLog[],
   signals: WeekSignals,
   decision: AdaptDecision,
+  extras: readonly ExtraWorkout[] = [],
 ): string {
   const byKey = new Map(logs.map((l) => [`${l.day}:${l.sessionIndex}`, l]));
   const lines: string[] = [
@@ -267,6 +308,20 @@ export function buildAdaptationContext(
       const note = log?.note ? ` — note: "${log.note}"` : "";
       lines.push(`  ${day.day} ${label}: ${status}${rpe}${note}`);
     });
+  }
+  const weekExtras = extras.filter((x) => x.weekNumber === reviewedWeek.weekNumber);
+  if (weekExtras.length > 0) {
+    lines.push(`Off-plan work the athlete added (not prescribed by the plan):`);
+    for (const x of weekExtras) {
+      const bits = [
+        x.durationMin ? `${x.durationMin} min` : null,
+        x.distanceMiles ? `${x.distanceMiles} mi` : null,
+        x.rpe != null ? `RPE ${x.rpe}` : null,
+      ].filter(Boolean);
+      const detail = bits.length > 0 ? ` — ${bits.join(", ")}` : "";
+      const note = x.note ? ` — note: "${x.note}"` : "";
+      lines.push(`  ${x.day} extra ${x.kind}${x.title ? ` "${x.title}"` : ""}${detail}${note}`);
+    }
   }
   if (decision.constraints.longRunMaxMiles !== undefined) {
     lines.push(
@@ -364,7 +419,13 @@ export async function applyAdaptation(
       refilled = true;
     } else if (needsRefill && loaded.nextWeekSkeleton) {
       const revisedWeek = applyDecisionToWeek(loaded.nextWeekSkeleton, decision);
-      const context = buildAdaptationContext(loaded.reviewedWeek, loaded.logs, signals, decision);
+      const context = buildAdaptationContext(
+        loaded.reviewedWeek,
+        loaded.logs,
+        signals,
+        decision,
+        loaded.extras,
+      );
 
       const result = await generateChunk(loaded.input, revisedWeek.phase, [revisedWeek], context);
       usage = {

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { ProgramData, WorkoutLog } from "@/lib/schemas";
 import { adherenceStreak } from "@/lib/engine/adapt";
-import { getProgramLogs } from "@/lib/supabase/queries";
+import { getProgramExtras, getProgramLogs } from "@/lib/supabase/queries";
+import { extrasFromRows } from "@/lib/extra-workouts";
 import { sessionTypeLabel, weekStartDate } from "@/components/program/format";
 
 /**
@@ -10,7 +11,8 @@ import { sessionTypeLabel, weekStartDate } from "@/components/program/format";
  *
  * For the user's most recent ready program that's currently in progress:
  * today's sessions, quick link to the program week, log state at a glance,
- * and the adherence streak (consecutive weeks ≥80% of sessions completed).
+ * and the adherence streak (consecutive weeks ≥80% of sessions completed —
+ * off-plan extras included, matching the program page and the weekly review).
  * Renders nothing when there's no active program — the dashboard stays clean.
  */
 
@@ -66,8 +68,12 @@ export default async function ThisWeekCard() {
   const todayLogged = (i: number) =>
     logs.find((l) => l.weekNumber === currentWeekNumber && l.day === todayKey && l.sessionIndex === i);
 
+  // Extras feed compliance since 2026-08-18, so the streak has to see them too
+  // or the dashboard contradicts the week card it links to.
+  const extras = extrasFromRows(await getProgramExtras(active.id));
+
   const lastElapsed = Math.min(active.duration_weeks, Math.max(0, Math.floor((now - start) / MS_PER_WEEK)));
-  const streak = lastElapsed >= 1 ? adherenceStreak(data.weeks, logs, lastElapsed) : 0;
+  const streak = lastElapsed >= 1 ? adherenceStreak(data.weeks, logs, lastElapsed, extras) : 0;
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5">

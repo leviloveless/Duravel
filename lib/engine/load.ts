@@ -6,14 +6,22 @@
  * "how loaded is the athlete" question lives in one place.
  */
 
-import type { ProgramWeek, WorkoutLog } from "@/lib/schemas";
+import type { ExtraWorkout, ProgramWeek, WorkoutLog } from "@/lib/schemas";
 import { computeWeekSignals } from "./adapt";
 import { ADAPT } from "./adapt-config";
 import { round2 } from "./math";
 
-/** Weekly session-RPE load for any program week (Review #5). */
-export function weekLoad(week: ProgramWeek, logs: WorkoutLog[]): number {
-  return computeWeekSignals(week, logs).weeklyLoad;
+/** Weekly session-RPE load for any program week (Review #5).
+ *
+ *  Extras are included (Levi, 2026-08-18). This is the whole point of folding
+ *  off-plan work into the signals: ACWR exists to catch a load spike, and a
+ *  spike assembled out of self-added sessions was invisible to it. */
+export function weekLoad(
+  week: ProgramWeek,
+  logs: WorkoutLog[],
+  extras: readonly ExtraWorkout[] = [],
+): number {
+  return computeWeekSignals(week, logs, extras).weeklyLoad;
 }
 
 export interface LoadMetrics {
@@ -35,11 +43,12 @@ export function computeLoadMetrics(
   weeks: ProgramWeek[],
   logs: WorkoutLog[],
   throughWeek: number,
+  extras: readonly ExtraWorkout[] = [],
 ): LoadMetrics {
   const byNum = new Map(weeks.map((w) => [w.weekNumber, w]));
   const loadAt = (n: number): number => {
     const w = byNum.get(n);
-    return w ? weekLoad(w, logs) : 0;
+    return w ? weekLoad(w, logs, extras) : 0;
   };
   const acute = loadAt(throughWeek);
   // Chronic baseline = mean over the window's WEEKS THAT ACTUALLY CARRY LOAD, so

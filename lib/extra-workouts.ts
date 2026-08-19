@@ -1,13 +1,19 @@
 /**
  * Extra (unplanned) workouts — selection + reporting helpers.
  *
- * The engine owns the week's prescribed volume, and `reconcileWeekVolume`
+ * The engine owns the week's PRESCRIBED volume, and `reconcileWeekVolume`
  * guarantees the weekly summary equals it exactly. Extra work the athlete did
  * off-plan is therefore reported ALONGSIDE that summary rather than folded into
  * it: the header still answers "what was I asked to do", and the extras line
  * answers "what else did I do".
  *
- * Pure functions only — no I/O — so the arithmetic behind that line is testable.
+ * What extras DO feed is the other half of the picture — what actually happened.
+ * Since 2026-08-18 they reach the adaptation through `computeWeekSignals`
+ * (compliance, strain, session-RPE load, actual volume); see the note on
+ * `extraActualContribution` below and the header of `lib/engine/adapt.ts`.
+ *
+ * Pure functions only — no I/O — so the arithmetic behind those numbers is
+ * testable.
  */
 
 import { ExtraWorkoutSchema, type ExtraWorkout, type ExtraWorkoutKindName } from "@/lib/schemas";
@@ -135,22 +141,29 @@ export function extraSummaryLabel(extras: ExtraWorkout[]): string {
 }
 
 /**
- * What extras contribute to a week's **displayed ACTUAL** totals (Levi,
- * 2026-08-13).
+ * What extras contribute to a week's ACTUAL volume.
  *
- * Extras used to be reported only alongside the summary ("1 extra workout ·
- * 35 min — not counted in the totals above"), so a week where the athlete did
- * real unplanned work still read as under-delivered. They now fold into the
- * Actual figures — and ONLY those. Planned totals, compliance %, and the weekly
- * ADAPTATION are untouched, because:
+ * Called from `computeWeekSignals`, so this is the arithmetic behind both the
+ * week header's Actual line and the volume the adaptation reasons about — one
+ * function, so the screen and the engine can't drift apart.
  *
- *  - planned is what the engine prescribed, and the athlete adding a run does
- *    not change what they were asked to do;
- *  - compliance is credit / planned sessions, so unplanned work must never raise
- *    it — otherwise a week of nothing-but-extras reads as fully compliant;
- *  - the adaptation reads `computeWeekSignals` from planned-session logs alone,
- *    so self-added work can never trigger an earned bump and inflate next week's
- *    prescription (Levi's call — display only).
+ * ## History (worth keeping, because the scope changed twice)
+ *
+ * Extras were first reported only alongside the summary ("1 extra workout ·
+ * 35 min — not counted in the totals above"), so a week of real unplanned work
+ * read as under-delivered. On 2026-08-13 they were folded into the displayed
+ * Actual figures and nothing else — deliberately kept out of compliance and the
+ * adaptation so self-added work could not inflate next week's prescription.
+ *
+ * On 2026-08-18 Levi reversed that: extras now feed compliance, strain and
+ * session-RPE load as well. The 08-13 worry was real but one-sided — it guarded
+ * the CREDIT rules while leaving the LOAD rules (ACWR, monotony, early deload)
+ * blind to work that genuinely happened, which is the direction that hurts.
+ * Compliance is clamped at 100% and the key-session rules stay planned-only; see
+ * `lib/engine/adapt.ts`.
+ *
+ * PLANNED totals remain untouched in every version of this story: the athlete
+ * adding a run does not change what the engine asked them to do.
  *
  * ## Two exclusions that a naive sum gets wrong
  *
@@ -184,7 +197,8 @@ export function extraActualContribution(extras: readonly ExtraWorkout[]): ExtraA
   return { cardioMinutes: Math.round(cardioMinutes), miles: Math.round(miles * 10) / 10 };
 }
 
-/** The week's actual figures as prescribed-session logs report them. */
+/** The week's actual figures — as `computeWeekSignals` reports them, extras
+ *  already included. */
 export interface WeekActualSignals {
   actualCardioMinutes: number;
   actualMileage: number;
@@ -197,36 +211,34 @@ export interface ActualLine {
 }
 
 /**
- * The week header's Actual figures, extras included.
+ * What the week header prints on its Actual line.
  *
- * `signals` is null until at least one PLANNED session has a workout_log. The
- * first version of the header gated the whole Actual line on that, which meant
- * the week this feature exists for — the athlete skipped the plan and rode for
- * an hour instead — showed no Actual at all, underneath a caption reading
- * "counted in Actual". The promised number was not on the page.
+ * The arithmetic already happened — `signals` comes from `computeWeekSignals`
+ * with the week's extras passed in. All that is left is deciding when a metric
+ * has nothing to say and should print nothing at all rather than a zero.
  *
- * So an extra alone is enough, with the planned side contributing zero. A metric
- * stays null only when there is genuinely nothing to say about it: no logs and
- * no extra contribution. That keeps a lift-only week from printing "0 mi" as if
- * the athlete had run nowhere, rather than not having run at all.
+ * `hasPlannedLogs` is that decision. A metric prints when at least one PLANNED
+ * session was logged (so the zero is a real, measured zero) or when the extras
+ * themselves contributed to it. What that rules out is the lift-only week:
+ * an athlete whose entire week was one unplanned lift should not be told they
+ * ran "0 mi", as though they had gone out and covered no ground.
  *
- * Compliance is deliberately NOT computed here. Off-plan work is real training,
- * but it does not complete a prescribed session, and "Sessions done" has to keep
- * meaning that.
+ * Both metrics used to gate on `signals` alone, which was null until a planned
+ * session was logged — so the week this feature exists for (skipped the plan,
+ * rode for an hour instead) showed no Actual at all, underneath a caption
+ * reading "counted in Actual". The number the caption promised was not on the
+ * page. Hence the split gate.
  */
-export function actualWithExtras(
+export function weekActualLine(
   signals: WeekActualSignals | null,
   extras: readonly ExtraWorkout[],
+  hasPlannedLogs: boolean,
 ): ActualLine {
+  if (!signals) return { cardioMinutes: null, miles: null };
   const extra = extraActualContribution(extras);
   return {
     cardioMinutes:
-      signals || extra.cardioMinutes > 0
-        ? (signals?.actualCardioMinutes ?? 0) + extra.cardioMinutes
-        : null,
-    miles:
-      signals || extra.miles > 0
-        ? Math.round(((signals?.actualMileage ?? 0) + extra.miles) * 10) / 10
-        : null,
+      hasPlannedLogs || extra.cardioMinutes > 0 ? Math.round(signals.actualCardioMinutes) : null,
+    miles: hasPlannedLogs || extra.miles > 0 ? Math.round(signals.actualMileage * 10) / 10 : null,
   };
 }

@@ -7,7 +7,7 @@ import {
   extraSummaryLabel,
   extrasForDay,
   extrasForWeek,
-  actualWithExtras,
+  weekActualLine,
 } from "@/lib/extra-workouts";
 import type { ExtraWorkout } from "@/lib/schemas";
 import CoachSessionEdit from "./coach-session-edit";
@@ -353,40 +353,35 @@ export default function WeekCard({
   const colors = PHASE_COLORS[week.phase];
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   const hasLogs = (logging?.logs.length ?? 0) > 0;
-  const actuals = hasLogs && logging ? computeWeekSignals(week, logging.logs) : null;
   const time = weekTimeByCategory(week);
   const weekExtras = extrasForWeek(logging?.extras ?? [], week.weekNumber);
   const weekExtrasLabel = extraSummaryLabel(weekExtras);
+  const actuals =
+    logging && (hasLogs || weekExtras.length > 0)
+      ? computeWeekSignals(week, logging.logs, weekExtras)
+      : null;
 
   /**
-   * Off-plan work counts toward what the athlete ACTUALLY did (Levi,
-   * 2026-08-13) — and toward nothing else.
+   * Off-plan work is training (Levi, 2026-08-18), so it is inside `actuals`
+   * above rather than added on afterwards here — extras are passed straight into
+   * `computeWeekSignals`, the same call the weekly ADAPTATION makes. One
+   * function computes what actually happened, so this card and the review screen
+   * cannot disagree about it.
    *
-   * Added here at the render site rather than inside `computeWeekSignals`, and
-   * that is deliberate: those signals also feed the weekly ADAPTATION
-   * (`lib/generation/adapt-week.ts`). Folding extras in there would let
-   * self-added work read as over-delivery and trigger an earned bump, raising
-   * next week's prescription on volume the engine never asked for. Keeping the
-   * addition local makes that leak impossible rather than merely unlikely.
+   * That is a reversal of the 2026-08-13 arrangement, where the addition
+   * deliberately happened at this render site to keep extras out of the engine.
+   * The reason it moved is in `lib/engine/adapt.ts`: it kept off-plan work out
+   * of the credit rules, but also out of the LOAD rules, so a self-inflicted
+   * load spike was invisible to ACWR — the one metric whose job is seeing it.
    *
-   * `plannedSessions`, `compliance` and every adaptation input are untouched.
-   *
-   * ## Why these do not gate on `actuals` (fixed 2026-08-17)
-   *
-   * They used to, and `actuals` is null until at least one PLANNED session has a
-   * workout_log. So a week where the athlete skipped the plan and went for an
-   * hour's ride instead — exactly the week this feature is for — rendered no
-   * Actual line at all, while the caption underneath still read "counted in
-   * Actual". The number the caption promised was not on the page.
-   *
-   * An extra alone is now enough to show an Actual, with the planned side
-   * contributing zero. `compliance` deliberately still gates on `actuals`: off-
-   * plan work is real training, but it does not complete a prescribed session,
-   * and "Sessions done" must keep meaning that.
+   * `week.summary` — the PRESCRIBED totals rendered as the headline figures —
+   * is untouched, as it has been throughout. Extras change what you did, never
+   * what you were asked to do.
    */
-  const { cardioMinutes: actualCardioWithExtras, miles: actualMilesWithExtras } = actualWithExtras(
+  const { cardioMinutes: actualCardioWithExtras, miles: actualMilesWithExtras } = weekActualLine(
     actuals,
     weekExtras,
+    hasLogs,
   );
 
   return (
@@ -452,7 +447,16 @@ export default function WeekCard({
             </span>
             {actuals && (
               <span>
-                <span className="block text-xs text-zinc-500">Sessions done</span>
+                <span
+                  className="block text-xs text-zinc-500"
+                  title={
+                    actuals.extraSessions > 0
+                      ? `${Math.round(actuals.plannedCompliance * 100)}% of the prescribed sessions, plus ${actuals.extraSessions} extra you logged (capped at 100%)`
+                      : undefined
+                  }
+                >
+                  Sessions done
+                </span>
                 <span className="font-medium">{Math.round(actuals.compliance * 100)}%</span>
               </span>
             )}
@@ -460,15 +464,16 @@ export default function WeekCard({
           <ZoneBars week={week} />
         </div>
 
-        {/* Off-plan work. It counts toward ACTUAL (above) but never toward the
-            prescribed totals — the header still answers "what was I asked to
-            do", and this line answers "what else did I do". */}
+        {/* Off-plan work. It counts toward ACTUAL and Sessions done (above) and
+            toward next week's adjustment, but never toward the prescribed
+            totals — the header still answers "what was I asked to do", and this
+            line answers "what else did I do". */}
         {weekExtrasLabel && (
           <p className="text-xs text-zinc-500">
             <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">
               extra
             </span>{" "}
-            {weekExtrasLabel} — counted in Actual, not in the prescribed totals
+            {weekExtrasLabel} — counted in Actual and Sessions done, not in the prescribed totals
           </p>
         )}
       </div>

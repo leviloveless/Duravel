@@ -1,12 +1,33 @@
 /**
  * Adaptation Engine (Phase 2 — phase2-spec.md §4). Deterministic, no AI.
  *
- * Reads one completed week's logs, computes compliance + strain signals, and
- * applies an ordered rule set to produce revised targets for the upcoming
- * week. The AI (session refill) never decides how much volume changes — this
+ * Reads one completed week's logs AND its off-plan extras, computes compliance
+ * + strain signals, and applies an ordered rule set to produce revised targets
+ * for the upcoming week. The AI (session refill) never decides how much volume changes — this
  * module is the only adaptation authority, so every change is auditable and
  * unit-testable. Mirrors the v1 split: engine owns the math, Haiku fills
  * content.
+ *
+ * ## Extras are training (Levi, 2026-08-18 — reverses the 2026-08-13 call)
+ *
+ * Unplanned work used to reach the week header's Actual line and nothing else,
+ * so the adaptation was blind to it. That was safe for the CREDIT rules and
+ * wrong for the LOAD rules: ACWR exists to catch a load spike, and a spike built
+ * out of self-added sessions was invisible to the one metric whose job is
+ * seeing it — an athlete could add two hard sessions to an increase week and
+ * still be handed an earned bump on top.
+ *
+ * Extras now feed compliance, actual volume, strain and session-RPE load. Two
+ * things they deliberately still do NOT do:
+ *
+ *  - **Raise compliance above 100%.** Credit is clamped at the planned session
+ *    count, so over-delivery shows up as load (where it can hold or deload a
+ *    week), never as a compliance figure over 1.0 that would read as nonsense
+ *    in the reason strings.
+ *  - **Complete a KEY session.** `protect_long_run` still asks whether the
+ *    PLANNED long run was completed. An extra 5-miler is not the long run, and
+ *    letting one satisfy that rule would quietly drop the cap that exists to
+ *    stop long-run progression running away from the athlete.
  *
  * Volume bounds: hold / earned-bump adjustments are clamped to ±20% of the
  * target week's original skeleton values. Early deload and re-anchor are
@@ -14,10 +35,11 @@
  * operation, like a scheduled deload), and the re-anchor decay respectively.
  */
 
-import type { ProgramWeek, WorkoutLog } from "@/lib/schemas";
+import type { ExtraWorkout, ProgramWeek, WorkoutLog } from "@/lib/schemas";
 import type { MicroWeekType, TrainingDayName, WeekSkeleton } from "./types";
 import { ADAPT } from "./adapt-config";
-import { sessionTiming } from "@/lib/session-volume";
+import { STRENGTH_SESSION_MIN, sessionTiming } from "@/lib/session-volume";
+import { extraActualContribution } from "@/lib/extra-workouts";
 import { clamp, round1, round2 } from "./math";
 import type { ReadinessCategory } from "./readiness";
 
@@ -26,8 +48,12 @@ import type { ReadinessCategory } from "./readiness";
 export interface WeekSignals {
   /** Sessions the plan called for (race days excluded). */
   plannedSessions: number;
-  /** completed + 0.5 × partial, over plannedSessions. 0..1. */
+  /** Off-plan sessions the athlete added this week. */
+  extraSessions: number;
+  /** (completed + 0.5 × partial + extras) over plannedSessions, clamped to 1. 0..1. */
   compliance: number;
+  /** Session credit before extras — what the PLAN itself got done. 0..1. */
+  plannedCompliance: number;
   /** RPE-weighted strain (easy sessions weighted 1.5×), or null if no RPE logged. */
   strain: number | null;
   /** null = no long run planned this week. */
@@ -36,7 +62,8 @@ export interface WeekSignals {
   qualityRunCompleted: boolean | null;
   /** Largest planned long-run distance this week (miles), if any. */
   longRunPlannedMiles: number | null;
-  /** Best-effort actual totals (logged actuals, else planned values by status). */
+  /** Best-effort actual totals (logged actuals, else planned values by status),
+   *  plus whatever the extras contributed. */
   actualMileage: number;
   actualCardioMinutes: number;
   plannedMileage: number;
@@ -54,6 +81,29 @@ const logKey = (day: string, sessionIndex: number): LogKey => `${day}:${sessionI
 
 function isEasySession(session: ProgramWeek["days"][number]["sessions"][number]): boolean {
   return (session.kind === "run" || session.kind === "cardio") && session.goalZone <= 2;
+}
+
+/** An EXTRA counts as easy the same way a planned session does — but only when
+ *  the athlete actually recorded a zone. No zone means no claim either way, and
+ *  guessing "easy" would weight it 1.5× and drag the strain average down. */
+function isEasyExtra(x: ExtraWorkout): boolean {
+  return (x.kind === "run" || x.kind === "cardio") && x.goalZone != null && x.goalZone <= 2;
+}
+
+/** Minutes an EXTRA contributes to session-RPE load.
+ *
+ *  The athlete's own duration wins. Failing that we fall back to the same
+ *  defaults the planned side uses, so an extra hybrid and a planned hybrid carry
+ *  the same weight: `ADAPT.DEFAULT_HYBRID_MINUTES` for a hybrid and
+ *  `STRENGTH_SESSION_MIN` for a lift (what `sessionTiming` assumes for a lift,
+ *  which carries no duration of its own). Anything else with no duration
+ *  contributes no LOAD — we have no honest number for it — though it still
+ *  counts for compliance. */
+function extraLoadMinutes(x: ExtraWorkout): number {
+  if (x.durationMin && x.durationMin > 0) return x.durationMin;
+  if (x.kind === "hybrid") return ADAPT.DEFAULT_HYBRID_MINUTES;
+  if (x.kind === "lift") return STRENGTH_SESSION_MIN;
+  return 0;
 }
 
 /** Minutes used to weight a session's RPE into session-RPE load (Review #5).
@@ -80,12 +130,23 @@ function computeMonotony(dailyLoads: number[]): number | null {
   return round2(mean / sd);
 }
 
-/** Compute the review signals for one program week from its logs. */
-export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekSignals {
+/**
+ * Compute the review signals for one program week from its logs and its extras.
+ *
+ * `extras` is the whole program's list — it is filtered to this week here, the
+ * same way `logs` is, so no caller has to remember to pre-filter (forgetting
+ * would silently credit another week's work to this one).
+ */
+export function computeWeekSignals(
+  week: ProgramWeek,
+  logs: WorkoutLog[],
+  extras: readonly ExtraWorkout[] = [],
+): WeekSignals {
   const byKey = new Map<LogKey, WorkoutLog>();
   for (const l of logs) {
     if (l.weekNumber === week.weekNumber) byKey.set(logKey(l.day, l.sessionIndex), l);
   }
+  const weekExtras = extras.filter((x) => x.weekNumber === week.weekNumber);
 
   let planned = 0;
   let credit = 0;
@@ -101,7 +162,10 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
   let actualMileage = 0;
   let actualCardio = 0;
   let weeklyLoad = 0;
-  const dailyLoads: number[] = [];
+  // Keyed by day name rather than pushed positionally: the extras below land on
+  // a day, and Foster monotony is the spread of load ACROSS days — an extra has
+  // to join its own day's bucket, not open a new one.
+  const dailyLoads = new Map<string, number>();
 
   for (const day of week.days) {
     let dayLoad = 0;
@@ -151,15 +215,48 @@ export function computeWeekSignals(week: ProgramWeek, logs: WorkoutLog[]): WeekS
         actualCardio += log?.actuals?.durationMin ?? plannedMin * fraction;
       }
     });
-    dailyLoads.push(dayLoad);
+    dailyLoads.set(day.day, (dailyLoads.get(day.day) ?? 0) + dayLoad);
   }
 
-  const monotony = computeMonotony(dailyLoads);
+  // --- Off-plan work (Levi, 2026-08-18) ---
+  //
+  // Extras are training, so they land in the same three places a completed
+  // session does: credit, strain, and session-RPE load. They never touch the
+  // PLANNED figures — the athlete adding a run does not change what the engine
+  // asked for, and `plannedMileage`/`plannedCardioMinutes` are what the revised
+  // targets are measured against.
+  for (const x of weekExtras) {
+    credit += 1;
+    if (x.rpe != null) {
+      const w = isEasyExtra(x) ? ADAPT.EASY_RPE_WEIGHT : 1;
+      rpeWeighted += x.rpe * w;
+      rpeWeightSum += w;
+      const load = x.rpe * extraLoadMinutes(x);
+      weeklyLoad += load;
+      dailyLoads.set(x.day, (dailyLoads.get(x.day) ?? 0) + load);
+    }
+  }
+  // Miles and minutes obey the two exclusions `extraActualContribution` exists
+  // for: a lift adds no cardio minutes, and only on-foot kinds add mileage.
+  const extraActual = extraActualContribution(weekExtras);
+  actualMileage += extraActual.miles;
+  actualCardio += extraActual.cardioMinutes;
+
+  const monotony = computeMonotony([...dailyLoads.values()]);
   const fosterStrain = monotony != null ? Math.round(monotony * weeklyLoad) : null;
+
+  // Credit is clamped at the planned session count: doing extra work can carry a
+  // week to 100%, but "112% of sessions completed" is not a sentence the review
+  // screen should ever print, and every threshold in `decideAdaptation` is
+  // written against a 0..1 scale.
+  const compliance = planned === 0 ? 1 : round2(Math.min(1, credit / planned));
+  const plannedCredit = credit - weekExtras.length;
 
   return {
     plannedSessions: planned,
-    compliance: planned === 0 ? 1 : round2(credit / planned),
+    extraSessions: weekExtras.length,
+    compliance,
+    plannedCompliance: planned === 0 ? 1 : round2(Math.min(1, plannedCredit / planned)),
     strain: rpeWeightSum > 0 ? round1(rpeWeighted / rpeWeightSum) : null,
     longRunCompleted: longRunPlanned ? longRunDone : null,
     qualityRunCompleted: qualityPlanned ? qualityDone : null,
@@ -227,6 +324,16 @@ export interface AdaptContext {
   readiness?: { score: number; category: ReadinessCategory } | null;
 }
 
+/** " (including 2 extra workouts you logged)" — "" when there were none. Any
+ *  reason string that quotes a compliance percentage says where it came from,
+ *  so a figure lifted by off-plan work is never mistaken for the plan itself
+ *  having been completed. */
+function extraNote(signals: WeekSignals): string {
+  const n = signals.extraSessions;
+  if (n === 0) return "";
+  return ` (including ${n} extra workout${n === 1 ? "" : "s"} you logged)`;
+}
+
 /** Decide what (if anything) to change about the next week. */
 export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): AdaptDecision {
   const none = (reason: string): AdaptDecision => ({
@@ -244,6 +351,7 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
   }
 
   const pct = Math.round(signals.compliance * 100);
+  const extras = extraNote(signals);
 
   // 2. Two straight very-low-compliance weeks → re-anchor.
   if (
@@ -274,7 +382,7 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
     return {
       rule: "hold",
       reason:
-        `You completed ${pct}% of last week's sessions, so next week holds at last week's volume ` +
+        `You completed ${pct}% of last week's sessions${extras}, so next week holds at last week's volume ` +
         `instead of progressing. No makeup volume — just pick the plan back up.`,
       revisedTargets: clampToBounds(
         {
@@ -411,7 +519,7 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
     return {
       rule: "earned_bump",
       reason:
-        `${pct}% of sessions done at an easy average effort (RPE ${signals.strain}) — ` +
+        `${pct}% of sessions done${extras} at an easy average effort (RPE ${signals.strain}) — ` +
         `you've earned a little extra on this increase week (+2.5% mileage on top of the scheduled progression).`,
       revisedTargets: clampToBounds(
         {
@@ -426,7 +534,7 @@ export function decideAdaptation(signals: WeekSignals, ctx: AdaptContext): Adapt
 
   // 7. Default: the plan stands.
   return none(
-    `Solid week — ${pct}% of sessions completed. Next week proceeds exactly as planned.`,
+    `Solid week — ${pct}% of sessions completed${extras}. Next week proceeds exactly as planned.`,
   );
 }
 
@@ -463,17 +571,22 @@ export function applyDecisionToWeek(next: WeekSkeleton, decision: AdaptDecision)
 
 // --- Streak helper (dashboard "This week" card) ---
 
-/** Consecutive weeks (ending at `throughWeek`) with compliance ≥ 80%. */
+/** Consecutive weeks (ending at `throughWeek`) with compliance ≥ 80%.
+ *
+ *  Extras count here for the same reason they count in the review: the streak is
+ *  a compliance figure, and two places computing compliance differently is how
+ *  a dashboard ends up contradicting the screen it links to. */
 export function adherenceStreak(
   weeks: ProgramWeek[],
   logs: WorkoutLog[],
   throughWeek: number,
+  extras: readonly ExtraWorkout[] = [],
 ): number {
   let streak = 0;
   for (let w = throughWeek; w >= 1; w--) {
     const week = weeks.find((x) => x.weekNumber === w);
     if (!week) break;
-    const s = computeWeekSignals(week, logs);
+    const s = computeWeekSignals(week, logs, extras);
     if (s.plannedSessions === 0) continue; // race/rest-only weeks don't break a streak
     if (s.compliance >= ADAPT.STREAK_COMPLIANCE) streak += 1;
     else break;
