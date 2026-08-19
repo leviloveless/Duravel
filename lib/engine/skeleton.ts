@@ -226,6 +226,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
         pos,
         input.needs?.bias,
         counts,
+        tapered.mileage[i]!,
       ),
       raceDay: race ? { priority: race.priority, date: race.date } : undefined,
     });
@@ -484,6 +485,7 @@ function buildRotationSkeleton(
         { index: posIndex, length: posLen },
         input.needs?.bias,
         counts,
+        round1(seq.mileage[i]! * peakFactor),
       ),
       emphasis,
     });

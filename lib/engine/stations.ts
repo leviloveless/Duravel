@@ -97,7 +97,12 @@ export const STATIONS: Record<StationId, StationSpec> = {
     meters: 50,
     loadKg: { open: { male: 103, female: 78 }, pro: { male: 153, female: 103 } },
   },
-  burpee_broad_jump: { id: "burpee_broad_jump", label: "Burpee Broad Jumps", meters: 80, loadKg: null },
+  burpee_broad_jump: {
+    id: "burpee_broad_jump",
+    label: "Burpee Broad Jumps",
+    meters: 80,
+    loadKg: null,
+  },
   row: { id: "row", label: "Row", meters: 1000, loadKg: null },
   farmers_carry: {
     id: "farmers_carry",
@@ -181,11 +186,13 @@ export function stationPrescription(
 
   const meters = spec.meters != null ? Math.max(5, round5(spec.meters * vf)) : undefined;
   // Numeric reps progress by volume; string reps (e.g. "25 cal") are fixed.
-  const numericReps = typeof spec.reps === "number" ? Math.max(5, round5(spec.reps * vf)) : undefined;
+  const numericReps =
+    typeof spec.reps === "number" ? Math.max(5, round5(spec.reps * vf)) : undefined;
   const stringReps = typeof spec.reps === "string" ? spec.reps : undefined;
   // Race load, exact (fixed implements). Use the requested tier, else the
   // catalog's first tier (DEKA has a single Rx set keyed differently from HYROX).
-  const tier = spec.loadKg != null ? (spec.loadKg[division] ?? Object.values(spec.loadKg)[0]) : undefined;
+  const tier =
+    spec.loadKg != null ? (spec.loadKg[division] ?? Object.values(spec.loadKg)[0]) : undefined;
   const loadKg = tier ? tier[sex] : undefined;
 
   const parts: string[] = [];
@@ -200,7 +207,15 @@ export function stationPrescription(
   if (id === "assault_bike") prescription = `${Math.max(5, round5(20 * vf))} cal assault bike`;
 
   const atRaceSpec = vf >= 1;
-  return { stationId: id, label: spec.label, prescription, meters, reps: numericReps, loadKg, atRaceSpec };
+  return {
+    stationId: id,
+    label: spec.label,
+    prescription,
+    meters,
+    reps: numericReps,
+    loadKg,
+    atRaceSpec,
+  };
 }
 
 /** The 8 race stations in HYROX race order (no assault bike). */
@@ -328,15 +343,20 @@ export function buildHybridElements(
   catalog?: StationCatalog,
   emphasis: readonly string[] = [],
   stationIds?: readonly string[],
+  /** Override the inter-station run distance — see `hybridRunPlan`. Omitted =
+   *  the race's own distance, which is what every normal-volume week gets. */
+  runMeters?: number,
 ): HybridElement[] {
   const cat = catalog ?? HYROX_CATALOG;
   const runNote = cat.runNote ?? "race pace (threshold)";
   const ids = stationIds ?? cat.raceOrder;
+  const legMeters =
+    runMeters != null && runMeters > 0 ? Math.round(runMeters) : cat.interStationRunMeters;
   const els: HybridElement[] = [];
   for (const id of ids) {
     const label = cat.stations[id]?.label ?? id;
     if (cat.interStationRunMeters > 0) {
-      els.push({ exercise: "run", prescription: `${cat.interStationRunMeters}m @ ${runNote}` });
+      els.push({ exercise: "run", prescription: `${legMeters}m @ ${runNote}` });
     }
     const scale = hybridStationScale(id, false, emphasis);
     const spec = stationPrescription(label, phase, division, sex, cat, scale);
@@ -454,6 +474,136 @@ export const MIN_HYBRID_COUPLETS = 3;
 const DEFAULT_THRESHOLD_SEC_PER_MILE = 540; // 9:00/mi
 
 /**
+ * Below this weekly running mileage the hybrid is fitted to the WEEK, not just
+ * to the threshold window (Levi, 2026-08-17).
+ *
+ * ## Why a second constraint was needed
+ *
+ * `coupletsForThresholdDose` sizes the session by how much threshold an athlete
+ * can absorb. That is the right question at normal volume and the wrong one at
+ * the bottom, because it ignores what the week can AFFORD. A hybrid at four full
+ * 1 km legs costs ~3.8 running miles once the 10-min and 5-min jogs are counted,
+ * and that number does not move with weekly mileage — so on a 7.7 mi week the
+ * hybrid alone was 49% of all running, and no starting-mileage setting could get
+ * underneath it. Requesting 4, 5 or 6 mi/week all produced the same 7.7 mi week.
+ *
+ * At and above the threshold nothing changes: the dose still decides, and every
+ * existing program is byte-identical.
+ */
+export const LOW_VOLUME_MILEAGE_THRESHOLD = 12;
+
+/**
+ * Share of a low-volume week's running the hybrid RUN LEGS may consume.
+ *
+ * Legs only — the warm-up and cool-down jogs sit on top, so the session's true
+ * share is higher. Calibrated so the boundary is smooth: at 11.9 mi the budget
+ * buys 4 x 900 m (2.24 mi) against the 4 x 1000 m (2.49 mi) an athlete gets at
+ * 12.0 mi. A judgement call, not a derived constant — tune it here.
+ *
+ * ⚠️ This is the WEEK's budget, SHARED by however many hybrids the week holds
+ * (Levi, 2026-08-18). It was per-session at first, which meant a two-hybrid week
+ * silently spent 40% of its running on legs alone — h0_5 and h10_20 schedule two,
+ * and those bands still handed 62% of the week's mileage to the hybrids after
+ * the first fix. Same bug as the one this whole mechanism exists to solve, one
+ * level up: a budget that is a share of the week has to be divided by the number
+ * of things spending it.
+ */
+export const HYBRID_LEG_BUDGET_SHARE = 0.2;
+
+/**
+ * Shortest an inter-station run may be (Levi's call: 500 m).
+ *
+ * Below this the leg stops rehearsing anything race-like, so the session sheds
+ * COUPLETS instead — shorter runs first, fewer of them only when shortening has
+ * run out of room.
+ */
+export const MIN_HYBRID_RUN_METERS = 500;
+
+/**
+ * Threshold minutes a hybrid must carry before it may CREDIT the week's separate
+ * threshold run (see `buildRunSlots`).
+ *
+ * The credit used to be granted on existence alone — any hybrid cancelled the
+ * threshold run. Once the session scales down for a low-volume athlete that
+ * becomes a silent deletion: no threshold run, and a hybrid too small to be one.
+ * Below this floor the week keeps its own threshold session, or honestly carries
+ * less quality if it cannot afford one.
+ */
+export const HYBRID_THRESHOLD_CREDIT_MINUTES = 15;
+
+export interface HybridRunPlan {
+  /** Distance of each inter-station run, in metres. */
+  runMeters: number;
+  /** How many run+station couplets the session carries. */
+  couplets: number;
+}
+
+/**
+ * How long the runs are and how many there are, given what the week can afford.
+ *
+ * Order of yielding matters and is deliberate: **shorten the legs first, drop
+ * couplets only when the legs hit their floor.** Keeping the couplet count means
+ * keeping the number of DIFFERENT stations trained, which is the part of the
+ * race the session exists to rehearse; a 600 m run still trains running on tired
+ * legs, whereas a missing station trains nothing.
+ */
+export function hybridRunPlan(
+  weeklyMileage: number | undefined,
+  runningExp: ExperienceLevel,
+  thresholdSecPerMile: number | null,
+  catalog?: StationCatalog,
+  /** How many hybrids the week holds; they SHARE one weekly budget. Defaults to
+   *  1, which is both the common case and the old per-session behaviour. */
+  hybridsInWeek = 1,
+): HybridRunPlan {
+  const cat = catalog ?? HYROX_CATALOG;
+  const full = cat.interStationRunMeters;
+  const dose = coupletsForThresholdDose(runningExp, thresholdSecPerMile, cat);
+
+  // Station-only formats, and every athlete at or above the threshold, are
+  // untouched — this is the no-op path that keeps existing programs identical.
+  if (
+    full <= 0 ||
+    weeklyMileage == null ||
+    !Number.isFinite(weeklyMileage) ||
+    weeklyMileage >= LOW_VOLUME_MILEAGE_THRESHOLD
+  ) {
+    return { runMeters: full, couplets: dose };
+  }
+
+  const budgetMeters =
+    (Math.max(0, weeklyMileage) * HYBRID_LEG_BUDGET_SHARE * M_PER_MILE) /
+    Math.max(1, hybridsInWeek);
+  const perLeg = budgetMeters / dose;
+
+  if (perLeg >= MIN_HYBRID_RUN_METERS) {
+    // Round DOWN to a whole 100 m so the prescription reads like something a
+    // human wrote, and never exceed the race's own distance.
+    const rounded = Math.min(full, Math.floor(perLeg / 100) * 100);
+    return { runMeters: Math.max(MIN_HYBRID_RUN_METERS, rounded), couplets: dose };
+  }
+
+  // Legs are already at the floor: shed couplets, but never below the minimum
+  // that still resembles a race. Under that the week runs honestly over budget
+  // rather than shipping a two-station "hybrid".
+  const affordable = Math.floor(budgetMeters / MIN_HYBRID_RUN_METERS);
+  const couplets = Math.min(dose, Math.max(MIN_HYBRID_COUPLETS, affordable));
+  return { runMeters: MIN_HYBRID_RUN_METERS, couplets };
+}
+
+/** Accumulated minutes at threshold a plan buys at this pace. */
+export function hybridThresholdMinutes(
+  plan: HybridRunPlan,
+  thresholdSecPerMile: number | null,
+): number {
+  const pace =
+    thresholdSecPerMile && thresholdSecPerMile > 0
+      ? thresholdSecPerMile
+      : DEFAULT_THRESHOLD_SEC_PER_MILE;
+  return (plan.couplets * (plan.runMeters / M_PER_MILE) * pace) / 60;
+}
+
+/**
  * How many run+station couplets land this athlete inside the threshold window?
  *
  * Runs stay at the race's own `interStationRunMeters` — Levi's call: rehearsing
@@ -509,16 +659,23 @@ export function fitHybridToCap(
   emphasis: readonly string[] = [],
   minStations = MIN_HYBRID_COUPLETS,
   runningExp: ExperienceLevel = "intermediate",
+  /** The week's target running mileage. Omitted = no weekly budget applied,
+   *  which is the pre-2026-08-17 behaviour and keeps legacy callers identical. */
+  weeklyMileage?: number,
+  /** How many hybrids the week holds — they share the one weekly budget. */
+  hybridsInWeek = 1,
 ): string[] {
   const cat = catalog ?? HYROX_CATALOG;
   const order = cat.raceOrder;
   const floor = Math.min(minStations, order.length);
 
-  // The THRESHOLD DOSE decides the couplet count first; the session cap can only
-  // ever lower it further. Two different constraints, applied in the order they
-  // matter: 20-40 min of threshold is a training rule that holds at every band,
-  // while the cap is a logistics ceiling that rarely binds.
-  const start = Math.max(floor, coupletsForThresholdDose(runningExp, thresholdSecPerMile, cat));
+  // Three constraints, applied in the order they matter:
+  //  1. the WEEK's mileage budget shortens the legs and, at the very bottom,
+  //     removes couplets (`hybridRunPlan`);
+  //  2. the THRESHOLD DOSE caps how much of it is worth running;
+  //  3. the SESSION CAP is a logistics ceiling that can only lower it further.
+  const plan = hybridRunPlan(weeklyMileage, runningExp, thresholdSecPerMile, cat, hybridsInWeek);
+  const start = Math.max(floor, plan.couplets);
 
   for (let n = start; n >= floor; n--) {
     // Rotate the window start so a dropped station comes back next week.
@@ -526,7 +683,7 @@ export function fitHybridToCap(
     const ids = Array.from({ length: n }, (_, i) => order[(from + i) % order.length]!)
       // Race order, not window order: the session still reads like a race.
       .sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    const els = buildHybridElements(phase, division, sex, cat, emphasis, ids);
+    const els = buildHybridElements(phase, division, sex, cat, emphasis, ids, plan.runMeters);
     const work = estimateHybridWorkMinutes(
       els,
       thresholdSecPerMile,

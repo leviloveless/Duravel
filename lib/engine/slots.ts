@@ -28,6 +28,7 @@ import type {
 } from "./types";
 import type { ProgramBias, RunEmphasis } from "./needs";
 import { clampInt } from "./math";
+import { HYBRID_THRESHOLD_CREDIT_MINUTES, hybridRunPlan, hybridThresholdMinutes } from "./stations";
 import {
   applySequencingGuards,
   spaceHardRunAfterLongRun,
@@ -268,6 +269,10 @@ export function buildRunSlots(
   character: "maintenance" | "full" = "full",
   guaranteeQuality = false,
   hybridCount = 0,
+  /** Accumulated threshold minutes the week's hybrid actually carries. Omitted
+   *  (or 0) with a hybrid present = the pre-2026-08-17 behaviour, where presence
+   *  alone earned the credit. See the credit rule below. */
+  hybridThresholdMin?: number,
 ): RunSlot[] {
   if (count <= 0) return [];
   // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
@@ -300,7 +305,23 @@ export function buildRunSlots(
    * band), which is the same gate the seeded anchors use and leaves every legacy
    * no-band program — including the golden HYROX oracle — byte-identical.
    */
-  const hybridCoversThreshold = guaranteeQuality && hybridCount > 0;
+  /**
+   * ...but ONLY when it actually carries the dose (Levi, 2026-08-17).
+   *
+   * This used to be `guaranteeQuality && hybridCount > 0` — presence alone.
+   * That held while every hybrid was eight full 1 km legs, and broke the moment
+   * `hybridRunPlan` began scaling the session to what a low-mileage week can
+   * afford: a 7 mi week would get a hybrid carrying ~8 minutes at threshold AND
+   * lose its separate threshold run, so the stimulus vanished with nothing
+   * reporting it. Same shape as the liftType bug — a credit granted on
+   * existence rather than on substance.
+   *
+   * `undefined` means the caller has not measured it, which is every legacy
+   * caller: those keep the old behaviour and stay byte-identical.
+   */
+  const hybridCarriesDose =
+    hybridThresholdMin === undefined || hybridThresholdMin >= HYBRID_THRESHOLD_CREDIT_MINUTES;
+  const hybridCoversThreshold = guaranteeQuality && hybridCount > 0 && hybridCarriesDose;
 
   const types: RunType[] = ["long"]; // long run anchors every week
   // Research: threshold + VO2 are weekly anchors at EVERY budget and phase
@@ -778,6 +799,9 @@ export function assignDays(
   pos?: PhasePosition,
   bias?: ProgramBias,
   counts: SessionCountTables = DEFAULT_COUNTS,
+  /** The week's target running mileage, used to decide whether the hybrid is big
+   *  enough to credit the threshold run. Omitted = legacy behaviour. */
+  weeklyMileage?: number,
 ): DaySlot[] {
   // An A/B race week (microWeek "race") uses the reduced taper sessions; a C
   // race keeps its normal microcycle label and trains through, so it falls to
@@ -813,6 +837,21 @@ export function assignDays(
       cappedCounts.guaranteeQuality ?? false,
       // The week's hybrids are planned above; a hybrid credits the threshold run.
       plan.hybrids,
+      // ...but only if it is big enough to BE one. Measured at a reference pace,
+      // not the athlete's: the skeleton runs before `computePaces`, so the real
+      // threshold pace does not exist yet. That makes this a STRUCTURAL decision
+      // — "does a session of this shape carry a threshold dose?" — which is also
+      // the more stable thing to key a week's structure on. A slow athlete's true
+      // minutes are higher than the reference suggests, so the error direction is
+      // to KEEP the separate threshold run, never to silently drop it.
+      weeklyMileage === undefined
+        ? undefined
+        : hybridThresholdMinutes(
+            // The week's hybrids share one leg budget, so how much threshold any
+            // ONE of them carries depends on how many there are.
+            hybridRunPlan(weeklyMileage, runningExp, null, undefined, plan.hybrids),
+            null,
+          ),
     );
     const lifts = buildLiftSlots(plan.lifts, cappedCounts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.

@@ -63,6 +63,7 @@ import {
   estimateHybridWorkMinutes,
   fitHybridToCap,
   hybridStationScale,
+  hybridRunPlan,
   stationPrescription,
   HYROX_CATALOG,
   type Division,
@@ -363,6 +364,16 @@ function replaceHybrids(
     (caps?.session ?? DEFAULT_CAPS.session) - HYBRID_WARMUP - HYBRID_COOLDOWN,
   );
 
+  // How many hybrids share this week's leg budget. Race simulations are excluded
+  // because they are exempt from the budget entirely (below) — counting one
+  // would shrink the sessions that DO obey it to pay for a session that doesn't.
+  let hybridsInWeek = 0;
+  for (const day of days) {
+    for (const session of day.sessions) {
+      if (session.kind === "hybrid" && !session.simulation) hybridsInWeek += 1;
+    }
+  }
+
   for (const day of days) {
     for (let i = 0; i < day.sessions.length; i++) {
       const session = day.sessions[i]!;
@@ -390,6 +401,18 @@ function replaceHybrids(
         continue;
       }
 
+      // The week's own mileage budget shortens the legs (and, at the very
+      // bottom, removes couplets) BEFORE the threshold dose and the session cap
+      // get a say — see `hybridRunPlan`. `targetMileage` is the skeleton's
+      // number, i.e. what the week was asked to run, which is the figure the
+      // budget is a share of.
+      const plan = hybridRunPlan(
+        skel.targetMileage,
+        runningExp,
+        thresholdPace,
+        catalog,
+        hybridsInWeek,
+      );
       const ids = fitHybridToCap(
         skel.weekNumber,
         capWork,
@@ -401,8 +424,18 @@ function replaceHybrids(
         emphasis,
         undefined,
         runningExp,
+        skel.targetMileage,
+        hybridsInWeek,
       );
-      const elements = buildHybridElements(skel.phase, division, sex, catalog, emphasis, ids);
+      const elements = buildHybridElements(
+        skel.phase,
+        division,
+        sex,
+        catalog,
+        emphasis,
+        ids,
+        plan.runMeters,
+      );
       const workMin = estimateHybridWorkMinutes(
         elements,
         thresholdPace,
