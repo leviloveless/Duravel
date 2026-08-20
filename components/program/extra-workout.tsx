@@ -6,6 +6,7 @@ import {
   addExtraWorkout,
   addExtraFromActivity,
   deleteExtraWorkout,
+  pushExtraWorkoutToStrava,
   updateExtraWorkout,
 } from "@/app/program/extra-actions";
 import { extraDetail, extraTitle } from "@/lib/extra-workouts";
@@ -38,16 +39,24 @@ export function ExtraWorkoutList({
   programId,
   extras,
   frozen,
+  stravaWriteEnabled,
 }: {
   programId: string;
   extras: ExtraWorkout[];
   frozen?: boolean;
+  stravaWriteEnabled?: boolean;
 }) {
   if (extras.length === 0) return null;
   return (
     <>
       {extras.map((x) => (
-        <ExtraWorkoutRow key={x.id} programId={programId} extra={x} frozen={frozen} />
+        <ExtraWorkoutRow
+          key={x.id}
+          programId={programId}
+          extra={x}
+          frozen={frozen}
+          stravaWriteEnabled={stravaWriteEnabled}
+        />
       ))}
     </>
   );
@@ -57,15 +66,56 @@ function ExtraWorkoutRow({
   programId,
   extra,
   frozen,
+  stravaWriteEnabled,
 }: {
   programId: string;
   extra: ExtraWorkout;
   frozen?: boolean;
+  stravaWriteEnabled?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [pushed, setPushed] = useState<null | "created" | "updated">(null);
+  const [pushError, setPushError] = useState<string | null>(null);
   const detail = extraDetail(extra);
+
+  /**
+   * Pushing is offered on a FROZEN week too, which is why this sits outside the
+   * `!frozen` block below. Freezing exists so the numbers behind an applied
+   * adaptation cannot move afterwards; posting a copy of the workout to Strava
+   * moves no number the engine reads.
+   */
+  async function pushToStrava() {
+    if (pushing) return;
+    setPushing(true);
+    setPushError(null);
+    setPushed(null);
+    try {
+      const res = await pushExtraWorkoutToStrava(programId, extra.id);
+      if (res.ok) {
+        setPushed(res.created ? "created" : "updated");
+        router.refresh();
+      } else {
+        setPushError(res.error);
+      }
+    } catch {
+      setPushError("Couldn't reach Strava. Try again in a moment.");
+    } finally {
+      setPushing(false);
+    }
+  }
+
+  const pushLabel = pushing
+    ? "Posting…"
+    : pushed === "created"
+      ? "Posted"
+      : pushed === "updated"
+        ? "Updated"
+        : extra.stravaActivityId
+          ? "Update Strava"
+          : "To Strava";
 
   // Editing replaces the row in place rather than opening a dialog: the athlete
   // is looking at the day it belongs to, and a modal would hide that context.
@@ -89,34 +139,50 @@ function ExtraWorkoutRow({
             extra
           </span>
         </span>
-        {!frozen && (
-          <span className="flex shrink-0 items-center gap-2">
+        <span className="flex shrink-0 items-center gap-2">
+          {stravaWriteEnabled && (
             <button
               type="button"
-              disabled={pending}
-              onClick={() => setEditing(true)}
-              className="text-xs text-zinc-400 transition-colors hover:text-zinc-900 disabled:opacity-50"
+              disabled={pushing}
+              onClick={pushToStrava}
+              title="Post this workout to Strava, titled and signed Duravel"
+              className="text-xs font-medium text-lime-700 transition-colors hover:text-lime-900 disabled:opacity-50"
             >
-              Edit
+              {pushLabel}
             </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  await deleteExtraWorkout(programId, extra.id);
-                  router.refresh();
-                })
-              }
-              className="text-xs text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
-            >
-              Remove
-            </button>
-          </span>
-        )}
+          )}
+          {!frozen && (
+            <>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setEditing(true)}
+                className="text-xs text-zinc-400 transition-colors hover:text-zinc-900 disabled:opacity-50"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    await deleteExtraWorkout(programId, extra.id);
+                    router.refresh();
+                  })
+                }
+                className="text-xs text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </>
+          )}
+        </span>
       </div>
       {detail && <div className="mt-0.5 text-xs text-zinc-500">{detail}</div>}
       {extra.note && <div className="mt-1 text-xs text-zinc-600">{extra.note}</div>}
+      {/* Say what went wrong. A control that silently does nothing is the
+          failure mode this app keeps having to fix. */}
+      {pushError && <div className="mt-1 text-xs text-red-600">{pushError}</div>}
     </div>
   );
 }

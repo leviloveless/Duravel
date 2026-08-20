@@ -544,11 +544,19 @@ export const ExtraWorkoutSchema = z.object({
   note: z.string().max(280).optional(),
   /** Set when the athlete attached an already-synced wearable activity. */
   activityId: z.string().optional(),
+  /** The Strava activity this extra was pushed to, if it has been (mig 0044).
+   *  Server-owned: the forms never submit it, so it is omitted from the input
+   *  schemas below — an extra that already owns an activity must not be able to
+   *  lose or forge that pointer through a form post. */
+  stravaActivityId: z.string().optional(),
 });
 export type ExtraWorkout = z.infer<typeof ExtraWorkoutSchema>;
 
 /** What the "add an extra workout" form submits. */
-export const ExtraWorkoutInputSchema = ExtraWorkoutSchema.omit({ id: true }).extend({
+export const ExtraWorkoutInputSchema = ExtraWorkoutSchema.omit({
+  id: true,
+  stravaActivityId: true,
+}).extend({
   programId: z.string().min(1),
 });
 export type ExtraWorkoutInput = z.infer<typeof ExtraWorkoutInputSchema>;

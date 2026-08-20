@@ -32,6 +32,7 @@ export interface ExtraWorkoutRowLike {
   rpe?: number | null;
   note?: string | null;
   activity_id?: string | null;
+  strava_activity_id?: string | null;
 }
 
 function numOrUndefined(v: number | string | null | undefined): number | undefined {
@@ -61,6 +62,7 @@ export function extrasFromRows(rows: readonly ExtraWorkoutRowLike[]): ExtraWorko
       rpe: numOrUndefined(r.rpe),
       note: r.note ?? undefined,
       activityId: r.activity_id ?? undefined,
+      stravaActivityId: r.strava_activity_id ?? undefined,
     });
     if (parsed.success) out.push(parsed.data);
   }

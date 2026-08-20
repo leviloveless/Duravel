@@ -311,6 +311,7 @@ function MobileDayList({
                 programId={logging.programId}
                 extras={extrasForDay(logging.extras ?? [], week.weekNumber, dayKey)}
                 frozen={logging.frozen}
+                stravaWriteEnabled={stravaWriteEnabled}
               />
             )}
             {logging && !logging.frozen && (
@@ -531,6 +532,7 @@ export default function WeekCard({
                             programId={logging.programId}
                             extras={dayExtras}
                             frozen={logging.frozen}
+                            stravaWriteEnabled={stravaWriteEnabled}
                           />
                           {!logging.frozen && (
                             <AddExtraWorkout

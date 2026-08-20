@@ -111,18 +111,37 @@ export type ExtraWorkoutRow = {
   rpe: number | null;
   note: string | null;
   activity_id: string | null;
+  /** Set once this extra has been pushed to Strava (migration 0044). */
+  strava_activity_id: string | null;
   created_at: string;
 };
+
+const EXTRA_COLUMNS =
+  "id, program_id, week_number, day, kind, title, duration_min, distance_miles, avg_hr, goal_zone, rpe, note, activity_id, created_at";
 
 /**
  * Every unplanned workout the athlete added to this program, oldest first so a
  * day's extras render in the order they were logged. Read-own via RLS.
+ *
+ * `strava_activity_id` (migration 0044) is selected defensively, the same way
+ * `profiles.timezone` is in `strava-autopost.ts`: a deploy that lands before the
+ * migration is applied would 400 on the unknown column, and because this query
+ * swallows its error into `?? []` the failure would show up as the athlete's
+ * extras silently VANISHING from the program page — not as an error anyone could
+ * read. Migrations here are applied by hand, so that window is real.
  */
 export async function getProgramExtras(programId: string): Promise<ExtraWorkoutRow[]> {
   const supabase = await createClient();
+  const withStrava = await supabase
+    .from("extra_workouts")
+    .select(`${EXTRA_COLUMNS}, strava_activity_id`)
+    .eq("program_id", programId)
+    .order("created_at", { ascending: true });
+  if (!withStrava.error) return (withStrava.data as ExtraWorkoutRow[] | null) ?? [];
+
   const { data } = await supabase
     .from("extra_workouts")
-    .select("id, program_id, week_number, day, kind, title, duration_min, distance_miles, avg_hr, goal_zone, rpe, note, activity_id, created_at")
+    .select(EXTRA_COLUMNS)
     .eq("program_id", programId)
     .order("created_at", { ascending: true });
   return (data as ExtraWorkoutRow[] | null) ?? [];

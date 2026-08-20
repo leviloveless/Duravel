@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ExtraWorkoutInputSchema, ExtraWorkoutUpdateSchema } from "@/lib/schemas";
+import { extrasFromRows } from "@/lib/extra-workouts";
+import { pushExtraToStrava, type PushExtraResult } from "@/lib/wearables/extra-strava";
 
 const METERS_PER_MILE = 1609.344;
 
@@ -200,4 +202,89 @@ export async function updateExtraWorkout(input: unknown): Promise<ExtraResult> {
 
   revalidatePath(`/program/${v.programId}`);
   return { ok: true };
+}
+
+/** What the "To Strava" control on an extra needs back. */
+export type PushExtraActionResult =
+  | { ok: true; created: boolean }
+  | { ok: false; error: string; reason: Extract<PushExtraResult, { ok: false }>["reason"] };
+
+const PUSH_MESSAGE: Record<Extract<PushExtraResult, { ok: false }>["reason"], string> = {
+  disabled: "Posting to Strava isn't switched on yet.",
+  not_connected: "Connect Strava in Settings first.",
+  reconnect_required: "Reconnect Strava to allow posting.",
+  needs_duration: "Add a duration first — Strava can't take a workout with no time on it.",
+  error: "Strava didn't accept that. Try again in a moment.",
+};
+
+/**
+ * Push one extra workout to Strava as a manual activity, titled and signed
+ * Duravel (Levi, 2026-08-19).
+ *
+ * Pushing twice does NOT create a second activity: the id of the one this extra
+ * already posted is stored on the row, and a second push refreshes that
+ * activity's text instead (see migration 0044). The id is re-written whenever it
+ * changes, which covers the case where the athlete deleted the activity on
+ * Strava and `syncAutoPost` had to post a fresh one.
+ *
+ * Not blocked on a frozen week, unlike `updateExtraWorkout`. Freezing exists so
+ * the numbers behind an applied adaptation cannot move afterwards; posting a
+ * copy of a workout to Strava changes no number the engine ever reads.
+ */
+export async function pushExtraWorkoutToStrava(
+  programId: string,
+  id: string,
+): Promise<PushExtraActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in", reason: "error" };
+
+  const { data: row } = await supabase
+    .from("extra_workouts")
+    .select(
+      "id, user_id, program_id, week_number, day, kind, title, duration_min, distance_miles, avg_hr, goal_zone, rpe, note, activity_id, strava_activity_id",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || row.user_id !== user.id || row.program_id !== programId) {
+    return { ok: false, error: "Workout not found", reason: "error" };
+  }
+
+  const extra = extrasFromRows([row])[0];
+  // `extrasFromRows` drops a row that no longer validates rather than rendering
+  // half a workout; here that would mean posting half a workout.
+  if (!extra) return { ok: false, error: "That workout can't be read", reason: "error" };
+
+  const { data: program } = await supabase
+    .from("programs")
+    .select("start_date")
+    .eq("id", programId)
+    .maybeSingle();
+
+  // `timezone` arrived in migration 0039; fall back rather than let an
+  // unapplied migration turn into "Strava didn't accept that".
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("timezone")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const result = await pushExtraToStrava(user.id, extra, {
+    programStartDate: program?.start_date ?? null,
+    timezone: profile?.timezone ?? null,
+  });
+  if (!result.ok) return { ok: false, error: PUSH_MESSAGE[result.reason], reason: result.reason };
+
+  if (result.activityId !== extra.stravaActivityId) {
+    await supabase
+      .from("extra_workouts")
+      .update({ strava_activity_id: result.activityId })
+      .eq("id", id)
+      .eq("user_id", user.id);
+  }
+
+  revalidatePath(`/program/${programId}`);
+  return { ok: true, created: result.created };
 }
