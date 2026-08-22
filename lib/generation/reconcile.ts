@@ -80,6 +80,28 @@ const SNAP_OVERSHOOT_TOLERANCE = 0.25;
  * given — which is precisely how the first version of the cap wrecked a program.
  */
 const MIN_STANDALONE_RUN_MI = 3.5;
+/**
+ * Floor for a RECOVERY jog, in total minutes (Levi, 2026-08-19).
+ *
+ * The 45-minute floor above is an EASY-run floor, and coaching practice is
+ * consistent that those are two different sessions: an easy run is 45–75 min,
+ * a recovery run is **20–45 min**, and a shakeout is 15–25. Pfitzinger &
+ * Douglas, via Tom Schwartz, size a recovery run at 10–15% of weekly distance —
+ * which on a 12 mi/week athlete is 15–22 minutes, so a flat 45-minute floor is
+ * not a conservative choice there, it is a category error.
+ *
+ * No trial establishes a minimum useful duration for easy running in either
+ * direction — the 45 was never evidence-based either. What evidence exists runs
+ * the other way: a volume/intensity meta-regression found frequency and total
+ * volume drive mitochondrial content and VO2max, concluding that consistency and
+ * frequency matter more than any single session's length, and the running-injury
+ * literature finds training FREQUENCY has no independent association with injury
+ * once progression and load are accounted for.
+ *
+ * Used only where the long-run ceiling displaces miles that have nowhere else to
+ * go. Everything else in this file still gets the 45-minute floor.
+ */
+const MIN_RECOVERY_TOTAL = 20;
 const MIN_RUN_MILES = 0.3;
 
 // Long-run progression (Tasks addition #5). The long run should be clearly
@@ -434,7 +456,7 @@ export function reconcileWeekVolume(
     // and a real one, even if the target is smaller than a session.
     if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp, caps.session, true));
   } else {
-    sizeRuns(runs, RM, days, paces, runningExp, added, caps.session);
+    sizeRuns(runs, RM, days, paces, runningExp, added, caps.session, place);
     enforceLongRun(runs, weekNumber, caps.session);
     for (const r of runs) writeRun(r, paces, caps.session, runningExp);
   }
@@ -531,7 +553,31 @@ export function reconcileWeekVolume(
   // ⚠️ Never lowered — only raised. A week that comes in UNDER its target is a bug
   // and must stay visible as one; the "generous targets" sweep asserts exactness
   // wherever the week has room, so this cannot quietly absorb a future regression.
-  return Math.max(targetMileage, round1(weekMileage({ days })));
+  //
+  // ONE EXCEPTION (Levi, 2026-08-19): a week whose LONG RUN is sitting on its
+  // jump ceiling. There the shortfall is not a bug, it is the ceiling doing its
+  // job — the miles had nowhere to go that was not a long run 50% past what the
+  // athlete has recently run.
+  //
+  // Reporting it honestly is also the better-evidenced choice. The whole reason
+  // the ceiling exists is a cohort finding that change in WEEKLY VOLUME had
+  // little predictive value for injury while a single run exceeding the
+  // athlete's recent longest by 10–30% carried 64% higher risk. Given those two
+  // numbers, the invariant worth bending is the weekly total, not the ceiling.
+  //
+  // `assembleProgram` adopts whatever comes back as the week's target, so the
+  // prescription and the calendar still agree — which is what that invariant was
+  // protecting in the first place.
+  const delivered = round1(weekMileage({ days }));
+  const longRun = days
+    .flatMap((d) => d.sessions)
+    .find((s): s is RunSession => s.kind === "run" && s.runType === "long");
+  const ceilingBound =
+    longRunCap !== undefined &&
+    longRun !== undefined &&
+    runTotalMiles(longRun) >= longRunCap - 0.05;
+  if (ceilingBound && delivered < targetMileage) return delivered;
+  return Math.max(targetMileage, delivered);
 }
 
 /** One filler block the plan wants: how many minutes, on which day. */
@@ -837,11 +883,12 @@ function workBudget(
 function sizeRuns(
   runs: RunEntry[],
   RM: number,
-  _days: ProgramDay[],
+  days: ProgramDay[],
   paces: RunPaces,
   runningExp: ExperienceLevel,
   added: Session[],
   sessionCap: number,
+  place: FillerPlacement = {},
 ): void {
   // Consolidate: while the minimums don't fit, drop the most-droppable run
   // (never the long run) and remove it from its day.
@@ -926,6 +973,40 @@ function sizeRuns(
       //     rather than deforming the week to hold it.
       //   - big enough to BE a session → emit one. `atLeastOne` makes it a real
       //     45-minute run rather than the 0.3-mile stub this used to produce.
+      //
+      // ⚠️ REVISED 2026-08-19: what is left now becomes a RECOVERY JOG rather
+      // than being forced back onto the long run. A recovery run's documented
+      // band is 20–45 minutes, so the displaced miles usually ARE a session —
+      // just not an easy run. Only a remainder too small even for that goes
+      // back, and then the ceiling yields to the week's arithmetic.
+      const longCeiling = runs.find((r) => r.type === "long")?.softMax;
+      // ⚠️ Only if the week can actually HOLD another session. The placement
+      // loop that runs later gives up silently when every day is at two
+      // workouts, so a jog emitted into a full week is a jog that vanishes —
+      // and the miles vanish with it. Checked here, before the long run gives
+      // them away: 178 weeks quietly lost mileage this way in the first cut.
+      const canPlace = leastLoadedUnderCap(days, MAX_SESSIONS_PER_DAY, place) !== -1;
+      // ⚠️ SMALL remainders only. A recovery jog is ONE session, so handing it a
+      // large overflow builds a 9-mile "jog" that the session cap then shrinks —
+      // silently losing up to 6 miles of the week (measured, first cut). Anything
+      // big enough for a real easy run keeps going to `buildEasyRuns`, which
+      // splits across sessions and respects the cap.
+      if (
+        overflow > 0.05 &&
+        overflow < MIN_STANDALONE_RUN_MI &&
+        longCeiling !== undefined &&
+        canPlace
+      ) {
+        const recovery = buildRecoveryRun(overflow, paces, sessionCap);
+        const jog = recovery[0];
+        // Only if the jog it would build is not much bigger than the miles that
+        // need a home — otherwise this is the 45-minute-filler trap again, one
+        // size down.
+        if (jog && jog.distanceMiles <= overflow + 0.6) {
+          added.push(...recovery);
+          overflow = 0;
+        }
+      }
       if (overflow > 0.05 && overflow < MIN_STANDALONE_RUN_MI) {
         for (const r of byRoom) {
           if (overflow <= 0.01) break;
@@ -1034,6 +1115,46 @@ function buildEasyRuns(
     });
   }
   return out;
+}
+
+/**
+ * A short RECOVERY jog, for miles the long-run ceiling displaced.
+ *
+ * Deliberately not `buildEasyRuns` with a smaller floor. A 25-minute session
+ * prescribed as an "easy run" mislabels it — easy runs are 45–75 minutes in
+ * every coaching source, and the athlete reading "easy run, 25 min" is being
+ * told to do a session type that does not exist. Prescribed as a RECOVERY jog it
+ * is a normal, well-documented session sitting mid-band (20–45 min).
+ *
+ * `runType` stays `easy`: the schema's enum has no `recovery`, and adding one
+ * reaches the AI prompt, the labels, the zone tables and every stored program.
+ * The pace and the description carry the distinction instead — and the pace is
+ * the part that matters physiologically, since a recovery run is defined by
+ * being slower than easy, not by being shorter.
+ */
+function buildRecoveryRun(miles: number, paces: RunPaces, sessionCap: number): RunSession[] {
+  const paceMin = effectivePace("easy", paces) / 60;
+  const overhead = runOverhead("easy");
+  const floorMiles = Math.max(MIN_RECOVERY_TOTAL - overhead, 1) / paceMin;
+  // Bounded at both ends: never under the recovery floor, never over the session
+  // cap — an unclamped distance here ships a run the reconciler has to shrink.
+  const capMiles = maxMiles(paceMin, overhead, sessionCap, "easy", "intermediate");
+  const d = round1(Math.min(capMiles, Math.max(floorMiles, miles)));
+  const work = Math.min(sessionCap - overhead, Math.max(1, Math.round(d * paceMin)));
+  return [
+    {
+      kind: "run",
+      runType: "easy",
+      distanceMiles: d,
+      durationMin: work,
+      paceMinMile: formatPace(paces.easy),
+      goalZone: 1,
+      description:
+        "Recovery jog — easier and shorter than an easy run, at a pace you could hold a " +
+        "conversation through without thinking about it. This is here to keep the week's " +
+        "volume on your feet without adding to the long run.",
+    },
+  ];
 }
 
 // Local easy description to avoid a circular import with run-descriptions.

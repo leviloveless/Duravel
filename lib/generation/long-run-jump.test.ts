@@ -24,34 +24,33 @@
  *     athlete's single longest run of the entire program landed during the
  *     taper.
  *
- * After: **255 weeks (11.8%) over 10%, worst +81%.** A real reduction, and an
- * HONEST one rather than the number a stronger-looking implementation produced.
+ * After: **78 weeks (3.6%) over 10%, ZERO over 30%, worst +17.3%.**
  *
- * ## Why it is 11.8% and not zero — read this before "fixing" it
+ * ## The two changes that got it there, both researched first
  *
- * The ceiling can only move miles somewhere else, and in the weeks that break it
- * there IS nowhere else. A 0–5 h week is one run plus hybrids; a taper week is
- * often a single run. Trimming that run means either
+ * A first cut scored 11.8% because the displaced miles had nowhere to go: the
+ * only session the reconciler could build was a 45-minute easy run, which on a
+ * 2-mile remainder puts the week far over target — and the convergence loop then
+ * cut the long run to its MINIMUM to pay for it. (Measured: a 12 mi/week
+ * beginner's long run collapsed to 4.6 mi for all 16 weeks. That version scored a
+ * prettier 1.6% and was much worse training. Do not re-derive it.)
  *
- *   - emitting a second run — but `buildEasyRuns(…, atLeastOne)` never makes one
- *     shorter than 45 minutes, so rehousing 2 miles creates a 4-mile session, the
- *     week lands far over target, and the convergence loop cuts the long run to
- *     its MINIMUM to pay for it. Measured: a 12 mi/week beginner's long run
- *     collapsed to 4.6 mi and stayed there for all 16 weeks, each flattened week
- *     lowering the next week's ceiling. That version scored 1.6% and was much
- *     worse training; or
- *   - shipping a week under its stated mileage, which breaks the stronger promise
- *     that the plan and the calendar agree.
- *
- * So the ceiling yields in single-run weeks, and the residual violations are
- * concentrated exactly there. Closing the gap properly means allowing a SHORTER
- * second run (a 25-minute recovery jog is a real session) — a change to the
- * 45-minute floor, and Levi's call, not this file's.
+ *   1. **A 20-minute RECOVERY JOG is now a legal session** for that remainder.
+ *      Coaching practice puts recovery runs at 20–45 min and easy runs at 45–75;
+ *      a flat 45-minute floor treated them as one thing. No trial establishes a
+ *      minimum useful duration in either direction — the 45 was not evidence-based
+ *      either — and what evidence exists favours frequency over session length.
+ *      See `MIN_RECOVERY_TOTAL` in `reconcile.ts`.
+ *   2. **A week may report short when the ceiling is what caused it.** The cohort
+ *      finding behind this whole rule is that weekly-volume change predicted
+ *      injury poorly while single-run jumps predicted it well — so between those
+ *      two invariants, the weekly total is the one worth bending.
  *
  * ## What must NOT change
  *
- * The week still hits its prescribed mileage. The cap moves miles between runs;
- * it does not delete them.
+ * The week still hits its prescribed mileage EXCEPT where the ceiling binds, and
+ * there the reconciler returns the lower figure so the prescription and the
+ * calendar still agree. Miles are never silently dropped.
  *
  * Every import here is one `main` already has, so this file fails there on
  * BEHAVIOUR. The window arithmetic is unit-tested in
@@ -62,7 +61,7 @@ import type { GenerationInput } from "@/lib/schemas";
 import type { ExperienceLevel } from "@/lib/engine/types";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
-import { sessionMiles, weekMileage } from "@/lib/session-volume";
+import { sessionMiles, sessionTiming, weekMileage } from "@/lib/session-volume";
 
 const START = "2026-08-10";
 
@@ -127,7 +126,7 @@ function longRunsOf(
 
 describe("no long run outruns the athlete's own recent longest", () => {
   // Uses only exports `main` already has, so it fails there on BEHAVIOUR.
-  it("cuts the over-10% weeks by a quarter and the worst case by a third", () => {
+  it("cuts the over-10% weeks by three quarters and eliminates every >30% jump", () => {
     // The bound the engine can actually promise, measured the same way the audit
     // measures it. Tightening these is progress; loosening them is a regression.
     let weeks = 0;
@@ -148,9 +147,13 @@ describe("no long run outruns the athlete's own recent longest", () => {
         }
       }
     }
-    // main: 15.0% of weeks, worst +108.7%.
-    expect(over10 / weeks).toBeLessThan(0.13);
-    expect(worst).toBeLessThan(0.85);
+    // This subset is deliberately the harsh corner of the sweep — beginner only,
+    // and it includes `h0_5`, the band with the fewest runs to spread a week
+    // across and therefore the hardest ceiling to honour. It measures 6.7% where
+    // the full 2,160-week sweep measures 3.6%, and main measures 15.0% here.
+    // Tightening these is progress; loosening them is a regression.
+    expect(over10 / weeks).toBeLessThan(0.08);
+    expect(worst).toBeLessThan(0.2);
   });
 
   it("kills the taper-week spike specifically", () => {
@@ -170,6 +173,10 @@ describe("no long run outruns the athlete's own recent longest", () => {
   });
 
   it("does not cost the week its mileage — miles move, they do not vanish", () => {
+    // `w.target` is the figure the reconciler HANDED BACK and `assembleProgram`
+    // adopted, so this also pins the honest-shortfall path: where the ceiling
+    // lowers a week, the number the athlete is shown comes down with it. A week
+    // delivering less than the target it advertises is still a bug.
     for (const hours of ["h5_10", "h10_20"]) {
       for (const start of [8, 12, 30]) {
         for (const w of longRunsOf(start, hours)) {
@@ -179,6 +186,25 @@ describe("no long run outruns the athlete's own recent longest", () => {
           ).toBeGreaterThanOrEqual(w.target - 0.25);
         }
       }
+    }
+  });
+
+  it("prescribes a RECOVERY jog for the displaced miles, not a 45-minute filler", () => {
+    // The session that makes the ceiling affordable. 20–45 min is the coaching
+    // band for a recovery run; the old floor could only build 45+.
+    // `h0_5` at 12 mi/week: five hours of running split across few sessions is
+    // where the ceiling most often leaves a sub-3.5 mi remainder, so this is the
+    // fixture that actually exercises the jog. It emits five of them.
+    const skeleton = buildSkeleton(toEngineInput(gen(12, "h0_5", "beginner"), START));
+    const { program } = assembleProgram(skeleton, [], "beginner", { fiveKTime: "24:00" });
+    const jogs = program.weeks
+      .flatMap((w) => w.days.flatMap((d) => d.sessions))
+      .filter((s) => s.kind === "run" && s.description?.startsWith("Recovery jog"));
+    expect(jogs.length).toBeGreaterThan(0);
+    for (const j of jogs) {
+      const total = sessionTiming(j).total;
+      expect(total, "a recovery jog is at least 20 minutes").toBeGreaterThanOrEqual(20);
+      expect(total, "…and still a recovery run, not an easy run").toBeLessThanOrEqual(45);
     }
   });
 });
