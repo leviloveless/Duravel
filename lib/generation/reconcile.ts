@@ -62,6 +62,24 @@ const MIN_BRICK_CARDIO = 30;
 // token block. Every gap at or above it is still filled exactly.
 const MIN_MEANINGFUL_CARDIO = 15;
 const EASY_LONG_MIN_MI = 3;
+/**
+ * Residual the long run may take past its jump ceiling.
+ *
+ * The convergence loop places training-sized miles and the cap governs those
+ * strictly. What is left afterwards is arithmetic — a tenth rounded off each of
+ * several runs — and refusing THAT shipped weeks 0.2 mi under their stated
+ * target, which breaks the stronger invariant that the plan and the calendar
+ * agree. Sized against the worst observed rounding residual; anything bigger is
+ * a real training decision and the ceiling wins.
+ */
+const SNAP_OVERSHOOT_TOLERANCE = 0.25;
+/**
+ * Smallest remainder worth turning into its own run when the long-run ceiling
+ * bites. `buildEasyRuns(…, atLeastOne)` never emits less than a 45-minute
+ * session, so anything under this becomes a run far bigger than the miles it was
+ * given — which is precisely how the first version of the cap wrecked a program.
+ */
+const MIN_STANDALONE_RUN_MI = 3.5;
 const MIN_RUN_MILES = 0.3;
 
 // Long-run progression (Tasks addition #5). The long run should be clearly
@@ -118,7 +136,14 @@ interface RunEntry {
    */
   overheadMi: number;
   min: number; // min WORK miles
-  max: number; // max WORK miles
+  max: number; // max WORK miles — the athlete's hard session cap
+  /**
+   * A SOFTER ceiling that applies before `max` — today only the long run's
+   * week-to-week jump limit (`lib/engine/long-run-cap.ts`). Sizing respects it,
+   * but a remainder too small to become its own session is handed back up to
+   * `max` rather than manufacturing a 45-minute filler run. See `sizeRuns`.
+   */
+  softMax?: number;
   miles: number;
 }
 
@@ -288,6 +313,19 @@ export function reconcileWeekVolume(
   weekNumber = 1,
   place: FillerPlacement = { preferDays: WEEKEND_DAYS },
   caps: TrainingCaps = DEFAULT_CAPS,
+  /**
+   * Ceiling on the LONG RUN's total miles this week — `longRunCapMiles()` of the
+   * athlete's trailing four weeks (see `lib/engine/long-run-cap.ts`). Omitted =
+   * no ceiling, which is both the start of a program and every legacy caller.
+   *
+   * A CEILING, not a target: it never grows a long run, and the week's mileage
+   * still has to come out exact. When the cap bites, the miles go to the other
+   * runs — and if every one of them is already at its own session cap, `sizeRuns`
+   * emits another easy run to carry them. Only when the week has nowhere left to
+   * put a session does the long run take them anyway; the week's arithmetic wins
+   * over the ceiling, and that is the documented trade.
+   */
+  longRunCap?: number,
 ): number {
   if (!paces) return targetMileage; // no 5K → can't apply formula paces
   // A and B race weeks are taper/event weeks: their reduced sessions are set by
@@ -379,6 +417,10 @@ export function reconcileWeekVolume(
         overheadMi: overhead / easyPaceMin,
         min: minMiles(s.runType, paceMin, overhead),
         max: maxMiles(paceMin, overhead, caps.session, s.runType, runningExp),
+        softMax:
+          s.runType === "long" && longRunCap !== undefined
+            ? Math.max(minMiles(s.runType, paceMin, overhead), longRunCap - overhead / easyPaceMin)
+            : undefined,
         miles: 0,
       });
     }
@@ -413,7 +455,7 @@ export function reconcileWeekVolume(
     stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
     const diff = round1(targetMileage - weekMileage({ days }));
     if (Math.abs(diff) < 0.05) break;
-    adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session);
+    adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session, longRunCap);
   }
   stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
   // A proportional shrink can leave a sub-tenth residual (a 0.1 remainder spread
@@ -423,21 +465,35 @@ export function reconcileWeekVolume(
   if (Math.abs(residual) >= 0.05) {
     const snapRefs: RunSession[] = [];
     for (const d of days) for (const s of d.sessions) if (s.kind === "run") snapRefs.push(s);
-    if (snapRefs.length > 0) {
-      const anchor = snapRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
+    // NEVER below the run's own minimum. This snap is a rounding cleanup — a
+    // tenth of a mile the proportional shrink could not place — but it took
+    // whatever `residual` said, and on a week whose target is smaller than one
+    // real session that is a large NEGATIVE number. It clamped at MIN_RUN_MILES
+    // (0.3) and produced the 13-minute "long run" that a 0–5 h beginner was
+    // shipped in weeks 13 and 14.
+    //
+    // When the residual will not fit, the week stays honestly over its stated
+    // mileage. That is a number the athlete can read; a 13-minute long run is
+    // not a long run.
+    //
+    // GROWING is anchored differently from shrinking: a long run already at its
+    // jump ceiling is not eligible, or this rounding cleanup would hand it back
+    // the very miles the cap just took away. When nothing is eligible the week
+    // simply lands where it landed.
+    const anchor = residual > 0 ? growthAnchor(snapRefs, longRunCap) : longestRun(snapRefs);
+    if (anchor) {
       const anchorPace = effectivePace(anchor.runType, paces) / 60;
-      // NEVER below the run's own minimum. This snap is a rounding cleanup — a
-      // tenth of a mile the proportional shrink could not place — but it took
-      // whatever `residual` said, and on a week whose target is smaller than one
-      // real session that is a large NEGATIVE number. It clamped at
-      // MIN_RUN_MILES (0.3) and produced the 13-minute "long run" that a 0–5 h
-      // beginner was shipped in weeks 13 and 14.
-      //
-      // When the residual will not fit, the week stays honestly over its stated
-      // mileage. That is a number the athlete can read; a 13-minute long run is
-      // not a long run.
       const floor = minMiles(anchor.runType, anchorPace, runOverhead(anchor.runType));
-      const want = Math.max(floor, anchor.distanceMiles + residual);
+      // A residual this small is arithmetic, not training: letting the long run
+      // take a tenth of a mile past its ceiling keeps the week's stated mileage
+      // exact, and 0.1 mi on a 7-mile long run is 1.4% — nowhere near a "jump".
+      // Refusing it instead shipped weeks 0.05 mi UNDER target, which breaks the
+      // stronger invariant that the plan and the calendar agree.
+      const move =
+        residual > 0 && residual > SNAP_OVERSHOOT_TOLERANCE
+          ? growthRoom(anchor, residual, longRunCap)
+          : residual;
+      const want = Math.max(floor, anchor.distanceMiles + move);
       if (Math.abs(want - anchor.distanceMiles) >= 0.05) {
         setRunMiles(anchor, want, anchorPace, caps.session, runningExp);
         stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
@@ -697,6 +753,57 @@ function minMiles(type: RunType, paceMin: number, overhead: number): number {
  * to be shared between them: sizing purely on rep time let a "90 minute" interval
  * session actually run to 105.
  */
+/** Total miles a run currently covers — work plus its stamped overhead. */
+function runTotalMiles(s: RunSession): number {
+  return s.distanceMiles + (s.overheadMiles ?? 0);
+}
+
+/**
+ * The longest run in the week.
+ *
+ * By WORK distance, which is what this file has always compared here — the
+ * overhead is fixed per run type, so ranking by total would quietly reorder
+ * runs whose work distances are close and change which one absorbs a rounding
+ * residual. The cap comparisons below use `runTotalMiles`, because the ceiling
+ * is a total-mile figure; the two are deliberately different questions.
+ */
+function longestRun(runs: RunSession[]): RunSession | null {
+  return runs.length === 0
+    ? null
+    : runs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
+}
+
+/**
+ * The run that should absorb ADDED miles.
+ *
+ * The longest one, as it has always been — except that a long run already at its
+ * week-to-week jump ceiling is skipped, and the next-longest takes the miles
+ * instead. `null` when every candidate is capped out, which leaves the week
+ * short rather than putting the miles somewhere they were deliberately taken
+ * from. See `lib/engine/long-run-cap.ts`.
+ */
+function growthAnchor(runs: RunSession[], longRunCap?: number): RunSession | null {
+  const eligible =
+    longRunCap === undefined
+      ? runs
+      : runs.filter((r) => r.runType !== "long" || runTotalMiles(r) < longRunCap - 0.05);
+  return longestRun(eligible);
+}
+
+/**
+ * How many of `add` miles this run may actually take.
+ *
+ * Eligibility is not enough on its own: a long run sitting a tenth under its
+ * ceiling is still the longest run in the week, so it would be handed the WHOLE
+ * remaining difference and sail past the cap. Clamping here leaves the rest for
+ * the next pass of the convergence loop, which will pick a different anchor now
+ * that this one is full.
+ */
+function growthRoom(run: RunSession, add: number, longRunCap?: number): number {
+  if (run.runType !== "long" || longRunCap === undefined) return add;
+  return Math.max(0, Math.min(add, longRunCap - runTotalMiles(run)));
+}
+
 function maxMiles(
   paceMin: number,
   overhead: number,
@@ -785,27 +892,49 @@ function sizeRuns(
     let remainder = RM - sumMin;
     const wsum = runs.reduce((a, r) => a + TYPE_WEIGHT[r.type], 0) || runs.length;
     for (const r of runs) r.miles = r.min + (remainder * TYPE_WEIGHT[r.type]) / wsum;
-    // Clamp to max, pool overflow, redistribute (long run first), else add easy runs.
+    // Clamp to the ceiling, pool overflow, redistribute (long run first), else
+    // add easy runs. `ceiling` is the SOFT one wherever a run has one — the long
+    // run's jump limit — so the excess is offered to the other runs first.
+    const ceiling = (r: RunEntry) => Math.min(r.max, r.softMax ?? r.max);
     let overflow = 0;
     for (const r of runs) {
-      if (r.miles > r.max) {
-        overflow += r.miles - r.max;
-        r.miles = r.max;
+      const cap = ceiling(r);
+      if (r.miles > cap) {
+        overflow += r.miles - cap;
+        r.miles = cap;
       }
     }
     if (overflow > 0.01) {
       const byRoom = [...runs].sort((a, b) => (a.type === "long" ? -1 : b.type === "long" ? 1 : 0));
       for (const r of byRoom) {
         if (overflow <= 0.01) break;
-        const room = r.max - r.miles;
+        const room = ceiling(r) - r.miles;
         const take = Math.min(room, overflow);
         r.miles += take;
         overflow -= take;
       }
-      // Every existing run is already at its cap, so these miles have nowhere
-      // else to go — dropping them silently loses up to 3 miles of a week's
-      // prescription. Emit a run, and `atLeastOne` makes it a REAL one (45 min
-      // minimum) rather than the 0.3-mile stub this used to produce.
+      // What is left has nowhere to go under the soft ceilings. Two outcomes,
+      // and picking the wrong one wrecks the program:
+      //
+      //   - smaller than a real session → GIVE IT BACK, up to each run's hard
+      //     session cap, long run first. Manufacturing a 4-mile run to rehouse
+      //     0.4 of a mile put the week far over target, and the convergence loop
+      //     then cut the long run to its MINIMUM to pay for it: a 12 mi/week
+      //     beginner's long run collapsed to 4.6 mi and stayed there for all 16
+      //     weeks, because each flattened week lowered the next week's ceiling.
+      //     The jump ceiling bounds GROWTH; it yields to the week's arithmetic
+      //     rather than deforming the week to hold it.
+      //   - big enough to BE a session → emit one. `atLeastOne` makes it a real
+      //     45-minute run rather than the 0.3-mile stub this used to produce.
+      if (overflow > 0.05 && overflow < MIN_STANDALONE_RUN_MI) {
+        for (const r of byRoom) {
+          if (overflow <= 0.01) break;
+          const room = r.max - r.miles;
+          const take = Math.min(room, overflow);
+          r.miles += take;
+          overflow -= take;
+        }
+      }
       if (overflow > 0.05)
         added.push(...buildEasyRuns(overflow, paces, runningExp, sessionCap, true));
     }
@@ -836,7 +965,8 @@ function enforceLongRun(runs: RunEntry[], weekNumber: number, sessionCap: number
   const maxEasyMiles = others.reduce((m, r) => Math.max(m, r.miles), 0);
 
   let want = Math.max(long.miles, targetMiles, LONG_RUN_DOMINANCE * maxEasyMiles);
-  want = Math.min(want, long.max); // never exceed the 90-min cap
+  // Never past the session cap, and never past the week-to-week jump ceiling.
+  want = Math.min(want, long.max, long.softMax ?? long.max);
   let need = want - long.miles;
   if (need <= 0.05) return;
 
@@ -1012,6 +1142,7 @@ function adjustRunMilesToTotal(
   paces: RunPaces,
   exp: ExperienceLevel,
   sessionCap: number,
+  longRunCap?: number,
 ): void {
   const runRefs: RunSession[] = [];
   for (const d of days) for (const s of d.sessions) if (s.kind === "run") runRefs.push(s);
@@ -1031,8 +1162,13 @@ function adjustRunMilesToTotal(
       setRunMiles(e.s, e.s.distanceMiles - e.head * factor, e.paceMin, sessionCap, exp);
     }
   } else {
-    const anchor = runRefs.reduce((a, b) => (b.distanceMiles > a.distanceMiles ? b : a));
+    // Adding miles: the long run is skipped once it is at its jump ceiling, so
+    // the convergence loop cannot undo the cap one tenth at a time.
+    const anchor = growthAnchor(runRefs, longRunCap);
+    if (!anchor) return;
+    const add = growthRoom(anchor, diff, longRunCap);
+    if (add < 0.05) return;
     const paceMin = effectivePace(anchor.runType, paces) / 60;
-    setRunMiles(anchor, anchor.distanceMiles + diff, paceMin, sessionCap, exp);
+    setRunMiles(anchor, anchor.distanceMiles + add, paceMin, sessionCap, exp);
   }
 }

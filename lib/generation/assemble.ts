@@ -33,10 +33,12 @@ import type {
 import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
 import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
 import { reconcileWeekVolume } from "./reconcile";
+import { longRunCapMiles } from "@/lib/engine/long-run-cap";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
 import {
   weekCardioMinutes,
   weekMileage,
+  sessionMiles,
   HYBRID_WARMUP,
   HYBRID_COOLDOWN,
   HYBRID_MIN_WORK,
@@ -463,6 +465,8 @@ function buildWeek(
   restDays?: TrainingDayName[],
   caps?: TrainingCaps,
   emphasis: readonly string[] = [],
+  /** Ceiling on this week's long run — see `lib/engine/long-run-cap.ts`. */
+  longRunCap?: number,
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -518,6 +522,7 @@ function buildWeek(
     skel.weekNumber,
     { avoidDays: restDayKeys, preferDays: ["sat", "sun"] },
     caps,
+    longRunCap,
   );
 
   // Descriptions were written BEFORE reconciliation, from the experience-level
@@ -810,6 +815,17 @@ export function assembleProgram(
   // 5K string is still accepted for backward compatibility.
   const paces = computePaces(raceTimes);
 
+  // The long run may not jump more than `LONG_RUN_MAX_JUMP_PCT` past the longest
+  // one of the trailing four weeks — the strongest single injury predictor in the
+  // running literature, and the one thing weekly-mileage rules do not catch.
+  //
+  // `map` walks the weeks in order, so the history is simply built as it goes:
+  // week N is capped against the long runs that weeks N-4…N-1 ACTUALLY shipped,
+  // not against what the skeleton asked for. A week with no long run pushes a
+  // zero, and `trailingLongRunMax` skips those — a race week must not cap the
+  // week after it at zero miles.
+  const longRunHistory: number[] = [];
+
   const weeks = skeleton.weeks.map((skel) => {
     const week = buildWeek(
       skel,
@@ -823,6 +839,7 @@ export function assembleProgram(
       skeleton.restDays,
       skeleton.caps,
       emphasis,
+      longRunCapMiles(longRunHistory) ?? undefined,
     );
     const patched = patchMovementPatterns(week);
     if (patched.length)
@@ -832,6 +849,7 @@ export function assembleProgram(
     applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp, equipment);
     // Review #6: progress hybrid station prescriptions toward race spec.
     applyStationProgression(week, division, sex, catalog, emphasis);
+    longRunHistory.push(weekLongRunMiles(week));
     return week;
   });
 
@@ -846,6 +864,15 @@ export function assembleProgram(
     );
   }
   return { program: parsed.data, issues };
+}
+
+/** The week's long run, in total miles (0 when it has none). */
+function weekLongRunMiles(week: ProgramWeek): number {
+  let miles = 0;
+  for (const d of week.days)
+    for (const s of d.sessions)
+      if (s.kind === "run" && s.runType === "long") miles = Math.max(miles, sessionMiles(s));
+  return miles;
 }
 
 export interface VerifyResult {
