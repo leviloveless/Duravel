@@ -64,6 +64,37 @@ export const DELOAD_FACTOR = 0.6; //               deload week = 60% of the prio
 export const MAX_INCREASE_MILEAGE_REL_PCT = 0.1;
 
 /**
+ * Absolute bounds on the weekly mileage step (Levi, 2026-08-19).
+ *
+ * The rule above is PURELY RELATIVE, and a purely relative rule grows every
+ * athlete by the same fraction wherever they start. Measured over a real
+ * 16-week goal-event program that came out as **33–48% growth at every starting
+ * mileage** — which treats "3 → 4.4 mi" and "45 → 60 mi" as the same amount of
+ * progress. They are not.
+ *
+ *  - **The floor.** Below ~10 mi/week a percentage is not a training decision,
+ *    it is a rounding error: 10% of 5 miles is half a mile. A 5 mi/week athlete
+ *    took THIRTY-SIX weeks to reach 15, and finished a whole 16-week block
+ *    peaking at 7.3 mi. One mile is the smallest step that means anything.
+ *  - **The cap.** Above ~40 mi the same percentage keeps growing the absolute
+ *    jump (+3.4 mi at 45, +4.5 at 60, +6 at 80) exactly where an athlete's
+ *    absorbable step should be flattening out.
+ *  - **The ceiling on the floor.** A flat 1-mile floor is 33% of a 3 mi week,
+ *    past the >30% progression Nielsen 2014 associated with distance-related
+ *    injury in novices. So the floor itself is capped at 20% of current, which
+ *    is the highest relative step this function can ever produce.
+ *
+ * Between 10 and 40 mi — where most athletes are — the step is BYTE-IDENTICAL to
+ * the old rule. That is deliberate: this changes the two ends that were wrong
+ * and nothing else.
+ */
+export const MIN_INCREASE_MILEAGE_STEP = 1.0;
+export const MAX_INCREASE_MILEAGE_STEP = 3.0;
+/** Ceiling on the step as a share of current mileage, so the absolute FLOOR
+ *  cannot become a reckless relative jump at a very low starting volume. */
+export const MAX_INCREASE_MILEAGE_FLOOR_REL_PCT = 0.2;
+
+/**
  * Masters age threshold (Review #10). At/above this age recovery slows, so the
  * program uses a more frequent deload (a 3-week 2:1 microcycle) regardless of
  * training class. Tunable.
@@ -75,13 +106,33 @@ export const INCREASE_MILEAGE_FACTOR = 1.075;
 export const INCREASE_CARDIO_FACTOR = 1.1;
 
 /**
- * Mileage increase step = max(absolute floor, percentage of current), but never
- * more than MAX_INCREASE_MILEAGE_REL_PCT of the current mileage (Tasks #5;
- * relative cap added in Review #5 to remove the beginner ramp-rate inversion).
+ * Mileage increase step, in miles, for one increase week.
+ *
+ * Three layers, applied in this order:
+ *   1. `max(absolute floor, percentage of current)`, capped at
+ *      `MAX_INCREASE_MILEAGE_REL_PCT` of current (Tasks #5; the relative cap
+ *      came from Review #5, to remove a ramp-rate inversion where low-mileage
+ *      beginners progressed FASTER in percentage terms than advanced runners);
+ *   2. absolute bounds at both ends — see `MIN_INCREASE_MILEAGE_STEP` /
+ *      `MAX_INCREASE_MILEAGE_STEP` for why a purely relative rule is wrong at
+ *      the ends;
+ *   3. a ceiling of `MAX_INCREASE_MILEAGE_FLOOR_REL_PCT` so the absolute floor
+ *      cannot turn into a >20% jump at a tiny starting volume.
+ *
+ * Worked: 3 → +0.6 · 5 → +1.0 · 8 → +1.0 · 12 → +1.2 · 20 → +1.5 · 30 → +2.25 ·
+ * 40 → +3.0 · 45 → +3.0 · 60 → +3.0. Everything from 10 to 40 is what it always
+ * was.
  */
 export function increaseStep(current: number, pct: number, minStep: number): number {
-  const step = Math.max(minStep, current * pct);
-  return Math.min(step, current * MAX_INCREASE_MILEAGE_REL_PCT);
+  const relative = Math.min(
+    Math.max(minStep, current * pct),
+    current * MAX_INCREASE_MILEAGE_REL_PCT,
+  );
+  const bounded = Math.min(
+    Math.max(relative, MIN_INCREASE_MILEAGE_STEP),
+    MAX_INCREASE_MILEAGE_STEP,
+  );
+  return Math.min(bounded, current * MAX_INCREASE_MILEAGE_FLOOR_REL_PCT);
 }
 
 /** Cardio increase step = max(absolute floor, percentage of current) (Tasks #6). */

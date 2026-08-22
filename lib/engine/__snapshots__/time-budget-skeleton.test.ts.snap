@@ -13296,7 +13296,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 886,
-      "targetMileage": 46,
+      "targetMileage": 45.8,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 20,
@@ -13374,7 +13374,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 532,
-      "targetMileage": 27.6,
+      "targetMileage": 27.5,
       "weekNumber": 9,
       "zoneTargets": {
         "z1": 20,
@@ -13454,7 +13454,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 886,
-      "targetMileage": 46,
+      "targetMileage": 45.8,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 20,
@@ -13534,7 +13534,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 975,
-      "targetMileage": 49.4,
+      "targetMileage": 48.8,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 20,
@@ -13612,7 +13612,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 585,
-      "targetMileage": 29.6,
+      "targetMileage": 29.3,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 20,
@@ -13693,7 +13693,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 878,
-      "targetMileage": 44.5,
+      "targetMileage": 43.9,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 19,
@@ -13774,7 +13774,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 966,
-      "targetMileage": 47.8,
+      "targetMileage": 46.6,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 19,
@@ -13839,7 +13839,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 773,
-      "targetMileage": 38.2,
+      "targetMileage": 37.3,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 20,
@@ -13904,7 +13904,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         "priority": "A",
       },
       "targetCardioMinutes": 580,
-      "targetMileage": 28.7,
+      "targetMileage": 28,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 20,
@@ -14082,7 +14082,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1188,
-      "targetMileage": 51.6,
+      "targetMileage": 51,
       "weekNumber": 2,
       "zoneTargets": {
         "z1": 22,
@@ -14154,7 +14154,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 713,
-      "targetMileage": 31,
+      "targetMileage": 30.6,
       "weekNumber": 3,
       "zoneTargets": {
         "z1": 22,
@@ -14234,7 +14234,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1188,
-      "targetMileage": 51.6,
+      "targetMileage": 51,
       "weekNumber": 4,
       "zoneTargets": {
         "z1": 22,
@@ -14314,7 +14314,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1307,
-      "targetMileage": 55.5,
+      "targetMileage": 54,
       "weekNumber": 5,
       "zoneTargets": {
         "z1": 22,
@@ -14386,7 +14386,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 784,
-      "targetMileage": 33.3,
+      "targetMileage": 32.4,
       "weekNumber": 6,
       "zoneTargets": {
         "z1": 22,
@@ -14466,7 +14466,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1307,
-      "targetMileage": 55.5,
+      "targetMileage": 54,
       "weekNumber": 7,
       "zoneTargets": {
         "z1": 22,
@@ -14546,7 +14546,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1437,
-      "targetMileage": 59.6,
+      "targetMileage": 57,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 22,
@@ -14624,7 +14624,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 862,
-      "targetMileage": 35.8,
+      "targetMileage": 34.2,
       "weekNumber": 9,
       "zoneTargets": {
         "z1": 22,
@@ -14704,7 +14704,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1437,
-      "targetMileage": 59.6,
+      "targetMileage": 57,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 22,
@@ -14784,7 +14784,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1560,
-      "targetMileage": 64.1,
+      "targetMileage": 60,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 22,
@@ -14862,7 +14862,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 949,
-      "targetMileage": 38.5,
+      "targetMileage": 36,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 22,
@@ -14943,7 +14943,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1423,
-      "targetMileage": 57.7,
+      "targetMileage": 54,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 20,
@@ -15024,7 +15024,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1560,
-      "targetMileage": 62,
+      "targetMileage": 56.7,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 20,
@@ -15089,7 +15089,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 1252,
-      "targetMileage": 49.6,
+      "targetMileage": 45.4,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 21,
@@ -15154,7 +15154,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         "priority": "A",
       },
       "targetCardioMinutes": 939,
-      "targetMileage": 37.2,
+      "targetMileage": 34,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 21,
@@ -18054,7 +18054,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 886,
-      "targetMileage": 46,
+      "targetMileage": 45.8,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 20,
@@ -18132,7 +18132,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 532,
-      "targetMileage": 27.6,
+      "targetMileage": 27.5,
       "weekNumber": 9,
       "zoneTargets": {
         "z1": 20,
@@ -18212,7 +18212,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 886,
-      "targetMileage": 46,
+      "targetMileage": 45.8,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 20,
@@ -18292,7 +18292,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 975,
-      "targetMileage": 49.4,
+      "targetMileage": 48.8,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 20,
@@ -18370,7 +18370,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 585,
-      "targetMileage": 29.6,
+      "targetMileage": 29.3,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 20,
@@ -18451,7 +18451,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 878,
-      "targetMileage": 44.5,
+      "targetMileage": 43.9,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 19,
@@ -18532,7 +18532,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 966,
-      "targetMileage": 47.8,
+      "targetMileage": 46.6,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 19,
@@ -18597,7 +18597,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 773,
-      "targetMileage": 38.2,
+      "targetMileage": 37.3,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 20,
@@ -18662,7 +18662,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         "priority": "A",
       },
       "targetCardioMinutes": 580,
-      "targetMileage": 28.7,
+      "targetMileage": 28,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 20,
@@ -18840,7 +18840,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1188,
-      "targetMileage": 51.6,
+      "targetMileage": 51,
       "weekNumber": 2,
       "zoneTargets": {
         "z1": 22,
@@ -18912,7 +18912,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 713,
-      "targetMileage": 31,
+      "targetMileage": 30.6,
       "weekNumber": 3,
       "zoneTargets": {
         "z1": 22,
@@ -18992,7 +18992,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1188,
-      "targetMileage": 51.6,
+      "targetMileage": 51,
       "weekNumber": 4,
       "zoneTargets": {
         "z1": 22,
@@ -19072,7 +19072,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1307,
-      "targetMileage": 55.5,
+      "targetMileage": 54,
       "weekNumber": 5,
       "zoneTargets": {
         "z1": 22,
@@ -19144,7 +19144,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 784,
-      "targetMileage": 33.3,
+      "targetMileage": 32.4,
       "weekNumber": 6,
       "zoneTargets": {
         "z1": 22,
@@ -19224,7 +19224,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 1307,
-      "targetMileage": 55.5,
+      "targetMileage": 54,
       "weekNumber": 7,
       "zoneTargets": {
         "z1": 22,
@@ -19304,7 +19304,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1437,
-      "targetMileage": 59.6,
+      "targetMileage": 57,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 22,
@@ -19382,7 +19382,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 862,
-      "targetMileage": 35.8,
+      "targetMileage": 34.2,
       "weekNumber": 9,
       "zoneTargets": {
         "z1": 22,
@@ -19462,7 +19462,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1437,
-      "targetMileage": 59.6,
+      "targetMileage": 57,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 22,
@@ -19542,7 +19542,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1560,
-      "targetMileage": 64.1,
+      "targetMileage": 60,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 22,
@@ -19620,7 +19620,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 949,
-      "targetMileage": 38.5,
+      "targetMileage": 36,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 22,
@@ -19701,7 +19701,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1423,
-      "targetMileage": 57.7,
+      "targetMileage": 54,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 20,
@@ -19782,7 +19782,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1560,
-      "targetMileage": 62,
+      "targetMileage": 56.7,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 20,
@@ -19847,7 +19847,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 1252,
-      "targetMileage": 49.6,
+      "targetMileage": 45.4,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 21,
@@ -19912,7 +19912,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
         "priority": "A",
       },
       "targetCardioMinutes": 939,
-      "targetMileage": 37.2,
+      "targetMileage": 34,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 21,

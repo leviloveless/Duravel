@@ -3897,7 +3897,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 839,
-      "targetMileage": 43.5,
+      "targetMileage": 43.4,
       "weekNumber": 6,
       "zoneTargets": {
         "z1": 25,
@@ -3990,7 +3990,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 922,
-      "targetMileage": 46.7,
+      "targetMileage": 46.4,
       "weekNumber": 7,
       "zoneTargets": {
         "z1": 25,
@@ -4073,7 +4073,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 553,
-      "targetMileage": 28,
+      "targetMileage": 27.9,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 25,
@@ -4176,7 +4176,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 922,
-      "targetMileage": 46.7,
+      "targetMileage": 46.4,
       "weekNumber": 9,
       "zoneTargets": {
         "z1": 20,
@@ -4250,7 +4250,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
         "priority": "B",
       },
       "targetCardioMinutes": 553,
-      "targetMileage": 28,
+      "targetMileage": 27.8,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 20,
@@ -4342,7 +4342,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1116,
-      "targetMileage": 54,
+      "targetMileage": 52.4,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 20,
@@ -4431,7 +4431,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 670,
-      "targetMileage": 32.4,
+      "targetMileage": 31.5,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 20,
@@ -4534,7 +4534,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1116,
-      "targetMileage": 54,
+      "targetMileage": 52.4,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 20,
@@ -4637,7 +4637,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1228,
-      "targetMileage": 58.1,
+      "targetMileage": 55.4,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 20,
@@ -4733,7 +4733,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1215,
-      "targetMileage": 56.2,
+      "targetMileage": 52.6,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 15,
@@ -4814,7 +4814,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 729,
-      "targetMileage": 33.8,
+      "targetMileage": 31.6,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 15,
@@ -4910,7 +4910,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1215,
-      "targetMileage": 56.2,
+      "targetMileage": 52.6,
       "weekNumber": 17,
       "zoneTargets": {
         "z1": 15,
@@ -5006,7 +5006,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1337,
-      "targetMileage": 60.4,
+      "targetMileage": 55.3,
       "weekNumber": 18,
       "zoneTargets": {
         "z1": 15,
@@ -5079,7 +5079,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 1070,
-      "targetMileage": 48.3,
+      "targetMileage": 44.2,
       "weekNumber": 19,
       "zoneTargets": {
         "z1": 18,
@@ -5152,7 +5152,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
         "priority": "A",
       },
       "targetCardioMinutes": 802,
-      "targetMileage": 36.2,
+      "targetMileage": 33.2,
       "weekNumber": 20,
       "zoneTargets": {
         "z1": 18,
@@ -7426,7 +7426,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "base",
       "raceDay": undefined,
       "targetCardioMinutes": 839,
-      "targetMileage": 43.5,
+      "targetMileage": 43.4,
       "weekNumber": 8,
       "zoneTargets": {
         "z1": 25,
@@ -7622,7 +7622,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 839,
-      "targetMileage": 43.5,
+      "targetMileage": 43.4,
       "weekNumber": 10,
       "zoneTargets": {
         "z1": 20,
@@ -7729,7 +7729,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 922,
-      "targetMileage": 46.7,
+      "targetMileage": 46.4,
       "weekNumber": 11,
       "zoneTargets": {
         "z1": 20,
@@ -7818,7 +7818,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 553,
-      "targetMileage": 28,
+      "targetMileage": 27.9,
       "weekNumber": 12,
       "zoneTargets": {
         "z1": 20,
@@ -7925,7 +7925,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 922,
-      "targetMileage": 46.7,
+      "targetMileage": 46.4,
       "weekNumber": 13,
       "zoneTargets": {
         "z1": 20,
@@ -8032,7 +8032,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 1015,
-      "targetMileage": 50.2,
+      "targetMileage": 49.4,
       "weekNumber": 14,
       "zoneTargets": {
         "z1": 20,
@@ -8121,7 +8121,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "build",
       "raceDay": undefined,
       "targetCardioMinutes": 609,
-      "targetMileage": 30.1,
+      "targetMileage": 29.7,
       "weekNumber": 15,
       "zoneTargets": {
         "z1": 20,
@@ -8217,7 +8217,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 914,
-      "targetMileage": 45.2,
+      "targetMileage": 44.5,
       "weekNumber": 16,
       "zoneTargets": {
         "z1": 15,
@@ -8313,7 +8313,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 1004,
-      "targetMileage": 48.6,
+      "targetMileage": 47.2,
       "weekNumber": 17,
       "zoneTargets": {
         "z1": 15,
@@ -8394,7 +8394,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "peak",
       "raceDay": undefined,
       "targetCardioMinutes": 603,
-      "targetMileage": 29.2,
+      "targetMileage": 28.4,
       "weekNumber": 18,
       "zoneTargets": {
         "z1": 15,
@@ -8467,7 +8467,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
       "phase": "taper",
       "raceDay": undefined,
       "targetCardioMinutes": 803,
-      "targetMileage": 38.9,
+      "targetMileage": 37.8,
       "weekNumber": 19,
       "zoneTargets": {
         "z1": 18,
@@ -8540,7 +8540,7 @@ exports[`GOLDEN HYROX — deterministic skeleton must stay byte-identical throug
         "priority": "A",
       },
       "targetCardioMinutes": 602,
-      "targetMileage": 29.2,
+      "targetMileage": 28.3,
       "weekNumber": 20,
       "zoneTargets": {
         "z1": 18,
