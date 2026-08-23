@@ -177,7 +177,7 @@
    ============================================================ */
   const AXIS_START = "2026-07-13";
   const AXIS_END   = "2026-12-06";
-  const TODAY      = "2026-07-20";
+  const TODAY      = "2026-08-06";
   const WEEKS      = 21; // for the faint weekly grid
 
   const ROWS = [
@@ -219,12 +219,12 @@
     {group:"Wearable sources (multi-provider pivot from Garmin)", label:"Aura", note:"Assessed 2026-07-18 — no public API (data sink); Strava covers it → DROPPED", ps:"2026-07-13", pe:"2026-07-20", pct:1, status:"done"},
 
     // ---- GROWTH LOOP ----
-    {group:"Growth loop (no approvals needed)", label:"Strava activity-write branding", note:"2026-07-20 — built: branding.ts (idempotent branded description) + PUT updateActivityDescription + brand route, gated STRAVA_WRITE_ENABLED. Scope now requests activity:write (users must reconnect). Wire the UI 'Share to Strava' button + flip flag to ship.", ps:"2026-07-13", pe:"2026-08-03", pct:0.85, status:"ahead"},
-    {group:"Growth loop (no approvals needed)", label:"Result cards → web session/race flows", note:"2026-07-20 — in-app result-card studio live (4 types × story/square, PNG export); auto-prefill from a logged workout wired into every completed session (mobile + desktop) + program-done header; Web Share sheet added. Race/PR auto-prefill still to wire (no data source yet).", ps:"2026-07-13", pe:"2026-07-27", pct:0.85, status:"prog"},
+    {group:"Growth loop (no approvals needed)", label:"Strava activity-write branding", note:"LIVE. 2026-07-20 branding.ts + PUT updateActivityDescription + brand route (STRAVA_WRITE_ENABLED, activity:write — users must reconnect). 2026-08-06 verified live end-to-end, then hardened: whole-session numbers (p21), local timezone stamps (p22), self_posted so Duravel's own posts are never link candidates (p23 + mig 0040), and ONE activity per logged session — a re-log refreshes the text instead of posting a duplicate (p25 + mig 0041). Auto-posts now sign themselves '— Duravel · duravel.app'; the athlete's own activities stay clean.", ps:"2026-07-13", pe:"2026-08-03", pct:1, status:"ahead"},
+    {group:"Growth loop (no approvals needed)", label:"Result cards → web session/race flows", note:"2026-07-20 — in-app result-card studio live (4 types × story/square, PNG export); auto-prefill from a logged workout wired into every completed session (mobile + desktop) + program-done header; Web Share sheet added. 2026-08-06 — DISCOVERY closed: completing a log now offers the card on the spot (Strava forbids third-party photo upload, so the athlete attaches the PNG themselves). Race/PR auto-prefill still to wire (no data source yet).", ps:"2026-07-13", pe:"2026-07-27", pct:0.95, status:"prog"},
     {group:"Growth loop (no approvals needed)", label:"Cards → iOS share sheet", note:"Waits on iOS app", ps:"2026-09-14", pe:"2026-09-28", pct:0, status:"not"},
 
     // ---- PRODUCT / TRAINING ENGINE ----
-    {group:"Training engine (product)", label:"HYROX credible full", note:"LIVE on main; byte-identical gate green", ps:"2026-07-27", pe:"2026-08-24", pct:1, status:"ahead"},
+    {group:"Training engine (product)", label:"HYROX credible full", note:"LIVE on main; byte-identical gate green. Session-quality rules layered on since: long-run day placement + weekend load (08-02), full-body lift separation + total on-feet mileage + manual paces (08-03/04), 45-min floor on Zone 1–2 cardio blocks (08-04), weekly sets per movement pattern (08-04), band-driven session caps + min training days (08-05/06), and the hybrid warm-up as a PRESCRIBED 10-min jog whose miles count toward the week (08-06, verified live). OPEN: 17% of weeks land over their stated mileage target — pre-existing, unexamined.", ps:"2026-07-27", pe:"2026-08-24", pct:1, status:"ahead"},
     {group:"Training engine (product)", label:"Triathlon thin MVP (70.3 + 140.6)", note:"LIVE on main — deterministic end-to-end", ps:"2026-08-24", pe:"2026-09-14", pct:1, status:"ahead"},
     {group:"Training engine (product)", label:"Triathlon full MVP", note:"2026-07-20: standalone Ironman engine — periodized strength, swim/bike/run/lift time trackers, long-run caps, discrete brick, A/B/C race periodization. Full UX + live QA left", ps:"2026-09-14", pe:"2026-10-19", pct:0.9, status:"prog"},
     {group:"Training engine (product)", label:"Multi-sport strength + cardio specs → repo", note:"Drafted (v4 / v2); not yet in repo", ps:"2026-08-03", pe:"2026-08-24", pct:0.2, status:"prog"},
@@ -238,7 +238,7 @@
   ];
 
   const MILESTONES = [
-    {date:"2026-08-17", label:"M1 · pipeline live", done:false},
+    {date:"2026-08-17", label:"M1 · pipeline live", done:true},
     {date:"2026-08-24", label:"HYROX full", done:true},
     {date:"2026-09-14", label:"M2 · Garmin in / Tri thin", done:false},
     {date:"2026-09-21", label:"M3 · iOS HealthKit", done:false},
