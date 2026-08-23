@@ -104,7 +104,7 @@ export function analyzeAtlasNeeds(profile: NeedsProfile): NeedsAnalysis {
   const dominant = limiters[0]!;
   const bias: ProgramBias = { ...NEUTRAL_BIAS };
 
-  // Glycolytic weakness → one more barbell-metcon (hybrid) session's frequency.
+  // Glycolytic weakness → one more barbell-circuit (hybrid) session's frequency.
   if (limiters.includes("glycolytic")) bias.hybridCountDelta = 1;
 
   // Phase nudge (zero-sum, ±1 week): absolute-strength limiter → more base

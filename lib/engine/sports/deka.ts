@@ -154,7 +154,7 @@ const DEKA_PHASE_CHARACTER: Record<PhaseName, string> = {
 };
 const ATLAS_PHASE_CHARACTER: Record<PhaseName, string> = {
   base: "Absolute-strength + work-capacity base. Heavy compound lifting (thruster, press, carry patterns); low aerobic maintenance; light barbell/DB circuits.",
-  build: "Strength-endurance specificity. Overhead-pressing volume, loaded carries, barbell metcons at moderate load; glycolytic couplets.",
+  build: "Strength-endurance specificity. Overhead-pressing volume, loaded carries, barbell circuits at moderate load; glycolytic couplets.",
   peak: "Heavy 10-zone Atlas simulations, overhead-endurance and grip under fatigue; max strength maintained, capacity sharpened; volume drops.",
   taper: "Sharpen and freshen. Keep intensity/quality on the main lifts; cut volume; light single-under conditioning.",
 };
@@ -255,7 +255,7 @@ export const deka_atlas: SportConfig = {
   needsStations: ATLAS_NEEDS_STATIONS,
   experienceAxes: [
     { key: "lifting", label: "Lifting (absolute strength)", bands: ATLAS_LIFTING_BANDS, needsWeight: 1.0 },
-    { key: "hybrid", label: "Barbell metcon / capacity", bands: HYBRID_BANDS, needsWeight: 0.8 },
+    { key: "hybrid", label: "Barbell circuits / capacity", bands: HYBRID_BANDS, needsWeight: 0.8 },
     { key: "running", label: "Aerobic (maintenance)", bands: RUNNING_BANDS, needsWeight: 0.15 },
   ],
   volume: { kind: "single_currency", startMileageByExp: { beginner: 3, intermediate: 5, advanced: 8 }, avgMinPerMile: 18 },

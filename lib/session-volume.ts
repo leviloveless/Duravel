@@ -253,15 +253,16 @@ export function weekWorkMileage(week: { days: { sessions: Session[] }[] }): numb
 
 /**
  * Weekly training-time breakdown in minutes (Tasks addition #3).
- *   - metcon: hybrid ("HYROX/DEKA-style") workout time
+ *   - hybrid: HYROX/DEKA-style workout time (formerly "metcon", renamed
+ *     2026-08-22 — the app calls these sessions hybrids everywhere else)
  *   - strength: weightlifting time
  *   - running: run time
  *   - nonRunningCardio: everything else aerobic (cardio blocks, swim, bike, brick)
- *   - total: sum of the four above (strength + metcon + running + non-running cardio)
+ *   - total: sum of the four above (strength + hybrid + running + non-running cardio)
  * Race days contribute nothing (event day).
  */
 export interface WeekTimeBreakdown {
-  metcon: number;
+  hybrid: number;
   strength: number;
   running: number;
   nonRunningCardio: number;
@@ -270,7 +271,7 @@ export interface WeekTimeBreakdown {
 
 export function weekTimeByCategory(week: { days: { sessions: Session[] }[] }): WeekTimeBreakdown {
   const out: WeekTimeBreakdown = {
-    metcon: 0,
+    hybrid: 0,
     strength: 0,
     running: 0,
     nonRunningCardio: 0,
@@ -282,7 +283,7 @@ export function weekTimeByCategory(week: { days: { sessions: Session[] }[] }): W
       if (t <= 0) continue;
       switch (s.kind) {
         case "hybrid":
-          out.metcon += t;
+          out.hybrid += t;
           break;
         case "lift":
           out.strength += t;
@@ -301,7 +302,7 @@ export function weekTimeByCategory(week: { days: { sessions: Session[] }[] }): W
       }
     }
   }
-  out.total = out.metcon + out.strength + out.running + out.nonRunningCardio;
+  out.total = out.hybrid + out.strength + out.running + out.nonRunningCardio;
   return out;
 }
 

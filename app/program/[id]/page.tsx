@@ -13,6 +13,7 @@ import {
 } from "@/lib/supabase/queries";
 import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
 import { extrasFromRows } from "@/lib/extra-workouts";
+import { groupExtrasByWeek } from "@/lib/program/week-actual-time";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
 import { resolveHrModel, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
@@ -524,6 +525,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     startDate={program.start_date}
                     isTriathlon={sport.startsWith("tri_")}
                     logsByWeek={groupLogsByWeek(logs)}
+                    extrasByWeek={groupExtrasByWeek(activity.extras ?? [])}
                     recoveryByWeek={activity.recoveryByWeek}
                   />
                 ),

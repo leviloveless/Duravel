@@ -6,6 +6,7 @@ import PhaseTimeline from "./phase-timeline";
 import WeekNav from "./week-nav";
 import WeekCard from "./week-card";
 import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
+import { groupExtrasByWeek } from "@/lib/program/week-actual-time";
 import AdaptReview from "./adapt-review";
 import SyncSuggestions from "./sync-suggestions";
 import SyncAllButton from "./sync-all-button";
@@ -163,6 +164,7 @@ export default function ProgramView({
           startDate={meta.startDate}
           isTriathlon={isTriathlon}
           logsByWeek={logsByWeek}
+          extrasByWeek={groupExtrasByWeek(activity?.extras ?? [])}
           recoveryByWeek={activity?.recoveryByWeek}
         />
       )}

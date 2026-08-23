@@ -77,7 +77,7 @@ export default function SciencePage() {
             resistance to fading late in a long race.
           </Finding>
           <Finding n="3" title="The tradeoff scales with your event and training age">
-            For a short, punchy event (DEKA, a hard metcon), intensity is nearly a full substitute
+            For a short, punchy event (DEKA, a hard hybrid circuit), intensity is nearly a full substitute
             for volume. For a five-to-seventeen-hour Ironman, it isn&apos;t — those races are won on
             exactly the volume-built traits above. And the fitter you already are, the more the
             remaining gains live in volume.

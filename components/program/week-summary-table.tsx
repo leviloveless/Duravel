@@ -1,8 +1,8 @@
-import type { ProgramData, Session, WorkoutLog } from "@/lib/schemas";
+import React from "react";
+import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import { weekTimeByCategory, weekIronmanTime } from "@/lib/session-volume";
+import { weekActualTimeByCategory } from "@/lib/program/week-actual-time";
 import { zoneEntries, weekStartDate } from "./format";
-
-type TrainingDay = WorkoutLog["day"];
 
 /** Microcycle label + pill styling for the weekly summary "Cycle" column. */
 const MICRO_TAG: Record<string, { label: string; className: string }> = {
@@ -19,9 +19,6 @@ export interface WeekRecovery {
   hrv: number | null;
 }
 
-/** Cardio-type session kinds (weightlifting is excluded from cardio time). */
-const CARDIO_KINDS = new Set<Session["kind"]>(["run", "hybrid", "cardio", "swim", "bike", "brick"]);
-
 /** Compact week-start date label (e.g. "Jul 14") for the Dates column (Tasks addition #2). */
 function weekDateLabel(startDate: string, weekNumber: number): string {
   // SAFE, do not "fix": the Date here comes from `parseISODate`, which builds
@@ -35,33 +32,6 @@ function weekDateLabel(startDate: string, weekNumber: number): string {
   });
 }
 
-/** Actual (logged) miles + cardio minutes for a week, from its workout logs. */
-function weekActuals(week: ProgramData["weeks"][number], logs: WorkoutLog[]) {
-  const sessionsByDay = new Map<TrainingDay, Session[]>();
-  for (const d of week.days) sessionsByDay.set(d.day, d.sessions);
-  let miles = 0;
-  let cardioMin = 0;
-  let hasMiles = false;
-  let hasCardio = false;
-  for (const log of logs) {
-    const a = log.actuals;
-    if (!a) continue;
-    const session = sessionsByDay.get(log.day)?.[log.sessionIndex];
-    if (typeof a.distanceMiles === "number") {
-      miles += a.distanceMiles;
-      hasMiles = true;
-    }
-    if (typeof a.durationMin === "number" && session && CARDIO_KINDS.has(session.kind)) {
-      cardioMin += a.durationMin;
-      hasCardio = true;
-    }
-  }
-  return {
-    miles: hasMiles ? Math.round(miles * 10) / 10 : null,
-    cardioMin: hasCardio ? Math.round(cardioMin) : null,
-  };
-}
-
 function Cell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-2 py-2 text-right tabular-nums ${className}`}>{children}</td>;
 }
@@ -69,8 +39,9 @@ function Cell({ children, className = "" }: { children: React.ReactNode; classNa
 /**
  * Per-week summary table. Shows the week's calendar start date (Tasks addition #2),
  * the microcycle, planned vs. actual cardio time and mileage (Tasks addition #6),
- * the weekly training-time breakdown (Tasks addition #3) — metcon / strength / total
- * for HYROX/DEKA, or swim / bike / run / lift / total for triathlon — weekly average
+ * the weekly training-time breakdown (Tasks addition #3) — hybrid / strength / total
+ * for HYROX/DEKA, or swim / bike / run / lift / total for triathlon, each now
+ * PLANNED VS. ACTUAL (Levi, 2026-08-22) — weekly average
  * resting HR + HRV (Tasks addition #7), and the HR-zone distribution. Rendered
  * full-width so the whole table is visible without horizontal scrolling (Tasks #10).
  */
@@ -79,26 +50,31 @@ export default function WeekSummaryTable({
   startDate,
   isTriathlon = false,
   logsByWeek,
+  extrasByWeek,
   recoveryByWeek,
 }: {
   weeks: ProgramData["weeks"];
   startDate: string;
-  /** Triathlon programs show swim/bike/run/lift time instead of metcon/strength. */
+  /** Triathlon programs show swim/bike/run/lift time instead of hybrid/strength. */
   isTriathlon?: boolean;
   logsByWeek?: Map<number, WorkoutLog[]>;
+  /** Off-plan work, which counts toward the ACTUAL columns (Levi, 2026-08-22). */
+  extrasByWeek?: Map<number, ExtraWorkout[]>;
   recoveryByWeek?: Map<number, WeekRecovery>;
 }) {
-  const timeCols = isTriathlon ? 5 : 3;
+  const timeGroups = isTriathlon
+    ? (["Swim", "Bike", "Run", "Lift", "Total"] as const)
+    : (["Hybrid", "Strength", "Total"] as const);
   return (
     <div className="rounded-xl border border-zinc-200 bg-white">
       <div className="border-b border-zinc-100 px-4 py-3">
         <h2 className="text-sm font-semibold">Weekly summary</h2>
         <p className="text-xs text-zinc-500">
-          Dates · planned vs. actual cardio &amp; mileage · training-time breakdown · recovery · zone mix
+          Dates · planned vs. actual cardio, mileage and training time · recovery · zone mix
         </p>
       </div>
       <div className="max-h-[70vh] overflow-x-auto overflow-y-auto">
-        <table className="w-full min-w-[46rem] text-xs">
+        <table className="w-full min-w-[64rem] text-xs">
           <thead className="sticky top-0 z-10 bg-zinc-50 text-zinc-500">
             <tr className="text-[10px] uppercase tracking-wide">
               <th className="px-3 py-1.5 text-left font-medium" rowSpan={2}>
@@ -116,9 +92,15 @@ export default function WeekSummaryTable({
               <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={2}>
                 Miles
               </th>
-              <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={timeCols}>
-                Training time
-              </th>
+              {timeGroups.map((label) => (
+                <th
+                  key={label}
+                  className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium"
+                  colSpan={2}
+                >
+                  {label}
+                </th>
+              ))}
               <th className="border-l border-zinc-200 px-2 py-1.5 text-center font-medium" colSpan={2}>
                 Recovery avg
               </th>
@@ -131,21 +113,12 @@ export default function WeekSummaryTable({
               <th className="px-2 py-1 text-right font-medium">Act</th>
               <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Plan</th>
               <th className="px-2 py-1 text-right font-medium">Act</th>
-              {isTriathlon ? (
-                <>
-                  <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Swim</th>
-                  <th className="px-2 py-1 text-right font-medium">Bike</th>
-                  <th className="px-2 py-1 text-right font-medium">Run</th>
-                  <th className="px-2 py-1 text-right font-medium">Lift</th>
-                  <th className="px-2 py-1 text-right font-medium">Total</th>
-                </>
-              ) : (
-                <>
-                  <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Metcon</th>
-                  <th className="px-2 py-1 text-right font-medium">Strength</th>
-                  <th className="px-2 py-1 text-right font-medium">Total</th>
-                </>
-              )}
+              {timeGroups.map((label) => (
+                <React.Fragment key={label}>
+                  <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">Plan</th>
+                  <th className="px-2 py-1 text-right font-medium">Act</th>
+                </React.Fragment>
+              ))}
               <th className="border-l border-zinc-200 px-2 py-1 text-right font-medium">RHR</th>
               <th className="px-2 py-1 text-right font-medium">HRV</th>
             </tr>
@@ -153,10 +126,28 @@ export default function WeekSummaryTable({
           <tbody>
             {weeks.map((w) => {
               const logs = logsByWeek?.get(w.weekNumber) ?? [];
-              const actuals = weekActuals(w, logs);
+              const extras = extrasByWeek?.get(w.weekNumber) ?? [];
+              const actual = weekActualTimeByCategory(w, logs, extras);
               const rec = recoveryByWeek?.get(w.weekNumber);
               const tri = isTriathlon ? weekIronmanTime(w) : null;
               const time = isTriathlon ? null : weekTimeByCategory(w);
+              // Same order as `timeGroups`. `null` on the actual side means "no
+              // logs yet", which prints a dash — a week logged as entirely
+              // skipped prints 0, and the two are not the same thing.
+              const timeCells: { plan: number; act: number | null }[] =
+                isTriathlon ?
+                  [
+                    { plan: tri!.swim, act: actual.any ? actual.ironman.swim : null },
+                    { plan: tri!.bike, act: actual.any ? actual.ironman.bike : null },
+                    { plan: tri!.run, act: actual.any ? actual.ironman.run : null },
+                    { plan: tri!.lift, act: actual.any ? actual.ironman.lift : null },
+                    { plan: tri!.total, act: actual.any ? actual.ironman.total : null },
+                  ]
+                : [
+                    { plan: time!.hybrid, act: actual.any ? actual.hybrid : null },
+                    { plan: time!.strength, act: actual.any ? actual.strength : null },
+                    { plan: time!.total, act: actual.any ? actual.total : null },
+                  ];
               return (
                 <tr key={w.weekNumber} className="border-t border-zinc-100">
                   <td className="px-3 py-2">
@@ -183,24 +174,23 @@ export default function WeekSummaryTable({
                     })()}
                   </td>
                   <Cell className="border-l border-zinc-100">{w.summary.totalCardioMinutes}m</Cell>
-                  <Cell className="text-zinc-500">{actuals.cardioMin != null ? `${actuals.cardioMin}m` : "—"}</Cell>
+                  <Cell className="text-zinc-500">
+                    {actual.any ? `${actual.cardioMinutes}m` : "—"}
+                  </Cell>
                   <Cell className="border-l border-zinc-100">{w.summary.totalMileage}</Cell>
-                  <Cell className="text-zinc-500">{actuals.miles != null ? actuals.miles : "—"}</Cell>
-                  {isTriathlon && tri ? (
-                    <>
-                      <Cell className="border-l border-zinc-100">{tri.swim}m</Cell>
-                      <Cell>{tri.bike}m</Cell>
-                      <Cell>{tri.run}m</Cell>
-                      <Cell>{tri.lift}m</Cell>
-                      <Cell className="font-medium text-zinc-800">{tri.total}m</Cell>
-                    </>
-                  ) : (
-                    <>
-                      <Cell className="border-l border-zinc-100">{time!.metcon}m</Cell>
-                      <Cell>{time!.strength}m</Cell>
-                      <Cell className="font-medium text-zinc-800">{time!.total}m</Cell>
-                    </>
-                  )}
+                  <Cell className="text-zinc-500">{actual.any ? actual.miles : "—"}</Cell>
+                  {timeCells.map((c, idx) => (
+                    <React.Fragment key={timeGroups[idx]}>
+                      <Cell
+                        className={`border-l border-zinc-100 ${
+                          idx === timeCells.length - 1 ? "font-medium text-zinc-800" : ""
+                        }`}
+                      >
+                        {c.plan}m
+                      </Cell>
+                      <Cell className="text-zinc-500">{c.act != null ? `${c.act}m` : "—"}</Cell>
+                    </React.Fragment>
+                  ))}
                   <Cell className="border-l border-zinc-100 text-zinc-500">
                     {rec?.restingHr != null ? rec.restingHr : "—"}
                   </Cell>
