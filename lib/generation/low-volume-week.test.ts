@@ -32,6 +32,7 @@ import type { GenerationInput } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
 import { sessionMiles } from "@/lib/session-volume";
+import { THRESHOLD_RUN_MIN_WEEKLY_MI } from "@/lib/engine/slots";
 import { HYBRID_LEG_BUDGET_SHARE, MIN_HYBRID_RUN_METERS } from "@/lib/engine/stations";
 
 const START = "2026-08-10";
@@ -187,11 +188,25 @@ describe("the threshold run comes back when the hybrid is too small to be one", 
     expect(runTypes(8, 3)).toContain("threshold");
   });
 
-  it("still lets a full-size hybrid cover it at normal mileage", () => {
-    const types = runTypes(25, 3);
-    expect(types).not.toContain("threshold");
-    // The slot is not lost — it becomes aerobic, which is the documented
-    // behaviour when the threshold box is already ticked.
-    expect(types).toContain("easy");
+  // ⚠️ SUPERSEDED 2026-08-23 (Levi): "the substitution is kept only where the
+  // week genuinely has no room". A full-size hybrid used to cancel the threshold
+  // run at ANY mileage — measured across 1,027 hybrid weeks, not one carried a
+  // separate threshold or tempo run. Now the credit is gated on the week being
+  // under `THRESHOLD_RUN_MIN_WEEKLY_MI`, below which the reconciler drops a
+  // planned threshold run 100% of the time.
+  it("KEEPS its own threshold run at normal mileage, hybrid or not", () => {
+    expect(runTypes(25, 3)).toContain("threshold");
+  });
+
+  it("still credits the hybrid on a week too small to hold one", () => {
+    // A 0–5 h week whose target is under the floor: planning a threshold run
+    // there would be planning something the athlete never sees.
+    const { skeleton } = build(4, "h0_5");
+    const wk = skeleton.weeks.find((w) => w.targetMileage < THRESHOLD_RUN_MIN_WEEKLY_MI)!;
+    const types = wk.days.flatMap((d) =>
+      d.sessions.filter((s) => s.kind === "run").map((s) => (s as { runType: string }).runType),
+    );
+    const hybrids = wk.days.flatMap((d) => d.sessions.filter((s) => s.kind === "hybrid"));
+    if (hybrids.length > 0 && types.length >= 3) expect(types).toContain("easy");
   });
 });

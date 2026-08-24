@@ -273,6 +273,9 @@ export function buildRunSlots(
    *  (or 0) with a hybrid present = the pre-2026-08-17 behaviour, where presence
    *  alone earned the credit. See the credit rule below. */
   hybridThresholdMin?: number,
+  /** The week's own target mileage, used to ask whether it could FIT a separate
+   *  threshold run. Omitted = the pre-2026-08-23 behaviour. */
+  weeklyMileage?: number,
 ): RunSlot[] {
   if (count <= 0) return [];
   // Station-only sports (DEKA Strong/Atlas) keep their few runs as easy Z2 maintenance.
@@ -321,7 +324,44 @@ export function buildRunSlots(
    */
   const hybridCarriesDose =
     hybridThresholdMin === undefined || hybridThresholdMin >= HYBRID_THRESHOLD_CREDIT_MINUTES;
-  const hybridCoversThreshold = guaranteeQuality && hybridCount > 0 && hybridCarriesDose;
+
+  /**
+   * ...and ONLY when the week could not fit a threshold run anyway
+   * (Levi, 2026-08-23: "the substitution is kept only where the week genuinely
+   * has no room").
+   *
+   * The hybrid crediting the threshold run was universal: measured across 1,027
+   * hybrid weeks, **not one** carried a separate threshold or tempo run. Levi's
+   * call is that the quality run stays in — the hybrid is not a replacement for
+   * it — except where keeping it would be theatre.
+   *
+   * "No room" is not a judgement call; it is visible in what the reconciler
+   * does. Re-running the same 1,027 weeks with the substitution switched OFF,
+   * the share where a threshold run SURVIVED reconciliation was:
+   *
+   *   | week's target | survives |
+   *   |---------------|----------|
+   *   | under 14 mi   |    0%    |
+   *   | 14–16 mi      |   15%    |
+   *   | 16–18 mi      |   42%    |
+   *   | 18–20 mi      |   55%    |
+   *   | 20–22 mi      |   82%    |
+   *   | 22 mi +       |   86%    |
+   *
+   * Below 14 the week's own minimums (long run + interval + the hybrid) already
+   * exceed its mileage, so a planned threshold run is dropped every single time.
+   * Planning one there would replace a real credit with a session the athlete
+   * never sees. At 14 and above it can survive, so the week keeps it and the
+   * reconciler decides — which is the right place for that decision, because it
+   * is the only code that knows the week's actual arithmetic.
+   *
+   * This is per-WEEK, not per-program: a 10-mile deload keeps the substitution
+   * while the 22-mile increase week either side of it keeps its threshold run.
+   */
+  const couldFitThresholdRun =
+    weeklyMileage !== undefined && weeklyMileage >= THRESHOLD_RUN_MIN_WEEKLY_MI;
+  const hybridCoversThreshold =
+    guaranteeQuality && hybridCount > 0 && hybridCarriesDose && !couldFitThresholdRun;
 
   const types: RunType[] = ["long"]; // long run anchors every week
   // Research: threshold + VO2 are weekly anchors at EVERY budget and phase
@@ -349,6 +389,13 @@ export function buildRunSlots(
     isLong: rt === "long",
   }));
 }
+
+/**
+ * Weekly mileage at which a week can hold its own threshold run (Levi,
+ * 2026-08-23). Below it the reconciler drops a planned threshold run 100% of the
+ * time — see `buildRunSlots`, where the measurement is written down.
+ */
+export const THRESHOLD_RUN_MIN_WEEKLY_MI = 14;
 
 const QUALITY_RUN_TYPES: ReadonlySet<RunType> = new Set(["tempo", "threshold", "interval"]);
 
@@ -852,6 +899,7 @@ export function assignDays(
             hybridRunPlan(weeklyMileage, runningExp, null, undefined, plan.hybrids),
             null,
           ),
+      weeklyMileage,
     );
     const lifts = buildLiftSlots(plan.lifts, cappedCounts.researchLifts ?? false);
     // Review #9: one Peak hybrid per normal week becomes a full race simulation.
