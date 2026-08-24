@@ -14,7 +14,12 @@ import CoachSessionEdit from "./coach-session-edit";
 import SessionShare from "./session-share";
 import { sessionSummary } from "@/lib/program/session-summary";
 import { sessionKey, type SyncActivitySummary } from "@/lib/wearables/suggest-data";
-import { sessionMiles, weekTimeByCategory } from "@/lib/session-volume";
+import {
+  sessionMiles,
+  weekCardioMinutes,
+  weekMileage,
+  weekTimeByCategory,
+} from "@/lib/session-volume";
 import {
   DAY_LABEL,
   MICRO_LABEL,
@@ -422,7 +427,10 @@ export default function WeekCard({
           <div className="flex gap-6 text-sm">
             <span>
               <span className="block text-xs text-zinc-500">Cardio time</span>
-              <span className="font-medium">{week.summary.totalCardioMinutes} min</span>
+              {/* Computed from the week's own sessions, not the stored
+                  `summary` snapshot — the two drift once a week is adapted, and
+                  the summary tab reads the computed figure (Levi, 2026-08-23). */}
+              <span className="font-medium">{weekCardioMinutes(week)} min</span>
               {actualCardioWithExtras !== null && (
                 <span className="block text-xs text-emerald-700">
                   Actual: {actualCardioWithExtras} min
@@ -431,7 +439,7 @@ export default function WeekCard({
             </span>
             <span>
               <span className="block text-xs text-zinc-500">Running mileage</span>
-              <span className="font-medium">{week.summary.totalMileage} mi</span>
+              <span className="font-medium">{weekMileage(week)} mi</span>
               {actualMilesWithExtras !== null && (
                 <span className="block text-xs text-emerald-700">
                   Actual: {actualMilesWithExtras} mi

@@ -1,6 +1,11 @@
 import React from "react";
 import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
-import { weekTimeByCategory, weekIronmanTime } from "@/lib/session-volume";
+import {
+  weekCardioMinutes,
+  weekIronmanTime,
+  weekMileage,
+  weekTimeByCategory,
+} from "@/lib/session-volume";
 import { weekActualTimeByCategory } from "@/lib/program/week-actual-time";
 import { zoneEntries, weekStartDate } from "./format";
 
@@ -37,7 +42,13 @@ function Cell({ children, className = "" }: { children: React.ReactNode; classNa
 }
 
 /**
- * Per-week summary table. Shows the week's calendar start date (Tasks addition #2),
+ * Per-week summary table. Every figure is computed from the WEEK'S OWN SESSIONS
+ * — `weekMileage`, `weekCardioMinutes`, `weekTimeByCategory` — never from the
+ * stored `week.summary`, which is a snapshot taken at generation time and drifts
+ * once a week is adapted or regenerated (Levi, 2026-08-23: "the weekly summary
+ * tab [should pull] directly from the actual weeks").
+ *
+ * Shows the week's calendar start date (Tasks addition #2),
  * the microcycle, planned vs. actual cardio time and mileage (Tasks addition #6),
  * the weekly training-time breakdown (Tasks addition #3) — hybrid / strength / total
  * for HYROX/DEKA, or swim / bike / run / lift / total for triathlon, each now
@@ -173,11 +184,11 @@ export default function WeekSummaryTable({
                       ) : null;
                     })()}
                   </td>
-                  <Cell className="border-l border-zinc-100">{w.summary.totalCardioMinutes}m</Cell>
+                  <Cell className="border-l border-zinc-100">{weekCardioMinutes(w)}m</Cell>
                   <Cell className="text-zinc-500">
                     {actual.any ? `${actual.cardioMinutes}m` : "—"}
                   </Cell>
-                  <Cell className="border-l border-zinc-100">{w.summary.totalMileage}</Cell>
+                  <Cell className="border-l border-zinc-100">{weekMileage(w)}</Cell>
                   <Cell className="text-zinc-500">{actual.any ? actual.miles : "—"}</Cell>
                   {timeCells.map((c, idx) => (
                     <React.Fragment key={timeGroups[idx]}>
