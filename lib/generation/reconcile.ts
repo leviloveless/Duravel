@@ -438,7 +438,15 @@ export function reconcileWeekVolume(
         overhead,
         overheadMi: overhead / easyPaceMin,
         min: minMiles(s.runType, paceMin, overhead),
-        max: maxMiles(paceMin, overhead, caps.session, s.runType, runningExp),
+        // The LONG run answers to its own ceiling — 90 min for the station
+        // sports, higher for triathlon (Levi, 2026-08-23). See `caps.longRun`.
+        max: maxMiles(
+          paceMin,
+          overhead,
+          s.runType === "long" ? caps.longRun : caps.session,
+          s.runType,
+          runningExp,
+        ),
         softMax:
           s.runType === "long" && longRunCap !== undefined
             ? Math.max(minMiles(s.runType, paceMin, overhead), longRunCap - overhead / easyPaceMin)
@@ -457,8 +465,9 @@ export function reconcileWeekVolume(
     if (RM > 0) added.push(...buildEasyRuns(RM, paces, runningExp, caps.session, true));
   } else {
     sizeRuns(runs, RM, days, paces, runningExp, added, caps.session, place);
-    enforceLongRun(runs, weekNumber, caps.session);
-    for (const r of runs) writeRun(r, paces, caps.session, runningExp);
+    enforceLongRun(runs, weekNumber, caps.longRun);
+    for (const r of runs)
+      writeRun(r, paces, r.type === "long" ? caps.longRun : caps.session, runningExp);
   }
 
   // Place added easy runs before the mileage true-up so they count.
@@ -477,7 +486,7 @@ export function reconcileWeekVolume(
     stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
     const diff = round1(targetMileage - weekMileage({ days }));
     if (Math.abs(diff) < 0.05) break;
-    adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session, longRunCap);
+    adjustRunMilesToTotal(days, diff, paces, runningExp, caps.session, longRunCap, caps.longRun);
   }
   stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
   // A proportional shrink can leave a sub-tenth residual (a 0.1 remainder spread
@@ -517,7 +526,16 @@ export function reconcileWeekVolume(
           : residual;
       const want = Math.max(floor, anchor.distanceMiles + move);
       if (Math.abs(want - anchor.distanceMiles) >= 0.05) {
-        setRunMiles(anchor, want, anchorPace, caps.session, runningExp);
+        setRunMiles(
+          anchor,
+          want,
+          anchorPace,
+          // The long run answers to its own ceiling here too — this snap is how
+          // a 30 mi/week athlete's long run reached 98 minutes under a 90-minute
+          // rule (Levi, 2026-08-23).
+          anchor.runType === "long" ? caps.longRun : caps.session,
+          runningExp,
+        );
         stampRunOverhead(days, easyPaceMin, runningExp, caps.session);
       }
     }
@@ -1264,7 +1282,11 @@ function adjustRunMilesToTotal(
   exp: ExperienceLevel,
   sessionCap: number,
   longRunCap?: number,
+  /** The LONG run's own minute ceiling — 90 for the station sports (Levi,
+   *  2026-08-23). Defaults to the session cap, which is the legacy behaviour. */
+  longRunSessionCap = sessionCap,
 ): void {
+  const capFor = (s: RunSession) => (s.runType === "long" ? longRunSessionCap : sessionCap);
   const runRefs: RunSession[] = [];
   for (const d of days) for (const s of d.sessions) if (s.kind === "run") runRefs.push(s);
   if (runRefs.length === 0) return;
@@ -1280,7 +1302,7 @@ function adjustRunMilesToTotal(
     if (totalHead < 0.05) return; // every run already at its floor
     const factor = Math.min(1, cut / totalHead);
     for (const e of entries) {
-      setRunMiles(e.s, e.s.distanceMiles - e.head * factor, e.paceMin, sessionCap, exp);
+      setRunMiles(e.s, e.s.distanceMiles - e.head * factor, e.paceMin, capFor(e.s), exp);
     }
   } else {
     // Adding miles: the long run is skipped once it is at its jump ceiling, so
@@ -1290,6 +1312,6 @@ function adjustRunMilesToTotal(
     const add = growthRoom(anchor, diff, longRunCap);
     if (add < 0.05) return;
     const paceMin = effectivePace(anchor.runType, paces) / 60;
-    setRunMiles(anchor, anchor.distanceMiles + add, paceMin, sessionCap, exp);
+    setRunMiles(anchor, anchor.distanceMiles + add, paceMin, capFor(anchor), exp);
   }
 }

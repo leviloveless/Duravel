@@ -45,16 +45,19 @@ describe("trainingCaps", () => {
       session: 90,
       day: 180,
       cardioSession: 90,
+      longRun: 90,
     });
     expect(trainingCaps("station_hybrid", exp("intermediate"))).toEqual({
       session: 105,
       day: 210,
       cardioSession: 105,
+      longRun: 90,
     });
     expect(trainingCaps("station_hybrid", exp("advanced"))).toEqual({
       session: 120,
       day: 240,
       cardioSession: 120,
+      longRun: 90,
     });
   });
 
@@ -66,7 +69,7 @@ describe("trainingCaps", () => {
   });
 
   it("defaults to the most conservative tier", () => {
-    expect(DEFAULT_CAPS).toEqual({ session: 90, day: 180, cardioSession: 90 });
+    expect(DEFAULT_CAPS).toEqual({ session: 90, day: 180, cardioSession: 90, longRun: 90 });
   });
 
   it("the athlete's own profile: HYROX + beginner runner → 90 / 180 despite advanced lifting", () => {
@@ -74,6 +77,7 @@ describe("trainingCaps", () => {
       session: 90,
       day: 180,
       cardioSession: 90,
+      longRun: 90,
     });
   });
 });
@@ -94,7 +98,7 @@ describe("caps reach the skeleton through the real generation path", () => {
         weightUnit: "lbs",
       },
     } as never);
-    expect(engineInput.caps).toEqual({ session: 90, day: 180, cardioSession: 90 });
+    expect(engineInput.caps).toEqual({ session: 90, day: 180, cardioSession: 90, longRun: 90 });
   });
 
   /**
@@ -126,7 +130,10 @@ describe("caps reach the skeleton through the real generation path", () => {
         weightUnit: "lbs",
       },
     } as never);
-    expect(engineInput.caps).toEqual({ session: 120, day: 300, cardioSession: 180 });
+    // A TRIATHLETE's long run is not held to the 90-minute hybrid ceiling
+    // (Levi, 2026-08-23) — the floor lifts it to 150 even though the session
+    // cap here is 120.
+    expect(engineInput.caps).toEqual({ session: 120, day: 300, cardioSession: 180, longRun: 150 });
     // CAPS ONLY. The inferred band must not leak into `weeklyHours`, or the
     // athlete silently becomes a band athlete — new zone targets, new session
     // budget, a different program from the one they are running.
@@ -153,7 +160,7 @@ describe("caps reach the skeleton through the real generation path", () => {
     // Same volume as the 7-day athlete above, but three days cannot hold h10_20
     // (which requires 7), so the inference is capped and the caps stay at the
     // conservative tier instead of handing a 3-day athlete 3-hour sessions.
-    expect(threeDay.caps).toEqual({ session: 90, day: 180, cardioSession: 90 });
+    expect(threeDay.caps).toEqual({ session: 90, day: 180, cardioSession: 90, longRun: 150 });
   });
 });
 

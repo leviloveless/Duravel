@@ -39,6 +39,18 @@ export interface TrainingCaps {
    * not a thing. Runs, lifts and hybrids stay on `session`.
    */
   cardioSession: number;
+  /**
+   * Longest LONG RUN, in minutes (Levi, 2026-08-23).
+   *
+   * Its own ceiling because the long run is the one session whose right length
+   * is a question about the RACE, not about the athlete's weekly hours. A HYROX
+   * is eight 1 km legs — nothing in it is served by a two-hour Sunday, and the
+   * cost of one is paid in the sessions that do rehearse the race. A triathlon
+   * long run is the opposite: the marathon off the bike is won on exactly that
+   * durability, and the tri engine's own phase-gated caps (135–150 min for
+   * 140.6) are left alone here.
+   */
+  longRun: number;
 }
 
 const SESSION_CAP: Record<ExperienceLevel, number> = {
@@ -46,6 +58,27 @@ const SESSION_CAP: Record<ExperienceLevel, number> = {
   intermediate: 105,
   advanced: 120,
 };
+
+/**
+ * The long run's ceiling for the STATION sports and general fitness
+ * (Levi, 2026-08-23: "for hyrox, limit long runs to 90 minutes").
+ *
+ * Measured before the change, across 1,080 generated weeks: 88 long runs ran
+ * past 90 minutes and the longest reached 145 — an athlete training for a
+ * ~1-hour race being sent out for two and a half.
+ */
+export const HYBRID_LONG_RUN_MINUTES = 90;
+
+/**
+ * The floor under a TRIATHLON long run's ceiling (Levi, 2026-08-23: "for
+ * triathlon programs the long run can extend longer than 2 hours").
+ *
+ * A floor rather than a cap: the band session cap wins when it is higher. The
+ * deterministic triathlon engine sizes its own long runs (`LONG_RUN_CAP` in
+ * `lib/engine/ironman`), so this exists to make sure nothing in the shared
+ * reconciler ever quietly imposes the 90-minute hybrid ceiling on a triathlete.
+ */
+export const TRI_LONG_RUN_MINUTES = 150;
 
 const DAY_CAP: Record<ExperienceLevel, number> = {
   beginner: 180,
@@ -140,8 +173,12 @@ export function trainingCaps(
   const banded = (band && BAND_SESSION_MINUTES[band]) || 0;
   const session = Math.max(SESSION_CAP[level], banded);
   const cardioSession = Math.max(session, (band && BAND_CARDIO_SESSION_MINUTES[band]) || 0);
+  const longRun =
+    family === "triathlon"
+      ? Math.max(session, TRI_LONG_RUN_MINUTES)
+      : Math.min(session, HYBRID_LONG_RUN_MINUTES);
   // Two sessions a day, and the longest possible pair is one of each kind.
-  return { session, day: session + cardioSession, cardioSession };
+  return { session, day: session + cardioSession, cardioSession, longRun };
 }
 
 /** The caps used when none were supplied — the most conservative tier. */
@@ -149,4 +186,5 @@ export const DEFAULT_CAPS: TrainingCaps = {
   session: SESSION_CAP.beginner,
   day: DAY_CAP.beginner,
   cardioSession: SESSION_CAP.beginner,
+  longRun: Math.min(SESSION_CAP.beginner, HYBRID_LONG_RUN_MINUTES),
 };

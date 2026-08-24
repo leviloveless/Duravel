@@ -11,6 +11,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   "caps": {
     "cardioSession": 105,
     "day": 210,
+    "longRun": 150,
     "session": 105,
   },
   "durationWeeks": 16,
@@ -2093,6 +2094,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   "caps": {
     "cardioSession": 150,
     "day": 255,
+    "longRun": 150,
     "session": 105,
   },
   "durationWeeks": 16,
@@ -4175,6 +4177,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   "caps": {
     "cardioSession": 180,
     "day": 300,
+    "longRun": 150,
     "session": 120,
   },
   "durationWeeks": 16,
@@ -6257,6 +6260,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   "caps": {
     "cardioSession": 240,
     "day": 390,
+    "longRun": 150,
     "session": 150,
   },
   "durationWeeks": 16,
@@ -8339,6 +8343,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
   "caps": {
     "cardioSession": 300,
     "day": 480,
+    "longRun": 180,
     "session": 180,
   },
   "durationWeeks": 16,
