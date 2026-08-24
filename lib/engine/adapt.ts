@@ -38,7 +38,7 @@
 import type { ExtraWorkout, ProgramWeek, WorkoutLog } from "@/lib/schemas";
 import type { MicroWeekType, TrainingDayName, WeekSkeleton } from "./types";
 import { ADAPT } from "./adapt-config";
-import { STRENGTH_SESSION_MIN, sessionTiming } from "@/lib/session-volume";
+import { STRENGTH_SESSION_MIN, sessionMiles, sessionTiming } from "@/lib/session-volume";
 import { extraActualContribution } from "@/lib/extra-workouts";
 import { clamp, round1, round2 } from "./math";
 import type { ReadinessCategory } from "./readiness";
@@ -191,7 +191,9 @@ export function computeWeekSignals(
       // Key-session tracking.
       if (session.kind === "run" && session.runType === "long") {
         longRunPlanned = true;
-        longRunMiles = Math.max(longRunMiles ?? 0, session.distanceMiles);
+        // TOTAL miles: this number is quoted back to the athlete ("hold your
+        // long run at 8.2 miles") and becomes a constraint line in the prompt.
+        longRunMiles = Math.max(longRunMiles ?? 0, sessionMiles(session));
         if (status !== "completed") longRunDone = false;
       }
       if (session.kind === "run" && ["tempo", "threshold", "interval"].includes(session.runType)) {
@@ -200,12 +202,24 @@ export function computeWeekSignals(
       }
 
       // Planned vs actual volume (best effort; logged actuals win).
-      const plannedMin =
-        session.kind === "run" ? session.durationMin
-        : session.kind === "cardio" ? session.durationMin
-        : session.kind === "hybrid" ? ADAPT.DEFAULT_HYBRID_MINUTES
-        : 0;
-      const plannedMi = session.kind === "run" ? session.distanceMiles : 0;
+      //
+      // TOTAL, not WORK (Levi, 2026-08-22). These figures were built from
+      // `session.durationMin` and `session.distanceMiles` — the main set alone —
+      // while the ACTUAL side takes `log.actuals.distanceMiles`, which is the
+      // whole distance the athlete covered, warm-up and cool-down included. The
+      // two sides were measuring different things: the review printed
+      // "3.2 / 4.7 mi" on a week whose own header said 5.5 mi, and a week
+      // executed exactly as prescribed read as ~115% of itself.
+      //
+      // `sessionMiles` and `sessionTiming().total` are the same helpers
+      // `weekMileage` and `weekCardioMinutes` use, so these denominators are now
+      // literally the week summary's headline numbers. Two consequences worth
+      // knowing: a hybrid's run legs now count toward planned mileage (they
+      // always counted toward the week's total), and a hybrid's planned minutes
+      // come from its own pace-aware timing rather than the flat
+      // `DEFAULT_HYBRID_MINUTES` fallback.
+      const plannedMin = session.kind === "lift" ? 0 : sessionTiming(session).total;
+      const plannedMi = sessionMiles(session);
       plannedMileage += plannedMi;
       plannedCardio += plannedMin;
 
