@@ -17,7 +17,8 @@ import type { GenerationInput, Session } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleArgsFromInput, assembleProgram } from "./assemble";
 import { HR_LINE_PREFIX } from "@/lib/engine/hr-targets";
-import { hrModelFromProfile, zoneBpmRange } from "@/lib/zones";
+import { repPeakBpm } from "@/lib/engine/hr-targets";
+import { hrModelFromProfile } from "@/lib/zones";
 
 const START = "2026-08-31";
 
@@ -94,7 +95,7 @@ describe("a generated program prescribes HR per rep and per recovery jog", () =>
           desc(s),
         ).toBe(true);
         expect(
-          ls.some((l) => l.startsWith(`${HR_LINE_PREFIX}recovery jog:`)),
+          ls.some((l) => l.startsWith(`${HR_LINE_PREFIX}recovery jogs:`)),
           desc(s),
         ).toBe(true);
       }
@@ -116,9 +117,10 @@ describe("a generated program prescribes HR per rep and per recovery jog", () =>
     const threshold = runs(sessions, "threshold")[0]!;
     expect(interval.kind === "run" && interval.goalZone).toBe(5);
     expect(threshold.kind === "run" && threshold.goalZone).toBe(4);
-    expect(hrLines(interval)[0]).toContain(`${zoneBpmRange(model, 5).min}+ bpm`);
+    // Rep 1's figure is the athlete's own ramp, off their own Zone 5 / Zone 4.
+    expect(hrLines(interval)[0]).toContain(`${repPeakBpm(model, 5, "interval", 4)[0]} by the end`);
     expect(hrLines(threshold)[0]).toContain(
-      `${zoneBpmRange(model, 4).min}–${zoneBpmRange(model, 4).max} bpm`,
+      `${repPeakBpm(model, 4, "threshold", 2)[0]} by the end`,
     );
   });
 
@@ -129,13 +131,32 @@ describe("a generated program prescribes HR per rep and per recovery jog", () =>
     }
   });
 
-  it("adds the nudge only when max HR is an age estimate", () => {
-    const estimated = hrLines(runs(build(input()), "interval")[0]!);
-    expect(estimated.some((l) => l.includes("estimate"))).toBe(true);
+  it("carries exactly two HR lines and no coaching prose", () => {
+    // Levi, 2026-08-25: "simplify the workout description to as simple as possible".
+    for (const runType of ["interval", "threshold"] as const) {
+      for (const s of runs(sessions, runType)) {
+        const ls = hrLines(s);
+        expect(ls, desc(s)).toHaveLength(2);
+        expect(ls.join(" ")).not.toMatch(/Zone|estimate|back half|too fast/i);
+      }
+    }
+  });
 
-    const measured = hrLines(runs(build(input({ restingHr: 48 })), "interval")[0]!);
-    expect(measured.some((l) => l.includes("estimate"))).toBe(false);
-    // ...and the measured athlete's numbers actually differ from the estimate.
-    expect(measured[0]).not.toBe(estimated[0]);
+  it("prints the recovery the week COUNTS, not what the ratio would give", () => {
+    // A session near its time cap has the jog trimmed; the text must describe
+    // the session the plan actually budgeted for.
+    let checked = 0;
+    for (const s of sessions) {
+      if (s.kind !== "run" || !s.recoveryMin) continue;
+      const repsM = /(\d+) x /.exec(desc(s));
+      const restM = /with (\d+):(\d\d) easy jogging/.exec(desc(s));
+      if (!repsM || !restM) continue;
+      const gaps = Number(repsM[1]) - 1;
+      const textMin = (Number(restM[1]) + Number(restM[2]) / 60) * gaps;
+      // Within the 5-second rounding the printed rest is snapped to.
+      expect(Math.abs(textMin - s.recoveryMin), desc(s)).toBeLessThan(gaps * 0.09 + 0.01);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(3);
   });
 });

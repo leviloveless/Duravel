@@ -14,12 +14,9 @@
 import { describe, it, expect } from "vitest";
 import { hrTargetLines, repPeakBpm, stripHrLines, withHrLines, HR_LINE_PREFIX } from "./hr-targets";
 import { resolveHrModel, zoneBpmRange } from "@/lib/zones";
-import { zoneHrRange } from "@/components/program/format";
 
 /** A 35-year-old man with a measured resting HR — anchors on HRR (Karvonen). */
 const MODEL = resolveHrModel({ age: 35, sex: "male", restingHr: 50 });
-/** Same athlete with nothing on file at all — bands are generic %HRmax. */
-const ESTIMATED = resolveHrModel({ age: 35, sex: "male" });
 /** A visibly different athlete, for proving one model's numbers replace another's.
  *  (At 35/male the HRR and %HRmax models happen to agree on Zone 5's floor to the
  *  bpm — a coincidence that would make a replacement test pass either way.) */
@@ -29,38 +26,50 @@ const lines = (over: Partial<Parameters<typeof hrTargetLines>[0]> = {}) =>
   hrTargetLines({ runType: "interval", goalZone: 5, model: MODEL, reps: 5, ...over });
 
 const repLine = (ls: string[]) => ls.find((l) => l.startsWith(`${HR_LINE_PREFIX}reps:`));
-const jogLine = (ls: string[]) => ls.find((l) => l.startsWith(`${HR_LINE_PREFIX}recovery jog:`));
-const perRepLine = (ls: string[]) => ls.find((l) => l.startsWith(`${HR_LINE_PREFIX}by rep`));
+const jogLine = (ls: string[]) => ls.find((l) => l.startsWith(`${HR_LINE_PREFIX}recovery jogs:`));
 
-describe("the reps get a heart-rate range", () => {
-  it("states the session's goal zone and its bpm band", () => {
-    const l = repLine(lines());
-    expect(l).toContain("Zone 5");
-    expect(l).toContain(`${zoneBpmRange(MODEL, 5).min}+ bpm`);
+describe("the reps line", () => {
+  it("names the first rep's end and the last rep's end, and nothing else", () => {
+    // Levi, 2026-08-25: "HR reps: 165 by the end of rep 1 - 185 by the end of rep 5".
+    const peaks = repPeakBpm(MODEL, 5, "interval", 5);
+    expect(repLine(lines())).toBe(
+      `HR reps: ${peaks[0]} by the end of rep 1 - ${peaks[4]} by the end of rep 5`,
+    );
   });
 
-  it("gives threshold its own zone and a closed band", () => {
-    const l = repLine(lines({ runType: "threshold", goalZone: 4 }));
-    const { min, max } = zoneBpmRange(MODEL, 4);
-    expect(l).toContain("Zone 4");
-    expect(l).toContain(`${min}–${max} bpm`);
+  it("counts the reps the session actually has", () => {
+    expect(repLine(lines({ reps: 3 }))).toContain("end of rep 3");
+    expect(repLine(lines({ reps: 6 }))).toContain("end of rep 6");
   });
 
-  it("reads as a back-half target on intervals, because HR lags the work", () => {
-    // The failure this prevents: an athlete treating a low rep 1 as a miss and
-    // fixing it with pace, which is the one mistake the workout is built around.
-    expect(repLine(lines())).toContain("back half");
-    expect(repLine(lines())).toMatch(/rep 1 reads low/i);
+  it("collapses to one figure when there is a single rep", () => {
+    expect(repLine(lines({ reps: 1 }))).toContain("by the end of the rep");
+    expect(repLine(lines({ reps: 1 }))).not.toContain("rep 1 -");
+  });
+
+  it("carries no zone label, band or coaching sentence — those moved out", () => {
+    const l = repLine(lines())!;
+    expect(l).not.toMatch(/Zone/i);
+    expect(l).not.toMatch(/bpm/);
+    expect(l).not.toMatch(/back half|do not chase|normal/i);
+  });
+
+  it("says nothing about estimates — the glossary carries that now", () => {
+    expect(lines().some((l) => /estimate/i.test(l))).toBe(false);
+  });
+
+  it("gives threshold its own numbers", () => {
+    const peaks = repPeakBpm(MODEL, 4, "threshold", 3);
+    expect(repLine(lines({ runType: "threshold", goalZone: 4, reps: 3 }))).toBe(
+      `HR reps: ${peaks[0]} by the end of rep 1 - ${peaks[2]} by the end of rep 3`,
+    );
   });
 });
 
-describe("each rep gets its own estimated peak", () => {
+describe("the per-rep ramp behind those two figures", () => {
   const band = (model: typeof MODEL, zone: 4 | 5) => zoneBpmRange(model, zone);
 
-  it("lists one figure per rep, in order", () => {
-    const l = perRepLine(lines({ reps: 5 }));
-    expect(l).toContain("1 ~");
-    expect(l).toContain("5 ~");
+  it("computes one figure per rep, in order", () => {
     expect(repPeakBpm(MODEL, 5, "interval", 5)).toHaveLength(5);
   });
 
@@ -131,30 +140,31 @@ describe("each rep gets its own estimated peak", () => {
     expect(repPeakBpm(flat, 5, "interval", 3)).toEqual([162, 162, 162]);
   });
 
-  it("is omitted for a single rep — there is no climb to describe", () => {
-    expect(perRepLine(lines({ reps: 1 }))).toBeUndefined();
-  });
-
   it("is omitted for run types with no reps", () => {
     expect(repPeakBpm(MODEL, 3, "tempo", 3)).toEqual([]);
     expect(repPeakBpm(MODEL, 2, "long", 3)).toEqual([]);
   });
 });
 
-describe("the recovery jog gets a target too", () => {
-  it("is a ceiling to fall below, at the top of Zone 2", () => {
-    const l = jogLine(lines());
-    expect(l).toContain(`below ${zoneBpmRange(MODEL, 2).max} bpm`);
-    expect(l).toContain("top of Zone 2");
+describe("the recovery-jog line", () => {
+  it("is a single drop-below figure", () => {
+    expect(jogLine(lines())).toBe(
+      `HR recovery jogs: heart rate should drop below ${zoneBpmRange(MODEL, 2).max}`,
+    );
   });
 
-  it("says what it means when the HR does NOT come down", () => {
-    expect(jogLine(lines())).toMatch(/reps are too fast/i);
+  it("uses the top of Zone 2 under every anchoring method", () => {
+    for (const model of [
+      resolveHrModel({ age: 28, sex: "female" }),
+      resolveHrModel({ age: 45, sex: "male", restingHr: 48 }),
+      resolveHrModel({ age: 38, sex: "male", thresholdHr: 172 }),
+    ]) {
+      expect(jogLine(lines({ model }))).toContain(`below ${zoneBpmRange(model, 2).max}`);
+    }
   });
 
-  it("is omitted on a single-rep session — there is no 'between reps'", () => {
-    expect(jogLine(lines({ reps: 1 }))).toBeUndefined();
-    expect(repLine(lines({ reps: 1 }))).toBeDefined();
+  it("is present even on a single-rep session — the jog before/after still counts", () => {
+    expect(jogLine(lines({ reps: 1 }))).toBeDefined();
   });
 });
 
@@ -173,18 +183,6 @@ describe("what does NOT get HR lines", () => {
   it("skips a goal zone outside 1–5 rather than inventing a band", () => {
     expect(lines({ goalZone: 0 })).toEqual([]);
     expect(lines({ goalZone: 7 })).toEqual([]);
-  });
-});
-
-describe("the estimate nudge", () => {
-  it("is added only when the numbers rest on an age estimate", () => {
-    const withNudge = lines({ model: ESTIMATED, estimated: true });
-    expect(withNudge.some((l) => l.includes("age-based max-HR estimate"))).toBe(true);
-    expect(withNudge.some((l) => l.includes("resting or threshold HR"))).toBe(true);
-  });
-
-  it("is absent for an athlete who already supplied HR data", () => {
-    expect(lines().some((l) => l.includes("estimate"))).toBe(false);
   });
 });
 
@@ -207,9 +205,9 @@ describe("baked lines never become a second source of truth", () => {
       lines({ model: ALT }).length,
     );
     // ...and the numbers are the SECOND model's, not the first's.
-    expect(zoneBpmRange(ALT, 5).min).not.toBe(zoneBpmRange(MODEL, 5).min);
-    expect(twice).toContain(`${zoneBpmRange(ALT, 5).min}+ bpm`);
-    expect(twice).not.toContain(`${zoneBpmRange(MODEL, 5).min}+ bpm`);
+    expect(repLine(lines({ model: ALT }))).not.toBe(repLine(lines()));
+    expect(twice).toContain(repLine(lines({ model: ALT }))!);
+    expect(twice).not.toContain(repLine(lines())!);
   });
 
   it("returns just the lines when there is no description to attach them to", () => {
@@ -217,28 +215,27 @@ describe("baked lines never become a second source of truth", () => {
   });
 });
 
-describe("the HR line and the Zone chip agree", () => {
-  // The divergence shape this repo keeps hitting: two surfaces computing the
-  // same number their own way. Both go through `formatZoneBpm` — this is the
-  // test that fails if one of them stops.
-  const cases = [
-    resolveHrModel({ age: 28, sex: "female" }),
-    resolveHrModel({ age: 45, sex: "male", restingHr: 48 }),
-    resolveHrModel({ age: 38, sex: "male", thresholdHr: 172 }),
-    resolveHrModel({ age: 52, sex: "female", maxHr: 181, restingHr: 55 }),
+describe("the numbers follow the athlete's own zone model", () => {
+  // Two athletes with the SAME max HR and different anchoring must not be handed
+  // the same bpm — that was the whole point of routing through `zoneBpmRange`.
+  const models = [
+    resolveHrModel({ age: 35, sex: "male" }),
+    resolveHrModel({ age: 35, sex: "male", restingHr: 48 }),
+    resolveHrModel({ age: 35, sex: "male", thresholdHr: 172 }),
   ];
-  for (const model of cases) {
-    it(`matches the chip under ${model.method}`, () => {
-      for (const [runType, zone] of [
-        ["interval", 5],
-        ["threshold", 4],
-      ] as const) {
-        const l = repLine(hrTargetLines({ runType, goalZone: zone, model, reps: 4 }))!;
-        expect(l).toContain(zoneHrRange(zone, model.maxHR, model.bands));
+
+  it("gives the same max HR different reps lines under different anchors", () => {
+    const rendered = new Set(models.map((model) => repLine(lines({ model }))!));
+    expect(models.every((m) => m.maxHR === models[0]!.maxHR)).toBe(true);
+    expect(rendered.size).toBeGreaterThan(1);
+  });
+
+  it("keeps every printed figure inside the athlete's physiology", () => {
+    for (const model of models) {
+      for (const bpm of repPeakBpm(model, 5, "interval", 5)) {
+        expect(bpm).toBeLessThanOrEqual(model.maxHR);
+        expect(bpm).toBeGreaterThan(zoneBpmRange(model, 2).max);
       }
-      // The jog ceiling is the same Zone 2 top the chip would print.
-      const jog = jogLine(hrTargetLines({ runType: "interval", goalZone: 5, model, reps: 4 }))!;
-      expect(jog).toContain(`${zoneBpmRange(model, 2).max} bpm`);
-    });
-  }
+    }
+  });
 });

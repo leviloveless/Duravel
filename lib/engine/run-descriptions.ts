@@ -77,6 +77,26 @@ const THRESHOLD_REPS: Record<ExperienceLevel, number> = {
 };
 
 /**
+ * The between-rep recovery the week ACTUALLY counts, known only after
+ * reconciliation.
+ *
+ * The ratio sets the intent, but a session near the athlete's time cap has its
+ * jog trimmed to keep the whole thing legal (`stampRunOverhead`). In 65 of 223
+ * audited quality runs the week counted LESS recovery than the text prescribed
+ * — the text said jog 17.3 minutes where the plan had budgeted 16. Print what
+ * was budgeted, so the workout and the week's mileage describe one session.
+ */
+export interface RunMileageContext {
+  recoveryMin?: number;
+}
+
+/** Seconds of jog between reps: what the plan budgeted, else the ratio's own. */
+function restBetweenReps(nominalSec: number, reps: number, ctx?: RunMileageContext): number {
+  if (!ctx?.recoveryMin || reps < 2) return roundTo5(nominalSec);
+  return roundTo5((ctx.recoveryMin * 60) / (reps - 1));
+}
+
+/**
  * What a session needs to state HR targets: the athlete's resolved zone model,
  * the goal zone the engine assigned this session, and whether the numbers rest
  * on an age estimate. Optional throughout — an athlete with no HR data on file
@@ -85,19 +105,12 @@ const THRESHOLD_REPS: Record<ExperienceLevel, number> = {
 export interface HrPrescription {
   model: HrTargetInput["model"];
   goalZone: number;
-  estimated?: boolean;
 }
 
 /** The HR lines for a rep-based run, or none when there is no model to read. */
 function hrLines(runType: RunType, reps: number, hr?: HrPrescription): string[] {
   if (!hr) return [];
-  return hrTargetLines({
-    runType,
-    goalZone: hr.goalZone,
-    model: hr.model,
-    reps,
-    estimated: hr.estimated,
-  });
+  return hrTargetLines({ runType, goalZone: hr.goalZone, model: hr.model, reps });
 }
 
 /** Interval (VO2max) how-to: N × 1km at I-pace, 1:1 rest (= the 1km work time). */
@@ -106,21 +119,23 @@ function intervalDescription(
   paces: RunPaces | null,
   repsOverride?: number,
   hr?: HrPrescription,
+  mi?: RunMileageContext,
 ): string {
   const reps = repsOverride ?? INTERVAL_REPS[exp];
   // N reps have N-1 gaps: a single rep has no "between reps" at all, and saying
   // so read as a contradiction on the athlete's calendar.
   const gaps = reps > 1;
+  const rest = restBetweenReps(secPerKm(paces?.interval ?? 0), reps, mi);
   const work = paces
-    ? `${reps} x 1km at ${pacePair(paces.interval)}${gaps ? `, with ${formatPace(roundTo5(secPerKm(paces.interval)))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
-    : `${reps} x 1km at your interval (I) pace${gaps ? " with an equal-time easy jog/rest between reps" : ""}`;
+    ? `${reps} x 1km at ${pacePair(paces.interval)}${gaps ? `, with ${formatPace(rest)} easy jogging between reps at ${formatPace(paces.easy)}/mi` : ""}`
+    : `${reps} x 1km at your interval (I) pace${gaps ? " with an equal-time easy jog between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.interval;
   return withHrLines(
     [
       overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
       `Work: ${work}`,
       overheadLine("Cooldown", cd, paces),
-      ...(gaps ? ["Work:rest 1:1 - your rest equals your work time."] : []),
+      ...(gaps ? ["Work:rest 1:1"] : []),
     ].join("\n"),
     hrLines("interval", reps, hr),
   );
@@ -132,11 +147,13 @@ function thresholdDescription(
   paces: RunPaces | null,
   repsOverride?: number,
   hr?: HrPrescription,
+  mi?: RunMileageContext,
 ): string {
   const reps = repsOverride ?? THRESHOLD_REPS[exp];
   const gaps = reps > 1;
+  const rest = restBetweenReps((paces?.threshold ?? 0) / 2, reps, mi);
   const work = paces
-    ? `${reps} x 1 mile at ${pacePair(paces.threshold)}${gaps ? `, with ${formatPace(roundTo5(paces.threshold / 2))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
+    ? `${reps} x 1 mile at ${pacePair(paces.threshold)}${gaps ? `, with ${formatPace(rest)} easy jogging between reps at ${formatPace(paces.easy)}/mi` : ""}`
     : `${reps} x 1 mile at your threshold (T) pace${gaps ? " with an easy jog half the rep time between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.threshold;
   return withHrLines(
@@ -144,7 +161,7 @@ function thresholdDescription(
       overheadLine("Warm up", wu, paces),
       `Work: ${work}`,
       overheadLine("Cooldown", cd, paces),
-      ...(gaps ? ["Work:rest 2:1 - your rest is half your work time."] : []),
+      ...(gaps ? ["Work:rest 2:1"] : []),
     ].join("\n"),
     hrLines("threshold", reps, hr),
   );
@@ -161,9 +178,10 @@ export function runDescription(
   paces: RunPaces | null = null,
   reps?: number,
   hr?: HrPrescription,
+  mi?: RunMileageContext,
 ): string {
-  if (runType === "interval") return intervalDescription(runningExp, paces, reps, hr);
-  if (runType === "threshold") return thresholdDescription(runningExp, paces, reps, hr);
+  if (runType === "interval") return intervalDescription(runningExp, paces, reps, hr, mi);
+  if (runType === "threshold") return thresholdDescription(runningExp, paces, reps, hr, mi);
   if (runType === "progression") {
     return runningExp === "beginner" ? PROGRESSION_BEGINNER : PROGRESSION_ADVANCED;
   }

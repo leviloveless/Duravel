@@ -75,7 +75,6 @@ function ZoneBars({ week }: { week: ProgramWeek }) {
 export interface SessionHrModel {
   maxHR: number;
   bands: ZoneBands;
-  estimated?: boolean;
 }
 
 /**
@@ -103,7 +102,6 @@ function runHowTo(session: Extract<Session, { kind: "run" }>, hr?: SessionHrMode
       goalZone: session.goalZone,
       model: { maxHR: hr.maxHR, bands: hr.bands },
       reps,
-      estimated: hr.estimated,
     }),
   );
 }
@@ -225,7 +223,6 @@ function MobileDayList({
   startDate,
   maxHR,
   zoneBands,
-  hrEstimated,
   logging,
   athleteName,
   programName,
@@ -236,8 +233,6 @@ function MobileDayList({
   startDate: string;
   maxHR: number;
   zoneBands?: ZoneBands;
-  /** True when max HR is an age estimate — drives the "sharpen these" nudge. */
-  hrEstimated?: boolean;
   logging?: WeekLogging;
   athleteName?: string;
   /** Program name — shown in the Duravel tag on shared cards / Strava text. */
@@ -247,11 +242,7 @@ function MobileDayList({
   coach?: { programId: string };
 }) {
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
-  const hr: SessionHrModel = {
-    maxHR,
-    bands: zoneBands ?? DEFAULT_ZONE_BANDS,
-    estimated: hrEstimated,
-  };
+  const hr: SessionHrModel = { maxHR, bands: zoneBands ?? DEFAULT_ZONE_BANDS };
   return (
     <ul className="flex flex-col divide-y divide-zinc-100 md:hidden">
       {DAY_ORDER.map((dayKey) => {
@@ -390,7 +381,6 @@ export default function WeekCard({
   startDate,
   maxHR,
   zoneBands,
-  hrEstimated,
   logging,
   athleteName,
   programName,
@@ -401,8 +391,6 @@ export default function WeekCard({
   startDate: string;
   maxHR: number;
   zoneBands?: ZoneBands;
-  /** True when max HR is an age estimate — drives the "sharpen these" nudge. */
-  hrEstimated?: boolean;
   logging?: WeekLogging;
   athleteName?: string;
   programName?: string | null;
@@ -410,11 +398,7 @@ export default function WeekCard({
   coach?: { programId: string };
 }) {
   const colors = PHASE_COLORS[week.phase];
-  const hr: SessionHrModel = {
-    maxHR,
-    bands: zoneBands ?? DEFAULT_ZONE_BANDS,
-    estimated: hrEstimated,
-  };
+  const hr: SessionHrModel = { maxHR, bands: zoneBands ?? DEFAULT_ZONE_BANDS };
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   const hasLogs = (logging?.logs.length ?? 0) > 0;
   const time = weekTimeByCategory(week);
@@ -551,7 +535,6 @@ export default function WeekCard({
         startDate={startDate}
         maxHR={maxHR}
         zoneBands={zoneBands}
-        hrEstimated={hrEstimated}
         logging={logging}
         athleteName={athleteName}
         programName={programName}

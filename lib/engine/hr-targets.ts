@@ -35,7 +35,7 @@
 
 import type { RunType } from "./types";
 import type { HrBandSource, Zone } from "@/lib/zones";
-import { formatZoneBpm, zoneBpmRange } from "@/lib/zones";
+import { zoneBpmRange } from "@/lib/zones";
 
 /** The run types that have reps, and therefore a between-rep recovery jog. */
 const REP_RUN_TYPES: readonly RunType[] = ["interval", "threshold"];
@@ -116,28 +116,14 @@ export function repPeakBpm(
   });
 }
 
-/** "1 ~167 · 2 ~173 · 3 ~177 · 4 ~179 · 5 ~180 bpm" */
-function repPeakList(peaks: readonly number[]): string {
-  return `${peaks.map((bpm, i) => `${i + 1} ~${bpm}`).join(" · ")} bpm`;
-}
-
-/** How each rep type's HR target should be read. Kept short — a description line. */
-const REP_CUE: Partial<Record<RunType, string>> = {
-  interval:
-    "reach it in the back half of each rep (rep 1 reads low — that is normal, do not chase it with pace)",
-  threshold: "settle into the band by the back half of rep 1 and hold it",
-};
-
 export interface HrTargetInput {
   runType: RunType;
   /** The session's engine-assigned goal zone (interval 5, threshold 4). */
   goalZone: number;
   /** Resolved HR model — bands as fractions of max HR, plus max HR. */
   model: HrBandSource | null | undefined;
-  /** The run's ACTUAL rep count. Below 2 there are no gaps, so no recovery line. */
+  /** The run's ACTUAL rep count. */
   reps: number;
-  /** True when max HR is an age/sex estimate and nothing better was supplied. */
-  estimated?: boolean;
 }
 
 function asZone(zone: number): Zone | null {
@@ -145,39 +131,38 @@ function asZone(zone: number): Zone | null {
 }
 
 /**
- * The HR prescription lines for one quality run — empty for any run type that
- * isn't rep-based, or when no HR model is available.
+ * The HR prescription for one quality run — empty for a run type that isn't
+ * rep-based, or when no HR model is available.
+ *
+ * Two lines, and no more (Levi, 2026-08-25: "we need to simplify the workout
+ * description to as simple as possible"). What went, and why none of it is
+ * missed: the zone label and its band, which the session's own Zone chip
+ * already carries; the full per-rep list, whose middle figures are just
+ * interpolation between its two ends; and the coaching sentences, which belong
+ * in the program glossary with the rest of the "why".
+ *
+ * "By the end of rep N" is doing quiet work in that first line. It is where the
+ * back-half truth survives the trim: heart rate lags the work that produces it,
+ * so a rep's number belongs to its END — and rep 1's lower figure then reads as
+ * the expectation it is, rather than as a target the athlete has missed.
  */
 export function hrTargetLines(input: HrTargetInput): string[] {
-  const { runType, goalZone, model, reps, estimated = false } = input;
+  const { runType, goalZone, model, reps } = input;
   if (!REP_RUN_TYPES.includes(runType) || !model) return [];
   const zone = asZone(goalZone);
   if (zone === null) return [];
-  const cue = REP_CUE[runType];
-  const lines = [
-    `${HR_LINE_PREFIX}reps: Zone ${zone}, ${formatZoneBpm(model, zone)}${cue ? ` — ${cue}` : ""}.`,
+  const peaks = repPeakBpm(model, zone, runType, reps);
+  if (!peaks.length) return [];
+  const first = peaks[0]!;
+  const last = peaks[peaks.length - 1]!;
+  const span =
+    peaks.length > 1
+      ? `${first} by the end of rep 1 - ${last} by the end of rep ${peaks.length}`
+      : `${first} by the end of the rep`;
+  return [
+    `${HR_LINE_PREFIX}reps: ${span}`,
+    `${HR_LINE_PREFIX}recovery jogs: heart rate should drop below ${zoneBpmRange(model, RECOVERY_CEILING_ZONE).max}`,
   ];
-  // The per-rep estimates. Skipped for a single rep: with no rep to follow there
-  // is no climb to describe, and the lone figure — which sits BELOW the band by
-  // design — would read as contradicting the zone line directly above it.
-  if (reps > 1) {
-    const peaks = repPeakBpm(model, zone, runType, reps);
-    if (peaks.length) {
-      lines.push(`${HR_LINE_PREFIX}by rep (est. peak): ${repPeakList(peaks)}`);
-    }
-  }
-  if (reps > 1) {
-    const ceiling = zoneBpmRange(model, RECOVERY_CEILING_ZONE).max;
-    lines.push(
-      `${HR_LINE_PREFIX}recovery jog: let your HR fall below ${ceiling} bpm (top of Zone ${RECOVERY_CEILING_ZONE}) before the next rep starts — if it hasn't, the reps are too fast.`,
-    );
-  }
-  if (estimated) {
-    lines.push(
-      `${HR_LINE_PREFIX}note: these bpm come from an age-based max-HR estimate — add your resting or threshold HR in settings to sharpen them.`,
-    );
-  }
-  return lines;
 }
 
 /** A description with any baked HR lines removed. Safe on text that has none. */

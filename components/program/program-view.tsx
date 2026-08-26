@@ -25,8 +25,6 @@ export interface ProgramMeta {
   sport?: string;
   /** Custom HR zone bands (new-additions #3); omit for the standard bands. */
   zoneBands?: ZoneBands;
-  /** True when max HR is an age estimate rather than anything the athlete gave. */
-  hrEstimated?: boolean;
   /** Athlete first name for shareable result cards. */
   athleteName?: string;
 }
@@ -183,7 +181,6 @@ export default function ProgramView({
               startDate={meta.startDate}
               maxHR={meta.maxHR}
               zoneBands={meta.zoneBands}
-              hrEstimated={meta.hrEstimated}
               athleteName={meta.athleteName}
               programName={meta.name}
               stravaWriteEnabled={stravaWriteEnabled}

@@ -36,7 +36,7 @@ import {
   hybridDescription,
   type HrPrescription,
 } from "@/lib/engine/run-descriptions";
-import { hrIsEstimated, hrModelFromProfile } from "@/lib/zones";
+import { hrModelFromProfile } from "@/lib/zones";
 import { reconcileWeekVolume } from "./reconcile";
 import { longRunCapMiles } from "@/lib/engine/long-run-cap";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
@@ -317,7 +317,12 @@ function redescribeQualityRuns(
       if (!(s.distanceMiles > 0)) continue;
       const reps = repsForWorkMiles(s.runType, s.distanceMiles, runningExp);
       if (reps === null) continue; // not a rep-based run — its text never drifts
-      s.description = runDescription(s.runType, runningExp, paces, reps, hrFor(hr, s.goalZone));
+      // The recovery the week COUNTS, not what the ratio would give: a session
+      // near its time cap has the jog trimmed to keep the whole thing legal, and
+      // the text has to describe the session the plan actually budgeted for.
+      s.description = runDescription(s.runType, runningExp, paces, reps, hrFor(hr, s.goalZone), {
+        recoveryMin: s.recoveryMin,
+      });
     }
   }
 }
@@ -684,11 +689,7 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
     // Best-available HR anchoring (custom bands → LTHR → HRR → %HRmax), the same
     // cascade the program page and the AI prompt resolve. `goalZone` is a
     // placeholder here: every session overrides it with its own (see `hrFor`).
-    hr: {
-      model: hrModelFromProfile(input.profile),
-      goalZone: 4,
-      estimated: hrIsEstimated(input.profile),
-    },
+    hr: { model: hrModelFromProfile(input.profile), goalZone: 4 },
   };
 }
 

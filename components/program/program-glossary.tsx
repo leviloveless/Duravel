@@ -105,23 +105,23 @@ export default function ProgramGlossary() {
               stimulus rather than the same clock.
             </Term>
             <Term q="Heart rate on interval and threshold reps">
-              Your reps carry a bpm band as well as a pace, computed from your own zone model. Treat
-              it as <strong>confirmation, not a pace-setter</strong>: heart rate lags the work that
-              produces it, so on a 3–4 minute rep it is still climbing through the first half and
-              rep 1 finishes below the band however well it was run. Reaching the band in the back
-              half is the target — chasing it earlier just means running the rep too fast. That is
-              also why each rep carries its OWN estimated peak rather than one figure for all of
-              them: rep 1 is expected to finish under the band, and every rep after it starts from a
-              higher floor and peaks a little higher, flattening out well short of your max. They
-              are estimates from your zone model — heat, sleep and caffeine move them as much as
-              your training does.
+              Each quality run names two figures — what your heart rate should read by the end of
+              the FIRST rep and by the end of the LAST. They differ on purpose. Heart rate lags the
+              work that produces it, so rep 1 finishes below where the session is aimed however well
+              it was run, and each rep after it starts from a higher floor and peaks a little
+              higher, flattening out well short of your max. Treat them as{" "}
+              <strong>confirmation, not a pace-setter</strong>: chasing rep 1&rsquo;s number by
+              running it harder is the one mistake the workout exists to prevent. They are estimates
+              built from your own zone model — which rests on an age-based max-HR estimate until you
+              enter a tested max, resting or threshold HR in settings — and heat, sleep and caffeine
+              move them as much as your training does.
             </Term>
             <Term q="Heart rate on the recovery jog">
-              The jog's LENGTH is already set by the work:rest ratio, so its heart-rate figure is a
-              <strong> ceiling, not a band to hold</strong> — your HR is falling the whole way. What
-              matters is whether it falls far enough: still above the top of Zone 2 when the next
-              rep starts means the reps are too fast, and it is the earliest warning you get that a
-              session is going to fall apart.
+              A <strong>ceiling, not a band to hold</strong> — your heart rate is falling the whole
+              way, and the jog&rsquo;s length is already fixed by the work:rest ratio. What matters
+              is whether it falls far enough. Still above that figure when the next rep starts means
+              the reps are too fast, and it is the earliest warning you get that a session is going
+              to fall apart.
             </Term>
             <Term q="Lift sessions (upper / lower / full)">
               Strength work, periodized to the phase. The full-body day is heavy/low-rep for max

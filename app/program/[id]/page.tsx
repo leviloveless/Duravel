@@ -15,7 +15,7 @@ import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
 import { extrasFromRows } from "@/lib/extra-workouts";
 import { groupExtrasByWeek } from "@/lib/program/week-actual-time";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
-import { hrIsEstimated, hrModelFromProfile, type Sex } from "@/lib/zones";
+import { hrModelFromProfile, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
 import PacingCard from "@/components/program/pacing-card";
 import ProjectionCard from "@/components/program/projection-card";
@@ -172,9 +172,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const hrModel = hrModelFromProfile(snapshotProfile ?? {});
   const maxHR = hrModel.maxHR;
   const zoneBands: ZoneBands = hrModel.bands;
-  // Whether those bpm figures rest on an age estimate — quality runs say so, and
-  // ask for a resting HR, rather than presenting an estimate as a measurement.
-  const hrEstimated = hrIsEstimated(snapshotProfile ?? {});
 
   // Race pacing plan (Review #6): from the athlete's benchmarks + optional goal.
   const pacingPlan = computePacingPlan({
@@ -423,7 +420,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                       sport,
                       maxHR,
                       zoneBands,
-                      hrEstimated,
                       athleteName: snapshotProfile?.firstName ?? undefined,
                     }}
                     activity={activity}
