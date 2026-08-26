@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import type { ZoneBands } from "./format";
+import { currentWeekNumber } from "./format";
 import type { SyncSuggestion, SyncActivitySummary } from "@/lib/wearables/suggest-data";
 import PhaseTimeline from "./phase-timeline";
-import WeekNav from "./week-nav";
+import WeekTabs from "./week-tabs";
 import WeekCard from "./week-card";
 import WeekSummaryTable, { type WeekRecovery } from "./week-summary-table";
 import { groupExtrasByWeek } from "@/lib/program/week-actual-time";
@@ -52,7 +53,8 @@ const PROGRAM_TYPE_LABEL: Record<string, string> = {
 };
 
 /** Full program view: header + timeline (weeks + phase dates) + sticky week nav,
- *  a scrolling column of week cards, and a sticky weekly-summary sidebar. */
+ *  ONE week card at a time (the rest stay in the page for printing), and a
+ *  sticky weekly-summary sidebar. */
 export default function ProgramView({
   program,
   meta,
@@ -156,8 +158,6 @@ export default function ProgramView({
         <SyncSuggestions programId={meta.programId} suggestions={suggestions} />
       )}
 
-      <WeekNav weeks={program.weeks} />
-
       {/* Full-width weekly summary (extended so the whole table is visible
           without horizontal scroll — Tasks addition #10). */}
       {!hideSummary && (
@@ -171,58 +171,62 @@ export default function ProgramView({
         />
       )}
 
-      {/* Week cards */}
-      <div className="flex flex-col gap-6">
-        {program.weeks.map((w) => (
-          <WeekCard
-            key={w.weekNumber}
-            week={w}
-            coach={coach ? { programId: meta.programId } : undefined}
-            startDate={meta.startDate}
-            maxHR={meta.maxHR}
-            zoneBands={meta.zoneBands}
-            hrEstimated={meta.hrEstimated}
-            athleteName={meta.athleteName}
-            programName={meta.name}
-            stravaWriteEnabled={stravaWriteEnabled}
-            logging={
-              activity
-                ? {
-                    programId: meta.programId,
-                    logs: logsByWeek.get(w.weekNumber) ?? [],
-                    frozen: activity.frozenWeeks.includes(w.weekNumber),
-                    adapted: activity.adaptedWeeks.includes(w.weekNumber),
-                    linkableActivities: linking?.linkableActivities ?? [],
-                    linkedBySession: linking?.linkedBySession ?? {},
-                    extras: activity.extras ?? [],
-                  }
-                : undefined
-            }
-          />
-        ))}
-
-        {lock && lock.lockedWeeks > 0 && (
-          <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-center">
-            <span aria-hidden className="text-2xl">
-              🔒
-            </span>
-            <h2 className="text-lg font-semibold">
-              {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"} in this plan
-            </h2>
-            <p className="max-w-md text-sm text-zinc-600">
-              You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the
-              full periodized program — every week through race day, plus weekly adaptation and
-              readiness.
-            </p>
-            <Link
-              href="/pricing"
-              className="mt-1 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-            >
-              Unlock the full program
-            </Link>
-          </section>
-        )}
-      </div>
+      {/* Week cards — one shown at a time, the rest hidden but still printed. */}
+      <WeekTabs
+        defaultWeek={currentWeekNumber(meta.startDate, program.weeks.length)}
+        items={program.weeks.map((w) => ({
+          week: w,
+          content: (
+            <WeekCard
+              week={w}
+              coach={coach ? { programId: meta.programId } : undefined}
+              startDate={meta.startDate}
+              maxHR={meta.maxHR}
+              zoneBands={meta.zoneBands}
+              hrEstimated={meta.hrEstimated}
+              athleteName={meta.athleteName}
+              programName={meta.name}
+              stravaWriteEnabled={stravaWriteEnabled}
+              logging={
+                activity
+                  ? {
+                      programId: meta.programId,
+                      logs: logsByWeek.get(w.weekNumber) ?? [],
+                      frozen: activity.frozenWeeks.includes(w.weekNumber),
+                      adapted: activity.adaptedWeeks.includes(w.weekNumber),
+                      linkableActivities: linking?.linkableActivities ?? [],
+                      linkedBySession: linking?.linkedBySession ?? {},
+                      extras: activity.extras ?? [],
+                    }
+                  : undefined
+              }
+            />
+          ),
+        }))}
+        footer={
+          lock && lock.lockedWeeks > 0 ? (
+            <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-center">
+              <span aria-hidden className="text-2xl">
+                🔒
+              </span>
+              <h2 className="text-lg font-semibold">
+                {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"} in this plan
+              </h2>
+              <p className="max-w-md text-sm text-zinc-600">
+                You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the
+                full periodized program — every week through race day, plus weekly adaptation and
+                readiness.
+              </p>
+              <Link
+                href="/pricing"
+                className="mt-1 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+              >
+                Unlock the full program
+              </Link>
+            </section>
+          ) : undefined
+        }
+      />
     </div>
   );
 }

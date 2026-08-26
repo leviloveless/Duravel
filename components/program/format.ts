@@ -289,6 +289,27 @@ export function weekStartDate(startISO: string, weekNumber: number): Date {
   return m;
 }
 
+/**
+ * The program week that contains `now` — 1 before the program starts, the last
+ * week after it ends, and clamped to the weeks the program actually has.
+ *
+ * ⚠️ Call this on the SERVER and pass the answer down. It reads the clock, and
+ * the server's clock is UTC while the athlete's is not: recomputing it in the
+ * browser would disagree with the server's render across a Monday boundary and
+ * produce a hydration mismatch — the React #418 shape this codebase has already
+ * been bitten by once.
+ */
+export function currentWeekNumber(
+  startISO: string,
+  totalWeeks: number,
+  now: Date = new Date(),
+): number {
+  if (totalWeeks < 1) return 1;
+  const startMs = weekStartDate(startISO, 1).getTime();
+  const elapsedWeeks = Math.floor((now.getTime() - startMs) / (7 * 24 * 60 * 60 * 1000));
+  return Math.min(totalWeeks, Math.max(1, elapsedWeeks + 1));
+}
+
 /** Calendar date of a given training day within a program week. */
 export function dayDate(startISO: string, weekNumber: number, dayKey: string): Date {
   const ws = weekStartDate(startISO, weekNumber);
