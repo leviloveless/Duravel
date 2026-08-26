@@ -57,6 +57,70 @@ export const HR_LINE_PREFIX = "HR ";
  */
 const RECOVERY_CEILING_ZONE: Zone = 2;
 
+/**
+ * The shape of the rep-by-rep climb, per run type (Levi, 2026-08-25: "it should
+ * provide an estimate peak heart rate during each one k rep").
+ *
+ * A rep's PEAK heart rate is not the same number every time through. Rep 1 starts
+ * from a warmed-up but rested baseline and the rep ends before HR has finished
+ * climbing, so it peaks BELOW the band. Every rep after it starts from a higher
+ * floor — the jog only clears part of what the rep built — so each peaks a little
+ * higher than the last, with the increments shrinking as the athlete approaches
+ * their working ceiling. Printing one flat band for all five reps hides that, and
+ * an athlete comparing rep 1 against it concludes they under-performed.
+ *
+ * Both numbers are expressed as fractions of the session zone's OWN span, so the
+ * estimate respects whatever anchoring the athlete has (custom bands, LTHR, HRR
+ * or %HRmax) instead of contradicting their zone chips:
+ *
+ *   `startBelow` — how far under the zone floor rep 1 peaks. Larger for intervals,
+ *                  whose 3–4 minute reps end while HR is still climbing; smaller
+ *                  for a 1-mile threshold rep, which lasts long enough to arrive.
+ *   `ceilFrac`   — where the climb flattens out, as a fraction up the band. Well
+ *                  below the top: a session whose last rep touches max HR was
+ *                  raced, not run, and would not be repeatable next week.
+ */
+const REP_RAMP: Partial<Record<RunType, { startBelow: number; ceilFrac: number }>> = {
+  interval: { startBelow: 0.35, ceilFrac: 0.72 },
+  threshold: { startBelow: 0.15, ceilFrac: 0.6 },
+};
+
+/** Each rep closes half the remaining gap to the ceiling — fast, then flattening. */
+const GAP_CLOSE = 0.5;
+
+/**
+ * Estimated PEAK heart rate for each rep, in bpm and in order.
+ *
+ * Deliberately an estimate and labelled as one. Heart rate on a given day answers
+ * to sleep, heat, caffeine and how the strap is sitting as much as to the work;
+ * what this models is the SHAPE — low first rep, rising, flattening — which is
+ * what an athlete needs in order to read their own trace correctly.
+ */
+export function repPeakBpm(
+  model: HrBandSource,
+  zone: Zone,
+  runType: RunType,
+  reps: number,
+): number[] {
+  const ramp = REP_RAMP[runType];
+  if (!ramp || reps < 1) return [];
+  const { min: lo, max: hi } = zoneBpmRange(model, zone);
+  const span = hi - lo;
+  // Degenerate bands (a hand-entered zone with no width) have no ramp to show.
+  if (!(span > 0)) return Array.from({ length: reps }, () => lo);
+  const start = lo - ramp.startBelow * span;
+  const ceiling = lo + ramp.ceilFrac * span;
+  return Array.from({ length: reps }, (_, i) => {
+    const peak = ceiling - (ceiling - start) * Math.pow(GAP_CLOSE, i);
+    return Math.min(model.maxHR, Math.round(peak));
+  });
+}
+
+/** "1 ~167 · 2 ~173 · 3 ~177 · 4 ~179 · 5 ~180 bpm" */
+function repPeakList(peaks: readonly number[]): string {
+  return `${peaks.map((bpm, i) => `${i + 1} ~${bpm}`).join(" · ")} bpm`;
+}
+
 /** How each rep type's HR target should be read. Kept short — a description line. */
 const REP_CUE: Partial<Record<RunType, string>> = {
   interval:
@@ -93,6 +157,15 @@ export function hrTargetLines(input: HrTargetInput): string[] {
   const lines = [
     `${HR_LINE_PREFIX}reps: Zone ${zone}, ${formatZoneBpm(model, zone)}${cue ? ` — ${cue}` : ""}.`,
   ];
+  // The per-rep estimates. Skipped for a single rep: with no rep to follow there
+  // is no climb to describe, and the lone figure — which sits BELOW the band by
+  // design — would read as contradicting the zone line directly above it.
+  if (reps > 1) {
+    const peaks = repPeakBpm(model, zone, runType, reps);
+    if (peaks.length) {
+      lines.push(`${HR_LINE_PREFIX}by rep (est. peak): ${repPeakList(peaks)}`);
+    }
+  }
   if (reps > 1) {
     const ceiling = zoneBpmRange(model, RECOVERY_CEILING_ZONE).max;
     lines.push(

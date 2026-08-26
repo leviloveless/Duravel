@@ -109,7 +109,12 @@ export default function ProgramGlossary() {
               it as <strong>confirmation, not a pace-setter</strong>: heart rate lags the work that
               produces it, so on a 3–4 minute rep it is still climbing through the first half and
               rep 1 finishes below the band however well it was run. Reaching the band in the back
-              half is the target — chasing it earlier just means running the rep too fast.
+              half is the target — chasing it earlier just means running the rep too fast. That is
+              also why each rep carries its OWN estimated peak rather than one figure for all of
+              them: rep 1 is expected to finish under the band, and every rep after it starts from a
+              higher floor and peaks a little higher, flattening out well short of your max. They
+              are estimates from your zone model — heat, sleep and caffeine move them as much as
+              your training does.
             </Term>
             <Term q="Heart rate on the recovery jog">
               The jog's LENGTH is already set by the work:rest ratio, so its heart-rate figure is a
