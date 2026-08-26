@@ -459,6 +459,7 @@ export async function applyAdaptation(
         a.catalog,
         a.liftingExp,
         a.equipment,
+        a.hr,
       );
       const newWeek = miniProgram.weeks[0];
       if (!newWeek) throw new Error("Refill produced no week");

@@ -15,7 +15,7 @@ import { weeklyRecoveryAverages } from "@/lib/daily-metrics";
 import { extrasFromRows } from "@/lib/extra-workouts";
 import { groupExtrasByWeek } from "@/lib/program/week-actual-time";
 import { weekStartDate, type ZoneBands } from "@/components/program/format";
-import { resolveHrModel, type Sex } from "@/lib/zones";
+import { hrIsEstimated, hrModelFromProfile, type Sex } from "@/lib/zones";
 import ProgramView, { type ProgramActivity } from "@/components/program/program-view";
 import PacingCard from "@/components/program/pacing-card";
 import ProjectionCard from "@/components/program/projection-card";
@@ -76,15 +76,6 @@ type SnapshotProfile = {
 };
 
 /** Convert stored %-of-max zone bands (0–100) into ZoneBands fractions (0–1). */
-function toZoneBands(hrZones: SnapshotProfile["hrZones"]): ZoneBands | undefined {
-  if (!hrZones) return undefined;
-  const z = (k: "z1" | "z2" | "z3" | "z4" | "z5") => ({
-    low: hrZones[k].low / 100,
-    high: hrZones[k].high / 100,
-  });
-  return { 1: z("z1"), 2: z("z2"), 3: z("z3"), 4: z("z4"), 5: z("z5") };
-}
-
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 const SPORT_LABEL: Record<string, string> = {
@@ -178,16 +169,12 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   // Per-session HR zone ranges use the best-available anchoring (Review #3):
   // custom bands → threshold-HR (LTHR) → resting-HR (HRR) → sex-specific %HRmax.
   const snapshotProfile = (program.input_snapshot as { profile?: SnapshotProfile } | null)?.profile;
-  const hrModel = resolveHrModel({
-    age: snapshotProfile?.age,
-    sex: snapshotProfile?.sex,
-    maxHr: snapshotProfile?.maxHr,
-    restingHr: snapshotProfile?.restingHr,
-    thresholdHr: snapshotProfile?.thresholdHr,
-    customBands: toZoneBands(snapshotProfile?.hrZones),
-  });
+  const hrModel = hrModelFromProfile(snapshotProfile ?? {});
   const maxHR = hrModel.maxHR;
   const zoneBands: ZoneBands = hrModel.bands;
+  // Whether those bpm figures rest on an age estimate — quality runs say so, and
+  // ask for a resting HR, rather than presenting an estimate as a measurement.
+  const hrEstimated = hrIsEstimated(snapshotProfile ?? {});
 
   // Race pacing plan (Review #6): from the athlete's benchmarks + optional goal.
   const pacingPlan = computePacingPlan({
@@ -436,6 +423,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                       sport,
                       maxHR,
                       zoneBands,
+                      hrEstimated,
                       athleteName: snapshotProfile?.firstName ?? undefined,
                     }}
                     activity={activity}

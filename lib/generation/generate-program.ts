@@ -163,6 +163,7 @@ export async function generateProgram(
       a.catalog,
       a.liftingExp,
       a.equipment,
+      a.hr,
     );
     const verdict = verifyProgram(program);
     if (!verdict.ok) {

@@ -20,6 +20,8 @@ import {
   weekMileage,
   weekTimeByCategory,
 } from "@/lib/session-volume";
+import { hrTargetLines, withHrLines, stripHrLines } from "@/lib/engine/hr-targets";
+import { repsForWorkMiles } from "@/lib/engine/interval-structure";
 import {
   DAY_LABEL,
   MICRO_LABEL,
@@ -34,6 +36,7 @@ import {
   sessionZoneLabel,
   weekRangeLabel,
   zoneEntries,
+  DEFAULT_ZONE_BANDS,
   type ZoneBands,
 } from "./format";
 
@@ -65,21 +68,60 @@ function ZoneBars({ week }: { week: ProgramWeek }) {
   );
 }
 
+/**
+ * The athlete's resolved zone model as the session rows need it: bands, max HR,
+ * and whether those bpm figures are an age estimate.
+ */
+export interface SessionHrModel {
+  maxHR: number;
+  bands: ZoneBands;
+  estimated?: boolean;
+}
+
+/**
+ * A run's how-to with its HR lines computed from the athlete's CURRENT zone
+ * model rather than whatever was baked in at generation time.
+ *
+ * Generation stores the lines so they travel with the program (Strava text,
+ * shared cards, anywhere without a model to read). Here there IS a model, so the
+ * stored copy is dropped and rebuilt — which means a program generated before
+ * this shipped gains HR targets with no regeneration, and updating a resting HR
+ * updates every session ever generated. One set of numbers is visible, always
+ * the live one.
+ */
+function runHowTo(session: Extract<Session, { kind: "run" }>, hr?: SessionHrModel): string {
+  const base = session.description ?? "";
+  if (!hr) return stripHrLines(base);
+  // Reps follow the run's real work distance, exactly as `redescribeQualityRuns`
+  // derives them; the experience fallback only applies to a 0-mile placeholder,
+  // whose text was never rewritten either.
+  const reps = repsForWorkMiles(session.runType, session.distanceMiles, "intermediate") ?? 0;
+  return withHrLines(
+    base,
+    hrTargetLines({
+      runType: session.runType,
+      goalZone: session.goalZone,
+      model: { maxHR: hr.maxHR, bands: hr.bands },
+      reps,
+      estimated: hr.estimated,
+    }),
+  );
+}
+
 /** The details cell content for a session (distance / movements / elements + how-to description). */
-function SessionDetail({ session }: { session: Session }) {
+function SessionDetail({ session, hr }: { session: Session; hr?: SessionHrModel }) {
   if (session.kind === "run") {
     // Show TOTAL on-feet distance (work + warmup/cooldown + between-rep recovery),
     // the same figure the weekly "Running mileage" sums to — so a run's headline
     // matches what the athlete actually runs, not just the main-set reps.
     const total = sessionMiles(session);
     const miles = Number.isInteger(total) ? total : total.toFixed(1);
+    const howTo = runHowTo(session, hr);
     return (
       <div className="flex flex-col gap-1">
         <span className="text-zinc-500">{miles} mi</span>
-        {session.description && (
-          <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">
-            {session.description}
-          </p>
+        {howTo && (
+          <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">{howTo}</p>
         )}
       </div>
     );
@@ -183,6 +225,7 @@ function MobileDayList({
   startDate,
   maxHR,
   zoneBands,
+  hrEstimated,
   logging,
   athleteName,
   programName,
@@ -193,6 +236,8 @@ function MobileDayList({
   startDate: string;
   maxHR: number;
   zoneBands?: ZoneBands;
+  /** True when max HR is an age estimate — drives the "sharpen these" nudge. */
+  hrEstimated?: boolean;
   logging?: WeekLogging;
   athleteName?: string;
   /** Program name — shown in the Duravel tag on shared cards / Strava text. */
@@ -202,6 +247,11 @@ function MobileDayList({
   coach?: { programId: string };
 }) {
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
+  const hr: SessionHrModel = {
+    maxHR,
+    bands: zoneBands ?? DEFAULT_ZONE_BANDS,
+    estimated: hrEstimated,
+  };
   return (
     <ul className="flex flex-col divide-y divide-zinc-100 md:hidden">
       {DAY_ORDER.map((dayKey) => {
@@ -295,7 +345,7 @@ function MobileDayList({
                     </span>
                   </div>
                   <div className="mt-0.5 text-xs">
-                    <SessionDetail session={s} />
+                    <SessionDetail session={s} hr={hr} />
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
                     {sessionPace(s) !== "—" && <span>Pace {sessionPace(s)}</span>}
@@ -340,6 +390,7 @@ export default function WeekCard({
   startDate,
   maxHR,
   zoneBands,
+  hrEstimated,
   logging,
   athleteName,
   programName,
@@ -350,6 +401,8 @@ export default function WeekCard({
   startDate: string;
   maxHR: number;
   zoneBands?: ZoneBands;
+  /** True when max HR is an age estimate — drives the "sharpen these" nudge. */
+  hrEstimated?: boolean;
   logging?: WeekLogging;
   athleteName?: string;
   programName?: string | null;
@@ -357,6 +410,11 @@ export default function WeekCard({
   coach?: { programId: string };
 }) {
   const colors = PHASE_COLORS[week.phase];
+  const hr: SessionHrModel = {
+    maxHR,
+    bands: zoneBands ?? DEFAULT_ZONE_BANDS,
+    estimated: hrEstimated,
+  };
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   const hasLogs = (logging?.logs.length ?? 0) > 0;
   const time = weekTimeByCategory(week);
@@ -493,6 +551,7 @@ export default function WeekCard({
         startDate={startDate}
         maxHR={maxHR}
         zoneBands={zoneBands}
+        hrEstimated={hrEstimated}
         logging={logging}
         athleteName={athleteName}
         programName={programName}
@@ -600,7 +659,7 @@ export default function WeekCard({
                         {sessionTypeLabel(s)}
                       </span>
                       <div className="text-xs">
-                        <SessionDetail session={s} />
+                        <SessionDetail session={s} hr={hr} />
                       </div>
                       {coach && (
                         <div className="mt-1">

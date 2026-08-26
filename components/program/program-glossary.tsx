@@ -104,6 +104,20 @@ export default function ProgramGlossary() {
               Rest is computed from your paces, so a faster and a slower runner get the same
               stimulus rather than the same clock.
             </Term>
+            <Term q="Heart rate on interval and threshold reps">
+              Your reps carry a bpm band as well as a pace, computed from your own zone model. Treat
+              it as <strong>confirmation, not a pace-setter</strong>: heart rate lags the work that
+              produces it, so on a 3–4 minute rep it is still climbing through the first half and
+              rep 1 finishes below the band however well it was run. Reaching the band in the back
+              half is the target — chasing it earlier just means running the rep too fast.
+            </Term>
+            <Term q="Heart rate on the recovery jog">
+              The jog's LENGTH is already set by the work:rest ratio, so its heart-rate figure is a
+              <strong> ceiling, not a band to hold</strong> — your HR is falling the whole way. What
+              matters is whether it falls far enough: still above the top of Zone 2 when the next
+              rep starts means the reps are too fast, and it is the earliest warning you get that a
+              session is going to fall apart.
+            </Term>
             <Term q="Lift sessions (upper / lower / full)">
               Strength work, periodized to the phase. The full-body day is heavy/low-rep for max
               strength (which improves running economy without adding bulk); upper/lower days are

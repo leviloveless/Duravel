@@ -31,7 +31,12 @@ import type {
   WeekSkeleton,
 } from "@/lib/engine/types";
 import { DEFAULT_CAPS, type TrainingCaps } from "@/lib/engine/caps";
-import { runDescription, hybridDescription } from "@/lib/engine/run-descriptions";
+import {
+  runDescription,
+  hybridDescription,
+  type HrPrescription,
+} from "@/lib/engine/run-descriptions";
+import { hrIsEstimated, hrModelFromProfile } from "@/lib/zones";
 import { reconcileWeekVolume } from "./reconcile";
 import { longRunCapMiles } from "@/lib/engine/long-run-cap";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
@@ -257,14 +262,28 @@ function orderSessionsByPriority(sessions: Session[]): Session[] {
  *  Runs get their run-type protocol (Tasks #2); hybrid sessions get the
  *  compromised-running explanation (what it is, why it is programmed, how the
  *  station-to-run format builds it). */
+/**
+ * The HR prescription for ONE session: the athlete's model carried through, but
+ * anchored to THIS session's goal zone. The zone is the engine's (`slots.ts`
+ * `GOAL_ZONE` — interval 5, threshold 4), so the bpm line and the session's Zone
+ * chip are reading the same field and cannot drift apart.
+ */
+function hrFor(hr: HrPrescription | undefined, goalZone: number): HrPrescription | undefined {
+  return hr ? { ...hr, goalZone } : undefined;
+}
+
 function describeSessions(
   sessions: Session[],
   runningExp: ExperienceLevel,
   paces: RunPaces | null,
+  hr?: HrPrescription,
 ): Session[] {
   return sessions.map((s) => {
     if (s.kind === "run")
-      return { ...s, description: runDescription(s.runType, runningExp, paces) };
+      return {
+        ...s,
+        description: runDescription(s.runType, runningExp, paces, undefined, hrFor(hr, s.goalZone)),
+      };
     if (s.kind === "hybrid") return { ...s, description: hybridDescription() };
     return s;
   });
@@ -287,6 +306,7 @@ function redescribeQualityRuns(
   days: ProgramDay[],
   runningExp: ExperienceLevel,
   paces: RunPaces | null,
+  hr?: HrPrescription,
 ): void {
   for (const d of days) {
     for (const s of d.sessions) {
@@ -297,7 +317,7 @@ function redescribeQualityRuns(
       if (!(s.distanceMiles > 0)) continue;
       const reps = repsForWorkMiles(s.runType, s.distanceMiles, runningExp);
       if (reps === null) continue; // not a rep-based run — its text never drifts
-      s.description = runDescription(s.runType, runningExp, paces, reps);
+      s.description = runDescription(s.runType, runningExp, paces, reps, hrFor(hr, s.goalZone));
     }
   }
 }
@@ -467,6 +487,8 @@ function buildWeek(
   emphasis: readonly string[] = [],
   /** Ceiling on this week's long run — see `lib/engine/long-run-cap.ts`. */
   longRunCap?: number,
+  /** Resolved HR zone model, so quality runs can state bpm as well as pace. */
+  hr?: HrPrescription,
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -474,6 +496,7 @@ function buildWeek(
       orderSessionsByPriority(daySessions(d, aiWeek, issues, skel.weekNumber)),
       runningExp,
       paces,
+      hr,
     ),
   }));
 
@@ -530,7 +553,7 @@ function buildWeek(
   // its mileage target, so rewrite the rep-based ones from the distance each run
   // actually ended up with — otherwise the text prescribes a workout that is not
   // the workout the headline and the weekly total describe.
-  redescribeQualityRuns(days, runningExp, paces);
+  redescribeQualityRuns(days, runningExp, paces, hr);
 
   return {
     weekNumber: skel.weekNumber,
@@ -619,6 +642,8 @@ export interface AssembleArgs {
   division: Division;
   sex: StationSex;
   catalog: StationCatalog;
+  /** Resolved HR zone model + goal zone, for the quality runs' bpm lines. */
+  hr?: HrPrescription;
 }
 
 /** Build the complete `assembleProgram` argument set from a generation input.
@@ -656,6 +681,14 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
     sex: input.profile.sex === "female" ? "female" : "male",
     // Sport's station catalog (P0 rewire) — HYROX by default.
     catalog: getSport(input.sport).stationCatalog ?? HYROX_CATALOG,
+    // Best-available HR anchoring (custom bands → LTHR → HRR → %HRmax), the same
+    // cascade the program page and the AI prompt resolve. `goalZone` is a
+    // placeholder here: every session overrides it with its own (see `hrFor`).
+    hr: {
+      model: hrModelFromProfile(input.profile),
+      goalZone: 4,
+      estimated: hrIsEstimated(input.profile),
+    },
   };
 }
 
@@ -803,6 +836,7 @@ export function assembleProgram(
   catalog: StationCatalog = HYROX_CATALOG,
   liftingExp: ExperienceLevel = "intermediate",
   equipment?: readonly EquipmentKey[],
+  hr?: HrPrescription,
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
@@ -840,6 +874,7 @@ export function assembleProgram(
       skeleton.caps,
       emphasis,
       longRunCapMiles(longRunHistory) ?? undefined,
+      hr,
     );
     const patched = patchMovementPatterns(week);
     if (patched.length)

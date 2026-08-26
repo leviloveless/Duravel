@@ -188,8 +188,79 @@ export function resolveHrModel(input: HrModelInput): HrModel {
   return { method: "hrmax", maxHR, bands: ZONE_BANDS_HRMAX, label: METHOD_LABEL.hrmax };
 }
 
+/**
+ * The minimum a bpm computation needs: zone bounds as fractions of max HR, and
+ * the max HR they are fractions of. A full `HrModel` satisfies it, and so does
+ * the `{ maxHR, zoneBands }` pair the program page already threads through the
+ * view — so both paths compute bpm through the SAME function instead of each
+ * rounding their own way.
+ */
+export type HrBandSource = Pick<HrModel, "bands" | "maxHR">;
+
 /** The bpm range for a zone under a resolved model. */
-export function zoneBpmRange(model: HrModel, zone: Zone): { min: number; max: number } {
+export function zoneBpmRange(model: HrBandSource, zone: Zone): { min: number; max: number } {
   const b = model.bands[zone];
   return { min: Math.round(b.low * model.maxHR), max: Math.round(b.high * model.maxHR) };
+}
+
+/**
+ * A zone's bpm range as display text: `<146 bpm`, `165–176 bpm`, `176+ bpm`.
+ * An open-ended band reads open-ended — Zone 1 has no floor worth stating and
+ * Zone 5 no ceiling, and printing "0–146" or "176–195" implies both.
+ */
+export function formatZoneBpm(model: HrBandSource, zone: Zone): string {
+  const band = model.bands[zone];
+  if (!band) return "";
+  const { min, max } = zoneBpmRange(model, zone);
+  if (band.low <= 0) return `<${max} bpm`;
+  if (band.high >= 1) return `${min}+ bpm`;
+  return `${min}\u2013${max} bpm`;
+}
+
+/** Percent-based custom zones (as stored on the profile) → fraction bands. */
+export function zoneBandsFromPercents(
+  zones: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }> | undefined,
+): ZoneBandMap | undefined {
+  if (!zones) return undefined;
+  const b = (k: "z1" | "z2" | "z3" | "z4" | "z5") => ({
+    low: zones[k].low / 100,
+    high: zones[k].high / 100,
+  });
+  return { 1: b("z1"), 2: b("z2"), 3: b("z3"), 4: b("z4"), 5: b("z5") };
+}
+
+/** The profile fields the HR model is resolved from, however they reach us. */
+export interface HrProfileInput {
+  age?: number;
+  sex?: Sex;
+  maxHr?: number;
+  restingHr?: number;
+  thresholdHr?: number;
+  hrZones?: Record<"z1" | "z2" | "z3" | "z4" | "z5", { low: number; high: number }>;
+}
+
+/**
+ * Resolve an athlete's HR model straight from a profile — the same cascade as
+ * `resolveHrModel`, with the percent → fraction conversion for custom zones done
+ * once here instead of at each call site.
+ */
+export function hrModelFromProfile(p: HrProfileInput): HrModel {
+  return resolveHrModel({
+    age: p.age,
+    sex: p.sex,
+    maxHr: p.maxHr,
+    restingHr: p.restingHr,
+    thresholdHr: p.thresholdHr,
+    customBands: zoneBandsFromPercents(p.hrZones),
+  });
+}
+
+/**
+ * True when every bpm figure ultimately rests on an age/sex ESTIMATE of max HR
+ * and nothing the athlete supplied. This is what decides whether a prescription
+ * carries a "these are estimates" nudge — an athlete who has already entered a
+ * resting HR should not be told to go and enter one.
+ */
+export function hrIsEstimated(p: HrProfileInput): boolean {
+  return !p.maxHr && !p.restingHr && !p.thresholdHr && !p.hrZones;
 }

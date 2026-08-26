@@ -11,6 +11,7 @@
 
 import type { ExperienceLevel, RunType } from "./types";
 import { formatPace, METERS_PER_MILE, type RunPaces } from "./paces";
+import { hrTargetLines, withHrLines, type HrTargetInput } from "./hr-targets";
 import { HYBRID_WARMUP, HYBRID_COOLDOWN } from "@/lib/session-volume";
 import { RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
 
@@ -75,11 +76,36 @@ const THRESHOLD_REPS: Record<ExperienceLevel, number> = {
   advanced: 4,
 };
 
+/**
+ * What a session needs to state HR targets: the athlete's resolved zone model,
+ * the goal zone the engine assigned this session, and whether the numbers rest
+ * on an age estimate. Optional throughout — an athlete with no HR data on file
+ * still gets the full pace prescription, just without the bpm lines.
+ */
+export interface HrPrescription {
+  model: HrTargetInput["model"];
+  goalZone: number;
+  estimated?: boolean;
+}
+
+/** The HR lines for a rep-based run, or none when there is no model to read. */
+function hrLines(runType: RunType, reps: number, hr?: HrPrescription): string[] {
+  if (!hr) return [];
+  return hrTargetLines({
+    runType,
+    goalZone: hr.goalZone,
+    model: hr.model,
+    reps,
+    estimated: hr.estimated,
+  });
+}
+
 /** Interval (VO2max) how-to: N × 1km at I-pace, 1:1 rest (= the 1km work time). */
 function intervalDescription(
   exp: ExperienceLevel,
   paces: RunPaces | null,
   repsOverride?: number,
+  hr?: HrPrescription,
 ): string {
   const reps = repsOverride ?? INTERVAL_REPS[exp];
   // N reps have N-1 gaps: a single rep has no "between reps" at all, and saying
@@ -89,12 +115,15 @@ function intervalDescription(
     ? `${reps} x 1km at ${pacePair(paces.interval)}${gaps ? `, with ${formatPace(roundTo5(secPerKm(paces.interval)))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
     : `${reps} x 1km at your interval (I) pace${gaps ? " with an equal-time easy jog/rest between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.interval;
-  return [
-    overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
-    `Work: ${work}`,
-    overheadLine("Cooldown", cd, paces),
-    ...(gaps ? ["Work:rest 1:1 - your rest equals your work time."] : []),
-  ].join("\n");
+  return withHrLines(
+    [
+      overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
+      `Work: ${work}`,
+      overheadLine("Cooldown", cd, paces),
+      ...(gaps ? ["Work:rest 1:1 - your rest equals your work time."] : []),
+    ].join("\n"),
+    hrLines("interval", reps, hr),
+  );
 }
 
 /** Threshold how-to: N × 1 mile at T-pace, 2:1 rest (= half the 1-mile work time). */
@@ -102,6 +131,7 @@ function thresholdDescription(
   exp: ExperienceLevel,
   paces: RunPaces | null,
   repsOverride?: number,
+  hr?: HrPrescription,
 ): string {
   const reps = repsOverride ?? THRESHOLD_REPS[exp];
   const gaps = reps > 1;
@@ -109,12 +139,15 @@ function thresholdDescription(
     ? `${reps} x 1 mile at ${pacePair(paces.threshold)}${gaps ? `, with ${formatPace(roundTo5(paces.threshold / 2))} of easy JOGGING between reps at ${formatPace(paces.easy)}/mi (jog, not walk — keep moving so your heart rate stays up)` : ""}`
     : `${reps} x 1 mile at your threshold (T) pace${gaps ? " with an easy jog half the rep time between reps" : ""}`;
   const [wu, cd] = RUN_WARMUP_COOLDOWN.threshold;
-  return [
-    overheadLine("Warm up", wu, paces),
-    `Work: ${work}`,
-    overheadLine("Cooldown", cd, paces),
-    ...(gaps ? ["Work:rest 2:1 - your rest is half your work time."] : []),
-  ].join("\n");
+  return withHrLines(
+    [
+      overheadLine("Warm up", wu, paces),
+      `Work: ${work}`,
+      overheadLine("Cooldown", cd, paces),
+      ...(gaps ? ["Work:rest 2:1 - your rest is half your work time."] : []),
+    ].join("\n"),
+    hrLines("threshold", reps, hr),
+  );
 }
 
 /**
@@ -127,9 +160,10 @@ export function runDescription(
   runningExp: ExperienceLevel,
   paces: RunPaces | null = null,
   reps?: number,
+  hr?: HrPrescription,
 ): string {
-  if (runType === "interval") return intervalDescription(runningExp, paces, reps);
-  if (runType === "threshold") return thresholdDescription(runningExp, paces, reps);
+  if (runType === "interval") return intervalDescription(runningExp, paces, reps, hr);
+  if (runType === "threshold") return thresholdDescription(runningExp, paces, reps, hr);
   if (runType === "progression") {
     return runningExp === "beginner" ? PROGRESSION_BEGINNER : PROGRESSION_ADVANCED;
   }

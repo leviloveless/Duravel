@@ -10,6 +10,7 @@
 import type { ProgramWeek, Session } from "@/lib/schemas";
 import type { PhaseName } from "@/lib/engine/types";
 import { patternLabel, RUN_TYPE_LABEL } from "@/lib/session-labels";
+import { formatZoneBpm } from "@/lib/zones";
 import {
   sessionTiming,
   sessionMiles,
@@ -160,18 +161,17 @@ export const DEFAULT_ZONE_BANDS: ZoneBands = {
   5: { low: 0.93, high: 1.0 },
 };
 
-/** The bpm range for a zone given the user's max HR and (optional) custom bands. */
+/** The bpm range for a zone given the user's max HR and (optional) custom bands.
+ *  Delegates to `lib/zones` so the Zone chip and a session's HR prescription
+ *  round and phrase the same band identically. */
 export function zoneHrRange(
   zone: number,
   maxHR: number,
   bands: ZoneBands = DEFAULT_ZONE_BANDS,
 ): string {
-  const band = bands[zone as 1 | 2 | 3 | 4 | 5];
-  if (!band) return "";
-  const bpm = (p: number) => Math.round(p * maxHR);
-  if (band.low <= 0) return `<${bpm(band.high)} bpm`;
-  if (band.high >= 1) return `${bpm(band.low)}+ bpm`;
-  return `${bpm(band.low)}–${bpm(band.high)} bpm`;
+  const z = zone as 1 | 2 | 3 | 4 | 5;
+  if (!bands[z]) return "";
+  return formatZoneBpm({ maxHR, bands }, z);
 }
 
 /** Zone column with the user's applicable HR numbers, or "—" when N/A. */
