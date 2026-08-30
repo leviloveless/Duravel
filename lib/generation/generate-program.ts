@@ -164,6 +164,7 @@ export async function generateProgram(
       a.liftingExp,
       a.equipment,
       a.hr,
+      a.hybridExp,
     );
     const verdict = verifyProgram(program);
     if (!verdict.ok) {

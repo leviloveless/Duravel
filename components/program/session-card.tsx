@@ -4,6 +4,7 @@ import {
   elementLine,
   hybridHeader,
   movementLine,
+  sessionEmphasis,
   powerElementLine,
   raceLabel,
   runLine,
@@ -58,7 +59,7 @@ export default function SessionCard({ session }: { session: Session }) {
           <ul className="mt-0.5 flex flex-col gap-0.5">
             {session.movements.map((m, i) => (
               <li key={i} className="text-zinc-700">
-                {movementLine(m)}
+                {movementLine(m, sessionEmphasis(session))}
               </li>
             ))}
           </ul>

@@ -128,6 +128,12 @@ export const POWER_CUE = "move fast — end the set the moment bar speed drops";
  * point of the day is that it leaves the athlete fresher than it found them.
  */
 export const MAX_POWER_SESSION_SETS = 12;
+/* NOTE 2026-08-25: this still governs the intermediate state, but the finished
+ * power day no longer passes through it — `applyPowerStations` rewrites the day
+ * AFTER the set caps run, to a fixed 3-4 sets of each of the four stations (12-16
+ * total). That is deliberate: the cap is a budget for barbell volume, and a 15 m
+ * sled push is not a set of squats. If this constant is ever used to reason about
+ * what a power day actually ships, read `power-stations.ts` instead. */
 
 /** High-rep muscular endurance — the lunge pattern (HYROX sandbag lunges). */
 const ENDURANCE: Record<PhaseName, SchemeBase> = {
@@ -692,14 +698,17 @@ export const EXERCISE_AB: Record<LiftPattern, ABExercise> = {
  * `ensurePowerSessionPatterns` fixes both: a power session always trains at least
  * one of squat/hip_hinge, and is never left with nothing.
  */
-const POWER_LOWER_PATTERNS: readonly LiftPattern[] = ["squat", "hip_hinge"];
+const POWER_LOWER_PATTERNS: readonly LiftPattern[] = ["lunge", "horizontal_press"];
 
-/** The shape a power day falls back to when nothing usable survived filtering. */
+/** The shape a power day falls back to when nothing usable survived filtering.
+ *  The four stations' patterns, in station order — `applyPowerStations` will
+ *  rewrite them anyway, but an intermediate state that already looks like the
+ *  finished day keeps the pattern bookkeeping honest in between. */
 const POWER_DEFAULT_PATTERNS: readonly LiftPattern[] = [
-  "hip_hinge",
-  "squat",
-  "vertical_press",
+  "horizontal_press",
   "horizontal_pull",
+  "vertical_press",
+  "lunge",
 ];
 
 /**
@@ -755,29 +764,33 @@ export function ensurePowerSessionPatterns<
 export const POWER_EXERCISE: Record<LiftPattern, string[]> = {
   squat: ["Trap-Bar Jump", "Jump Squat", "Box Jump"],
   hip_hinge: ["Hang High Pull", "Kettlebell Swing", "Broad Jump"],
-  lunge: ["Dumbbell Split-Squat Jump", "Sandbag Over-Shoulder", "Split-Squat Jump"],
-  horizontal_press: ["Med-Ball Chest Pass", "Sled Push", "Plyo Push-Up"],
-  vertical_press: ["Push Press", "Wall Ball", "Med-Ball Overhead Throw"],
-  horizontal_pull: ["Explosive Barbell Row", "Med-Ball Rotational Throw", "Burpee Broad Jump"],
+  // The four station patterns name their station and nothing else — no A/B
+  // rotation, because the race does not rotate. See `power-stations.ts`.
+  lunge: ["Walking Lunges"],
+  horizontal_press: ["Sled Push"],
+  vertical_press: ["Wall Balls"],
+  horizontal_pull: ["Sled Pull"],
   vertical_pull: ["Kettlebell High Pull", "Explosive Lat Pulldown", "Explosive Pull-Up"],
   // chest_fly never reaches a power day — see POWER_PATTERNS.
   chest_fly: ["Med-Ball Chest Pass", "Plyo Push-Up"],
 };
 
 /**
- * Patterns a POWER day may train. `chest_fly` is deliberately absent: a
- * single-joint isolation movement has no explosive expression and no place on a
- * day built around whole-body rate of force development. Everything else has a
- * legitimate ballistic variant in `POWER_EXERCISE`.
+ * Patterns a POWER day may train.
+ *
+ * SUPERSEDED IN SUBSTANCE 2026-08-25: the power day is now the race's four loaded
+ * stations (`lib/engine/power-stations.ts`), so these are exactly those four
+ * stations' patterns — sled push, sled pull, wall balls, walking lunges. This
+ * list is what stops `patchMovementPatterns` and `spreadPatternSessions` routing
+ * a squat or a chest fly onto a day that `applyPowerStations` is about to
+ * overwrite; the squat, hinge and vertical pull now live on the other lift days,
+ * which is where the week's seven-pattern requirement collects them.
  */
 export const POWER_PATTERNS: readonly LiftPattern[] = [
-  "squat",
-  "hip_hinge",
   "lunge",
   "horizontal_press",
-  "vertical_press",
   "horizontal_pull",
-  "vertical_pull",
+  "vertical_press",
 ];
 
 /**

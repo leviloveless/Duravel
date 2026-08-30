@@ -290,6 +290,13 @@ export const RunSessionSchema = z.object({
   recoveryMin: z.number().nonnegative().optional(),
   /** Distance covered by that recovery jogging, at easy pace. */
   recoveryMiles: z.number().nonnegative().optional(),
+  /** Warm-up / cool-down MINUTES when they differ from this run type's default
+   *  (`RUN_WARMUP_COOLDOWN`). Set only where a small week could not otherwise
+   *  keep the long run its longest run — see `trimQualityOverhead` in
+   *  `lib/generation/reconcile.ts`. Absent = the type's default, which is what
+   *  every program generated before 2026-08-25 carries. */
+  warmupMin: z.number().nonnegative().optional(),
+  cooldownMin: z.number().nonnegative().optional(),
   goalZone: z.number().int().min(1).max(5),
   /** 1–2 sentence explanation of the run + how to execute it (Tasks #2).
    *  Attached deterministically during assembly, so it's optional on input. */

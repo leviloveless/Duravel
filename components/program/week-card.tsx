@@ -14,6 +14,7 @@ import CoachSessionEdit from "./coach-session-edit";
 import SessionShare from "./session-share";
 import { sessionSummary } from "@/lib/program/session-summary";
 import { sessionKey, type SyncActivitySummary } from "@/lib/wearables/suggest-data";
+import { plannedVsActual, deltaLabel } from "@/lib/program/planned-vs-actual";
 import {
   sessionMiles,
   weekCardioMinutes,
@@ -30,6 +31,7 @@ import {
   dayDateLabel,
   elementLine,
   movementLine,
+  sessionEmphasis,
   sessionPace,
   sessionTiming,
   sessionTypeLabel,
@@ -106,6 +108,77 @@ function runHowTo(session: Extract<Session, { kind: "run" }>, hr?: SessionHrMode
   );
 }
 
+/**
+ * PLANNED VS ACTUAL for a session whose synced workout is attached.
+ *
+ * Always visible rather than a click deep in the Sync modal (Levi, 2026-08-25) —
+ * the point of syncing is to see how the session went against how it was
+ * written, and a number you have to go looking for is a number you do not check.
+ * Planned stays first and unstyled; the actual is what draws the eye, with the
+ * difference beside it only when there IS one.
+ */
+function PlannedVsActual({
+  session,
+  log,
+  source,
+}: {
+  session: Session;
+  log: WorkoutLog | null;
+  source?: SyncActivitySummary | null;
+}) {
+  const cmp = plannedVsActual(session, log);
+  if (!cmp) return null;
+  const rows: { label: string; planned: string; actual: string; delta: string | null }[] = [];
+  if (cmp.distance) {
+    rows.push({
+      label: "Distance",
+      planned: `${cmp.distance.planned} mi`,
+      actual: `${cmp.distance.actual} mi`,
+      delta: deltaLabel(cmp.distance, " mi"),
+    });
+  }
+  if (cmp.time) {
+    rows.push({
+      label: "Time",
+      planned: `${cmp.time.planned} min`,
+      actual: `${cmp.time.actual} min`,
+      delta: deltaLabel(cmp.time, " min"),
+    });
+  }
+  if (!rows.length && cmp.avgHr === undefined) return null;
+
+  return (
+    <div className="mt-1.5 rounded-md border border-sky-100 bg-sky-50/60 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        <span className="font-semibold uppercase tracking-wide text-sky-800">Actual</span>
+        {rows.map((r) => (
+          <span key={r.label} className="tabular-nums text-zinc-600">
+            {r.label} <span className="font-medium text-zinc-900">{r.actual}</span>
+            <span className="text-zinc-400"> vs {r.planned} planned</span>
+            {r.delta && <span className="ml-1 font-medium text-sky-700">{r.delta}</span>}
+          </span>
+        ))}
+        {cmp.avgHr !== undefined && (
+          <span className="tabular-nums text-zinc-600">
+            Avg HR <span className="font-medium text-zinc-900">{cmp.avgHr} bpm</span>
+          </span>
+        )}
+        {source?.provider && (
+          <span className="text-zinc-400">from {formatProvider(source.provider)}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** "strava" → "Strava", "apple_health" → "Apple Health". */
+function formatProvider(provider: string): string {
+  return provider
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 /** The details cell content for a session (distance / movements / elements + how-to description). */
 function SessionDetail({ session, hr }: { session: Session; hr?: SessionHrModel }) {
   if (session.kind === "run") {
@@ -125,10 +198,13 @@ function SessionDetail({ session, hr }: { session: Session; hr?: SessionHrModel 
     );
   }
   if (session.kind === "lift") {
+    // The goal is in the session title now, so a line repeats it only when it
+    // DEPARTS from it.
+    const goal = sessionEmphasis(session);
     return (
       <ul className="mt-0.5 flex flex-col gap-0.5 text-zinc-500">
         {session.movements.map((m, i) => (
-          <li key={i}>{movementLine(m)}</li>
+          <li key={i}>{movementLine(m, goal)}</li>
         ))}
       </ul>
     );
@@ -349,6 +425,11 @@ function MobileDayList({
                       </span>
                     )}
                   </div>
+                  <PlannedVsActual
+                    session={s}
+                    log={log}
+                    source={linkFor(logging, week.weekNumber, dayKey, si)}
+                  />
                 </div>
               );
             })}
@@ -644,6 +725,11 @@ export default function WeekCard({
                       <div className="text-xs">
                         <SessionDetail session={s} hr={hr} />
                       </div>
+                      <PlannedVsActual
+                        session={s}
+                        log={log}
+                        source={linkFor(logging, week.weekNumber, dayKey, si)}
+                      />
                       {coach && (
                         <div className="mt-1">
                           <CoachSessionEdit

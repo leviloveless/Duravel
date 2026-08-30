@@ -37,6 +37,7 @@ import {
   type HrPrescription,
 } from "@/lib/engine/run-descriptions";
 import { hrModelFromProfile } from "@/lib/zones";
+import { applyPowerStations } from "@/lib/engine/power-stations";
 import { reconcileWeekVolume } from "./reconcile";
 import { longRunCapMiles } from "@/lib/engine/long-run-cap";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
@@ -551,6 +552,7 @@ function buildWeek(
     { avoidDays: restDayKeys, preferDays: ["sat", "sun"] },
     caps,
     longRunCap,
+    skel.phase,
   );
 
   // Descriptions were written BEFORE reconciliation, from the experience-level
@@ -638,6 +640,8 @@ export interface AssembleArgs {
   runningExp: ExperienceLevel;
   /** Drives the WEEKLY working-set target per movement pattern (6/8/10). */
   liftingExp: ExperienceLevel;
+  /** Scales the power day's station VOLUME — see `power-stations.ts`. */
+  hybridExp: ExperienceLevel;
   /** The athlete's kit. Drives exercise SUBSTITUTION — an empty/absent list means
    *  "assume a full gym", which keeps every existing program unchanged. */
   equipment?: EquipmentKey[];
@@ -660,6 +664,9 @@ export function assembleArgsFromInput(input: GenerationInput): AssembleArgs {
     // Weekly working sets per movement pattern come from LIFTING experience, not
     // running experience — the two are routinely different for a hybrid athlete.
     liftingExp: input.profile.liftingExp,
+    // The power day's stations scale off HYBRID experience: how much sled someone
+    // can move well is predicted by racing, not by their back squat.
+    hybridExp: input.profile.hybridExp,
     equipment: input.profile.equipment,
     // Best of mile / 5K / 10K → VDOT (Review #2), plus any athlete-entered pace
     // overrides — these must flow through so a manual pace drives the sized
@@ -838,6 +845,7 @@ export function assembleProgram(
   liftingExp: ExperienceLevel = "intermediate",
   equipment?: readonly EquipmentKey[],
   hr?: HrPrescription,
+  hybridExp: ExperienceLevel = "intermediate",
 ): AssembleResult {
   const issues: string[] = [];
   const aiByWeek = indexAiWeeks(chunks);
@@ -883,6 +891,11 @@ export function assembleProgram(
     // Review #4: periodized, heavy/low-rep-biased strength with plyometrics,
     // applied deterministically over whatever the AI returned.
     applyStrengthSchemes(week, benchmarks, weightUnit, liftingExp, equipment);
+    // The power day is the race's four loaded stations at 150% of competition
+    // weight (Levi, 2026-08-25). Deliberately AFTER the schemes: that pass owns a
+    // weekly per-pattern set budget built around barbell volume, and a 15 m sled
+    // push is not a set of squats.
+    applyPowerStations(week, { division, sex, hybridExp, weightUnit, catalog });
     // Review #6: progress hybrid station prescriptions toward race spec.
     applyStationProgression(week, division, sex, catalog, emphasis);
     longRunHistory.push(weekLongRunMiles(week));

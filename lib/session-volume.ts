@@ -98,9 +98,32 @@ export interface SessionTiming {
  * Estimated session length, split into warmup / work / cooldown / total.
  * Deterministic (no AI). A race session returns zeros (event day).
  */
+/**
+ * THIS run's warm-up and cool-down minutes — its own, when it carries them, else
+ * the default for its type.
+ *
+ * A per-session override exists so a small week can shorten a quality session's
+ * overhead rather than let it dominate the week (Levi, 2026-08-25). Everything
+ * that measures a run — its timing, its mileage, its prescription text — must go
+ * through here, or the athlete is told to warm up for fifteen minutes while the
+ * week counts ten.
+ */
+export function runOverheadFor(session: RunSession): [number, number] {
+  const [w, c] = RUN_WARMUP_COOLDOWN[session.runType];
+  return [session.warmupMin ?? w, session.cooldownMin ?? c];
+}
+
+/** Warm-up + cool-down miles for THIS run, honouring any per-session override. */
+export function runOverheadMilesFor(session: RunSession, easyPaceMinPerMile: number): number {
+  if (!Number.isFinite(easyPaceMinPerMile) || easyPaceMinPerMile <= 0) return 0;
+  const [w, c] = runOverheadFor(session);
+  const leg = (min: number) => Math.round((min / easyPaceMinPerMile) * 10) / 10;
+  return Math.round((leg(w) + leg(c)) * 10) / 10;
+}
+
 export function sessionTiming(session: Session): SessionTiming {
   if (session.kind === "run") {
-    const [warmup, cooldown] = RUN_WARMUP_COOLDOWN[session.runType];
+    const [warmup, cooldown] = runOverheadFor(session);
     // The between-rep recovery is part of the main set — you are on your feet for
     // it — so it belongs in `work`. Leaving it out made a 45-minute interval
     // session really take 60 and under-counted the week's cardio every time.

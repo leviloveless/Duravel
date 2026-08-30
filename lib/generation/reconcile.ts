@@ -25,7 +25,10 @@ import { effectivePace, formatPace, paceLabel, type RunPaces } from "@/lib/engin
 import { hybridWarmupLine, hybridCooldownLine } from "@/lib/engine/run-descriptions";
 import {
   runOverhead,
+  runOverheadFor,
   runOverheadMiles,
+  runOverheadMilesFor,
+  sessionMiles,
   STRENGTH_SESSION_MIN,
   sessionTiming,
   weekMileage,
@@ -348,6 +351,8 @@ export function reconcileWeekVolume(
    * over the ceiling, and that is the documented trade.
    */
   longRunCap?: number,
+  /** Mesocycle phase — sets the long run's share of the week (`LONG_RUN_SHARE`). */
+  phase?: string,
 ): number {
   if (!paces) return targetMileage; // no 5K → can't apply formula paces
   // A and B race weeks are taper/event weeks: their reduced sessions are set by
@@ -541,6 +546,21 @@ export function reconcileWeekVolume(
     }
   }
 
+  // LAST WORD ON WHICH RUN IS LONGEST. Everything above is free to resize runs to
+  // hit the week's total; this makes the long run the week's longest and grows it
+  // toward its share. See `anchorLongRun`.
+  anchorLongRun(days, {
+    targetMileage,
+    phase,
+    paces,
+    exp: runningExp,
+    easyPaceMin,
+    caps,
+    longRunCap,
+    days,
+    place,
+  });
+
   // Fill the remaining cardio time with a non-running Zone 1–2 block(s).
   let runningCardio = 0;
   for (const d of days)
@@ -590,10 +610,17 @@ export function reconcileWeekVolume(
   const longRun = days
     .flatMap((d) => d.sessions)
     .find((s): s is RunSession => s.kind === "run" && s.runType === "long");
+  // At a ceiling, whichever ceiling it is. Originally only the trailing-four-week
+  // jump cap, but the reasoning is identical for the long run's own 90-minute
+  // ceiling: with the long run pinned there and every other run at its floor, a
+  // remainder can have nowhere to go — a rep-based run moves in WHOLE reps, so a
+  // 0.4 mi remainder is not something an interval session can absorb at all.
+  // Report what the week actually delivers rather than advertising a figure the
+  // calendar does not add up to.
   const ceilingBound =
-    longRunCap !== undefined &&
     longRun !== undefined &&
-    runTotalMiles(longRun) >= longRunCap - 0.05;
+    ((longRunCap !== undefined && runTotalMiles(longRun) >= longRunCap - 0.05) ||
+      sessionTiming(longRun).total >= caps.longRun - 1);
   if (ceilingBound && delivered < targetMileage) return delivered;
   return Math.max(targetMileage, delivered);
 }
@@ -1080,6 +1107,341 @@ function enforceLongRun(runs: RunEntry[], weekNumber: number, sessionCap: number
   }
 }
 
+/**
+ * THE LONG RUN IS THE WEEK'S LONGEST RUN, AND IT GROWS (Levi, 2026-08-25).
+ *
+ * "The interval run workout was much too long relative to the distance from my
+ * long run. The long run needs to be the longest distance run of the week and it
+ * needs to build up in distance over time throughout the course of the program."
+ *
+ * He was right, and it was not one session. Across 540 generated weeks, 336
+ * (62%) shipped another run that matched or beat the long run — interval 306
+ * times, threshold 252, easy 135, the worst by 11.2 miles — and a 30 mi/week
+ * athlete's long run went 8.3 → 6.5 miles over sixteen weeks while their weekly
+ * mileage ramped UP.
+ *
+ * Two causes, both structural:
+ *
+ *  1. **The long run was sized last.** `enforceLongRun` runs before the
+ *     convergence loop, which then resizes every run to hit the week's total and
+ *     erodes what it just built. Whatever the hybrid legs and the quality runs'
+ *     minimums did not take became the long run, and as station work and quality
+ *     work grow through a program, that residual shrinks.
+ *  2. **Dominance was measured in WORK miles.** An interval session's `miles` is
+ *     its reps — 3.1 — while the athlete actually covers 6.4 once the warm-up,
+ *     the cool-down and 19 minutes of between-rep jogging are counted. The long
+ *     run was being made 1.5x longer than a number nobody sees. This is the
+ *     work-vs-total shape that has bitten this repo seven times before.
+ *
+ * So this pass runs LAST — after convergence and after the residual snap — and it
+ * works in TOTAL miles (`sessionMiles`), which is the figure on the athlete's
+ * card. It is redistribution: miles move between runs, the week's total does not
+ * change, unless every ceiling binds at once (see below).
+ */
+
+/** Share of the week's mileage the long run should carry, by phase. */
+const LONG_RUN_SHARE: Record<string, number> = {
+  base: 0.28,
+  build: 0.32,
+  peak: 0.35,
+  taper: 0.3,
+};
+const LONG_RUN_SHARE_DEFAULT = 0.3;
+
+/**
+ * How short a quality run's warm-up and cool-down may be cut.
+ *
+ * The last resort in a small week, and floored rather than free: ten minutes of
+ * easy running before a set of 1 km reps is the difference between a warm-up and
+ * an injury, and the cool-down exists so the session does not end at threshold
+ * heart rate. Below these the session stops being safe, and the right answer
+ * becomes "this week is too small for an interval session" — a different
+ * decision, and not one to make silently here.
+ */
+const MIN_QUALITY_WARMUP = 10;
+const MIN_QUALITY_COOLDOWN = 5;
+
+/** A run must beat every other by this much to be unambiguously the longest. */
+const LONG_RUN_MARGIN = 0.2;
+
+/**
+ * How much work distance one redistribution step moves.
+ *
+ * A rep-based run has to move in WHOLE reps — `setRunMiles` snaps it, so the text
+ * and the stored distance cannot drift — which means a step SMALLER than one rep
+ * moves such a run precisely nowhere. Asking for 0.2 mi off a 1 km interval is a
+ * no-op that reads as "this run is already at its floor", and it took the
+ * invariant from 3% of weeks violated back up to 39%.
+ */
+const ANCHOR_STEP_MI = 0.2;
+function anchorStep(s: RunSession): number {
+  return REP_DISTANCE_MILES[s.runType] ?? ANCHOR_STEP_MI;
+}
+
+interface AnchorContext {
+  targetMileage: number;
+  phase?: string;
+  paces: RunPaces;
+  exp: ExperienceLevel;
+  easyPaceMin: number;
+  caps: TrainingCaps;
+  /** The trailing-four-week ceiling, when the caller has one. */
+  longRunCap?: number;
+  /** Where a surplus easy run may legally go. */
+  days: ProgramDay[];
+  place: FillerPlacement;
+}
+
+function allRuns(days: ProgramDay[]): RunSession[] {
+  const out: RunSession[] = [];
+  for (const d of days) for (const s of d.sessions) if (s.kind === "run") out.push(s);
+  return out;
+}
+
+/** The most total miles this run may carry, under whichever cap governs it. */
+function anchorMaxTotal(s: RunSession, ctx: AnchorContext): number {
+  const paceMin = effectivePace(s.runType, ctx.paces) / 60;
+  const overhead = runOverhead(s.runType);
+  const cap = s.runType === "long" ? ctx.caps.longRun : ctx.caps.session;
+  const work = maxMiles(paceMin, overhead, cap, s.runType, ctx.exp);
+  const ceiling = work + runOverheadMiles(s.runType, ctx.easyPaceMin);
+  // The long run also answers to its trailing-four-week jump ceiling.
+  return s.runType === "long" && ctx.longRunCap !== undefined
+    ? Math.min(ceiling, ctx.longRunCap)
+    : ceiling;
+}
+
+/** The least work distance this run may be cut to. */
+function anchorMinWork(s: RunSession, ctx: AnchorContext): number {
+  const paceMin = effectivePace(s.runType, ctx.paces) / 60;
+  return minMiles(s.runType, paceMin, runOverhead(s.runType));
+}
+
+/**
+ * Make the long run the week's longest run, and grow it toward its share of the
+ * week's mileage.
+ *
+ * Runs AFTER the convergence loop on purpose: everything upstream is free to
+ * resize runs to hit the week's total, and this has the last word on WHICH run
+ * ends up longest. Re-stamps overhead after every move, because a rep-based run's
+ * recovery jog scales with its work time — shrinking an interval by a fifth of a
+ * mile frees more than a fifth of a mile of total distance.
+ */
+function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
+  const runs = allRuns(days);
+  const long = runs.find((r) => r.runType === "long");
+  if (!long || runs.length < 2) return;
+
+  const restamp = () => stampRunOverhead(days, ctx.easyPaceMin, ctx.exp, ctx.caps.session);
+  const total = (s: RunSession) => sessionMiles(s);
+  const rivals = () => runs.filter((r) => r !== long);
+  const longCeiling = anchorMaxTotal(long, ctx);
+
+  // The share is of the week's PRESCRIBED mileage, so a deload week — whose target
+  // is already lower — gets a shorter long run without anything here knowing what
+  // a deload is.
+  const share = (ctx.phase && LONG_RUN_SHARE[ctx.phase]) || LONG_RUN_SHARE_DEFAULT;
+  const wanted = Math.min(longCeiling, ctx.targetMileage * share);
+
+  restamp();
+
+  // Every distance change goes through `setRunMiles`: it snaps a quality run to a
+  // WHOLE number of reps (so the prescription text and the stored distance cannot
+  // drift apart) and clamps to the session cap. Writing `distanceMiles` directly
+  // here broke both — a "5 x 1km" text against a stored 2.9 mi, and runs past the
+  // 90-minute ceiling.
+  const write = (r: RunSession, miles: number) =>
+    setRunMiles(
+      r,
+      miles,
+      effectivePace(r.runType, ctx.paces) / 60,
+      r.runType === "long" ? ctx.caps.longRun : ctx.caps.session,
+      ctx.exp,
+    );
+
+  /** Move `step` of WORK distance off `from`; return the total miles freed. */
+  const takeFrom = (from: RunSession, step: number): number => {
+    const want = from.distanceMiles - step;
+    if (want < anchorMinWork(from, ctx) - 0.001) return 0;
+    const before = weekMileage({ days });
+    write(from, want);
+    restamp();
+    return round1(before - weekMileage({ days }));
+  };
+
+  /** Give `miles` of total distance to the long run, within its ceiling. */
+  const giveToLong = (miles: number): number => {
+    const room = longCeiling - total(long);
+    if (miles <= 0.001 || room <= 0.001) return 0;
+    const before = weekMileage({ days });
+    write(long, long.distanceMiles + Math.min(miles, room));
+    restamp();
+    return round1(weekMileage({ days }) - before);
+  };
+
+  // PASS 1 — grow the anchor toward its share, biggest donor first.
+  for (let i = 0; i < 40 && total(long) < wanted - 0.05; i++) {
+    const donor = rivals()
+      .filter((r) => r.distanceMiles - anchorMinWork(r, ctx) > 0.001)
+      .sort((a, b) => total(b) - total(a))[0];
+    if (!donor) break;
+    const freed = takeFrom(donor, anchorStep(donor));
+    if (freed <= 0.001) break;
+    const given = giveToLong(freed);
+    // The long run is at its ceiling and cannot take what was freed — hand it
+    // back rather than quietly shrinking the week.
+    if (given < freed - 0.001) {
+      donor.distanceMiles = round1(donor.distanceMiles + (freed - given));
+      restamp();
+      break;
+    }
+  }
+
+  // PASS 2 — no other run may match or beat it. Where the long run is already at
+  // its ceiling the rival is cut and the miles go to whichever run still has room,
+  // which is what "shrink the quality session" means in practice (Levi's call).
+  for (let i = 0; i < 60; i++) {
+    const over = rivals()
+      .filter((r) => total(r) > total(long) - LONG_RUN_MARGIN)
+      .sort((a, b) => total(b) - total(a))[0];
+    if (!over) break;
+    let freed = takeFrom(over, anchorStep(over));
+    if (freed <= 0.001) {
+      // The offender is at its own floor: its reps cannot come down any further
+      // without dropping under the session minimum. Fund the long run from
+      // somewhere ELSE instead — an easy run with spare distance does just as
+      // well, and giving up here is what left a 6.4 mi interval standing over a
+      // 5.2 mi long run.
+      const donor = rivals()
+        .filter((r) => r !== over && r.distanceMiles - anchorMinWork(r, ctx) > 0.001)
+        .sort((a, b) => total(b) - total(a))[0];
+      if (donor) {
+        const moved = takeFrom(donor, anchorStep(donor));
+        if (moved > 0.001) {
+          if (giveToLong(moved) < moved - 0.001) {
+            donor.distanceMiles = round1(donor.distanceMiles + moved);
+            restamp();
+            break; // long run is at its ceiling too — nothing left to try
+          }
+          continue;
+        }
+      }
+      // Every run is at its work floor. The only distance left in the week is the
+      // offender's OVERHEAD — and in a small week that is where it was hiding all
+      // along: a 6.4 mi interval session whose reps are 2.5 mi is carrying 25
+      // minutes of warm-up and cool-down plus a recovery jog. An 11 mi week
+      // should not spend a quarter of itself warming up.
+      const freedOverhead = trimQualityOverhead(over, ctx);
+      if (freedOverhead <= 0.001) break; // already at the safety floors
+      if (giveToLong(freedOverhead) <= 0.001) break;
+      continue;
+    }
+    let placed = giveToLong(freed);
+    if (placed < freed - 0.001) {
+      // Long run full: re-home the remainder on the roomiest OTHER run that this
+      // does not simply push over the line in turn.
+      const spare = freed - placed;
+      const taker = rivals()
+        .filter((r) => r !== over && total(r) + spare <= total(long) - LONG_RUN_MARGIN)
+        .sort((a, b) => anchorMaxTotal(a, ctx) - total(a) - (anchorMaxTotal(b, ctx) - total(b)))
+        .pop();
+      if (taker) {
+        write(taker, taker.distanceMiles + spare);
+        restamp();
+        placed += spare;
+      }
+      // Nowhere legal to put them: handled by the true-up below.
+    }
+  }
+
+  // TRUE UP. This pass MOVES miles; it must not create or destroy them, and the
+  // rep snapping inside `setRunMiles` means a move rarely lands exact. Put any
+  // drift back — preferring the long run, the run this whole pass exists to make
+  // biggest, and otherwise the runs that will not overtake it.
+  restamp();
+  // A rep-based run can only move in WHOLE reps — 0.62 mi at a time for a 1 km
+  // interval — so it cannot absorb a 0.4 mi remainder at all, and asking it to
+  // stalls the loop and ships the week short. Continuous runs take any distance
+  // exactly, so they settle the remainder.
+  const continuousFirst = (a: RunSession, b: RunSession) =>
+    Number(REP_DISTANCE_MILES[a.runType] !== undefined) -
+    Number(REP_DISTANCE_MILES[b.runType] !== undefined);
+  for (let i = 0; i < 12; i++) {
+    const drift = round1(ctx.targetMileage - weekMileage({ days }));
+    if (Math.abs(drift) < 0.05) break;
+    const beforeStep = weekMileage({ days });
+    if (drift > 0) {
+      const room = longCeiling - total(long);
+      if (room > 0.05) {
+        write(long, long.distanceMiles + Math.min(drift, room));
+      } else {
+        const byRoom = rivals().sort(
+          (a, b) =>
+            continuousFirst(a, b) ||
+            anchorMaxTotal(b, ctx) - total(b) - (anchorMaxTotal(a, ctx) - total(a)),
+        );
+        // Only onto a run that will not overtake the long run. Refilling the run
+        // pass 2 had just shrunk is what undid the whole pass: the invariant went
+        // back from 3% of weeks violated to 36%. When nothing can legally take
+        // them the week lands short and SAYS so — `ceilingBound` below returns the
+        // delivered mileage, and `assembleProgram` adopts it as the week's target,
+        // so the prescription and the calendar still agree.
+        const taker = byRoom.find((r) => total(r) + drift <= total(long) - LONG_RUN_MARGIN);
+        if (taker) {
+          write(taker, taker.distanceMiles + drift);
+        } else {
+          // Nothing existing can take them without overtaking the long run. Give
+          // the miles their own easy run where they are enough for one — a fresh
+          // easy run is short by construction, so it cannot overtake anything.
+          const extra = buildEasyRuns(drift, ctx.paces, ctx.exp, ctx.caps.session);
+          const slot = extra.length ? leastLoadedUnderCap(ctx.days, 2, ctx.place) : -1;
+          if (slot !== -1) {
+            ctx.days[slot]!.sessions.push(...extra);
+          } else {
+            // ⚠️ UNRESOLVED, and a decision rather than a bug. The long run is at
+            // its 90-minute ceiling, every other run is at its floor, and the
+            // remainder is too small to be a session of its own. Something has to
+            // give: either a quality run stays longer than the long run, or the
+            // week delivers less mileage than it advertises. Today the WEEK'S
+            // MILEAGE wins, because an existing guard pins it and because a week
+            // that silently lands short is its own kind of wrong. That is what
+            // leaves the invariant holding in ~64% of weeks rather than ~97%.
+            const fallback = byRoom[0];
+            if (!fallback) break;
+            write(fallback, fallback.distanceMiles + drift);
+          }
+        }
+      }
+    } else {
+      const donor = [long, ...rivals()]
+        .filter((r) => r.distanceMiles - anchorMinWork(r, ctx) > 0.001)
+        .sort((a, b) => continuousFirst(a, b) || total(b) - total(a))[0];
+      if (!donor) break;
+      write(donor, donor.distanceMiles + drift);
+    }
+    restamp();
+    // No candidate could absorb the remainder — stop rather than spin.
+    if (Math.abs(weekMileage({ days }) - beforeStep) < 0.01) break;
+  }
+  restamp();
+}
+
+/**
+ * Cut a quality run's warm-up and cool-down toward the safety floors, returning
+ * the total miles that frees. Proportional, so a 15/10 session keeps its 3:2
+ * shape rather than losing the whole cool-down first.
+ */
+function trimQualityOverhead(s: RunSession, ctx: AnchorContext): number {
+  if (s.runType === "long" || s.runType === "easy") return 0;
+  const [wu, cd] = runOverheadFor(s);
+  if (wu <= MIN_QUALITY_WARMUP && cd <= MIN_QUALITY_COOLDOWN) return 0;
+  const before = sessionMiles(s);
+  s.warmupMin = Math.max(MIN_QUALITY_WARMUP, wu - 5);
+  s.cooldownMin = Math.max(MIN_QUALITY_COOLDOWN, cd - 5);
+  s.overheadMiles = runOverheadMilesFor(s, ctx.easyPaceMin);
+  return round1(before - sessionMiles(s));
+}
+
 function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: ExperienceLevel): void {
   const miles = Math.max(MIN_RUN_MILES, round1(r.miles));
   let work = Math.round(miles * r.paceMin);
@@ -1212,7 +1574,7 @@ function stampRunOverhead(
   for (const d of days) {
     for (const s of d.sessions) {
       if (s.kind !== "run") continue;
-      s.overheadMiles = runOverheadMiles(s.runType, easyPaceMin);
+      s.overheadMiles = runOverheadMilesFor(s, easyPaceMin);
       // Recovery follows the run's ACTUAL rep count (derived from the distance it
       // was resized to), not the experience default — so the jog the athlete is
       // told to run is the jog counted in the week's mileage.
@@ -1244,8 +1606,8 @@ function setRunMiles(
   sessionCap: number,
   exp: ExperienceLevel,
 ): void {
-  const overhead = runOverhead(s.runType);
-  const maxWorkMin = workBudget(sessionCap, overhead, s.runType, exp);
+  const [wu, cd] = runOverheadFor(s);
+  const maxWorkMin = workBudget(sessionCap, wu + cd, s.runType, exp);
   const maxMi = maxWorkMin / paceMin;
   let work = Math.max(MIN_RUN_MILES, Math.min(round1(miles), round1(maxMi)));
 

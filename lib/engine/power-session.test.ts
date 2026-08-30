@@ -132,26 +132,33 @@ describe("the power day is short", () => {
 });
 
 describe("a power session is always trainable and lower-body inclusive", () => {
+  // SUPERSEDED IN SUBSTANCE 2026-08-25. The old rule was "a power day must carry
+  // a squat or a hinge", because the day was ballistic barbell work and could
+  // otherwise ship as four upper-body patterns. The day is now the race's four
+  // loaded stations, and its lower-body drive is the SLED PUSH and the WALKING
+  // LUNGES — a squat would be the thing that does not belong. The guarantee that
+  // survives is the one that mattered: never empty, never upper-body-only.
   const mk = (patterns: LiftPattern[]) => ({
     liftType: "power" as const,
     movements: patterns.map((pattern) => ({ pattern, sets: 3, repRange: "3" })),
   });
+  const LOWER: LiftPattern[] = ["lunge", "horizontal_press"];
+  const hasLower = (s: { movements: { pattern: LiftPattern }[] }) =>
+    s.movements.some((m) => LOWER.includes(m.pattern));
 
-  it("adds a squat or hinge to an all-upper power day", () => {
-    // Levi's live Wednesday: Med-Ball Chest Pass / Kettlebell High Pull /
-    // Push Press / Explosive Barbell Row — four upper patterns, no jump, no swing.
-    const s = mk(["horizontal_press", "vertical_pull", "vertical_press", "horizontal_pull"]);
+  it("adds leg drive to an all-upper power day", () => {
+    const s = mk(["vertical_pull", "vertical_press", "horizontal_pull"]);
     ensurePowerSessionPatterns(s, 1);
-    expect(s.movements.some((m) => m.pattern === "squat" || m.pattern === "hip_hinge")).toBe(true);
+    expect(hasLower(s)).toBe(true);
   });
 
-  it("puts the lower-body work FIRST — it wants the freshest nervous system", () => {
+  it("puts the leg drive FIRST — it wants the freshest nervous system", () => {
     const s = mk(["vertical_press", "horizontal_pull"]);
     ensurePowerSessionPatterns(s, 1);
-    expect(["squat", "hip_hinge"]).toContain(s.movements[0]!.pattern);
+    expect(LOWER).toContain(s.movements[0]!.pattern);
   });
 
-  it("alternates which lower pattern it adds across weeks", () => {
+  it("alternates which one it adds across weeks", () => {
     const a = mk(["vertical_press"]);
     const b = mk(["vertical_press"]);
     ensurePowerSessionPatterns(a, 1);
@@ -163,11 +170,11 @@ describe("a power session is always trainable and lower-body inclusive", () => {
     const s = mk([]);
     ensurePowerSessionPatterns(s, 1);
     expect(s.movements.length).toBeGreaterThan(0);
-    expect(s.movements.some((m) => m.pattern === "squat" || m.pattern === "hip_hinge")).toBe(true);
+    expect(hasLower(s)).toBe(true);
   });
 
-  it("leaves a session that already has lower-body work alone", () => {
-    const s = mk(["squat", "vertical_press"]);
+  it("leaves a session that already has leg drive alone", () => {
+    const s = mk(["lunge", "vertical_press"]);
     const before = s.movements.map((m) => m.pattern);
     ensurePowerSessionPatterns(s, 1);
     expect(s.movements.map((m) => m.pattern)).toEqual(before);

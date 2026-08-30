@@ -9,7 +9,7 @@
 
 import type { ProgramWeek, Session } from "@/lib/schemas";
 import type { PhaseName } from "@/lib/engine/types";
-import { patternLabel, RUN_TYPE_LABEL } from "@/lib/session-labels";
+import { patternLabel, RUN_TYPE_LABEL, EMPHASIS_LABEL } from "@/lib/session-labels";
 import { formatZoneBpm } from "@/lib/zones";
 import {
   sessionTiming,
@@ -32,6 +32,8 @@ export {
   LIFT_TYPE_LABEL,
   patternLabel,
   sessionTypeLabel,
+  sessionEmphasis,
+  EMPHASIS_LABEL,
 } from "@/lib/session-labels";
 export type { SessionTiming };
 
@@ -84,19 +86,29 @@ export function runLine(s: RunSession): string {
   return `${runLabel} — ${Math.round(s.durationMin)} min @ ${s.paceMinMile} min/mile — ${miles} miles — Goal HR: Zone ${s.goalZone}`;
 }
 
-const EMPHASIS_LABEL: Record<string, string> = {
-  max_strength: "Max strength",
-  strength: "Strength",
-  endurance: "Muscular endurance",
-};
-
-/** `Back Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR) · Max strength`.
- *  Leads with the specific A/B exercise (Tasks #10) when present, else the
- *  movement pattern (programs generated before exercises were named). */
-export function movementLine(m: Movement): string {
-  let line = `${m.exercise ?? patternLabel(m.pattern)} — ${m.sets} sets × ${enDash(m.repRange)} reps`;
+/**
+ * `Back Squat — 4 sets × 3 reps — 285 lb (~88% 1RM · 1 RIR)`.
+ *
+ * Leads with the specific A/B exercise (Tasks #10) when present, else the movement
+ * pattern (programs generated before exercises were named).
+ *
+ * The goal label now lives in the session TITLE (Levi, 2026-08-25), so a line
+ * names its goal only when it DEPARTS from the session's — the 15-rep lunge under
+ * a Max strength title, which would otherwise read as a mistake. Pass
+ * `sessionGoal` from `sessionEmphasis(session)`; omit it and every line keeps its
+ * own label, which is what a caller with no session context should do.
+ *
+ * A rep range that isn't a number — "20 m" for a sled push — drops the word
+ * "reps": "Sled Push — 4 sets × 20 m".
+ */
+export function movementLine(m: Movement, sessionGoal?: string): string {
+  const reps = enDash(m.repRange);
+  const unitless = /^[\d–-]+$/.test(reps);
+  let line = `${m.exercise ?? patternLabel(m.pattern)} — ${m.sets} sets × ${reps}${unitless ? " reps" : ""}`;
   if (m.suggestedWeight) line += ` — ${m.suggestedWeight}`;
-  if (m.emphasis && EMPHASIS_LABEL[m.emphasis]) line += ` · ${EMPHASIS_LABEL[m.emphasis]}`;
+  if (m.emphasis && m.emphasis !== sessionGoal && EMPHASIS_LABEL[m.emphasis]) {
+    line += ` · ${EMPHASIS_LABEL[m.emphasis]}`;
+  }
   return line;
 }
 
