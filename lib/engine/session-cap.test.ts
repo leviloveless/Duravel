@@ -123,10 +123,10 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
       "advanced",
       "advanced",
       undefined,
-      h20_30(3),
+      h20_30(bandCardioSlots("h20_30")),
       PEAK_MILES,
     );
-    expect(total(p)).toBe(11); // 6 runs + 4 lifts + 1 hybrid — three slots spare
+    expect(total(p)).toBe(10); // 5 runs + 4 lifts + 1 hybrid — four slots spare
     expect(14 - total(p)).toBe(bandCardioSlots("h20_30"));
   });
 
@@ -145,17 +145,27 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
     expect(total(p)).toBe(13);
   });
 
-  it("delivers the band's cardio minutes end to end, without losing the mileage", () => {
+  it("delivers the band's cardio minutes end to end, at the agreed mileage cost", () => {
     // The measurement that started this, run as a test. Deterministic: empty AI
     // chunks, so it is the engine and the reconciler alone.
     //
-    // Peak week BEFORE: 1560 prescribed, 580 delivered (37%), mileage exact.
-    // Peak week AFTER:  1560 prescribed, 904 delivered (58%), mileage exact.
+    // Peak week (w11), 1560 prescribed:
+    //   no reserve   580 delivered (37%), mileage exact
+    //   three slots  904 delivered (58%), mileage exact
+    //   four slots  1130 delivered (72%), mileage 1.4 mi short
     //
-    // The floor is set at 850 rather than at the prescription because the rest
-    // of the gap is not this file's to close — see the note below on
-    // `weekCardioCapacity`. What it does pin is that the slots freed here are
-    // actually SPENT: a tree without `cardioSlotReserve` delivers 580 and fails.
+    // The fourth slot is a deliberate trade of miles for hours (Levi,
+    // 2026-09-09), and BOTH halves of it are pinned here so neither can drift
+    // unnoticed. The cardio floor is set at 1050 rather than at the prescription
+    // because the rest of the gap is not this file's to close — see the note
+    // below on `weekCardioCapacity`; what it pins is that the freed slots are
+    // actually SPENT (a three-slot tree delivers ~904 and fails).
+    //
+    // The mileage side is pinned as a BUDGET, not as equality: at most three
+    // non-race weeks of sixteen may land short, and none by more than 1.5 mi.
+    // Those are the numbers the trade was agreed on (w10 -0.60, w11 -1.40,
+    // w14 -0.60; every other non-race week exact). A change that quietly widens
+    // the cost fails here rather than shipping.
     const gen = {
       profile: {
         firstName: "L",
@@ -189,14 +199,16 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
     } as never);
 
     let checked = 0;
+    const mileageShort: number[] = [];
     for (const week of program.weeks) {
       const [targetMi, targetCardio] = target.get(week.weekNumber)!;
-      if (targetCardio < 1400) continue; // peak weeks only
       let cardio = 0;
       let miles = 0;
+      let isRaceWeek = false;
       for (const day of week.days)
         for (const s of day.sessions) {
           miles += sessionMiles(s);
+          if (s.kind === "race") isRaceWeek = true;
           if (
             s.kind === "run" ||
             s.kind === "hybrid" ||
@@ -207,12 +219,16 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
           )
             cardio += sessionTiming(s).total;
         }
-      expect(cardio).toBeGreaterThan(850);
-      // ...and the target the engine already hit is not paid for it.
-      expect(miles).toBeCloseTo(targetMi, 1);
+      // The race week runs the race instead of its mileage; it is not a shortfall.
+      if (!isRaceWeek && miles < targetMi - 0.05) mileageShort.push(targetMi - miles);
+      if (targetCardio < 1400) continue; // peak weeks only, for the cardio floor
+      expect(cardio).toBeGreaterThan(1050);
       checked++;
     }
     expect(checked).toBeGreaterThan(0);
+    // The agreed cost, and no more.
+    expect(mileageShort.length).toBeLessThanOrEqual(3);
+    expect(Math.max(0, ...mileageShort)).toBeLessThanOrEqual(1.5);
   });
 
   it("never cuts below the research session budget", () => {
@@ -221,7 +237,7 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
     const short: SessionCountTables = {
       ...bandTable(bandSessionCap("h20_30"), bandAnchorRunFloor("h20_30"), 4),
       dayCapacity: 8, // a 4-day week
-      cardioSlotReserve: 3,
+      cardioSlotReserve: bandCardioSlots("h20_30"),
     };
     const p = planWeek("peak", "increase", "advanced", "advanced", undefined, short, PEAK_MILES);
     expect(total(p)).toBe(bandSessionCap("h20_30"));
@@ -230,10 +246,12 @@ describe("Zone 1-2 slots survive the mileage run floor", () => {
   /**
    * WHAT IS STILL SHORT, AND WHY IT IS NOT A SLOT PROBLEM.
    *
-   * After this change an h20_30 peak week delivers ~904 of 1560 prescribed
-   * cardio minutes; h10_20 reaches ~92% of its own. The rest cannot be bought
-   * with slots, and reserving more would cost the mileage target — see the
-   * arithmetic in `BAND_CARDIO_SLOTS`.
+   * With four reserved slots an h20_30 peak week delivers ~1130 of 1560
+   * prescribed cardio minutes (82% across the whole 16-week block); h10_20
+   * reaches ~88% of its own on three. The rest cannot be bought with slots —
+   * a FIFTH would take the mileage cost past what was agreed and still leave the
+   * gap, because the gap is minutes-per-slot, not slots. See the arithmetic in
+   * `BAND_CARDIO_SLOTS`.
    *
    * Two things in `lib/generation/reconcile.ts` own the remainder.
    *

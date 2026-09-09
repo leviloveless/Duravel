@@ -10,6 +10,19 @@ import { GenerationInputSchema, type WeekTemplate } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { getSport } from "@/lib/engine/sports";
 import type { TemplateContext } from "@/lib/engine/template-validate";
+import { computePaces, effectivePace } from "@/lib/engine/paces";
+import type { RunType } from "@/lib/engine/types";
+
+/** Every run type the designer can offer a time for. */
+const RUN_TYPES: RunType[] = [
+  "easy",
+  "long",
+  "threshold",
+  "interval",
+  "tempo",
+  "fartlek",
+  "progression",
+];
 
 /**
  * The facts the validator needs about THIS program, drawn from the same place
@@ -35,9 +48,20 @@ export function templateContextFor(
     // warning; fall back to no mileage context rather than failing the save.
     peakMileage = undefined;
   }
+  // Paces for the designer's time-to-miles conversion. Best effort: an athlete
+  // with no 5K benchmark simply gets no time input, which is better than a
+  // conversion at a pace nobody measured.
+  let runPaceMin: TemplateContext["runPaceMin"];
+  const paces = computePaces(input.profile.benchmarks?.fiveKTime);
+  if (paces) {
+    runPaceMin = {};
+    for (const rt of RUN_TYPES) runPaceMin[rt] = effectivePace(rt, paces) / 60;
+  }
+
   return {
     trainingDays: input.profile.trainingDays,
     peakMileage,
+    runPaceMin,
     weeklyHours: input.profile.weeklyHours,
     runningExp: input.profile.runningExp,
     prescribesRunning: cfg.runFloor !== 0,

@@ -1355,11 +1355,12 @@ export function assignDaysFromTemplate(
   }
 
   // Place what the athlete wrote, on the days they wrote it.
+  const authoredTotal = templateStartMileage(template);
   for (const td of template.days) {
     const i = idxByDay.get(td.day);
     if (i === undefined) continue; // not a training day — `validateTemplate` blocks this
     for (const ts of td.sessions) {
-      const slot = templateSlot(ts);
+      const slot = templateSlot(ts, authoredTotal);
       if (slot) days[i]!.sessions.push(slot); // safe: i came from idxByDay
     }
   }
@@ -1405,8 +1406,48 @@ export function assignDaysFromTemplate(
  */
 const PENDING_RUN_TYPE = "__pending__" as unknown as RunType;
 
+/**
+ * Week one's running mileage, when the athlete sized their own sessions.
+ *
+ * The sizes they typed ARE week one — that is what "starting mileage" means — so
+ * rather than sizing the week from their experience band and then trying to
+ * honour their numbers inside it, the week is sized FROM their numbers. Anything
+ * else would hand them a week that quietly disagreed with what they asked for on
+ * the very first line.
+ *
+ * A run they did not size counts at the 3-mile floor, which is what the engine
+ * would give it anyway. That keeps a partly-sized week sensible: size the long
+ * run and leave the rest alone, and you get your long run plus four real easy
+ * runs, not a week built entirely around one number.
+ *
+ * Returns 0 when nothing is sized, which every caller reads as "not authored" and
+ * falls back to the experience tables for.
+ */
+export function templateStartMileage(template: WeekTemplate): number {
+  let miles = 0;
+  let sized = false;
+  for (const d of template.days) {
+    for (const ts of d.sessions) {
+      if (ts.kind === "run") {
+        if (ts.startMiles !== undefined) {
+          miles += ts.startMiles;
+          sized = true;
+        } else {
+          miles += MIN_MILES_PER_RUN;
+        }
+      } else if (ts.kind === "brick" && ts.startMiles !== undefined) {
+        // Only the RUN leg. A brick's bike leg is minutes and belongs to the
+        // cardio budget, never to the mileage one.
+        miles += ts.startMiles;
+        sized = true;
+      }
+    }
+  }
+  return sized ? Math.round(miles * 10) / 10 : 0;
+}
+
 /** One authored session as an engine slot, or null for a kind we cannot place. */
-function templateSlot(ts: TemplateSession): SessionSlot | null {
+function templateSlot(ts: TemplateSession, authoredTotal: number): SessionSlot | null {
   if (ts.kind === "lift") return { kind: "lift", liftType: ts.liftType ?? "full" };
   if (ts.kind === "hybrid") return { kind: "hybrid", goalZone: 4 };
   // A brick is bike→run in one session, and it is the one authored session type
@@ -1422,18 +1463,58 @@ function templateSlot(ts: TemplateSession): SessionSlot | null {
       goalZone: 2,
       countsTowardMileage: true,
       segments: [
-        { discipline: "bike", durationMin: BRICK_BIKE_MIN, goalZone: 2 },
-        { discipline: "run", durationMin: BRICK_RUN_MIN, goalZone: 2 },
+        { discipline: "bike", durationMin: ts.startMin ?? BRICK_BIKE_MIN, goalZone: 2 },
+        // The authored DISTANCE rides on the segment; the minutes stay at the
+        // default because converting one to the other needs a pace and a slot has
+        // none. `stampBrickRun` in the reconciler has the paces and reconciles
+        // the two — if a distance is already here it is the athlete's and the
+        // minutes are derived from it, otherwise the reverse.
+        {
+          discipline: "run",
+          durationMin: BRICK_RUN_MIN,
+          goalZone: 2,
+          ...(ts.startMiles !== undefined ? { distanceMiles: ts.startMiles } : {}),
+        },
       ],
     };
   }
+  // A standalone Zone 1-2 RIDE (Levi, 2026-09-09). Minutes, never miles: a ride
+  // is aerobic time in a week whose running budget is measured in miles, and
+  // putting it anywhere near the mileage target would make every run shrink to
+  // pay for a session that is not on the athlete's feet. Its minutes come out of
+  // the same cardio budget the standalone Zone 1-2 filler is drawn from, so
+  // adding one does not push the week past the hours the athlete asked for.
+  if (ts.kind === "bike") {
+    return {
+      kind: "bike",
+      goalZone: 2,
+      durationMin: ts.startMin ?? BRICK_BIKE_MIN,
+      sessionType: "endurance",
+    };
+  }
   if (ts.kind === "run") {
-    if (ts.runType === undefined) return { kind: "run", runType: PENDING_RUN_TYPE, goalZone: 2 };
+    // A sized run holds its SHARE of the week rather than the miles typed — see
+    // `RunSlot.shareOfWeek`. The share is taken against the whole authored week,
+    // so the shares of every sized run plus the floors of every unsized one come
+    // to exactly 1 in week one.
+    const share =
+      ts.startMiles !== undefined && authoredTotal > 0
+        ? ts.startMiles / authoredTotal
+        : undefined;
+    if (ts.runType === undefined) {
+      return {
+        kind: "run",
+        runType: PENDING_RUN_TYPE,
+        goalZone: 2,
+        ...(share !== undefined ? { shareOfWeek: share } : {}),
+      };
+    }
     return {
       kind: "run",
       runType: ts.runType,
       goalZone: GOAL_ZONE[ts.runType],
       ...(ts.runType === "long" ? { isLong: true } : {}),
+      ...(share !== undefined ? { shareOfWeek: share } : {}),
     };
   }
   return null;

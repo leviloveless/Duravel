@@ -68,13 +68,36 @@
  * 140.6 at h30_40 still delivers 76% of its target, the 70.3 62%, and the
  * Olympic — whose race is a 1500 m swim, 40 km ride and 10 km run — 35%.
  *
+ * ⚠️ BASELINE MOVED 2026-09-09, deliberately — one snapshot REMOVED and one
+ * ADDED. No surviving fixture's contents change, which is the tell this time:
+ * the change is about which configurations are OFFERED, not about what any of
+ * them generates.
+ *
+ * The paragraph above is the reason it had to happen. Once the phase caps bind,
+ * the shortfall at the top bands scales inversely with race distance — and a
+ * shortfall that size is not a tuning problem, it is a band the sport cannot
+ * fill. `MAX_BAND_BY_SPORT` therefore stops offering 20-30 h and 30-40 h for
+ * Olympic, and 30-40 h for 70.3, exactly the way `MAX_BAND_BY_FAMILY` has
+ * stopped offering 30-40 h for the station sports since 2026-08-04.
+ *
+ *   REMOVED  `70.3 @ h30_40` — the engine clamps that band to h20_30, so the
+ *            fixture had become a byte-for-byte duplicate of `70.3 @ h20_30`
+ *            recorded under a configuration onboarding no longer renders. This
+ *            is precisely why `STATION_BANDS` exists; the tri loop now filters
+ *            the same way, through `bandsForSport`.
+ *   ADDED    `140.6 @ h30_40` — 140.6 is the only sport that still offers the
+ *            top band (29.6 h delivered against a 30 h floor), so it takes over
+ *            the job of freezing that band's shape. Without it, removing the
+ *            70.3 fixture would leave h30_40 with no snapshot at all.
+ *
  * A diff here still means drift. Update these only with a reason written down.
  */
 import { describe, it, expect } from "vitest";
 import type { EngineInput } from "./types";
-import type { WeeklyHoursBand } from "@/lib/schemas";
+import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import { buildSkeleton } from "./skeleton";
-import { bandAllowedForFamily } from "./time-budget";
+import { bandAllowedForFamily, bandsForSport } from "./time-budget";
+import { tri_70_3 } from "./sports/triathlon";
 
 const BANDS: WeeklyHoursBand[] = ["h0_5", "h5_10", "h10_20", "h20_30", "h30_40"];
 
@@ -92,9 +115,9 @@ function hyroxInput(band: WeeklyHoursBand): EngineInput {
     races: [{ weekNumber: 16, priority: "A" }],
   };
 }
-function triInput(band: WeeklyHoursBand): EngineInput {
+function triInput(band: WeeklyHoursBand, sport: SportId = "tri_70_3"): EngineInput {
   return {
-    sport: "tri_70_3",
+    sport,
     weeklyHours: band,
     trainingClass: "non_highly_trained",
     runningExp: "intermediate",
@@ -127,6 +150,12 @@ function dekaFitInput(band: WeeklyHoursBand): EngineInput {
 // 20-30, so snapshotting those two would just duplicate the h20_30 snapshots and
 // imply a configuration the product no longer offers. Triathlon keeps all five.
 const STATION_BANDS = BANDS.filter((b) => bandAllowedForFamily("station_hybrid", b));
+// Same rule, one level finer: 30-40 h is not a 70.3 band either (Levi,
+// 2026-09-09 — see `MAX_BAND_BY_SPORT`). The engine clamps it to 20-30, so a
+// `70.3 @ h30_40` snapshot would just be a second copy of the h20_30 one under a
+// name the product no longer offers. 140.6 still offers the full range and takes
+// over as the top-band fixture below.
+const TRI_70_3_BANDS = bandsForSport(tri_70_3);
 
 describe("time-budget skeletons (band-driven; snapshots auto-created on first run)", () => {
   for (const band of STATION_BANDS) {
@@ -137,12 +166,16 @@ describe("time-budget skeletons (band-driven; snapshots auto-created on first ru
       expect(buildSkeleton(dekaFitInput(band))).toMatchSnapshot();
     });
   }
-  // Triathlon offers the full range, 30-40 h included.
-  for (const band of BANDS) {
+  for (const band of TRI_70_3_BANDS) {
     it(`70.3 @ ${band}`, () => {
       expect(buildSkeleton(triInput(band))).toMatchSnapshot();
     });
   }
+  // 140.6 is the only sport that still offers 30-40 h, so it carries the fixture
+  // that freezes the top band's shape.
+  it(`140.6 @ h30_40`, () => {
+    expect(buildSkeleton(triInput("h30_40", "tri_140_6"))).toMatchSnapshot();
+  });
 
   it("higher budget yields more peak volume (HYROX cardio minutes)", () => {
     const peak = (b: WeeklyHoursBand) =>

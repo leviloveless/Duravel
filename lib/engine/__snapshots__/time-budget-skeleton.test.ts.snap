@@ -8332,7 +8332,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
 }
 `;
 
-exports[`time-budget skeletons (band-driven; snapshots auto-created on first run) > 70.3 @ h30_40 1`] = `
+exports[`time-budget skeletons (band-driven; snapshots auto-created on first run) > 140.6 @ h30_40 1`] = `
 {
   "allocation": {
     "base": 7,
@@ -8357,13 +8357,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8375,13 +8375,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8398,7 +8398,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8414,7 +8414,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8430,7 +8430,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8446,7 +8446,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -8474,13 +8474,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8492,13 +8492,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8515,7 +8515,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8531,7 +8531,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8547,7 +8547,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8563,7 +8563,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -8591,13 +8591,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8609,13 +8609,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8632,7 +8632,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8648,7 +8648,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8664,7 +8664,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8680,7 +8680,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -8708,13 +8708,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8726,13 +8726,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8749,7 +8749,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8765,7 +8765,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8781,7 +8781,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8797,7 +8797,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -8825,13 +8825,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8843,13 +8843,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8866,7 +8866,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8882,7 +8882,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8898,7 +8898,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -8914,7 +8914,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -8942,13 +8942,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8960,13 +8960,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -8983,7 +8983,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -8999,7 +8999,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -9015,7 +9015,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -9031,7 +9031,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9059,13 +9059,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9077,13 +9077,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "technique",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9100,7 +9100,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -9116,7 +9116,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -9132,7 +9132,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -9148,7 +9148,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9176,13 +9176,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9194,13 +9194,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9212,13 +9212,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9235,7 +9235,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -9246,7 +9246,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               ],
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9258,7 +9258,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9286,7 +9286,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9318,13 +9318,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 64,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 105,
+              "durationMin": 110,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9336,13 +9336,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 64,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 77,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9360,7 +9360,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 78,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9377,18 +9377,18 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 191,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 26,
+                  "durationMin": 24,
                   "goalZone": 2,
                 },
               ],
             },
             {
-              "durationMin": 75,
+              "durationMin": 78,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9400,7 +9400,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 136,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9412,12 +9412,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 146,
+                  "durationMin": 133,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 34,
+                  "durationMin": 31,
                   "goalZone": 3,
                 },
               ],
@@ -9428,7 +9428,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 136,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9460,13 +9460,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9478,13 +9478,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9496,13 +9496,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9519,7 +9519,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -9530,7 +9530,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               ],
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9542,7 +9542,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9570,7 +9570,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9602,13 +9602,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9620,13 +9620,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9638,13 +9638,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9661,7 +9661,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -9672,7 +9672,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               ],
             },
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9684,7 +9684,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9712,7 +9712,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9744,13 +9744,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 67,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 105,
+              "durationMin": 122,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9762,13 +9762,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 67,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 86,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9780,13 +9780,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 83,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 75,
+              "durationMin": 87,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9803,18 +9803,18 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 198,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 28,
+                  "durationMin": 26,
                   "goalZone": 2,
                 },
               ],
             },
             {
-              "durationMin": 75,
+              "durationMin": 87,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9826,7 +9826,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 141,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9838,12 +9838,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 146,
+                  "durationMin": 138,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 34,
+                  "durationMin": 32,
                   "goalZone": 3,
                 },
               ],
@@ -9854,7 +9854,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 141,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -9886,13 +9886,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 64,
+              "durationMin": 86,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 120,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -9904,13 +9904,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 64,
+              "durationMin": 86,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 86,
+              "durationMin": 107,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -9922,13 +9922,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 90,
+              "durationMin": 120,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 86,
+              "durationMin": 107,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -9945,12 +9945,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 274,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 30,
+                  "durationMin": 26,
                   "goalZone": 2,
                 },
               ],
@@ -9977,7 +9977,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 180,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -10005,7 +10005,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 180,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -10037,13 +10037,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 64,
+              "durationMin": 86,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
             },
             {
-              "durationMin": 120,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -10055,13 +10055,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 64,
+              "durationMin": 86,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 86,
+              "durationMin": 107,
               "goalZone": 3,
               "isLong": false,
               "kind": "run",
@@ -10073,13 +10073,13 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "wed",
           "sessions": [
             {
-              "durationMin": 90,
+              "durationMin": 120,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
             },
             {
-              "durationMin": 86,
+              "durationMin": 107,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -10096,12 +10096,12 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 274,
                   "goalZone": 2,
                 },
                 {
                   "discipline": "run",
-                  "durationMin": 30,
+                  "durationMin": 26,
                   "goalZone": 2,
                 },
               ],
@@ -10128,7 +10128,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 180,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -10156,7 +10156,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 180,
               "goalZone": 3,
               "isLong": false,
               "kind": "bike",
@@ -10188,7 +10188,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
@@ -10215,7 +10215,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
@@ -10231,7 +10231,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -10247,7 +10247,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -10259,7 +10259,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -10271,7 +10271,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",
@@ -10299,7 +10299,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "mon",
           "sessions": [
             {
-              "durationMin": 54,
+              "durationMin": 71,
               "goalZone": 4,
               "kind": "swim",
               "sessionType": "css",
@@ -10326,7 +10326,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "tue",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 100,
               "goalZone": 2,
               "kind": "swim",
               "sessionType": "endurance",
@@ -10342,7 +10342,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
               "segments": [
                 {
                   "discipline": "bike",
-                  "durationMin": 158,
+                  "durationMin": 210,
                   "goalZone": 2,
                 },
                 {
@@ -10358,7 +10358,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "thu",
           "sessions": [
             {
-              "durationMin": 113,
+              "durationMin": 150,
               "goalZone": 2,
               "isLong": false,
               "kind": "bike",
@@ -10370,7 +10370,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "fri",
           "sessions": [
             {
-              "durationMin": 105,
+              "durationMin": 135,
               "goalZone": 2,
               "isLong": true,
               "kind": "run",
@@ -10382,7 +10382,7 @@ exports[`time-budget skeletons (band-driven; snapshots auto-created on first run
           "day": "sat",
           "sessions": [
             {
-              "durationMin": 75,
+              "durationMin": 96,
               "goalZone": 2,
               "isLong": false,
               "kind": "run",

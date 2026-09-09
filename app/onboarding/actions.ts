@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/schemas";
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
-import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
+import { bandMinTrainingDays, bandAllowedForSport } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
 import { checkRaceDates, checkStartDate } from "@/lib/engine/race-dates";
 import {
@@ -281,12 +281,17 @@ function parseGenerationInput(
   // at most `days x 2` sessions — a 20-30 hour budget spread over 3 days cannot
   // be delivered, and the engine used to resolve that by silently dropping half
   // the prescription and stacking five sessions on one day.
-  // 30-40 h/week is not a HYROX or DEKA band (Levi, 2026-08-04). The form no
-  // longer offers it for those sports; this is the server-side guard.
-  if (!bandAllowedForFamily(getSport(input.sport).family, input.profile.weeklyHours)) {
+  // A band a sport cannot fill is not offered (Levi, 2026-08-04 for the station
+  // sports, 2026-09-09 for short-course triathlon). The form no longer renders
+  // those bands; this is the server-side guard, and it is keyed on the SPORT
+  // rather than the family because the three triathlon distances do not share a
+  // ceiling. The message stays general on purpose — naming HYROX and DEKA was
+  // accurate when they were the only clamped sports and is now simply wrong for
+  // an Olympic-distance athlete reading it.
+  if (!bandAllowedForSport(getSport(input.sport), input.profile.weeklyHours)) {
     return {
       error:
-        "That weekly time budget isn't available for this sport. Pick a smaller budget — 30–40 hours a week is a triathlon volume, not a HYROX or DEKA one.",
+        "That weekly time budget isn't available for this sport — there aren't enough hours of useful training in it at this race distance. Pick a smaller budget, or a longer race.",
     };
   }
 

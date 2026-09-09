@@ -252,9 +252,14 @@ export const LiftType = z.enum(["upper", "lower", "full", "power"]);
  * still progresses base → build → peak.
  */
 export const TemplateSessionSchema = z.object({
-  kind: z.enum(["run", "lift", "hybrid", "brick"]),
+  kind: z.enum(["run", "lift", "hybrid", "brick", "bike"]),
   runType: RunType.optional(),
   liftType: LiftType.optional(),
+  /** Week-one size, when the athlete gave one. `startMiles` for a run (and a
+   *  brick's run leg), `startMin` for a bike (and a brick's bike leg). Bounded
+   *  because these arrive from a form: see `TemplateSession`. */
+  startMiles: z.number().positive().max(50).optional(),
+  startMin: z.number().positive().max(360).optional(),
 });
 
 export const TemplateDaySchema = z.object({
@@ -375,6 +380,11 @@ export const RunSessionSchema = z.object({
    * in mileage — it is not running.
    */
   crossCardioMin: z.number().nonnegative().optional(),
+  /** The share of the week's mileage this run holds, when the athlete sized it in
+   *  an authored week (custom tier). The reconciler anchors the run to
+   *  `shareOfWeek x weekly target` and lets the unsized runs absorb the rest —
+   *  the same arrangement a hybrid's fixed contribution has always had. */
+  shareOfWeek: z.number().positive().max(1).optional(),
   /** Warm-up / cool-down MINUTES when they differ from this run type's default
    *  (`RUN_WARMUP_COOLDOWN`). Set only where a small week could not otherwise
    *  keep the long run its longest run — see `trimQualityOverhead` in

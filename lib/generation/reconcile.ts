@@ -552,29 +552,89 @@ export function reconcileWeekVolume(
       // (`runOverheadMiles`, only the part that was run) are different currencies
       // now that a quality warm-up is part jogged and part biked.
       const overhead = runOverhead(s.runType);
+      const legalMin = minMiles(s.runType, paceMin, overhead);
+      // The LONG run answers to its own ceiling — 90 min for the station
+      // sports, higher for triathlon (Levi, 2026-08-23). See `caps.longRun`.
+      const legalMax = runMaxMiles(
+        s.runType,
+        paceMin,
+        overhead,
+        overhead / easyPaceMin,
+        caps,
+        runningExp,
+        targetMileage,
+      );
+
+      /**
+       * A RUN THE ATHLETE SIZED IS PINNED — inside the rules, never outside them.
+       *
+       * `shareOfWeek` is set only on a run from an authored week whose size the
+       * athlete typed (custom tier, Levi 2026-09-09). Pinning it is a matter of
+       * collapsing its band: `min` and `max` both become the anchor, and every
+       * pass below — sizing, the true-up, the long-run anchor — already respects
+       * a run's band, so none of them needs to know this happened.
+       *
+       * Two things this deliberately does NOT do:
+       *
+       *   - It does not escape the caps. The anchor is clamped into the run's own
+       *     legal band first, so a 12-mile Tuesday interval session still meets
+       *     the session time cap and a sized long run still meets its ceiling and
+       *     its +10% jump limit. The athlete sets the starting point; the guards
+       *     stay guards. That distinction is the whole reason this was allowed to
+       *     cross the "never HOW MUCH" line.
+       *   - It does not pin MILES, it pins a SHARE. `shareOfWeek x targetMileage`
+       *     is the athlete's own number in week one — week one's target is derived
+       *     from their sizes — and it ramps, deloads and tapers with the week
+       *     thereafter, which is what "starting" mileage means.
+       */
+      const overheadMi = overhead / easyPaceMin;
+      const recPerMi = (recoveryFactor(s.runType, runningExp) * paceMin) / easyPaceMin;
+      // ⚠️ WORK vs TOTAL, for the eleventh time. An athlete who types "8 miles"
+      // means eight miles ON THEIR FEET — warm-up, cool-down and the jogging
+      // between reps included. That is what every surface in this app reports and
+      // what `startMileage` has always meant. The entry model below is in WORK
+      // miles, so pinning 8 there ships a 9.1-mile long run and a week that
+      // disagrees with the number the athlete entered. Convert first.
+      const anchorWork =
+        s.shareOfWeek !== undefined
+          ? (s.shareOfWeek * targetMileage - overheadMi) / (1 + recPerMi)
+          : undefined;
+      /**
+       * A rep-based run is anchored to the NEAREST WHOLE REP, not to the raw
+       * figure. `setRunMiles` floors to whole reps, so handing it 2.9 miles of a
+       * 1-mile-rep threshold session ships two reps — and the athlete who asked
+       * for a 6-mile session gets 3.8 on their feet. Rounding to the nearest rep
+       * first gives three, which is 6.2 total: over by a tenth instead of under
+       * by two miles, and over is the right side to miss on when the caps below
+       * are still going to have the last word.
+       *
+       * The whole-rep snap has now caught this codebase four times. It is always
+       * the same shape: a number computed correctly, then quietly floored by the
+       * write.
+       */
+      const rep = REP_DISTANCE_MILES[s.runType];
+      const snapped =
+        anchorWork !== undefined && rep !== undefined
+          ? Math.max(rep, Math.round(anchorWork / rep) * rep)
+          : anchorWork;
+      const anchor =
+        snapped !== undefined
+          ? Math.min(legalMax, Math.max(legalMin, round1(snapped)))
+          : undefined;
+
       runs.push({
         day: d,
         ref: s,
         type: s.runType,
         paceMin,
         overhead,
-        overheadMi: runOverhead(s.runType) / easyPaceMin,
-        recPerMi: (recoveryFactor(s.runType, runningExp) * paceMin) / easyPaceMin,
-        min: minMiles(s.runType, paceMin, overhead),
-        // The LONG run answers to its own ceiling — 90 min for the station
-        // sports, higher for triathlon (Levi, 2026-08-23). See `caps.longRun`.
-        max: runMaxMiles(
-          s.runType,
-          paceMin,
-          overhead,
-          overhead / easyPaceMin,
-          caps,
-          runningExp,
-          targetMileage,
-        ),
+        overheadMi,
+        recPerMi,
+        min: anchor ?? legalMin,
+        max: anchor ?? legalMax,
         softMax:
           s.runType === "long" && longRunCap !== undefined
-            ? Math.max(minMiles(s.runType, paceMin, overhead), longRunCap - overhead / easyPaceMin)
+            ? Math.max(legalMin, longRunCap - overhead / easyPaceMin)
             : undefined,
         miles: 0,
       });
@@ -686,6 +746,7 @@ export function reconcileWeekVolume(
   // toward its share. See `anchorLongRun`.
   anchorLongRun(days, {
     targetMileage,
+    longRunShareOfWeek: runs.find((r) => r.type === "long")?.ref.shareOfWeek,
     phase,
     paces,
     exp: runningExp,
@@ -714,7 +775,19 @@ export function reconcileWeekVolume(
       // as though nothing had happened on that day, and the week bought a
       // standalone Zone 1–2 block on top of a session that was already 55–70
       // minutes of Zone 2 — straight past the athlete's stated hours.
-      if (s.kind === "run" || s.kind === "hybrid" || s.kind === "brick")
+      // BIKE and SWIM belong here too, and their absence was a real bug the
+      // moment an athlete could author a ride: `gap` would read as though nothing
+      // had happened on that day and the week would buy a standalone Zone 1-2
+      // block on top of a session that was already Zone 1-2. On the triathlon
+      // path — where swims and rides are most of the week — that overstated the
+      // gap by the entire swim+bike volume.
+      if (
+        s.kind === "run" ||
+        s.kind === "hybrid" ||
+        s.kind === "brick" ||
+        s.kind === "bike" ||
+        s.kind === "swim"
+      )
         runningCardio += sessionTiming(s).total;
     }
   let gap = Math.round(cardioTarget) - runningCardio;
@@ -1307,14 +1380,30 @@ function sizeRuns(
   // spends the cheapest thing in the week, which is the right thing to spend.
   raiseLongRunFloor(runs, Infinity);
   while (runs.length > 1 && RM < runs.reduce((a, r) => a + minTotal(r), 0)) {
-    // Drop the most-droppable run (easy first; never the long run).
-    const victimIdx = runs.reduce(
-      (best, r, i) =>
-        r.type !== "long" && (best === -1 || DROP_RANK[r.type] < DROP_RANK[runs[best]!.type])
-          ? i
-          : best, // safe: runs[best] only read when best !== -1, a prior in-bounds index
-      -1,
-    );
+    /**
+     * Drop the most-droppable run: easy first, quality later, the long run never
+     * — and a run the athlete SIZED HERSELF later still.
+     *
+     * The sizing tie-break is not decoration. A sized run's floor is its anchor
+     * rather than the 3-mile minimum, so an authored week's floors add up to
+     * almost exactly its target, and a tenth of a mile of rounding is enough to
+     * enter this loop. Without the tie-break the loop then deletes whichever easy
+     * run it meets first, which is as likely to be the one carrying the athlete's
+     * own number as not — and they get back a week missing the session they
+     * explicitly asked for, with no explanation anywhere.
+     *
+     * A sized run is still droppable in the end. A week that genuinely cannot
+     * hold what was asked for has to give something up, and losing a session is
+     * better than shipping one under its own floor.
+     */
+    const rank = (r: RunEntry) => (r.ref.shareOfWeek !== undefined ? 1 : 0);
+    const victimIdx = runs.reduce((best, r, i) => {
+      if (r.type === "long") return best;
+      if (best === -1) return i;
+      const b = runs[best]!; // safe: best !== -1, a prior in-bounds index
+      if (rank(r) !== rank(b)) return rank(r) < rank(b) ? i : best;
+      return DROP_RANK[r.type] < DROP_RANK[b.type] ? i : best;
+    }, -1);
     if (victimIdx === -1) break;
     const victim = runs.splice(victimIdx, 1)[0]!; // safe: victimIdx !== -1 and in-bounds, so splice yields exactly one element
     const j = victim.day.sessions.indexOf(victim.ref);
@@ -1675,6 +1764,11 @@ interface AnchorContext {
    * not see until now. See `hybridPeakMiles`.
    */
   hybridPeak: number;
+  /**
+   * The share of the week the athlete gave their OWN long run, if they sized it
+   * (custom tier). Overrides the phase table's share — see `wanted`.
+   */
+  longRunShareOfWeek?: number;
   /** Where a surplus easy run may legally go. */
   days: ProgramDay[];
   place: FillerPlacement;
@@ -1699,8 +1793,22 @@ function anchorMaxTotal(s: RunSession, ctx: AnchorContext): number {
     : ceiling;
 }
 
-/** The least work distance this run may be cut to. */
+/**
+ * The least work distance this run may be cut to.
+ *
+ * A RUN THE ATHLETE SIZED MAY NOT BE CUT AT ALL. Every donor path in this pass
+ * asks the same question through this one function — "how much can I take off
+ * you?" — so returning the run's current distance makes a sized run a non-donor
+ * everywhere at once, which is the only way to be sure none of the four passes
+ * quietly raids it.
+ *
+ * It has to be here rather than at each call site because that was the bug: the
+ * entry model pinned a sized threshold run at 6 miles, and then this pass took
+ * miles off it to feed the long run and shipped it at 3.8. The athlete's number
+ * survived sizing and died in the pass that runs after sizing.
+ */
 function anchorMinWork(s: RunSession, ctx: AnchorContext): number {
+  if (s.shareOfWeek !== undefined) return s.distanceMiles;
   const paceMin = effectivePace(s.runType, ctx.paces) / 60;
   return minMiles(s.runType, paceMin, runOverhead(s.runType));
 }
@@ -1735,7 +1843,27 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
   // run against a bigger hybrid is a week this pass cannot fix — see the pass
   // below for what it does instead.
   const wantedHybrid = round1(ctx.hybridPeak + LONG_RUN_MARGIN);
-  const wanted = Math.min(longCeiling, Math.max(ctx.targetMileage * share, wantedHybrid));
+
+  /**
+   * AN AUTHORED LONG RUN OVERRIDES THE PHASE SHARE, BUT NOT THE ORDERING RULE.
+   *
+   * `share` is the fraction of the week this phase would LIKE the long run to be.
+   * It is a preference derived from a table. An athlete who typed "my long run
+   * starts at 8 miles" has said something more specific than a table can, and
+   * growing their 8 to 9.1 to satisfy a phase target hands them a week that
+   * disagrees with the number they entered on the first screen — which is exactly
+   * the complaint the custom tier exists to answer.
+   *
+   * So a sized long run keeps its own share. What it does NOT get to override is
+   * `wantedHybrid`: the long run being the week's longest run is a rule, not a
+   * preference, and it is the one this whole pass was written for. If an athlete
+   * sizes their long run below a hybrid, the hybrid still wins and the long run
+   * still grows past it — the validator warns about that shape before they ever
+   * get here.
+   */
+  const authoredShare = ctx.longRunShareOfWeek;
+  const phaseWant = ctx.targetMileage * (authoredShare ?? share);
+  const wanted = Math.min(longCeiling, Math.max(phaseWant, wantedHybrid));
 
   restamp();
 
@@ -2212,6 +2340,13 @@ function stampBrickRun(days: ProgramDay[], easyPaceMin: number): void {
       if (s.kind !== "brick" || !s.countsTowardMileage) continue;
       for (const seg of s.segments) {
         if (seg.discipline !== "run") continue;
+        if (seg.distanceMiles !== undefined && seg.distanceMiles > 0) {
+          // The athlete sized this leg. Their distance is the fact and the
+          // minutes are derived from it — the other way round would quietly
+          // overwrite the number they typed with the constant it replaced.
+          seg.durationMin = Math.max(1, Math.round(seg.distanceMiles * easyPaceMin));
+          continue;
+        }
         seg.distanceMiles = round1(seg.durationMin / easyPaceMin);
       }
     }

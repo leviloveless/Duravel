@@ -8,7 +8,7 @@
  * Numbers are intentionally conservative and tunable; the per-(sport,band)
  * snapshot tests freeze the resulting skeletons for review.
  */
-import type { WeeklyHoursBand } from "@/lib/schemas";
+import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
 import type { ExperienceLevel, PhaseName, TrainingDayName, ZoneDistribution } from "./types";
 import type { SportFamily } from "./sports/types";
 
@@ -282,6 +282,83 @@ export const MAX_BAND_BY_FAMILY: Partial<Record<SportFamily, WeeklyHoursBand>> =
 };
 
 /**
+ * The largest weekly-hours band an individual SPORT may offer, overriding its
+ * family's ceiling (Levi, 2026-09-09).
+ *
+ * WHY THIS EXISTS AT ALL. `MAX_BAND_BY_FAMILY` above is the same decision, and
+ * for the station sports the family is the right key — HYROX and DEKA are the
+ * same race shape at different lengths. Triathlon is not: Olympic, 70.3 and
+ * 140.6 share one family and one engine but differ by a factor of five in race
+ * duration, and the tri engine's session caps are derived from the RACE (long
+ * run 75/60 min for Olympic against 150/135 for 140.6, and the same shape for
+ * the ride and the swim). A ceiling that can only be expressed per-family
+ * therefore cannot say the one thing that is true here: 30-40 hours is a real
+ * 140.6 build and is not a thing an Olympic-distance athlete can be given.
+ *
+ * THE TEST A BAND HAS TO PASS. A band is a promise of a RANGE of weekly hours,
+ * so the honest test is whether the sport's biggest week actually reaches the
+ * BOTTOM of that range. Anything less and the label on the radio button is
+ * wrong. Measured end to end (16-week advanced build, 7 training days, peak week
+ * delivered training minutes including strength — the number the athlete would
+ * actually see in their calendar):
+ *
+ *                     h5_10   h10_20   h20_30   h30_40      band floor
+ *   tri_olympic       10.0h    12.7h    12.6h    12.5h      5 / 10 / 20 / 30
+ *   tri_70_3          10.0h    17.0h    22.1h    23.1h
+ *   tri_140_6         10.0h    17.0h    26.1h    29.6h
+ *   hyrox / deka       10.0h    16.6h    23.2h        —
+ *
+ * Read down the columns against the floors. Olympic flatlines at ~12.6 h from
+ * h10_20 upward — it is not short of slots or of ambition, it is short of
+ * legitimate sessions, because there is no Olympic-distance workout that is
+ * three hours long. Selecting 20-30 h buys an Olympic athlete NOTHING over
+ * 10-20 h; selecting 30-40 h buys slightly less than nothing. So Olympic stops
+ * at `h10_20`, the last band it can honour.
+ *
+ * 70.3 delivers 22.1 h at h20_30 — comfortably over that band's 20 h floor — and
+ * 23.1 h at h30_40, which is 77% of a 30 h promise. So 70.3 stops at `h20_30`.
+ *
+ * 140.6 has no entry and keeps the family default (every band). It lands at
+ * 29.6 h against h30_40's 30 h floor: a 24-minute miss on a 36-hour
+ * prescription, stable across every program length from 12 to 32 weeks. That is
+ * rounding distance, not mis-selling, and it is what the band is for.
+ *
+ * ⚠️ THESE THREE NUMBERS ARE LEVI'S TO ADJUST. The criterion — "the peak
+ * delivered week must reach the band's lower bound" — is the defensible part,
+ * and it is worth noting that it independently reproduces his own 2026-08-04
+ * call on the station sports: HYROX at h20_30 delivers 23.2 h and passes, while
+ * h30_40 would deliver the same 23.2 h against a 30 h floor and fails. The
+ * ceilings BELOW follow from applying that criterion to today's tri caps. If the
+ * caps move — a longer Olympic long ride, say — re-measure and move these with
+ * them. If Levi wants the criterion applied without tolerance, `tri_140_6` gains
+ * an `h20_30` entry and loses the band it is most associated with; that is a
+ * product call, not an engineering one.
+ *
+ * Sports without an entry fall back to their family ceiling, then to "no
+ * ceiling" — so this table stays small and only says the things a family cannot.
+ */
+export const MAX_BAND_BY_SPORT: Partial<Record<SportId, WeeklyHoursBand>> = {
+  tri_olympic: "h10_20",
+  tri_70_3: "h20_30",
+};
+
+/**
+ * The minimum a caller has to know about a sport to resolve its band ceiling.
+ *
+ * Deliberately a shape and not the `SportId`, so this module never has to import
+ * the sport REGISTRY to look a family up: `sports/index` reaches the triathlon
+ * engine, which imports this file, and a runtime cycle through a module whose
+ * top level is all `const` tables is the kind of bug that only shows up in a
+ * production bundle. Every call site already holds the `SportConfig` — it was
+ * calling `getSport(sport).family` to reach the old function — so passing the
+ * config itself costs nothing and closes the cycle by construction.
+ */
+export interface SportBandRef {
+  id: SportId;
+  family: SportFamily;
+}
+
+/**
  * How close (fractionally) a legacy program's starting cardio may sit BELOW a
  * band's own starting cardio and still be classified into it. See
  * `inferBandFromStartCardio`.
@@ -351,6 +428,43 @@ export function bandsForFamily(family: SportFamily): WeeklyHoursBand[] {
  */
 export function clampBandToFamily(family: SportFamily, band: WeeklyHoursBand): WeeklyHoursBand {
   return bandAllowedForFamily(family, band) ? band : MAX_BAND_BY_FAMILY[family]!;
+}
+
+/**
+ * The largest band this SPORT offers: its own ceiling if it has one, otherwise
+ * its family's, otherwise none. The sport-first order is the whole point — a
+ * sport-level entry exists precisely to say something its family cannot.
+ */
+export function maxBandForSport(sport: SportBandRef): WeeklyHoursBand | undefined {
+  return MAX_BAND_BY_SPORT[sport.id] ?? MAX_BAND_BY_FAMILY[sport.family];
+}
+
+/** Is this band offered for this sport? Sport ceiling first, then family. */
+export function bandAllowedForSport(sport: SportBandRef, band: WeeklyHoursBand): boolean {
+  const max = maxBandForSport(sport);
+  if (!max) return true;
+  return WEEKLY_HOURS_ORDER.indexOf(band) <= WEEKLY_HOURS_ORDER.indexOf(max);
+}
+
+/** Every band this sport offers, ascending — what onboarding should render. */
+export function bandsForSport(sport: SportBandRef): WeeklyHoursBand[] {
+  return WEEKLY_HOURS_ORDER.filter((b) => bandAllowedForSport(sport, b));
+}
+
+/**
+ * Clamp a band to what the SPORT allows.
+ *
+ * ⚠️ This is the graceful-degradation path, and it is the reason the ceiling is
+ * a clamp rather than a validation error. A program SAVED at a band that is no
+ * longer offered — an Olympic-distance athlete stored at `h30_40` from before
+ * `MAX_BAND_BY_SPORT` existed — still has to rebuild every time they hit
+ * recalculate, adapt a week, or open the program. It rebuilds at the ceiling,
+ * quietly, exactly as `clampBandToFamily` has done for station-hybrid programs
+ * since 2026-08-04. Nothing throws, nothing is dropped, and the athlete's week
+ * gets smaller only in the sense that it stops claiming hours it never delivered.
+ */
+export function clampBandForSport(sport: SportBandRef, band: WeeklyHoursBand): WeeklyHoursBand {
+  return bandAllowedForSport(sport, band) ? band : maxBandForSport(sport)!;
 }
 
 /**

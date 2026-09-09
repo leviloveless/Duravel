@@ -115,6 +115,10 @@ function placeholderFor(slot: PlannedSlot): Session | null {
         paceMinMile: "",
         distanceMiles: 0,
         goalZone: slot.goalZone,
+        // Carried, or an athlete who sized this run would lose the size between
+        // the skeleton and the reconciler — which is the same "discarded by the
+        // wiring" failure that lost every planned swim and ride.
+        ...(slot.shareOfWeek !== undefined ? { shareOfWeek: slot.shareOfWeek } : {}),
       };
     case "lift":
       return { kind: "lift", liftType: slot.liftType, movements: [] };
@@ -242,6 +246,11 @@ export function daySessions(
       if (slot.kind === "run" && matched.kind === "run" && matched.runType !== slot.runType) {
         matched.runType = slot.runType;
         matched.goalZone = slot.goalZone;
+      }
+      // The authored SIZE is the engine's too, and the AI has never heard of it.
+      if (slot.kind === "run" && matched.kind === "run") {
+        if (slot.shareOfWeek !== undefined) matched.shareOfWeek = slot.shareOfWeek;
+        else delete matched.shareOfWeek;
       }
       out.push(matched);
     } else {

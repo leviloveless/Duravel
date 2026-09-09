@@ -32,6 +32,7 @@ import {
   assignDaysFromTemplate,
   normalizeLongRunDays,
   slotPriority,
+  templateStartMileage,
   DEFAULT_COUNTS,
   type SessionCountTables,
 } from "./slots";
@@ -707,6 +708,8 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
   const capBand =
     weeklyHours ?? clampBandToFamily(sportCfg.family, inferBandForLegacy(input, sportCfg));
 
+  const authoredStartMileage = input.weekTemplate ? templateStartMileage(input.weekTemplate) : 0;
+
   const rawRaces = input.races ?? [];
   let races: EngineRace[] = [];
 
@@ -779,7 +782,12 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
         )
       : input.profile.trainingDays,
     races,
-    startMileage: input.startMileage,
+    // An authored week that SIZES its own runs sets week one, and therefore the
+    // whole ramp (Levi, 2026-09-09). An explicit `startMileage` the athlete typed
+    // still wins — they said it more directly — and a template with no sizes in
+    // it returns 0, which falls through to the experience tables exactly as
+    // before. See `templateStartMileage`.
+    startMileage: input.startMileage ?? (authoredStartMileage || undefined),
     startCardioMinutes: input.startCardioMinutes,
     currentDaysPerWeek: input.profile.currentDaysPerWeek,
     bodyWeightLbs: toLbs(input.profile.bodyWeight, input.profile.weightUnit),

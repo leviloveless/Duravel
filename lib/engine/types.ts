@@ -135,9 +135,37 @@ export interface EngineInput {
  * progresses base → build → peak. A type they DID name always wins.
  */
 export interface TemplateSession {
-  kind: "run" | "lift" | "hybrid" | "brick";
+  kind: "run" | "lift" | "hybrid" | "brick" | "bike";
   runType?: RunType;
   liftType?: LiftSlot["liftType"];
+  /**
+   * How big this session STARTS, if the athlete said (custom tier, Levi
+   * 2026-09-09: "the custom program builder needs to allow the user to input
+   * times and mileage for the runs / bikes / bricks").
+   *
+   * This is the first crack in the rule the tier was built on — "the template
+   * says WHAT and WHERE, never HOW MUCH" — and it is deliberately a crack rather
+   * than a break. The number is WEEK ONE only. The engine still ramps it, still
+   * deloads and tapers it, still holds it to the 3-mile floor, the session time
+   * cap, the long run's +10% jump ceiling and hours-win. What the athlete gets is
+   * the starting point; what the engine keeps is every guard that makes a custom
+   * program the same engine rather than a second one.
+   *
+   * Which field applies depends on the kind:
+   *
+   *   run    `startMiles` — the designer converts a time the athlete typed into
+   *          miles at that run type's own pace before storing, so the engine only
+   *          ever sees one currency for running.
+   *   bike   `startMin` — a ride has no mileage in a station program's budget.
+   *   brick  `startMin` is the BIKE leg, `startMiles` the RUN leg. Two legs, two
+   *          currencies, which is what a brick is.
+   *   lift / hybrid — neither. A lift is a fixed hour and a hybrid's size is the
+   *          race's, not the athlete's.
+   *
+   * Absent means what it has always meant: the engine sizes it.
+   */
+  startMiles?: number;
+  startMin?: number;
 }
 
 export interface TemplateDay {
@@ -165,6 +193,18 @@ export interface RunSlot {
   runType: RunType;
   goalZone: number;
   isLong?: boolean;
+  /**
+   * The share of the week's mileage this run should take, when the athlete sized
+   * it (custom tier).
+   *
+   * A SHARE rather than the miles they typed, because the miles are week one and
+   * a program is sixteen weeks. Holding the share means the run grows with the
+   * ramp, shrinks in a deload and sheds in a taper without any of those passes
+   * needing to know it was authored — and because week one's mileage target is
+   * itself derived from the sizes, the share reproduces the athlete's own number
+   * in week one exactly.
+   */
+  shareOfWeek?: number;
   /** Prescribed duration (triathlon runs carry it directly; HYROX runs omit it —
    *  the reconciler sizes them from the mileage target). */
   durationMin?: number;

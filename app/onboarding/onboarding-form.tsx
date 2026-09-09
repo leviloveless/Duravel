@@ -11,7 +11,7 @@ import {
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
-import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
+import { bandMinTrainingDays, bandAllowedForSport } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
 import { checkRaceDates, checkStartDate } from "@/lib/engine/race-dates";
 import {
@@ -584,8 +584,13 @@ export default function OnboardingForm({
   // the 14 slots a week has (7 days x 2 sessions) averages ~171 min per session,
   // which for a station-hybrid athlete means three-hour runs. It stays available
   // for triathlon, where it is a normal age-group build.
-  const sportFamily = getSport(sport as Parameters<typeof getSport>[0]).family;
-  const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForFamily(sportFamily, b.value));
+  // Keyed on the SPORT, not the family. All three triathlon distances share one
+  // family, and they do not share a sensible ceiling: an Olympic-distance week
+  // flatlines at about 12.6 hours however much time the athlete offers, because
+  // there is no legitimate Olympic session long enough to spend more. Offering
+  // 20-30 h there is a promise the sport cannot keep. See `MAX_BAND_BY_SPORT`.
+  const sportCfg = getSport(sport as Parameters<typeof getSport>[0]);
+  const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForSport(sportCfg, b.value));
   const bandOffered = offeredBands.some((b) => b.value === weeklyHours);
 
   // Read AFTER mount, not in the initializer: `Intl` resolves to UTC on the

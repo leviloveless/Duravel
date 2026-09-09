@@ -38,7 +38,13 @@
  * validator.
  */
 
-import type { ExperienceLevel, TemplateSession, TrainingDayName, WeekTemplate } from "./types";
+import type {
+  ExperienceLevel,
+  RunType,
+  TemplateSession,
+  TrainingDayName,
+  WeekTemplate,
+} from "./types";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 import { MAX_SESSIONS_PER_DAY } from "./caps";
 import { MIN_MILES_PER_RUN, runsForMileage } from "./slots";
@@ -67,6 +73,18 @@ export interface TemplateContext {
   prescribesRunning?: boolean;
   /** True when the sport has hybrid/station work to place (HYROX, DEKA). */
   prescribesHybrid?: boolean;
+  /**
+   * Minutes per mile for each run type, when the athlete's benchmarks give the
+   * engine enough to compute them.
+   *
+   * Here so the DESIGNER can turn a time the athlete types into the miles the
+   * engine stores. An athlete thinks "my long run is about ninety minutes" as
+   * readily as "about eight miles", and the two are the same sentence at their
+   * pace — but only one of them is a currency the weekly budget is measured in,
+   * so the conversion happens once, in the UI, at the pace of that run type
+   * rather than at some average.
+   */
+  runPaceMin?: Partial<Record<RunType, number>>;
 }
 
 /** Minimum training days the engine will build a program from (`ProfileSchema`). */
@@ -102,6 +120,14 @@ const isQualityRun = (s: TemplateSession) =>
  */
 const isHard = (s: TemplateSession) =>
   isQualityRun(s) || isLong(s) || s.kind === "hybrid" || s.kind === "brick";
+
+// A standalone Zone 1-2 RIDE is deliberately absent from BOTH predicates above,
+// and that is the rule rather than an oversight. It costs the athlete time and
+// almost no recovery, which is the entire reason to prescribe one — so it must
+// not trip the back-to-back-hard-days rule, and `isRun` must keep excluding it
+// from `runsForMileage`, which is a rule about the impact of RUNNING. A week of
+// rides around one long run is a legitimate shape for someone coming back from a
+// foot injury, and the validator has no business arguing with it.
 /**
  * A lift that leaves the legs tired, so the spacing rules apply to it.
  *

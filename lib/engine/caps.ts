@@ -165,17 +165,42 @@ export const BAND_CARDIO_SESSION_MINUTES: Partial<Record<WeeklyHoursBand, number
  *   mileage target) = ~894 minutes with nowhere to go. At
  *   `BAND_CARDIO_SESSION_MINUTES.h20_30` = 240 that is 3.7 blocks.
  *
- * WHY THREE AND NOT FOUR. The reserve is bounded above by the MILEAGE, not by
- * taste, so it lands one slot short of the minutes. Every run has to stay under
- * the long run (`anchorLongRun`), the long run is pinned at 90 minutes for a
- * station sport (`HYBRID_LONG_RUN_MINUTES`) — about 9.2 miles — and 50 running
- * miles under a 9.2-mile ceiling needs SIX runs. A fourth reserved slot forces
- * five, and the miles that no longer fit are simply not placed: measured, it
- * takes cardio delivery from 74% to 86% and puts three weeks of a 16-week block
- * up to 1.4 mi under their stated mileage. That trade may yet be the right one —
- * Levi's own ruling is that hours win over miles when the two contradict — but
- * it should be made deliberately, and the cheaper half of the gap is not a slot
- * problem at all (see `session-cap.test.ts` on `weekCardioCapacity`).
+ * WHY FOUR AT h20_30, AND WHAT IT COSTS (Levi, 2026-09-09 — the fourth slot was
+ * left as his call when the third shipped, and he took it).
+ *
+ * The reserve is bounded above by the MILEAGE, not by taste. Every run has to
+ * stay under the long run (`anchorLongRun`), the long run is pinned at 90
+ * minutes for a station sport (`HYBRID_LONG_RUN_MINUTES`) — about 9.2 miles —
+ * and 50-60 running miles under a 9.2-mile ceiling needs SIX runs. A fourth
+ * reserved slot leaves five, and the miles that no longer fit are simply not
+ * placed. So this is a straight trade of miles for hours, and the standing rule
+ * when those two contradict is that HOURS WIN: an athlete who selected 20-30
+ * hours and is handed 20.4 has been mis-sold in a way that 1.4 missing miles on
+ * one week of sixteen is not.
+ *
+ * Measured end to end on a 16-week advanced HYROX h20_30 build, 7 training days,
+ * three -> four slots:
+ *
+ *   cardio delivered   71% -> 82% of prescribed (13,397 -> 15,656 min)
+ *   peak week (w11)    904 -> 1130 of 1560 min  (58% -> 72%)
+ *   peak week TOTAL    20.4 h -> 23.2 h of training actually delivered
+ *   mileage            3 of 16 weeks now land SHORT of their stated target:
+ *                        w10 57.0 -> 56.4 (-0.60 mi)
+ *                        w11 60.0 -> 58.6 (-1.40 mi)
+ *                        w14 56.7 -> 56.1 (-0.60 mi)
+ *                      2.6 mi across ~700 program miles; the other 12 non-race
+ *                      weeks still hit their target exactly.
+ *
+ * Note what the mileage line does NOT say: these three weeks are not carrying
+ * the same miles in fewer runs, they are genuinely a mile or so under. That is
+ * the whole cost, it was the cost quoted when the trade was offered, and it did
+ * not grow on re-measurement.
+ *
+ * The remaining 18% is not a slot problem and a FIFTH slot would not buy it —
+ * see `session-cap.test.ts` on `weekCardioCapacity` and `stampCrossCardio`.
+ *
+ * `h10_20` stays at three: it already delivers 88% and its mileage target is low
+ * enough that the run floor was never the binding constraint there.
  *
  * The lower bands get nothing, deliberately: measured, `h0_5` and `h5_10`
  * deliver their prescribed cardio EXACTLY (180/180, 360/360) with 3-5 slots
@@ -189,7 +214,7 @@ export const BAND_CARDIO_SESSION_MINUTES: Partial<Record<WeeklyHoursBand, number
  */
 export const BAND_CARDIO_SLOTS: Partial<Record<WeeklyHoursBand, number>> = {
   h10_20: 3,
-  h20_30: 3,
+  h20_30: 4,
 };
 
 /** Day-slots this band keeps clear for Zone 1-2 blocks (0 for the low bands). */

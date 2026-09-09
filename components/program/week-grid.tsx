@@ -72,6 +72,7 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
   { label: "Fartlek", session: { kind: "run", runType: "fartlek" } },
   { label: "Hybrid / stations", session: { kind: "hybrid" } },
   { label: "Brick", hint: "bike, then run", session: { kind: "brick" } },
+  { label: "Bike", hint: "easy aerobic, no impact", session: { kind: "bike" } },
   { label: "Lift — full body", session: { kind: "lift", liftType: "full" } },
   { label: "Lift — upper", session: { kind: "lift", liftType: "upper" } },
   { label: "Lift — lower", session: { kind: "lift", liftType: "lower" } },
@@ -92,6 +93,7 @@ const LIFT_LABEL: Record<NonNullable<TemplateSession["liftType"]>, string> = {
 export function sessionLabel(s: TemplateSession): string {
   if (s.kind === "hybrid") return "Hybrid";
   if (s.kind === "brick") return "Brick · bike→run";
+  if (s.kind === "bike") return "Bike";
   if (s.kind === "lift") return `Lift · ${LIFT_LABEL[s.liftType ?? "full"]}`;
   if (s.runType === undefined) return "Run · you pick";
   const nice: Record<string, string> = {
@@ -106,6 +108,28 @@ export function sessionLabel(s: TemplateSession): string {
   };
   return nice[s.runType] ?? s.runType;
 }
+
+/**
+ * The size fields a session can carry, and what each one means.
+ *
+ * A run is asked for in MILES because that is the currency the week's budget is
+ * kept in — but an athlete who thinks in minutes can type minutes and the
+ * designer converts at that run type's own pace before storing, so the engine
+ * only ever sees one currency. A bike is asked for in minutes because a ride has
+ * no mileage in a station athlete's budget. A brick is asked for in both,
+ * because a brick IS both.
+ *
+ * A lift and a hybrid take neither: a lift is a fixed hour and a hybrid's size
+ * is the race's, not the athlete's.
+ */
+function sizeFieldsFor(s: TemplateSession): ("miles" | "minutes")[] {
+  if (s.kind === "run") return ["miles"];
+  if (s.kind === "bike") return ["minutes"];
+  if (s.kind === "brick") return ["minutes", "miles"];
+  return [];
+}
+
+const SIZE_LABEL: Record<"miles" | "minutes", string> = { miles: "mi", minutes: "min" };
 
 const SEVERITY_STYLE: Record<TemplateIssue["severity"], string> = {
   blocking: "border-red-200 bg-red-50 text-red-900",
@@ -240,6 +264,35 @@ export default function WeekGrid({
     }));
   };
 
+  /**
+   * Change a session's starting size.
+   *
+   * Goes through `mutate` like every other edit, so it lands in the undo history
+   * — typing 12 where you meant 1.2 is exactly the mistake you want to take back
+   * in one click, and it is the one edit here that is easy to make without
+   * noticing.
+   */
+  const resize = (
+    day: TrainingDayName,
+    i: number,
+    patch: { startMiles?: number; startMin?: number },
+  ) => {
+    const s = week[day]?.[i];
+    if (!s) return;
+    mutate(`resizing ${sessionLabel(s)}`, (w) => ({
+      ...w,
+      [day]: (w[day] ?? []).map((x, k) => {
+        if (k !== i) return x;
+        const next = { ...x, ...patch };
+        // An emptied box means "you decide" again, not zero.
+        if (patch.startMiles !== undefined && !Number.isFinite(patch.startMiles))
+          delete next.startMiles;
+        if (patch.startMin !== undefined && !Number.isFinite(patch.startMin)) delete next.startMin;
+        return next;
+      }),
+    }));
+  };
+
   const applyPreset = (goal: TemplateGoal) => {
     const t = suggestTemplate(goal, {
       trainingDays,
@@ -309,14 +362,18 @@ export default function WeekGrid({
               day={day}
               sessions={week[day] ?? []}
               issues={issues.filter((i) => i.day === day)}
+              paces={context.runPaceMin}
               onAdd={(s) => addTo(day, s)}
               onRemove={(i) => removeFrom(day, i)}
+              onResize={(i, patch) => resize(day, i, patch)}
             />
           ))}
         </div>
         <p className="text-xs text-zinc-500">
-          Say what and where. Distances and durations are the engine&apos;s — it sizes every session
-          from your mileage target, and still handles deloads, tapers and race week.
+          Say what and where. Sizes are optional — leave one blank and the engine picks it from your
+          mileage target. Anything you do set is where that session STARTS: the engine still ramps
+          it week by week, still deloads and tapers it, and still holds it to the session time cap
+          and the long run&apos;s ceiling.
         </p>
       </section>
 
@@ -351,14 +408,18 @@ function DayCard({
   day,
   sessions,
   issues,
+  paces,
   onAdd,
   onRemove,
+  onResize,
 }: {
   day: TrainingDayName;
   sessions: TemplateSession[];
   issues: TemplateIssue[];
+  paces: TemplateContext["runPaceMin"];
   onAdd: (s: TemplateSession) => void;
   onRemove: (i: number) => void;
+  onResize: (i: number, patch: { startMiles?: number; startMin?: number }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const worst = issues.some((i) => i.severity === "blocking")
@@ -386,17 +447,33 @@ function DayCard({
         {sessions.map((s, i) => (
           <li
             key={`${s.kind}-${i}`}
-            className="flex items-center justify-between rounded-lg bg-zinc-100 px-3 py-2 text-sm"
+            className="flex flex-col gap-2 rounded-lg bg-zinc-100 px-3 py-2"
           >
-            <span>{sessionLabel(s)}</span>
-            <button
-              type="button"
-              onClick={() => onRemove(i)}
-              aria-label={`Remove ${sessionLabel(s)} from ${DAY_SHORT[day]}`}
-              className="text-zinc-400 transition-colors hover:text-red-600"
-            >
-              ×
-            </button>
+            <div className="flex items-center justify-between text-sm">
+              <span>{sessionLabel(s)}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                aria-label={`Remove ${sessionLabel(s)} from ${DAY_SHORT[day]}`}
+                className="text-zinc-400 transition-colors hover:text-red-600"
+              >
+                ×
+              </button>
+            </div>
+            {sizeFieldsFor(s).length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {sizeFieldsFor(s).map((field) => (
+                  <SizeField
+                    key={field}
+                    session={s}
+                    field={field}
+                    day={day}
+                    paces={paces}
+                    onResize={(patch) => onResize(i, patch)}
+                  />
+                ))}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -436,5 +513,88 @@ function DayCard({
           </button>
         ))}
     </div>
+  );
+}
+
+/**
+ * One starting-size box.
+ *
+ * Uncontrolled-ish on purpose: the value comes from the session but the box is
+ * free-typed, so a half-finished "1." does not get parsed to 1 and written back
+ * under the athlete's fingers. Blank clears the size rather than storing zero —
+ * "you decide" and "zero miles" are different instructions and only one of them
+ * is meaningful.
+ *
+ * A RUN can be entered in minutes when the athlete's benchmarks gave us a pace
+ * for that run type. The conversion happens here, once, and only miles are
+ * stored — the engine should never have to guess which currency a number is in.
+ */
+function SizeField({
+  session,
+  field,
+  day,
+  paces,
+  onResize,
+}: {
+  session: TemplateSession;
+  field: "miles" | "minutes";
+  day: TrainingDayName;
+  paces: TemplateContext["runPaceMin"];
+  onResize: (patch: { startMiles?: number; startMin?: number }) => void;
+}) {
+  const isRun = session.kind === "run";
+  const pace = isRun ? paces?.[session.runType ?? "easy"] : undefined;
+  const [asTime, setAsTime] = useState(false);
+
+  const stored = field === "miles" ? session.startMiles : session.startMin;
+  const shown =
+    asTime && pace !== undefined && stored !== undefined
+      ? String(Math.round(stored * pace))
+      : stored !== undefined
+        ? String(stored)
+        : "";
+
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    const empty = raw.trim() === "" || !Number.isFinite(n) || n <= 0;
+    if (field === "minutes") {
+      onResize({ startMin: empty ? Number.NaN : n });
+      return;
+    }
+    // Miles — converting from minutes first when that is what was typed.
+    const miles = asTime && pace !== undefined && pace > 0 ? n / pace : n;
+    onResize({ startMiles: empty ? Number.NaN : Math.round(miles * 10) / 10 });
+  };
+
+  const unit = field === "miles" && asTime ? "min" : SIZE_LABEL[field];
+  const label = session.kind === "brick" ? (field === "minutes" ? "bike" : "run") : "starts at";
+
+  return (
+    <label className="flex items-center gap-1 text-xs text-zinc-500">
+      <span>{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        onChange={(e) => commit(e.target.value)}
+        aria-label={`${sessionLabel(session)} on ${DAY_SHORT[day]} — starting ${unit === "min" ? "time" : "distance"}`}
+        placeholder="—"
+        className="w-14 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-right text-xs text-zinc-900 focus:border-black focus:outline-none"
+      />
+      {/* Only a RUN can be given in either currency, and only when we know the
+          pace to convert at. Everything else has exactly one honest unit. */}
+      {field === "miles" && pace !== undefined ? (
+        <button
+          type="button"
+          onClick={() => setAsTime((v) => !v)}
+          className="rounded px-1 text-xs text-zinc-500 underline decoration-dotted hover:text-black"
+          aria-label={`Switch to ${asTime ? "miles" : "minutes"}`}
+        >
+          {unit}
+        </button>
+      ) : (
+        <span>{unit}</span>
+      )}
+    </label>
   );
 }

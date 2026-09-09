@@ -15,7 +15,21 @@
  * TrainingPeaks/Seiler). Distinguishes 70.3 from 140.6 throughout.
  */
 import { parseTimeToSeconds } from "../paces";
-import type { PhaseName, ZoneDistribution } from "../types";
+import { trainingCaps } from "../caps";
+import { clampBandForSport } from "../time-budget";
+import {
+  buildTriathlonSkeleton as ironmanBuildTriathlonSkeleton,
+  rebuildTriWeek as ironmanRebuildTriWeek,
+} from "../ironman";
+import type { TriAnchors as TriAnchorsType } from "../ironman";
+import type {
+  EngineInput,
+  PhaseName,
+  ProgramSkeleton,
+  WeekSkeleton,
+  ZoneDistribution,
+} from "../types";
+import type { ProgramWeek } from "@/lib/schemas";
 import type { SportConfig, ExperienceBand, NeedsDomainConfig, PhaseCountTable } from "./types";
 
 // --- shared bands / needs ---------------------------------------------------
@@ -225,11 +239,62 @@ export function bikeLevelFromFtp(
 
 // --- back-compat re-exports: the deterministic engine now lives in ironman ---
 export {
-  buildTriathlonSkeleton,
   buildTriProgramData,
   triAnchorsFromBenchmarks,
-  rebuildTriWeek,
   triWeekToProgramWeek,
   triVolumeLevel,
 } from "../ironman";
 export type { TriAnchors } from "../ironman";
+
+/**
+ * Hold a stored triathlon program to the bands its DISTANCE actually offers.
+ *
+ * `buildSkeleton` already runs `normalizeBandForSport` on the way in, but that
+ * clamp keys on the sport FAMILY, and all three triathlon distances share one
+ * family — so it cannot express the thing that is true here (see
+ * `MAX_BAND_BY_SPORT`): 30-40 hours is a real 140.6 build and there is no
+ * Olympic-distance session long enough to fill it. This is where the
+ * distance-level ceiling lands, and it is deliberately at the door of the
+ * triathlon engine rather than sprinkled through it — everything downstream
+ * (`bandTriHours`, `bandMaxWeeklyMinutes`, `applyBandZoneShift`, the caps) reads
+ * `input.weeklyHours`, so clamping the input once clamps all of them together.
+ *
+ * ⚠️ THE CAPS HAVE TO MOVE WITH THE BAND. `toEngineInput` computes `caps` from
+ * the band before this point, so leaving them alone would hand a clamped h30_40
+ * program h30_40 session ceilings — 180-minute sessions and 300-minute Zone 2
+ * blocks inside a week now sized for 10-20 hours. That is the exact shape of the
+ * bug this whole change is undoing, so the caps are recomputed from the band the
+ * program is actually going to be built at.
+ *
+ * Nothing here throws. A program SAVED at `tri_olympic` + `h30_40` — which
+ * onboarding offered until 2026-09-09 — rebuilds at `h10_20` on every
+ * recalculate and adapt, quietly, which is the only acceptable behaviour for a
+ * band that stopped being offered after someone had already bought it.
+ */
+function clampInputToSportBand(input: EngineInput, cfg: SportConfig): EngineInput {
+  if (!input.weeklyHours) return input;
+  const band = clampBandForSport(cfg, input.weeklyHours);
+  if (band === input.weeklyHours) return input;
+  return {
+    ...input,
+    weeklyHours: band,
+    caps: trainingCaps(
+      cfg.family,
+      { runningExp: input.runningExp, hybridExp: input.hybridExp, liftingExp: input.liftingExp },
+      band,
+    ),
+  };
+}
+
+export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): ProgramSkeleton {
+  return ironmanBuildTriathlonSkeleton(clampInputToSportBand(input, cfg), cfg);
+}
+
+export function rebuildTriWeek(
+  week: WeekSkeleton,
+  input: EngineInput,
+  cfg: SportConfig,
+  anchors: TriAnchorsType = {},
+): { skeletonWeek: WeekSkeleton; programWeek: ProgramWeek } {
+  return ironmanRebuildTriWeek(week, clampInputToSportBand(input, cfg), cfg, anchors);
+}
