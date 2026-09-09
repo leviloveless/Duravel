@@ -102,8 +102,19 @@ const isQualityRun = (s: TemplateSession) =>
  */
 const isHard = (s: TemplateSession) =>
   isQualityRun(s) || isLong(s) || s.kind === "hybrid" || s.kind === "brick";
+/**
+ * A lift that leaves the legs tired, so the spacing rules apply to it.
+ *
+ * POWER counts. `ensurePowerSessionPatterns` guarantees a power day trains
+ * squat, hip hinge or lunge, and `applyPowerStations` turns it into the race's
+ * four loaded stations at 150% of competition weight — sled push, sled pull,
+ * wall balls, walking lunges. That is as much leg work as a lower-body day.
+ * `sequencing.ts`'s `isHardLegLift` has always counted it; this did not, so an
+ * authored power day slipped past "a leg lift needs an easy day after it" and
+ * "two leg lifts back to back" without a word.
+ */
 const isLegLift = (s: TemplateSession) =>
-  s.kind === "lift" && (s.liftType === "lower" || s.liftType === "full");
+  s.kind === "lift" && (s.liftType === "lower" || s.liftType === "full" || s.liftType === "power");
 
 /** Template days in calendar order, so "consecutive" means what it says. */
 function orderedDays(t: WeekTemplate): { day: TrainingDayName; sessions: TemplateSession[] }[] {

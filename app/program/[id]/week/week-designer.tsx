@@ -55,12 +55,24 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
   { label: "Lift — full body", session: { kind: "lift", liftType: "full" } },
   { label: "Lift — upper", session: { kind: "lift", liftType: "upper" } },
   { label: "Lift — lower", session: { kind: "lift", liftType: "lower" } },
+  {
+    label: "Lift — power",
+    hint: "the race's four stations",
+    session: { kind: "lift", liftType: "power" },
+  },
 ];
+
+const LIFT_LABEL: Record<NonNullable<TemplateSession["liftType"]>, string> = {
+  full: "full body",
+  upper: "upper",
+  lower: "lower",
+  power: "power",
+};
 
 function sessionLabel(s: TemplateSession): string {
   if (s.kind === "hybrid") return "Hybrid";
   if (s.kind === "brick") return "Brick · bike→run";
-  if (s.kind === "lift") return `Lift · ${s.liftType ?? "full"}`;
+  if (s.kind === "lift") return `Lift · ${LIFT_LABEL[s.liftType ?? "full"]}`;
   if (s.runType === undefined) return "Run · you pick";
   const nice: Record<string, string> = {
     easy: "Easy run",
