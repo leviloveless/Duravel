@@ -1300,6 +1300,24 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
   // PASS 2 — no other run may match or beat it. Where the long run is already at
   // its ceiling the rival is cut and the miles go to whichever run still has room,
   // which is what "shrink the quality session" means in practice (Levi's call).
+  //
+  // Miles that the long run and the existing easy runs cannot take accumulate
+  // here until they are enough to be an easy run of their own. That escape is
+  // what a high-volume week actually needs: with the long run held at 90 minutes,
+  // a 51 mi week across five runs cannot keep every one of them under 9.2 mi —
+  // five times 9.2 is 46. The week does not need a longer run, it needs another
+  // one. `sizeRuns` takes the same escape when every run is at its cap.
+  let homeless = 0;
+  const drainHomeless = () => {
+    if (homeless < 0.05) return;
+    const extra = buildEasyRuns(homeless, ctx.paces, ctx.exp, ctx.caps.session);
+    if (!extra.length) return; // too little to be a session — the true-up settles it
+    const slot = leastLoadedUnderCap(ctx.days, 2, ctx.place);
+    if (slot === -1) return; // every day is at two workouts
+    ctx.days[slot]!.sessions.push(...extra);
+    homeless = 0;
+    restamp();
+  };
   for (let i = 0; i < 60; i++) {
     const over = rivals()
       .filter((r) => total(r) > total(long) - LONG_RUN_MARGIN)
@@ -1338,80 +1356,98 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
     }
     let placed = giveToLong(freed);
     if (placed < freed - 0.001) {
-      // Long run full: re-home the remainder on the roomiest OTHER run that this
-      // does not simply push over the line in turn.
-      const spare = freed - placed;
-      const taker = rivals()
-        .filter((r) => r !== over && total(r) + spare <= total(long) - LONG_RUN_MARGIN)
-        .sort((a, b) => anchorMaxTotal(a, ctx) - total(a) - (anchorMaxTotal(b, ctx) - total(b)))
-        .pop();
-      if (taker) {
-        write(taker, taker.distanceMiles + spare);
-        restamp();
-        placed += spare;
-      }
-      // Nowhere legal to put them: handled by the true-up below.
+      // Long run full: the freed miles go on the EASY runs (Levi, 2026-09-09),
+      // spread across them so none is pushed over the line in turn. Routing this
+      // through the same spreader as the true-up matters — re-homing the spare on
+      // "the roomiest run" was itself putting easy runs above the long run, which
+      // is the bug this rule was meant to end.
+      const spare = round1(freed - placed);
+      const onto = spreadOntoEasyRuns(
+        spare,
+        rivals().filter((r) => r !== over),
+        total(long),
+        write,
+        restamp,
+        total,
+      );
+      placed = round1(placed + onto);
+      // What no existing run could take waits for a run of its own.
+      homeless = round1(homeless + (spare - onto));
+      drainHomeless();
     }
   }
+  drainHomeless();
 
   // TRUE UP. This pass MOVES miles; it must not create or destroy them, and the
-  // rep snapping inside `setRunMiles` means a move rarely lands exact. Put any
-  // drift back — preferring the long run, the run this whole pass exists to make
-  // biggest, and otherwise the runs that will not overtake it.
+  // rep snapping inside `setRunMiles` means a move rarely lands exact.
+  //
+  // **LEFTOVER MILES GO ON THE EASY RUNS** (Levi, 2026-09-09), and that one rule
+  // settles what had been the open question here. The conflict was: with the long
+  // run at its 90-minute ceiling and every quality run at its floor, a remainder
+  // had nowhere to go, so either a quality run stayed longer than the long run or
+  // the week silently delivered less than it advertised. Both were wrong. The easy
+  // runs are the right home for it — they are the week's aerobic ballast, they
+  // take any distance exactly rather than in whole reps, and growing one is the
+  // change with the least training consequence of any available.
   restamp();
-  // A rep-based run can only move in WHOLE reps — 0.62 mi at a time for a 1 km
-  // interval — so it cannot absorb a 0.4 mi remainder at all, and asking it to
-  // stalls the loop and ships the week short. Continuous runs take any distance
-  // exactly, so they settle the remainder.
-  const continuousFirst = (a: RunSession, b: RunSession) =>
-    Number(REP_DISTANCE_MILES[a.runType] !== undefined) -
-    Number(REP_DISTANCE_MILES[b.runType] !== undefined);
+  // Order of preference for a run that must ABSORB miles:
+  //   1. easy runs — Levi's rule, and the least consequential place to put volume;
+  //   2. any other continuous run — a rep-based run can only move in WHOLE reps
+  //      (0.62 mi for a 1 km interval), so it cannot absorb a 0.4 mi remainder at
+  //      all, and asking it to stalls the loop and ships the week short;
+  //   3. most headroom first, within each group.
+  const absorbRank = (r: RunSession) =>
+    r.runType === "easy" ? 0 : REP_DISTANCE_MILES[r.runType] === undefined ? 1 : 2;
+  const continuousFirst = (a: RunSession, b: RunSession) => absorbRank(a) - absorbRank(b);
   for (let i = 0; i < 12; i++) {
     const drift = round1(ctx.targetMileage - weekMileage({ days }));
     if (Math.abs(drift) < 0.05) break;
     const beforeStep = weekMileage({ days });
     if (drift > 0) {
-      const room = longCeiling - total(long);
-      if (room > 0.05) {
-        write(long, long.distanceMiles + Math.min(drift, room));
-      } else {
-        const byRoom = rivals().sort(
-          (a, b) =>
-            continuousFirst(a, b) ||
-            anchorMaxTotal(b, ctx) - total(b) - (anchorMaxTotal(a, ctx) - total(a)),
-        );
-        // Only onto a run that will not overtake the long run. Refilling the run
-        // pass 2 had just shrunk is what undid the whole pass: the invariant went
-        // back from 3% of weeks violated to 36%. When nothing can legally take
-        // them the week lands short and SAYS so — `ceilingBound` below returns the
-        // delivered mileage, and `assembleProgram` adopts it as the week's target,
-        // so the prescription and the calendar still agree.
+      // Try each home in Levi's order and stop at the first that MOVES something.
+      // Checking "is there room" and then discovering `setRunMiles` clamps it
+      // anyway is what let a week land short: the guard below saw no progress and
+      // broke out before the later options had a turn.
+      const byRoom = rivals().sort(
+        (a, b) =>
+          continuousFirst(a, b) ||
+          anchorMaxTotal(b, ctx) - total(b) - (anchorMaxTotal(a, ctx) - total(a)),
+      );
+      const grew = () => weekMileage({ days }) - beforeStep > 0.01;
+
+      // 1. The long run itself, the run this pass exists to make biggest.
+      if (longCeiling - total(long) > 0.05) write(long, long.distanceMiles + drift);
+
+      // 2. The easy runs (Levi, 2026-09-09) — spread so none overtakes the long run.
+      if (!grew()) spreadOntoEasyRuns(drift, rivals(), total(long), write, restamp, total);
+
+      // 3. Any other run that will not overtake it.
+      if (!grew()) {
         const taker = byRoom.find((r) => total(r) + drift <= total(long) - LONG_RUN_MARGIN);
-        if (taker) {
-          write(taker, taker.distanceMiles + drift);
-        } else {
-          // Nothing existing can take them without overtaking the long run. Give
-          // the miles their own easy run where they are enough for one — a fresh
-          // easy run is short by construction, so it cannot overtake anything.
-          const extra = buildEasyRuns(drift, ctx.paces, ctx.exp, ctx.caps.session);
-          const slot = extra.length ? leastLoadedUnderCap(ctx.days, 2, ctx.place) : -1;
-          if (slot !== -1) {
-            ctx.days[slot]!.sessions.push(...extra);
-          } else {
-            // ⚠️ UNRESOLVED, and a decision rather than a bug. The long run is at
-            // its 90-minute ceiling, every other run is at its floor, and the
-            // remainder is too small to be a session of its own. Something has to
-            // give: either a quality run stays longer than the long run, or the
-            // week delivers less mileage than it advertises. Today the WEEK'S
-            // MILEAGE wins, because an existing guard pins it and because a week
-            // that silently lands short is its own kind of wrong. That is what
-            // leaves the invariant holding in ~64% of weeks rather than ~97%.
-            const fallback = byRoom[0];
-            if (!fallback) break;
-            write(fallback, fallback.distanceMiles + drift);
-          }
-        }
+        if (taker) write(taker, taker.distanceMiles + drift);
       }
+
+      // 4. An easy run of its own, where the remainder is enough to be one.
+      if (!grew()) {
+        const extra = buildEasyRuns(drift, ctx.paces, ctx.exp, ctx.caps.session);
+        const slot = extra.length ? leastLoadedUnderCap(ctx.days, 2, ctx.place) : -1;
+        if (slot !== -1) ctx.days[slot]!.sessions.push(...extra);
+      }
+
+      // 5. LAST RESORT — the roomiest run, even though it ends up over the long
+      // run. Losing the miles is worse: the week would silently deliver less than
+      // the plan it just handed the athlete, and every mileage guarantee in this
+      // file rests on not doing that.
+      if (!grew()) {
+        // Easy runs first (`continuousFirst`), then most headroom — measured, that
+        // beats picking whichever run ends up smallest, which sounds better and
+        // scored worse (31.1% of weeks violated against 27.8%, worst 7.3 mi
+        // against 3.1): the smallest run is usually the one with least room, so
+        // the miles ended up split across several runs instead of one.
+        const fallback = byRoom.find((r) => anchorMaxTotal(r, ctx) - total(r) > 0.05);
+        if (fallback) write(fallback, fallback.distanceMiles + drift);
+      }
+      restamp();
     } else {
       const donor = [long, ...rivals()]
         .filter((r) => r.distanceMiles - anchorMinWork(r, ctx) > 0.001)
@@ -1440,6 +1476,43 @@ function trimQualityOverhead(s: RunSession, ctx: AnchorContext): number {
   s.cooldownMin = Math.max(MIN_QUALITY_COOLDOWN, cd - 5);
   s.overheadMiles = runOverheadMilesFor(s, ctx.easyPaceMin);
   return round1(before - sessionMiles(s));
+}
+
+/**
+ * Spread `miles` across the week's EASY runs, giving each only as much as keeps
+ * it under the long run. Returns how much was actually placed.
+ *
+ * Levi's rule (2026-09-09) for where leftover miles go. Easy runs are the week's
+ * aerobic ballast: growing one has the least training consequence of any run in
+ * the week, and unlike a quality run it takes any distance exactly instead of in
+ * whole reps.
+ */
+function spreadOntoEasyRuns(
+  miles: number,
+  runs: RunSession[],
+  longTotal: number,
+  write: (r: RunSession, miles: number) => void,
+  restamp: () => void,
+  total: (r: RunSession) => number,
+): number {
+  let left = miles;
+  let placed = 0;
+  // Smallest first, so the week's easy running stays even rather than one run
+  // swallowing the whole remainder.
+  const easy = runs.filter((r) => r.runType === "easy").sort((a, b) => total(a) - total(b));
+  for (const r of easy) {
+    if (left < 0.05) break;
+    const room = round1(longTotal - LONG_RUN_MARGIN - total(r));
+    const take = Math.min(left, room);
+    if (take < 0.05) continue;
+    const before = total(r);
+    write(r, r.distanceMiles + take);
+    restamp();
+    const got = round1(total(r) - before);
+    placed = round1(placed + got);
+    left = round1(left - got);
+  }
+  return placed;
 }
 
 function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: ExperienceLevel): void {
