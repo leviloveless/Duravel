@@ -31,6 +31,7 @@ import type {
 import type { ProgramBias, RunEmphasis } from "./needs";
 import { clampInt } from "./math";
 import { HYBRID_THRESHOLD_CREDIT_MINUTES, hybridRunPlan, hybridThresholdMinutes } from "./stations";
+import { BRICK_BIKE_MIN, BRICK_RUN_MIN } from "@/lib/session-volume";
 import {
   applySequencingGuards,
   spaceHardRunAfterLongRun,
@@ -1388,6 +1389,24 @@ const PENDING_RUN_TYPE = "__pending__" as unknown as RunType;
 function templateSlot(ts: TemplateSession): SessionSlot | null {
   if (ts.kind === "lift") return { kind: "lift", liftType: ts.liftType ?? "full" };
   if (ts.kind === "hybrid") return { kind: "hybrid", goalZone: 4 };
+  // A brick is bike→run in one session, and it is the one authored session type
+  // whose slot cannot be written without minutes — a `BrickSlot` IS its segments.
+  // Both legs are Zone 2: the training effect an athlete wants from a brick is
+  // running on legs that have already worked, not a second hard session, and
+  // compromised running at intensity is what the HYBRID is for (training rule,
+  // 2026-07). Built at the bike band's FLOOR; the reconciler raises it out of
+  // spare cardio minutes and stamps the run leg's distance.
+  if (ts.kind === "brick") {
+    return {
+      kind: "brick",
+      goalZone: 2,
+      countsTowardMileage: true,
+      segments: [
+        { discipline: "bike", durationMin: BRICK_BIKE_MIN, goalZone: 2 },
+        { discipline: "run", durationMin: BRICK_RUN_MIN, goalZone: 2 },
+      ],
+    };
+  }
   if (ts.kind === "run") {
     if (ts.runType === undefined) return { kind: "run", runType: PENDING_RUN_TYPE, goalZone: 2 };
     return {

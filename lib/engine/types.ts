@@ -135,7 +135,7 @@ export interface EngineInput {
  * progresses base → build → peak. A type they DID name always wins.
  */
 export interface TemplateSession {
-  kind: "run" | "lift" | "hybrid";
+  kind: "run" | "lift" | "hybrid" | "brick";
   runType?: RunType;
   liftType?: LiftSlot["liftType"];
 }
@@ -204,11 +204,40 @@ export interface BrickSegment {
   discipline: "bike" | "run" | "swim";
   durationMin: number;
   goalZone: number;
+  /**
+   * On-feet distance for a RUN segment, stamped by the reconciler (2026-09-09).
+   *
+   * A segment has always carried minutes, which is all a triathlon brick needed
+   * — the triathlon skeleton budgets in time. But `sessionWorkMiles` returned 0
+   * for a brick, so once an athlete could put a brick in an authored HYROX week
+   * the run off the bike would have been real running the week's mileage did not
+   * count: the reported total would understate what was actually run, and the
+   * reconciler would grow the OTHER runs to make up an apparent shortfall. That
+   * is the work-vs-total shape for the tenth time.
+   *
+   * Optional because a triathlon brick built before this reads as it always did
+   * — zero — rather than needing a migration.
+   */
+  distanceMiles?: number;
 }
 export interface BrickSlot {
   kind: "brick";
   goalZone: number;
   segments: BrickSegment[];
+  /**
+   * Whether the run leg counts toward the week's running mileage.
+   *
+   * True on an ATHLETE-AUTHORED brick (custom tier): the athlete put it in a
+   * HYROX week whose whole budget is miles, so the run off the bike has to be
+   * part of that budget or the week silently runs further than it says.
+   *
+   * Absent on a TRIATHLON brick, deliberately. Those are built by
+   * `buildTriathlonSkeleton` against a TIME budget and have never counted, so
+   * switching them on here would move every existing triathlon week's reported
+   * mileage — a change worth measuring on its own rather than smuggling in
+   * behind a feature. Flagged for Levi, 2026-09-09.
+   */
+  countsTowardMileage?: boolean;
 }
 export type SessionSlot =
   RunSlot | LiftSlot | HybridSlot | RestSlot | RaceSlot | SwimSlot | BikeSlot | BrickSlot;

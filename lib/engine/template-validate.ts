@@ -89,8 +89,19 @@ const isRun = (s: TemplateSession) => s.kind === "run";
 const isLong = (s: TemplateSession) => s.kind === "run" && s.runType === "long";
 const isQualityRun = (s: TemplateSession) =>
   s.kind === "run" && s.runType !== undefined && QUALITY_RUN_TYPES.has(s.runType);
-/** A session that leaves the athlete needing recovery before the next hard one. */
-const isHard = (s: TemplateSession) => isQualityRun(s) || isLong(s) || s.kind === "hybrid";
+/**
+ * A session that leaves the athlete needing recovery before the next hard one.
+ *
+ * A BRICK counts, and it is worth saying why it counts here but NOT as a quality
+ * session below. Both legs are Zone 2, so it adds no intensity to the week and
+ * cannot stand in for the threshold or interval work a program needs — a week of
+ * bricks and easy runs has no hard running in it at all, and `no_quality_run`
+ * should still say so. But it is 55–70 minutes ending in a run on legs that have
+ * already ridden, which is exactly the fatigue this rule is about. Same reasoning
+ * that puts the long run here: hard is not the same question as fast.
+ */
+const isHard = (s: TemplateSession) =>
+  isQualityRun(s) || isLong(s) || s.kind === "hybrid" || s.kind === "brick";
 const isLegLift = (s: TemplateSession) =>
   s.kind === "lift" && (s.liftType === "lower" || s.liftType === "full");
 

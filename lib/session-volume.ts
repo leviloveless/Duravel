@@ -81,6 +81,31 @@ export const HYBRID_WARMUP = 10;
 export const HYBRID_COOLDOWN = 5;
 
 /**
+ * An athlete-authored BRICK — a Z2 bike ridden straight into a run, no break
+ * (custom tier, Levi 2026-09-09).
+ *
+ * Triathlon programs have had bricks since the multi-sport engine, but they are
+ * built by `buildTriathlonSkeleton` from a bike-minutes model that the station
+ * sports do not have — a HYROX week is budgeted in MILES and cardio MINUTES, and
+ * there is no ride volume to take a proportion of. So an authored brick is sized
+ * from constants instead of derived, which is also the honest answer: the
+ * athlete asked for a brick, not for a share of a training load.
+ *
+ * The bike leg is a BAND. It is built at the floor and the reconciler raises it
+ * toward the ceiling out of the week's spare cardio minutes, the same way
+ * `crossCardioMin` fills a short run out of the same budget — so adding a brick
+ * does not push the week over its prescribed time.
+ *
+ * The run leg is fixed and short. It is deliberately not a place to put leftover
+ * mileage: nobody runs nine miles off the bike because the week had spare miles.
+ * Its distance IS counted against the week's target, so the other runs come down
+ * to make room — the same way a hybrid's run legs behave.
+ */
+export const BRICK_BIKE_MIN = 30;
+export const BRICK_BIKE_MAX = 45;
+export const BRICK_RUN_MIN = 25;
+
+/**
  * Fixed total length of a strength session (Tasks addition #4: all strength
  * workouts are 60 minutes). Split into a 10-min warmup, 45-min working block,
  * and 5-min cooldown so the displayed estimate and the weekly time tracker both
@@ -241,6 +266,20 @@ export function sessionTiming(session: Session): SessionTiming {
 export function sessionWorkMiles(session: Session): number {
   if (session.kind === "run") return session.distanceMiles;
   if (session.kind === "hybrid") return hybridRunMiles(session);
+  // A brick's run leg is on-feet distance exactly like a hybrid's legs are, and
+  // leaving it at zero was the tenth WORK vs TOTAL bug: the week would report
+  // less mileage than the athlete ran, and the reconciler would grow the other
+  // runs to close a gap that was not there. `distanceMiles` is stamped by the
+  // reconciler; a triathlon brick built before 2026-09-09 has none and reads as
+  // it always did.
+  if (session.kind === "brick" && session.countsTowardMileage) {
+    return round1(
+      session.segments.reduce(
+        (a, seg) => a + (seg.discipline === "run" ? (seg.distanceMiles ?? 0) : 0),
+        0,
+      ),
+    );
+  }
   return 0;
 }
 

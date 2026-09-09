@@ -252,7 +252,7 @@ export const LiftType = z.enum(["upper", "lower", "full", "power"]);
  * still progresses base → build → peak.
  */
 export const TemplateSessionSchema = z.object({
-  kind: z.enum(["run", "lift", "hybrid"]),
+  kind: z.enum(["run", "lift", "hybrid", "brick"]),
   runType: RunType.optional(),
   liftType: LiftType.optional(),
 });
@@ -520,12 +520,20 @@ export const BrickSegmentSchema = z.object({
   discipline: z.enum(["bike", "run", "swim"]),
   durationMin: z.number(),
   goalZone: z.number().int().min(1).max(5),
+  /** On-feet distance for a RUN segment, stamped by the reconciler so the week's
+   *  mileage counts the run off the bike. Absent on a triathlon brick built
+   *  before 2026-09-09, which then reads as it always did. See `BrickSegment`. */
+  distanceMiles: z.number().nonnegative().optional(),
   note: z.string().optional(),
 });
 export const BrickSessionSchema = z.object({
   kind: z.literal("brick"),
   goalZone: z.number().int().min(1).max(5),
   segments: z.array(BrickSegmentSchema),
+  /** True on an athlete-authored brick, whose run leg is part of the week's
+   *  mileage budget. Absent on a triathlon brick, which is budgeted in time and
+   *  has never counted. See `BrickSlot.countsTowardMileage`. */
+  countsTowardMileage: z.boolean().optional(),
   description: z.string().optional(),
 });
 

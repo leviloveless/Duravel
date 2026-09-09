@@ -20,7 +20,7 @@
  */
 
 import type { ProgramDay, Session } from "@/lib/schemas";
-import type { ExperienceLevel, RunType } from "@/lib/engine/types";
+import type { BrickSegment, ExperienceLevel, RunType } from "@/lib/engine/types";
 import { effectivePace, formatPace, paceLabel, type RunPaces } from "@/lib/engine/paces";
 import { hybridWarmupLine, hybridCooldownLine } from "@/lib/engine/run-descriptions";
 import {
@@ -35,6 +35,8 @@ import {
   weekMileage,
   hybridRunMiles,
   hybridOverheadMiles,
+  sessionWorkMiles,
+  BRICK_BIKE_MAX,
 } from "@/lib/session-volume";
 import { round1 } from "@/lib/engine/math";
 import {
@@ -495,12 +497,17 @@ export function reconcileWeekVolume(
   const capacity = weekCardioCapacity(days, caps, place.avoidDays ?? []);
   const cardioTarget = Math.min(targetCardioMinutes, capacity);
 
+  const easyPaceMin = effectivePace("easy", paces) / 60;
+
   rewriteHybridPaces(days, paces.threshold);
   // The hybrid warm-up/cooldown JOG (Levi, 2026-08-06). Stamped before the run
   // budget is computed so those miles are part of the week's total from the
   // start — the athlete's prescribed mileage does not go up, the runs come down
   // to make room, exactly as a run's own overhead behaves.
   stampHybridOverhead(days, paces);
+  // ...and the brick's run leg, before anything is budgeted against it. Its
+  // length is a constant, so this depends on nothing and can be done first.
+  stampBrickRun(days, easyPaceMin);
 
   // Fixed hybrid contribution.
   let hybridMi = 0;
@@ -518,9 +525,18 @@ export function reconcileWeekVolume(
         hybridMi += hybridRunMiles(s) + (s.overheadMiles ?? 0);
         hybridMin += sessionTiming(s).total;
       }
+      // A BRICK IS A FIXED CONTRIBUTION TOO, for the same reason a hybrid is:
+      // the athlete asked for a bike into a run, not for a share of the week's
+      // leftover mileage. Nobody runs nine miles off the bike because the week
+      // happened to have nine spare. So its run leg is a constant the other runs
+      // come DOWN to make room for — exactly the hybrid's arrangement — and its
+      // minutes are part of the week's cardio, not on top of it.
+      if (s.kind === "brick" && s.countsTowardMileage) {
+        hybridMi += sessionWorkMiles(s);
+        hybridMin += sessionTiming(s).total;
+      }
     }
   // Collect run entries.
-  const easyPaceMin = effectivePace("easy", paces) / 60;
   const runs: RunEntry[] = [];
   for (const d of days) {
     for (const s of d.sessions) {
@@ -680,9 +696,28 @@ export function reconcileWeekVolume(
   let runningCardio = 0;
   for (const d of days)
     for (const s of d.sessions) {
-      if (s.kind === "run" || s.kind === "hybrid") runningCardio += sessionTiming(s).total;
+      // A brick belongs here for the same reason a run does: its minutes are
+      // aerobic work the week has ALREADY spent. Leaving it out made the gap read
+      // as though nothing had happened on that day, and the week bought a
+      // standalone Zone 1–2 block on top of a session that was already 55–70
+      // minutes of Zone 2 — straight past the athlete's stated hours.
+      if (s.kind === "run" || s.kind === "hybrid" || s.kind === "brick")
+        runningCardio += sessionTiming(s).total;
     }
   let gap = Math.round(cardioTarget) - runningCardio;
+
+  // SPEND THE FIRST OF THE GAP ON THE BRICK'S BIKE LEG.
+  //
+  // The bike leg is a BAND (`BRICK_BIKE_MIN`..`BRICK_BIKE_MAX`), built at the
+  // floor and raised here — never beyond the ceiling, and only out of minutes the
+  // week was going to spend on a Zone 1–2 block anyway. So a brick lengthens
+  // where the athlete has the hours for it and stays short where they do not, and
+  // either way the week's total time is the one they asked for.
+  //
+  // Riding longer beats a separate block: it is the same zone and the same
+  // minutes, but it makes the run leg what a brick is FOR — a run on legs that
+  // have already worked.
+  if (gap > 0) gap -= growBrickBikeLegs(days, gap);
 
   // GIVE THE CROSS-TRAINING BACK WHEN THE WEEK CANNOT AFFORD IT.
   //
@@ -2012,6 +2047,59 @@ function writeRun(r: RunEntry, paces: RunPaces, sessionCap: number, exp: Experie
  * 5-minute spin and a 47-minute session, not a 42-minute one. Prescribing "3
  * minutes on the bike" would be worse than either.
  */
+/**
+ * Give every authored brick's run leg its distance.
+ *
+ * A `BrickSegment` has always carried minutes — that is all a triathlon brick
+ * needs, because the triathlon skeleton budgets in time. An authored brick sits
+ * in a HYROX week, whose budget is MILES, so the run off the bike has to be
+ * expressed in the week's own currency or it is running that nothing counts.
+ *
+ * Done FIRST, before the run budget is computed, because the leg's length is a
+ * constant (`BRICK_RUN_MIN`) and therefore depends on nothing.
+ *
+ * TRIATHLON BRICKS ARE LEFT ALONE — see `BrickSlot.countsTowardMileage`.
+ */
+function stampBrickRun(days: ProgramDay[], easyPaceMin: number): void {
+  for (const d of days)
+    for (const s of d.sessions) {
+      if (s.kind !== "brick" || !s.countsTowardMileage) continue;
+      for (const seg of s.segments) {
+        if (seg.discipline !== "run") continue;
+        seg.distanceMiles = round1(seg.durationMin / easyPaceMin);
+      }
+    }
+}
+
+/**
+ * Raise each authored brick's bike leg toward `BRICK_BIKE_MAX`, out of `budget`
+ * spare cardio minutes. Returns the minutes actually spent.
+ *
+ * Split evenly so two bricks in a week grow together rather than the first one
+ * taking everything, and rounded to whole minutes because a prescription reading
+ * "37.5 min on the bike" is not a prescription.
+ */
+function growBrickBikeLegs(days: ProgramDay[], budget: number): number {
+  const legs: BrickSegment[] = [];
+  for (const d of days)
+    for (const s of d.sessions) {
+      if (s.kind !== "brick" || !s.countsTowardMileage) continue;
+      for (const seg of s.segments) {
+        if (seg.discipline === "bike" && seg.durationMin < BRICK_BIKE_MAX) legs.push(seg);
+      }
+    }
+  if (legs.length === 0) return 0;
+  const share = Math.floor(budget / legs.length);
+  let spent = 0;
+  for (const seg of legs) {
+    const add = Math.min(share, BRICK_BIKE_MAX - seg.durationMin);
+    if (add <= 0) continue;
+    seg.durationMin += add;
+    spent += add;
+  }
+  return spent;
+}
+
 function stampCrossCardio(days: ProgramDay[]): void {
   for (const d of days)
     for (const s of d.sessions) {

@@ -19,6 +19,21 @@ const DAY_SHORT: Record<TrainingDayName, string> = {
   sun: "Sun",
 };
 
+/** The grid being edited: every training day, most of them usually empty. */
+type Week = Record<TrainingDayName, TemplateSession[]>;
+
+const emptyWeek = (days: TrainingDayName[]): Week =>
+  Object.fromEntries(days.map((d) => [d, [] as TemplateSession[]])) as Week;
+
+/**
+ * How many steps of undo to keep.
+ *
+ * Deep enough that backing out of a preset and the handful of edits around it
+ * always works, shallow enough that the history cannot grow without bound in a
+ * long session. Nobody is undoing twenty-one steps of a seven-day grid.
+ */
+const MAX_UNDO = 20;
+
 /**
  * What the athlete can put on a day.
  *
@@ -36,6 +51,7 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
   { label: "Tempo run", session: { kind: "run", runType: "tempo" } },
   { label: "Fartlek", session: { kind: "run", runType: "fartlek" } },
   { label: "Hybrid / stations", session: { kind: "hybrid" } },
+  { label: "Brick", hint: "bike, then run", session: { kind: "brick" } },
   { label: "Lift — full body", session: { kind: "lift", liftType: "full" } },
   { label: "Lift — upper", session: { kind: "lift", liftType: "upper" } },
   { label: "Lift — lower", session: { kind: "lift", liftType: "lower" } },
@@ -43,6 +59,7 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
 
 function sessionLabel(s: TemplateSession): string {
   if (s.kind === "hybrid") return "Hybrid";
+  if (s.kind === "brick") return "Brick · bike→run";
   if (s.kind === "lift") return `Lift · ${s.liftType ?? "full"}`;
   if (s.runType === undefined) return "Run · you pick";
   const nice: Record<string, string> = {
@@ -81,15 +98,26 @@ export default function WeekDesigner({
   includeHybrid: boolean;
 }) {
   const trainingDays = DAY_ORDER.filter((d) => context.trainingDays.includes(d));
-  const [week, setWeek] = useState<Record<TrainingDayName, TemplateSession[]>>(() => {
-    const base = Object.fromEntries(
-      trainingDays.map((d) => [d, [] as TemplateSession[]]),
-    ) as Record<TrainingDayName, TemplateSession[]>;
+  const [week, setWeek] = useState<Week>(() => {
+    const base = emptyWeek(trainingDays);
     for (const d of initial?.days ?? []) {
       if (base[d.day]) base[d.day] = [...d.sessions];
     }
     return base;
   });
+  /**
+   * Undo history, oldest first. Each entry is the grid as it stood BEFORE the
+   * action its `label` names, so undoing means restoring `week` and dropping the
+   * entry.
+   *
+   * This exists because of the presets (Levi, 2026-09-09). A preset replaces the
+   * whole grid in one click, and taking it back by hand meant deleting five or
+   * six sessions one at a time — a punishment for trying one out, on the very
+   * control whose whole job is to be tried out. Undo covers every edit rather
+   * than only presets: a button that works for one kind of change and silently
+   * does nothing for another is worse than no button.
+   */
+  const [history, setHistory] = useState<{ week: Week; label: string }[]>([]);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -111,19 +139,34 @@ export default function WeekDesigner({
   const blocking = issues.filter((i) => i.severity === "blocking");
   const sessionCount = template.days.reduce((n, d) => n + d.sessions.length, 0);
 
-  const addTo = (day: TrainingDayName, s: TemplateSession) =>
-    setWeek((w) => {
-      const list = w[day] ?? [];
-      if (list.length >= 2) return w;
-      setSaved(false);
-      return { ...w, [day]: [...list, s] };
-    });
+  /**
+   * The single way the grid changes.
+   *
+   * Everything routes through here so that (a) nothing can change without an
+   * undo entry, and (b) `setSaved(false)` happens ONCE per user action. It used
+   * to be called from inside the `setWeek` updater, which React is free to run
+   * twice — a state setter inside a state updater is a bug waiting for the day
+   * someone turns on StrictMode.
+   */
+  const mutate = (label: string, next: (w: Week) => Week) => {
+    setHistory((h) => [...h, { week, label }].slice(-MAX_UNDO));
+    setWeek(next);
+    setSaved(false);
+  };
 
-  const removeFrom = (day: TrainingDayName, i: number) =>
-    setWeek((w) => {
-      setSaved(false);
-      return { ...w, [day]: (w[day] ?? []).filter((_, k) => k !== i) };
-    });
+  const addTo = (day: TrainingDayName, s: TemplateSession) => {
+    if ((week[day] ?? []).length >= 2) return;
+    mutate(`adding ${sessionLabel(s)}`, (w) => ({ ...w, [day]: [...(w[day] ?? []), s] }));
+  };
+
+  const removeFrom = (day: TrainingDayName, i: number) => {
+    const s = week[day]?.[i];
+    if (!s) return;
+    mutate(`removing ${sessionLabel(s)}`, (w) => ({
+      ...w,
+      [day]: (w[day] ?? []).filter((_, k) => k !== i),
+    }));
+  };
 
   const applyPreset = (goal: TemplateGoal) => {
     const t = suggestTemplate(goal, {
@@ -131,11 +174,18 @@ export default function WeekDesigner({
       includeHybrid,
       peakMileage: context.peakMileage,
     });
-    const next = Object.fromEntries(
-      trainingDays.map((d) => [d, [] as TemplateSession[]]),
-    ) as Record<TrainingDayName, TemplateSession[]>;
+    const next = emptyWeek(trainingDays);
     for (const d of t.days) next[d.day] = [...d.sessions];
-    setWeek(next);
+    const name = TEMPLATE_GOALS.find((g) => g.id === goal)?.label ?? "that preset";
+    mutate(`\u201C${name}\u201D`, () => next);
+  };
+
+  const lastChange = history[history.length - 1];
+
+  const undo = () => {
+    if (!lastChange) return;
+    setHistory((h) => h.slice(0, -1));
+    setWeek(lastChange.week);
     setSaved(false);
   };
 
@@ -182,17 +232,29 @@ export default function WeekDesigner({
           ))}
         </div>
         <p className="text-xs text-zinc-500">
-          These replace whatever is in the grid. Everything is editable afterwards — they are a
-          correct week to react to, not a week you are stuck with.
+          These replace whatever is in the grid — Undo, above the grid, puts back exactly what was
+          there. Everything is editable afterwards: they are a correct week to react to, not a week
+          you are stuck with.
         </p>
       </section>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
           <h2 className="text-sm font-medium text-zinc-900">Your week</h2>
-          <span className="text-xs text-zinc-500">
-            {sessionCount} session{sessionCount === 1 ? "" : "s"} · two a day maximum
-          </span>
+          <div className="flex flex-wrap items-baseline gap-3">
+            {lastChange && (
+              <button
+                type="button"
+                onClick={undo}
+                className="rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-700 transition-colors hover:border-zinc-500 hover:text-black"
+              >
+                Undo {lastChange.label}
+              </button>
+            )}
+            <span className="text-xs text-zinc-500">
+              {sessionCount} session{sessionCount === 1 ? "" : "s"} · two a day maximum
+            </span>
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {trainingDays.map((day) => (

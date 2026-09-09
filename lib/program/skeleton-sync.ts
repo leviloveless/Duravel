@@ -80,7 +80,14 @@ function slotFor(s: Session): SessionSlot | null {
         sessionType: s.sessionType,
       };
     case "brick":
-      return { kind: "brick", goalZone: s.goalZone, segments: s.segments };
+      return {
+        kind: "brick",
+        goalZone: s.goalZone,
+        segments: s.segments,
+        // Carried through, or a hand edit would quietly turn an athlete's brick
+        // into one whose run leg no longer counts toward the week's mileage.
+        ...(s.countsTowardMileage ? { countsTowardMileage: true } : {}),
+      };
     default:
       return null;
   }

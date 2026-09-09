@@ -125,6 +125,47 @@ function placeholderFor(slot: PlannedSlot): Session | null {
         elements: [],
         ...(slot.simulation ? { simulation: true } : {}),
       };
+    // SWIM / BIKE / BRICK ARE NOT REALLY PLACEHOLDERS — they arrive complete.
+    //
+    // The engine builds these deterministically (the triathlon skeleton sizes
+    // them from its own time budget; an authored brick from constants), so there
+    // is nothing for the AI to fill. They belong here all the same, because the
+    // AI is only ever asked for run / lift / hybrid and will never return one —
+    // so without these cases `placeholderFor` returned null and the session was
+    // dropped between the skeleton and the calendar.
+    //
+    // ⚠️ THAT WAS NOT HYPOTHETICAL. Until 2026-09-09 `daySessions` filtered its
+    // planned slots down to run/lift/hybrid before it ever got here, so EVERY
+    // swim, bike and brick a triathlon week planned was discarded and replaced by
+    // an anonymous Zone 1–2 cardio block. A 70.3 week that planned two swims, two
+    // rides, a brick and two runs shipped one run and six cardio blocks. It is
+    // very likely why triathlon weeks have measured ~490 minutes short.
+    //
+    // The failure shape — an engine decision silently discarded by the wiring —
+    // is now on its fourth appearance in this repo. It is worth checking for
+    // FIRST whenever a planned thing does not reach the athlete.
+    case "swim":
+      return {
+        kind: "swim",
+        durationMin: slot.durationMin,
+        goalZone: slot.goalZone,
+        sessionType: slot.sessionType,
+      };
+    case "bike":
+      return {
+        kind: "bike",
+        durationMin: slot.durationMin,
+        goalZone: slot.goalZone,
+        sessionType: slot.sessionType,
+        ...(slot.isLong ? { isLong: true } : {}),
+      };
+    case "brick":
+      return {
+        kind: "brick",
+        goalZone: slot.goalZone,
+        segments: slot.segments.map((seg) => ({ ...seg })),
+        ...(slot.countsTowardMileage ? { countsTowardMileage: true } : {}),
+      };
     default:
       return null; // rest / race handled by the caller
   }
@@ -149,8 +190,20 @@ export function daySessions(
   const race = skelDay.sessions.find((s) => s.kind === "race");
   if (race && race.kind === "race") return [{ kind: "race", priority: race.priority }];
 
+  // Every kind the engine plans, not just the three the AI is asked for.
+  //
+  // This filter used to stop at run/lift/hybrid, which was right when those were
+  // the only kinds that existed and silently wrong from the moment the
+  // multi-sport engine started planning swims, rides and bricks: they never
+  // reached the athlete. See the swim/bike/brick cases in `placeholderFor`.
   const planned = skelDay.sessions.filter(
-    (s) => s.kind === "run" || s.kind === "lift" || s.kind === "hybrid",
+    (s) =>
+      s.kind === "run" ||
+      s.kind === "lift" ||
+      s.kind === "hybrid" ||
+      s.kind === "swim" ||
+      s.kind === "bike" ||
+      s.kind === "brick",
   );
   if (planned.length === 0) return []; // rest day
 
