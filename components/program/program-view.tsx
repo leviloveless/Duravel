@@ -124,6 +124,15 @@ export default function ProgramView({
             >
               Edit inputs
             </Link>
+            {/* Custom tier. Shown to everyone on purpose — the page itself
+                explains the plan to anyone who does not hold it, which is a far
+                better introduction than a feature that is simply invisible. */}
+            <Link
+              href={`/program/${meta.programId}/week`}
+              className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              Design your week
+            </Link>
             <RegenerateButton programId={meta.programId} />
             {sync && (
               <SyncAllButton

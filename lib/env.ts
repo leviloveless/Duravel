@@ -40,6 +40,10 @@ const EnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_PRICE_MONTHLY: z.string().optional(),
   STRIPE_PRICE_ANNUAL: z.string().optional(),
+  // Custom-program tier ($39.99/mo). Unset = the tier cannot be bought, and
+  // `tierFromPriceId` reads every price as "standard" — which is the safe way
+  // round for a price that is not configured yet.
+  STRIPE_PRICE_CUSTOM_MONTHLY: z.string().optional(),
   // Service-role key — SERVER ONLY; used by the Stripe webhook to bypass RLS.
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   // Set to "true" to enforce subscription gating on paid features.

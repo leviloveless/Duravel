@@ -21,11 +21,19 @@ export default async function PricingPage() {
         </p>
       </header>
 
-      <PricingPlans hasSubscription={active} plan={sub?.plan ?? null} />
+      <PricingPlans
+        hasSubscription={active}
+        plan={sub?.plan ?? null}
+        tier={sub?.tier ?? "standard"}
+      />
 
       <p className="text-center text-xs text-zinc-500">
         Prices in USD. Payments are processed securely by Stripe. Cancel anytime from your billing
-        portal. <Link href="/dashboard" className="underline">Back to dashboard</Link>.
+        portal.{" "}
+        <Link href="/dashboard" className="underline">
+          Back to dashboard
+        </Link>
+        .
       </p>
     </main>
   );

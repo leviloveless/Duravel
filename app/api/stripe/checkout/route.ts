@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import type { Plan } from "@/lib/subscription";
 
 /**
- * POST /api/stripe/checkout  { plan: "monthly" | "annual" }
+ * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" }
  *
  * Creates a Stripe Checkout Session (subscription mode) for the signed-in user
  * and returns its URL; the client redirects the browser to it. We stamp the
@@ -22,18 +22,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  let plan: Plan | undefined;
+  // The wire value names the PRICE the athlete clicked, which is a tier and an
+  // interval together; `plan` and `tier` are separated again on the way into the
+  // database by the webhook, from the price id. Keeping one value here means the
+  // client never gets to assert its own tier — it names a button, the price it
+  // maps to is decided server-side, and Stripe tells the webhook what was
+  // actually paid for. That is the only ordering in which a client cannot grant
+  // itself an entitlement.
+  type Selection = Plan | "custom_monthly";
+  let selection: Selection | undefined;
   try {
     const body = await request.json();
-    if (body?.plan === "monthly" || body?.plan === "annual") plan = body.plan;
+    if (body?.plan === "monthly" || body?.plan === "annual" || body?.plan === "custom_monthly")
+      selection = body.plan;
   } catch {
     /* fall through to 400 */
   }
-  if (!plan) {
-    return NextResponse.json({ error: "plan must be 'monthly' or 'annual'" }, { status: 400 });
+  if (!selection) {
+    return NextResponse.json(
+      { error: "plan must be 'monthly', 'annual' or 'custom_monthly'" },
+      { status: 400 },
+    );
   }
 
-  const priceId = plan === "annual" ? env.STRIPE_PRICE_ANNUAL : env.STRIPE_PRICE_MONTHLY;
+  const priceId =
+    selection === "annual"
+      ? env.STRIPE_PRICE_ANNUAL
+      : selection === "custom_monthly"
+        ? env.STRIPE_PRICE_CUSTOM_MONTHLY
+        : env.STRIPE_PRICE_MONTHLY;
   if (!priceId) {
     return NextResponse.json({ error: "Billing is not configured" }, { status: 500 });
   }
@@ -58,7 +75,7 @@ export async function POST(request: Request) {
       : { customer_email: user.email ?? undefined }),
     client_reference_id: user.id,
     subscription_data: { metadata: { user_id: user.id } },
-    metadata: { user_id: user.id, plan },
+    metadata: { user_id: user.id, plan: selection },
     allow_promotion_codes: true,
     success_url: `${origin}/dashboard?checkout=success`,
     cancel_url: `${origin}/pricing?checkout=cancelled`,

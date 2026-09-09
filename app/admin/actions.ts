@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ProgramSkeleton } from "@/lib/engine/types";
+import { syncSkeleton, syncSkeletonWeek } from "@/lib/program/skeleton-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdmin } from "@/lib/admin";
 import { ProgramDataSchema, SessionSchema } from "@/lib/schemas";
@@ -25,7 +27,11 @@ export async function addCoachingNote(programId: string, body: string): Promise<
   if (text.length > 4000) return { ok: false, error: "Note is too long (4000 max)." };
 
   const db = createAdminClient();
-  const { data: program } = await db.from("programs").select("user_id").eq("id", programId).maybeSingle();
+  const { data: program } = await db
+    .from("programs")
+    .select("user_id")
+    .eq("id", programId)
+    .maybeSingle();
   const ownerId = (program as { user_id?: string } | null)?.user_id;
   if (!ownerId) return { ok: false, error: "Program not found." };
 
@@ -74,9 +80,22 @@ export async function updateProgramData(programId: string, json: string): Promis
   }
 
   const db = createAdminClient();
+  // Keep the SKELETON in step. Without this the edited program and the skeleton
+  // disagree, and `adapt-week.ts` plans next week against the sessions the
+  // skeleton still remembers rather than the ones the athlete can see.
+  const { data: existing } = await db
+    .from("programs")
+    .select("skeleton")
+    .eq("id", programId)
+    .single();
+  const skeleton = (existing as { skeleton?: ProgramSkeleton } | null)?.skeleton;
   const { error } = await db
     .from("programs")
-    .update({ program_data: result.data, status: "ready" })
+    .update({
+      program_data: result.data,
+      status: "ready",
+      ...(skeleton ? { skeleton: syncSkeleton(skeleton, result.data) } : {}),
+    })
     .eq("id", programId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/admin/program/${programId}`);
@@ -85,8 +104,7 @@ export async function updateProgramData(programId: string, json: string): Promis
 }
 
 export type CoachSaveResult =
-  | { ok: true; totalMileage: number; totalCardioMinutes: number }
-  | { ok: false; error: string };
+  { ok: true; totalMileage: number; totalCardioMinutes: number } | { ok: false; error: string };
 
 /**
  * Save a single coach-edited session on the athlete's program and recompute that
@@ -119,13 +137,17 @@ export async function saveCoachSession(
   const db = createAdminClient();
   const { data: row, error: selErr } = await db
     .from("programs")
-    .select("program_data")
+    .select("program_data, skeleton")
     .eq("id", programId)
     .single();
   if (selErr || !row) return { ok: false, error: "Program not found." };
 
   const parsed = ProgramDataSchema.safeParse((row as { program_data?: unknown }).program_data);
-  if (!parsed.success) return { ok: false, error: "Stored program failed validation — repair it in the JSON editor first." };
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: "Stored program failed validation — repair it in the JSON editor first.",
+    };
   const data = parsed.data;
 
   const week = data.weeks.find((w) => w.weekNumber === weekNumber);
@@ -146,11 +168,27 @@ export async function saveCoachSession(
     return { ok: false, error: `Schema error: ${first?.path.join(".")} — ${first?.message}` };
   }
 
-  const { error } = await db.from("programs").update({ program_data: check.data }).eq("id", programId);
+  // ...and the skeleton with it, for the same reason as above: two stored views
+  // of one week that disagree is how an adaptation ends up planned against a
+  // session that is no longer on the calendar.
+  const storedSkeleton = (row as { skeleton?: ProgramSkeleton }).skeleton;
+  const { error } = await db
+    .from("programs")
+    .update({
+      program_data: check.data,
+      ...(storedSkeleton
+        ? { skeleton: syncSkeletonWeek(storedSkeleton, check.data, weekNumber) }
+        : {}),
+    })
+    .eq("id", programId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/admin/program/${programId}`);
   revalidatePath(`/program/${programId}`);
-  return { ok: true, totalMileage: week.summary.totalMileage, totalCardioMinutes: week.summary.totalCardioMinutes };
+  return {
+    ok: true,
+    totalMileage: week.summary.totalMileage,
+    totalCardioMinutes: week.summary.totalCardioMinutes,
+  };
 }
 
 /** Rename a program. */
@@ -175,12 +213,16 @@ export async function recalcProgramAsAdmin(programId: string): Promise<AdminResu
   const admin = await getAdmin();
   if (!admin) return { ok: false, error: "Not authorized." };
   const db = createAdminClient();
-  await db.from("programs").update({ status: "generating", program_data: null }).eq("id", programId);
+  await db
+    .from("programs")
+    .update({ status: "generating", program_data: null })
+    .eq("id", programId);
   try {
     const result = await generateProgram(db, programId);
     revalidatePath(`/admin/program/${programId}`);
     revalidatePath(`/program/${programId}`);
-    if (!result.ok) return { ok: false, error: `Generation failed: ${result.issues?.join("; ") ?? "unknown"}` };
+    if (!result.ok)
+      return { ok: false, error: `Generation failed: ${result.issues?.join("; ") ?? "unknown"}` };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Generation error" };

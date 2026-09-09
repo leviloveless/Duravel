@@ -33,7 +33,23 @@ function planFromPriceId(priceId: string | null): "monthly" | "annual" | null {
   if (!priceId) return null;
   if (priceId === env.STRIPE_PRICE_ANNUAL) return "annual";
   if (priceId === env.STRIPE_PRICE_MONTHLY) return "monthly";
+  if (priceId === env.STRIPE_PRICE_CUSTOM_MONTHLY) return "monthly";
   return null;
+}
+
+/**
+ * The PRODUCT LEVEL a price buys, as opposed to its billing interval.
+ *
+ * Deliberately fails closed: an unrecognised price id — a new one created in the
+ * Stripe dashboard before the env var is set, say — reads as `standard`, so the
+ * worst case is a customer who paid for custom and has to wait for a redeploy.
+ * The reverse default would hand the tier to everyone the moment a price id
+ * drifted, and this webhook is the only thing standing between a price and an
+ * entitlement.
+ */
+function tierFromPriceId(priceId: string | null): "standard" | "custom" {
+  if (priceId && priceId === env.STRIPE_PRICE_CUSTOM_MONTHLY) return "custom";
+  return "standard";
 }
 
 async function upsertFromSubscription(sub: Stripe.Subscription) {
@@ -61,15 +77,13 @@ async function upsertFromSubscription(sub: Stripe.Subscription) {
   const { error } = await admin.from("subscriptions").upsert(
     {
       user_id: userId,
-      stripe_customer_id:
-        typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+      stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
       stripe_subscription_id: sub.id,
       status: sub.status,
       price_id: priceId,
       plan: planFromPriceId(priceId),
-      current_period_end: periodEndUnix
-        ? new Date(periodEndUnix * 1000).toISOString()
-        : null,
+      tier: tierFromPriceId(priceId),
+      current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
       // Flexible billing mode (new API default) records a portal cancellation in
       // `cancel_at` and leaves `cancel_at_period_end` false; classic mode uses the
       // boolean. Treat either as "scheduled to cancel".
@@ -142,14 +156,17 @@ async function handleInvoicePaid(stripe: Stripe, invoice: Stripe.Invoice): Promi
       userId = sub.metadata?.user_id ?? null;
     }
     if (!userId) {
-      console.warn(`[stripe] invoice ${invoiceId} paid but no user_id resolvable; skipping receipt`);
+      console.warn(
+        `[stripe] invoice ${invoiceId} paid but no user_id resolvable; skipping receipt`,
+      );
       return;
     }
 
     const item = sub?.items.data[0];
     const priceId = item?.price.id ?? null;
     const plan = planFromPriceId(priceId);
-    const planLabel = plan === "annual" ? "Duravel Annual" : plan === "monthly" ? "Duravel Monthly" : "Duravel";
+    const planLabel =
+      plan === "annual" ? "Duravel Annual" : plan === "monthly" ? "Duravel Monthly" : "Duravel";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const periodEndUnix: number | null =

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateProgram } from "@/lib/generation/generate-program";
-import { getEntitlement } from "@/lib/subscription";
+import { getEntitlement, hasTier } from "@/lib/subscription";
 
 /**
  * POST /api/generate  { programId: string }
@@ -67,11 +67,33 @@ export async function POST(request: Request) {
   // RLS scopes this to the caller's own rows.
   const { data: program } = await supabase
     .from("programs")
-    .select("id, status")
+    .select("id, status, input_snapshot")
     .eq("id", programId)
     .single();
   if (!program) {
     return NextResponse.json({ error: "Program not found" }, { status: 404 });
+  }
+
+  // THE CUSTOM TIER'S GATE, and it has to be here rather than at the designer.
+  //
+  // An athlete-authored week template rides in `input_snapshot`, which is
+  // durable: it is what every future generate and every Recalculate reads. So
+  // gating only the page that CREATES a template would mean a lapsed
+  // subscriber's Recalculate kept honouring theirs indefinitely, and the tier
+  // would be decorative. Gate the thing that consumes it.
+  //
+  // Checked against the tier and not merely entitlement — a standard subscriber
+  // is entitled, and must still not get custom weeks.
+  const snapshot = program.input_snapshot as { weekTemplate?: unknown } | null;
+  if (snapshot?.weekTemplate && !(await hasTier("custom"))) {
+    return NextResponse.json(
+      {
+        error: "payment_required",
+        message:
+          "This program was built from your own weekly template, which is part of the custom plan. Resubscribe to that plan to rebuild it, or edit the program to use a standard schedule.",
+      },
+      { status: 402 },
+    );
   }
   // Already done and this isn't an explicit recalculate → no-op.
   if (program.status === "ready" && !force) {

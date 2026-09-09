@@ -16,6 +16,22 @@ import { env, envFlag } from "@/lib/env";
 
 export type Plan = "monthly" | "annual";
 
+/**
+ * Product level — distinct from `Plan`, which is the billing INTERVAL.
+ *
+ * Until 2026-09-08 entitlement was binary and `plan` was the only axis, because
+ * there was only one thing to buy. The custom tier ($39.99/mo — an athlete
+ * authors their own training week and the engine periodizes it) sits above the
+ * standard plan, so the app now has to know which product someone holds as well
+ * as how often they pay for it.
+ *
+ * `custom` implies `standard` and never the reverse. Nothing else in the ladder;
+ * add a rung here and in `TIER_RANK` together.
+ */
+export type Tier = "standard" | "custom";
+
+const TIER_RANK: Record<Tier, number> = { standard: 0, custom: 1 };
+
 export type SubscriptionRow = {
   status:
     | "incomplete"
@@ -27,6 +43,7 @@ export type SubscriptionRow = {
     | "unpaid"
     | "paused";
   plan: Plan | null;
+  tier: Tier;
   price_id: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -55,10 +72,14 @@ export async function getSubscription(): Promise<SubscriptionRow | null> {
 
   const { data } = await supabase
     .from("subscriptions")
-    .select("status, plan, price_id, current_period_end, cancel_at_period_end")
+    .select("status, plan, tier, price_id, current_period_end, cancel_at_period_end")
     .eq("user_id", user.id)
     .maybeSingle();
-  return (data as SubscriptionRow | null) ?? null;
+  if (!data) return null;
+  // A row written before migration 0045 has no tier. Reading it as `standard`
+  // rather than null keeps every pre-existing subscriber exactly where they were.
+  const row = data as Partial<SubscriptionRow>;
+  return { ...row, tier: row.tier ?? "standard" } as SubscriptionRow;
 }
 
 /** True when the caller has a live subscription (active/trialing, not expired). */
@@ -66,10 +87,7 @@ export async function hasActiveSubscription(): Promise<boolean> {
   const sub = await getSubscription();
   if (!sub) return false;
   if (!ENTITLED_STATUSES.has(sub.status)) return false;
-  if (
-    sub.current_period_end &&
-    new Date(sub.current_period_end).getTime() < Date.now()
-  ) {
+  if (sub.current_period_end && new Date(sub.current_period_end).getTime() < Date.now()) {
     return false;
   }
   return true;
@@ -97,6 +115,17 @@ export type EntitlementReason = "billing_off" | "subscription" | "trial" | "none
 export type Entitlement = {
   entitled: boolean;
   reason: EntitlementReason;
+  /**
+   * The product level this entitlement grants.
+   *
+   * Note what the trial grants: `standard`, not `custom`. An athlete who designs
+   * a custom week on day 3 and loses it on day 15 has had a worse experience
+   * than one who was never offered it — the feature is not a taste of the
+   * product, it is a thing you build and then own. `billing_off` grants `custom`
+   * because that path exists for pre-launch testing, where gating nothing is the
+   * whole point.
+   */
+  tier: Tier;
   /** ISO timestamp the trial ends, when the user has (or had) a trial. */
   trialEndsAt: string | null;
   /** Whole days left in the trial (0 once expired); null when no trial applies. */
@@ -114,10 +143,23 @@ export type Entitlement = {
  */
 export async function getEntitlement(): Promise<Entitlement> {
   if (!billingEnabled) {
-    return { entitled: true, reason: "billing_off", trialEndsAt: null, trialDaysLeft: null };
+    return {
+      entitled: true,
+      reason: "billing_off",
+      tier: "custom",
+      trialEndsAt: null,
+      trialDaysLeft: null,
+    };
   }
+  const sub = await getSubscription();
   if (await hasActiveSubscription()) {
-    return { entitled: true, reason: "subscription", trialEndsAt: null, trialDaysLeft: null };
+    return {
+      entitled: true,
+      reason: "subscription",
+      tier: sub?.tier ?? "standard",
+      trialEndsAt: null,
+      trialDaysLeft: null,
+    };
   }
   const startedAt = await getTrialStartedAt();
   if (startedAt) {
@@ -128,14 +170,33 @@ export async function getEntitlement(): Promise<Entitlement> {
       return {
         entitled: true,
         reason: "trial",
+        tier: "standard",
         trialEndsAt,
         trialDaysLeft: Math.ceil(msLeft / DAY_MS),
       };
     }
-    return { entitled: false, reason: "none", trialEndsAt, trialDaysLeft: 0 };
+    return { entitled: false, reason: "none", tier: "standard", trialEndsAt, trialDaysLeft: 0 };
   }
   // No profile yet (hasn't onboarded) → nothing to gate here.
-  return { entitled: false, reason: "none", trialEndsAt: null, trialDaysLeft: null };
+  return {
+    entitled: false,
+    reason: "none",
+    tier: "standard",
+    trialEndsAt: null,
+    trialDaysLeft: null,
+  };
+}
+
+/**
+ * Whether the signed-in user holds at least `tier`.
+ *
+ * Entitlement first: an expired subscriber holds no tier at all, whatever their
+ * last row said. Then rank, so `custom` satisfies a `standard` requirement.
+ */
+export async function hasTier(tier: Tier): Promise<boolean> {
+  const e = await getEntitlement();
+  if (!e.entitled) return false;
+  return TIER_RANK[e.tier] >= TIER_RANK[tier];
 }
 
 /**
