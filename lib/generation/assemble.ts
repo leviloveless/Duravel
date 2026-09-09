@@ -303,6 +303,26 @@ function describeSessions(
  * `setRunMiles` now snaps quality runs to a whole number of reps, so the rep
  * count is exact here rather than a rounding of an arbitrary distance.
  */
+/**
+ * Append the in-session Zone 1–2 block to a run's how-to, where it has one.
+ *
+ * Only the VARIABLE top-up (`crossCardioMin`) is announced here. A quality
+ * session's fixed bike warm-up is part of its warm-up and is described as such,
+ * inside the warm-up line, by `run-descriptions`.
+ */
+function noteCrossCardio(days: ProgramDay[]): void {
+  for (const d of days)
+    for (const s of d.sessions) {
+      if (s.kind !== "run") continue;
+      const cross = s.crossCardioMin ?? 0;
+      if (cross <= 0) continue;
+      const line =
+        `Before the run: ${cross} min Zone 1-2 on a bike, rower or elliptical. ` +
+        `This is what keeps the session a full 45 minutes without adding miles to your legs.`;
+      s.description = s.description ? `${s.description}\n${line}` : line;
+    }
+}
+
 function redescribeQualityRuns(
   days: ProgramDay[],
   runningExp: ExperienceLevel,
@@ -561,6 +581,13 @@ function buildWeek(
   // actually ended up with — otherwise the text prescribes a workout that is not
   // the workout the headline and the weekly total describe.
   redescribeQualityRuns(days, runningExp, paces, hr);
+
+  // LAST, because it appends to whatever text the two passes above settled on.
+  // A run whose 45 minutes is part paid in Zone 1–2 cross-training has to SAY so
+  // — the minutes are in the session's total and in the week's cardio time, and
+  // an athlete reading "3 miles easy" would otherwise have no idea where the
+  // other fifteen minutes went (Levi, 2026-09-08).
+  noteCrossCardio(days);
 
   return {
     weekNumber: skel.weekNumber,

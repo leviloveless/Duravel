@@ -22,9 +22,12 @@ const run = (over?: number): Session => ({
 
 describe("warmup / cooldown distance", () => {
   it("derives distance from the fixed overhead MINUTES at easy pace", () => {
-    // interval = 15 + 10 = 25 min of overhead; at 10 min/mi that is 2.5 mi.
-    expect(RUN_WARMUP_COOLDOWN.interval).toEqual([15, 10]);
-    expect(runOverheadMiles("interval", 10)).toBe(2.5);
+    // interval = 7 + 10 = 17 min of RUNNING overhead; at 10 min/mi that is 1.7 mi.
+    // The other 8 minutes of the warm-up are on a bike (`RUN_CROSS_WARMUP`) and
+    // so cost the week no mileage at all — that is the whole point of moving them
+    // (Levi, 2026-09-08).
+    expect(RUN_WARMUP_COOLDOWN.interval).toEqual([7, 10]);
+    expect(runOverheadMiles("interval", 10)).toBe(1.7);
     expect(runOverheadMiles("easy", 10)).toBe(1); // 5 + 5
   });
 
@@ -34,8 +37,8 @@ describe("warmup / cooldown distance", () => {
     const paceMin = 10 + 33 / 60;
     const leg = (m: number) => Math.round((m / paceMin) * 10) / 10;
     const r1 = (n: number) => Math.round(n * 10) / 10; // both sides to 1dp
-    expect(runOverheadMiles("interval", paceMin)).toBe(r1(leg(15) + leg(10)));
-    expect(runOverheadMiles("threshold", paceMin)).toBe(r1(leg(12) + leg(8)));
+    expect(runOverheadMiles("interval", paceMin)).toBe(r1(leg(7) + leg(10)));
+    expect(runOverheadMiles("threshold", paceMin)).toBe(r1(leg(6) + leg(8)));
   });
 
   it("is zero for a nonsensical pace rather than Infinity", () => {
@@ -63,11 +66,14 @@ describe("work miles vs total miles", () => {
     expect(weekMileage(week)).toBe(10);
   });
 
-  it("the reported example: 2.5 mi of reps is really 4.8 mi on the feet", () => {
-    // 4 x 1km work, plus 15 min warmup + 10 min cooldown at a 10:33/mi easy pace.
+  it("the reported example: 2.5 mi of reps is really 4.1 mi on the feet", () => {
+    // 4 x 1km work, plus a 7 min jog warm-up and a 10 min cooldown at 10:33/mi.
+    // It was 4.8 miles when the whole 15-minute warm-up was run; the 8 minutes
+    // that moved onto the bike are the difference, and they are exactly what a
+    // small week could not afford to spend on getting ready.
     const over = runOverheadMiles("interval", 10 + 33 / 60);
-    expect(over).toBe(2.3); // 1.4 warmup + 0.9 cooldown, exactly as printed
-    expect(sessionMiles(run(over))).toBe(4.8);
+    expect(over).toBe(1.6); // 0.7 warmup + 0.9 cooldown, exactly as printed
+    expect(sessionMiles(run(over))).toBe(4.1);
   });
 });
 
@@ -88,7 +94,9 @@ describe("between-rep recovery counts too", () => {
     // The reported case: prescribed 45 min, really 60 once the jogging counts.
     const withRec = sessionTiming(iv(2.3, 15, 1.4));
     expect(withRec.work).toBe(35); // 20 reps + 15 recovery
-    expect(withRec.total).toBe(60); // 15 warmup + 35 + 10 cooldown
+    // 7 jog warmup + 35 + 10 cooldown + the 8-minute bike warm-up, which is time
+    // on the athlete's clock even though it is not mileage.
+    expect(withRec.total).toBe(60);
     // ...and the work MILEAGE target is untouched by any of it.
     expect(sessionWorkMiles(iv(2.3, 15, 1.4))).toBe(2.5);
   });

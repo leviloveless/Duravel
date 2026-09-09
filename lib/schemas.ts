@@ -219,6 +219,54 @@ export const RaceSchema = z.object({
   priority: RacePriority,
 });
 
+export const RunType = z.enum([
+  "easy",
+  "fartlek",
+  "progression",
+  "long",
+  "tempo",
+  "threshold",
+  "interval",
+  "hybrid_run",
+]);
+
+/** A lift's split. Shared by the session schema and the week template. */
+export const LiftType = z.enum(["upper", "lower", "full", "power"]);
+
+/**
+ * One session in an athlete-authored week (custom tier, Levi 2026-09-08).
+ *
+ * WHAT and WHERE, never HOW MUCH. There is deliberately no distance, no
+ * duration and no zone here: the athlete says "a threshold run on Tuesday" and
+ * every number that follows is the engine's — the mileage progression, the long
+ * run's +10% jump ceiling and 90-minute cap, the 20% quality share, the 3-mile
+ * run floor, the deload and taper cuts.
+ *
+ * That line is what keeps the custom tier the SAME engine rather than a second
+ * one with none of the guards. It is also the honest product: what Duravel sells
+ * is the periodization, not the grid.
+ *
+ * `runType` and `liftType` are optional, and that is the useful part — an
+ * athlete who wants a hard Tuesday without caring which kind of hard leaves the
+ * type off and the slot is filled from the phase's own pool, so their shape
+ * still progresses base → build → peak.
+ */
+export const TemplateSessionSchema = z.object({
+  kind: z.enum(["run", "lift", "hybrid"]),
+  runType: RunType.optional(),
+  liftType: LiftType.optional(),
+});
+
+export const TemplateDaySchema = z.object({
+  day: TrainingDay,
+  /** Two a day is the engine's absolute ceiling, so it is also the schema's. */
+  sessions: z.array(TemplateSessionSchema).max(2),
+});
+
+export const WeekTemplateSchema = z.object({
+  days: z.array(TemplateDaySchema).max(7),
+});
+
 export const GenerationInputSchema = z.object({
   profile: ProfileSchema,
   programType: ProgramType,
@@ -233,8 +281,40 @@ export const GenerationInputSchema = z.object({
   startCardioMinutes: z.number().positive().max(2000).optional(),
   /** Program start date (ISO yyyy-mm-dd). Defaults to today when omitted. */
   startDate: z.string().max(32).optional(),
+  /**
+   * The athlete's own training week, day by day (custom tier).
+   *
+   * Present only for a custom-tier program. `POST /api/generate` refuses a
+   * program carrying one when the user is not entitled to the tier — the
+   * template rides in `input_snapshot`, so without that check a lapsed
+   * subscriber's Recalculate would honour it forever.
+   */
+  weekTemplate: WeekTemplateSchema.optional(),
+  /**
+   * Later weeks the athlete authored mid-program, each with the week it takes
+   * effect from (custom tier).
+   *
+   * Kept as a HISTORY rather than overwriting `weekTemplate`, because the weeks
+   * already trained have to stay truthful: the long run's trailing four-week
+   * maximum is measured against them, so rewriting week 3 from week 9 would move
+   * a ceiling that has already done its job. Appending also means a program can
+   * be rebuilt from its inputs alone and come out the same, which is the
+   * property the whole snapshot design rests on.
+   */
+  weekTemplateChanges: z
+    .array(
+      z.object({
+        fromWeek: z.number().int().min(1).max(24),
+        template: WeekTemplateSchema,
+      }),
+    )
+    .max(24)
+    .optional(),
 });
 
+export type TemplateSession = z.infer<typeof TemplateSessionSchema>;
+export type TemplateDay = z.infer<typeof TemplateDaySchema>;
+export type WeekTemplate = z.infer<typeof WeekTemplateSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type HrZoneBand = z.infer<typeof HrZoneBandSchema>;
 export type HrZones = z.infer<typeof HrZonesSchema>;
@@ -259,17 +339,6 @@ export const MovementPattern = z.enum([
 
 /** The engine's run subtypes. Named so `lib/engine/types.ts` can derive its
  *  `RunType` from this single source (roadmap #2.5) instead of re-listing them. */
-export const RunType = z.enum([
-  "easy",
-  "fartlek",
-  "progression",
-  "long",
-  "tempo",
-  "threshold",
-  "interval",
-  "hybrid_run",
-]);
-
 export const RunSessionSchema = z.object({
   kind: z.literal("run"),
   runType: RunType,
@@ -290,6 +359,22 @@ export const RunSessionSchema = z.object({
   recoveryMin: z.number().nonnegative().optional(),
   /** Distance covered by that recovery jogging, at easy pace. */
   recoveryMiles: z.number().nonnegative().optional(),
+  /**
+   * Minutes of Zone 1–2 NON-RUN cardio carried INSIDE this session, before the
+   * run (Levi, 2026-09-08: *"incorporate into the shorter runs non-running zone
+   * one and two cardio prior to the run all in one workout — a one hour easy
+   * cardio workout might be 30 minutes on the bike and 30 minutes running"*).
+   *
+   * This is what lets a run be SHORT without stopping being a session. Every
+   * standalone cardio session owes 45 minutes; before this field the only way to
+   * pay that was distance, so the shortest run the engine could write was ~4.6
+   * miles and a 15-mile week could not hold four runs. Now the run carries the
+   * miles and the bike/row carries the clock.
+   *
+   * Counted in the session's TOTAL minutes and in the week's cardio time. NEVER
+   * in mileage — it is not running.
+   */
+  crossCardioMin: z.number().nonnegative().optional(),
   /** Warm-up / cool-down MINUTES when they differ from this run type's default
    *  (`RUN_WARMUP_COOLDOWN`). Set only where a small week could not otherwise
    *  keep the long run its longest run — see `trimQualityOverhead` in
@@ -324,7 +409,7 @@ export const PowerElementSchema = z.object({
 
 export const LiftSessionSchema = z.object({
   kind: z.literal("lift"),
-  liftType: z.enum(["upper", "lower", "full", "power"]),
+  liftType: LiftType,
   movements: z.array(
     z.object({
       pattern: MovementPattern,

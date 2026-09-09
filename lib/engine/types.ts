@@ -95,6 +95,58 @@ export interface EngineInput {
   /** Athlete bodyweight normalized to LBS. Batch 7: shifts the running share of
    *  the band aerobic budget down for heavier athletes (impact routing). */
   bodyWeightLbs?: number;
+  /**
+   * A week the ATHLETE authored, day by day (custom tier, Levi 2026-09-08).
+   *
+   * When present it replaces `planWeek`/`assignDays` as the source of the week's
+   * SHAPE — which sessions, on which days. It never carries volume: no
+   * distances, no durations, no zones. Every number still comes from the engine,
+   * so the mileage progression, the long run's jump ceiling and 90-minute cap,
+   * the 20% quality share, the 3-mile run floor and the deload/taper cuts all
+   * apply exactly as they do to a generated week.
+   *
+   * Omitted → the phase tables decide, byte-for-byte as before.
+   */
+  weekTemplate?: WeekTemplate;
+  /**
+   * Later templates, each taking effect from its own week (custom tier).
+   *
+   * An athlete who adds a session in week 9 wants it in weeks 9 through 16 and
+   * has already trained weeks 1 through 8 — so a program is not one authored
+   * week, it is a sequence of them with the weeks they started on. Storing the
+   * history rather than overwriting keeps the weeks they already trained
+   * truthful, which matters: those weeks are what the long run's trailing
+   * four-week maximum is measured against, so rewriting them would move a
+   * ceiling that has already done its job.
+   *
+   * Entries need not be sorted; `templateForWeek` takes the latest that applies.
+   */
+  weekTemplateChanges?: { fromWeek: number; template: WeekTemplate }[];
+}
+
+// --- Athlete-authored week template (custom tier) ---
+
+/**
+ * One session in an authored week. Deliberately thin.
+ *
+ * `runType` and `liftType` are OPTIONAL, and that is the useful part: an athlete
+ * who wants a hard Tuesday without caring which kind of hard leaves `runType`
+ * off, and the slot is filled from the phase's own pool — so their shape still
+ * progresses base → build → peak. A type they DID name always wins.
+ */
+export interface TemplateSession {
+  kind: "run" | "lift" | "hybrid";
+  runType?: RunType;
+  liftType?: LiftSlot["liftType"];
+}
+
+export interface TemplateDay {
+  day: TrainingDayName;
+  sessions: TemplateSession[];
+}
+
+export interface WeekTemplate {
+  days: TemplateDay[];
 }
 
 // --- Allocation ---

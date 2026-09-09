@@ -17,7 +17,9 @@ import type {
   MicroWeekType,
   PhaseName,
   ProgramSkeleton,
+  RacePriorityName,
   SessionSlot,
+  WeekTemplate,
   TrainingDayName,
   WeekSkeleton,
 } from "./types";
@@ -27,6 +29,7 @@ import { applyTapers } from "./taper";
 import { PEAK_VOLUME_FACTOR, startingCardioMinutes, startingMileage } from "./volume";
 import {
   assignDays,
+  assignDaysFromTemplate,
   normalizeLongRunDays,
   slotPriority,
   DEFAULT_COUNTS,
@@ -60,6 +63,87 @@ import { clamp, round1 } from "./math";
 /**
  * Build the full deterministic program skeleton from a normalized EngineInput.
  */
+/**
+ * The week's days: the athlete's own template when they authored one, otherwise
+ * the phase tables (custom tier, Levi 2026-09-08).
+ *
+ * A single seam rather than a branch at each call site, so the two skeleton
+ * builders stay identical in shape and the no-template path is provably the code
+ * that ran before — which is what keeps the golden HYROX and prompt oracles
+ * byte-identical.
+ */
+/**
+ * Sessions on a day the athlete does not train are dropped here rather than
+ * downstream, so the engine never sees a template that disagrees with
+ * `trainingDays`. The designer blocks that case; this is the belt to its braces.
+ */
+function confineToTrainingDays(
+  t: WeekTemplate | undefined,
+  trainingDays: TrainingDayName[],
+): WeekTemplate | undefined {
+  if (!t) return undefined;
+  return { days: t.days.filter((d) => trainingDays.includes(d.day)) };
+}
+
+/**
+ * The template in force for `weekNumber` — the latest change that has taken
+ * effect, falling back to the program's original week.
+ */
+export function templateForWeek(input: EngineInput, weekNumber: number) {
+  let best = input.weekTemplate;
+  let bestFrom = 0;
+  for (const change of input.weekTemplateChanges ?? []) {
+    if (change.fromWeek <= weekNumber && change.fromWeek >= bestFrom) {
+      best = change.template;
+      bestFrom = change.fromWeek;
+    }
+  }
+  return best;
+}
+
+function weekDays(
+  input: EngineInput,
+  weekNumber: number,
+  phase: PhaseName,
+  microWeek: MicroWeekType,
+  race: { priority: RacePriorityName; date?: string } | undefined,
+  pos: { index: number; length: number },
+  counts: SessionCountTables,
+  weeklyMileage: number,
+) {
+  const template = templateForWeek(input, weekNumber);
+  if (template) {
+    return assignDaysFromTemplate(
+      template,
+      input.trainingDays,
+      phase,
+      microWeek,
+      race,
+      pos,
+      counts,
+      weeklyMileage,
+    );
+  }
+  return assignDays(
+    input.trainingDays,
+    phase,
+    microWeek,
+    input.runningExp,
+    input.hybridExp,
+    race,
+    {
+      longRunDays: input.longRunDays,
+      restDays: input.restDays,
+      liftDays: input.liftDays,
+      hybridDays: input.hybridDays,
+    },
+    pos,
+    input.needs?.bias,
+    counts,
+    weeklyMileage,
+  );
+}
+
 /**
  * Hold a stored program to the bands its sport actually offers. Only ever lowers
  * the band, and only for families with a ceiling (`MAX_BAND_BY_FAMILY`).
@@ -210,24 +294,7 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
           ? bandPhaseZoneTargets(phase, input.weeklyHours, cfg.bandZone3Z)
           : applyBandZoneShift(cfg.phaseZoneTargets[phase], input.weeklyHours)
         : { ...cfg.phaseZoneTargets[phase] },
-      days: assignDays(
-        input.trainingDays,
-        phase,
-        microWeek,
-        input.runningExp,
-        input.hybridExp,
-        race,
-        {
-          longRunDays: input.longRunDays,
-          restDays: input.restDays,
-          liftDays: input.liftDays,
-          hybridDays: input.hybridDays,
-        },
-        pos,
-        input.needs?.bias,
-        counts,
-        tapered.mileage[i]!,
-      ),
+      days: weekDays(input, weekNumber, phase, microWeek, race, pos, counts, tapered.mileage[i]!),
       raceDay: race ? { priority: race.priority, date: race.date } : undefined,
     });
   }
@@ -353,6 +420,7 @@ function applyPostBRaceRecovery(
         if (isLongRunSlot(sess) && day.sessions.some(isLongRunSlot)) continue;
         if (best === -1 || workoutCount(day) < workoutCount(d[best]!)) best = i;
       }
+      if (best === -1) best = evictFillerRun(d, sess, protectedDays);
       if (best === -1) continue; // genuinely no room left — drop, as before
       const target = d[best]!; // safe: best is a valid index
       const restIdx = target.sessions.findIndex((x) => x.kind === "rest");
@@ -367,6 +435,45 @@ function applyPostBRaceRecovery(
     // session so full lifts are never consecutive.
     spreadFullLiftTypes(d);
   }
+}
+
+/**
+ * Make room for a displaced session by dropping a FILLER RUN, and say which day.
+ *
+ * The re-home loop used to give up when every later day was full, and "give up"
+ * meant deleting a lift — the exact failure this whole pass exists to prevent,
+ * arriving through the back door. It became reachable on 2026-09-08, when the
+ * week's mileage started setting a floor on how many runs carry it: the extra
+ * runs filled the later days, and the barbell was what got dropped.
+ *
+ * A filler run is the right thing to spend. `reconcileWeekVolume` re-sizes
+ * whatever runs remain to hit the week's prescribed mileage exactly, so dropping
+ * an easy run costs the week no volume at all — it is the same reasoning this
+ * pass already uses when it declines to carry displaced easy runs forward. A
+ * lift or a hybrid that is dropped is simply gone, and a long run with it.
+ *
+ * Never the long run and never a quality run: those are the week's anchors, and
+ * `buildRunSlots` seeds them first precisely so they survive a trim. Returns the
+ * day index that now has room, or -1 if the week holds nothing worth spending.
+ */
+function evictFillerRun(
+  d: WeekSkeleton["days"],
+  sess: SessionSlot,
+  protectedDays: Set<TrainingDayName>,
+): number {
+  const isFiller = (x: SessionSlot): boolean =>
+    x.kind === "run" && !isLongRunSlot(x) && (x.runType === "easy" || x.runType === "fartlek");
+  for (let i = 3; i < d.length; i++) {
+    const day = d[i]!; // safe: i < d.length
+    if (protectedDays.has(day.day)) continue;
+    if (sess.kind === "lift" && day.sessions.some((x) => x.kind === "lift")) continue;
+    if (isLongRunSlot(sess) && day.sessions.some(isLongRunSlot)) continue;
+    const victim = day.sessions.findIndex(isFiller);
+    if (victim === -1) continue;
+    day.sessions.splice(victim, 1);
+    return i;
+  }
+  return -1;
 }
 
 // --- General-fitness rotating-emphasis macro-arc (no race, no taper) ---
@@ -469,21 +576,13 @@ function buildRotationSkeleton(
           ? bandPhaseZoneTargets(phase, input.weeklyHours, cfg.bandZone3Z)
           : applyBandZoneShift(cfg.phaseZoneTargets[phase], input.weeklyHours)
         : { ...cfg.phaseZoneTargets[phase] },
-      days: assignDays(
-        input.trainingDays,
+      days: weekDays(
+        input,
+        i + 1,
         phase,
         microWeek,
-        input.runningExp,
-        input.hybridExp,
         undefined, // no race
-        {
-          longRunDays: input.longRunDays,
-          restDays: input.restDays,
-          liftDays: input.liftDays,
-          hybridDays: input.hybridDays,
-        },
         { index: posIndex, length: posLen },
-        input.needs?.bias,
         counts,
         round1(seq.mileage[i]! * peakFactor),
       ),
@@ -700,5 +799,13 @@ export function toEngineInput(input: GenerationInput, startDate?: string): Engin
       ergStations: sportCfg.needsStations?.erg,
       strengthStations: sportCfg.needsStations?.strength,
     }),
+    // Custom tier: the athlete's own week, carried through untouched. Sessions on
+    // a day they do not train are dropped here rather than downstream, so the
+    // engine never sees a template that disagrees with `trainingDays`.
+    weekTemplate: confineToTrainingDays(input.weekTemplate, input.profile.trainingDays),
+    weekTemplateChanges: input.weekTemplateChanges?.map((c) => ({
+      fromWeek: c.fromWeek,
+      template: confineToTrainingDays(c.template, input.profile.trainingDays) ?? { days: [] },
+    })),
   };
 }

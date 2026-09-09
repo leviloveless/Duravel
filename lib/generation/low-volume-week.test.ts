@@ -123,10 +123,25 @@ describe("a small week is actually small", () => {
 
   it("stops the hybrid owning half the week's running", () => {
     // 48% on main, at every one of these settings.
-    for (const mi of [5, 7, 8, 10, 11]) {
+    //
+    // The bound moved from 0.4 to 0.45 on 2026-09-08 and the HYBRID DID NOT
+    // CHANGE — it is 2.30 miles at start=5 before and after. What changed is the
+    // denominator: a 3-mile run floor (paying the rest of its 45 minutes in Zone
+    // 1–2 cross-training) let this week deliver the 5.4 it printed, where it used
+    // to need a 4.2-mile long run and land at 6.5. The same hybrid is a bigger
+    // share of a smaller, honest week, and the smaller honest week is the thing
+    // this whole file was written to get (Levi: "asking for 4, 5 or 6 mi/week all
+    // produced the same 8.1 mi week").
+    //
+    // So the share is asserted where it still says something — nowhere near the
+    // half the mechanism exists to prevent — and the property that actually
+    // matters is asserted directly underneath: it falls as the week grows.
+    const shares = [5, 7, 8, 10, 11].map((mi) => {
       const s = shapeOf(mi);
-      expect(s.hybridMiles / s.actual, `start=${mi}`).toBeLessThan(0.4);
-    }
+      expect(s.hybridMiles / s.actual, `start=${mi}`).toBeLessThan(0.45);
+      return s.hybridMiles / s.actual;
+    });
+    expect(shares[shares.length - 1]!).toBeLessThan(shares[0]!);
   });
 
   it("shortens the legs in the session the athlete actually reads", () => {

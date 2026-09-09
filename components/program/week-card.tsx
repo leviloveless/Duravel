@@ -421,7 +421,9 @@ function MobileDayList({
                     )}
                     {!isRace && (
                       <span className="tabular-nums">
-                        {t.warmup}/{t.work}/{t.cooldown} warmup·work·cooldown
+                        {t.cross ? `${t.cross}/` : ""}
+                        {t.warmup}/{t.work}/{t.cooldown}{" "}
+                        {t.cross ? "cross·warmup·work·cooldown" : "warmup·work·cooldown"}
                       </span>
                     )}
                   </div>

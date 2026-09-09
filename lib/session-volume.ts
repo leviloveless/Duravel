@@ -16,14 +16,42 @@ type RunSession = Extract<Session, { kind: "run" }>;
 type HybridSession = Extract<Session, { kind: "hybrid" }>;
 
 /** Warmup/cooldown minutes by run type (quality runs need a longer warmup). */
+/**
+ * The NON-RUNNING half of a quality session's warm-up, in minutes (Levi,
+ * 2026-09-08).
+ *
+ * A quality run used to warm up entirely on its feet — 12 to 15 minutes of
+ * jogging before the reps, another 8 to 10 after — and at easy pace that is
+ * 2.1 to 2.6 MILES charged to the session before a single useful one. In a
+ * 15-mile week that overhead alone made the threshold run longer than the long
+ * run, which is the inversion Levi reported: *"the threshold workout is 7 miles
+ * while the long run is only 3.5."*
+ *
+ * So the first part of the warm-up moves onto a bike or rower, which is his own
+ * answer to the same problem for easy runs — *"incorporate into the shorter runs
+ * non-running zone one and two cardio prior to the run all in one workout."* The
+ * session is exactly as long and exactly as warm; it just stops spending the
+ * week's mileage on getting ready. What stays on the feet is the part that has
+ * to be: the jog and strides that prepare the athlete to RUN fast, and the whole
+ * cool-down.
+ *
+ * Counted in the session total and in weekly cardio minutes, never in mileage.
+ */
+export const RUN_CROSS_WARMUP: Partial<Record<RunSession["runType"], number>> = {
+  tempo: 6,
+  threshold: 6,
+  interval: 8,
+};
+
+/** Warm-up and cool-down minutes spent RUNNING, per run type. */
 export const RUN_WARMUP_COOLDOWN: Record<RunSession["runType"], [number, number]> = {
   easy: [5, 5],
   long: [5, 5],
   fartlek: [8, 5],
   progression: [10, 5],
-  tempo: [12, 8],
-  threshold: [12, 8],
-  interval: [15, 10],
+  tempo: [6, 8],
+  threshold: [6, 8],
+  interval: [7, 10],
   hybrid_run: [8, 5],
 };
 
@@ -91,6 +119,12 @@ export interface SessionTiming {
   warmup: number;
   work: number;
   cooldown: number;
+  /**
+   * Minutes of Zone 1–2 NON-RUN cardio done inside the session, before the run
+   * (`crossCardioMin`). Part of `total` and of the week's cardio time; never
+   * part of `work`, which is running, and never part of mileage.
+   */
+  cross?: number;
   total: number;
 }
 
@@ -121,6 +155,27 @@ export function runOverheadMilesFor(session: RunSession, easyPaceMinPerMile: num
   return Math.round((leg(w) + leg(c)) * 10) / 10;
 }
 
+/**
+ * Warm-up + cool-down MINUTES this run actually costs — jogged AND biked.
+ *
+ * The one number anything budgeting a run against a session cap must use, and
+ * the reason it exists: for a while there were two overhead accountings that did
+ * not know about each other. `runOverheadFor` answers the MILEAGE question (how
+ * much of the overhead is run, honouring a per-session trim), and the biked part
+ * of a quality warm-up (`RUN_CROSS_WARMUP`) is deliberately not in it because it
+ * costs no distance. But it costs TIME, and `setRunMiles` was budgeting work
+ * against the jogged minutes alone — so every quality session came out its cross
+ * minutes over the cap: a 120-minute ceiling shipping a 126-minute threshold run.
+ *
+ * `crossCardioMin` is excluded on purpose. That is the top-up `stampCrossCardio`
+ * adds to bring a SHORT session up to the 45-minute floor; it only ever applies
+ * well below any session cap, and budgeting against it would be circular.
+ */
+export function runTimeOverheadFor(session: RunSession): number {
+  const [w, c] = runOverheadFor(session);
+  return w + c + (RUN_CROSS_WARMUP[session.runType] ?? 0);
+}
+
 export function sessionTiming(session: Session): SessionTiming {
   if (session.kind === "run") {
     const [warmup, cooldown] = runOverheadFor(session);
@@ -128,7 +183,14 @@ export function sessionTiming(session: Session): SessionTiming {
     // it — so it belongs in `work`. Leaving it out made a 45-minute interval
     // session really take 60 and under-counted the week's cardio every time.
     const work = Math.max(1, Math.round(session.durationMin + (session.recoveryMin ?? 0)));
-    return { warmup, work, cooldown, total: warmup + work + cooldown };
+    // Zone 1–2 cross-training carried inside the session (bike/row before the
+    // run). It is time on the athlete's clock and aerobic work, so it is in the
+    // total; it is not running, so it never reaches `work` or the mileage.
+    const cross = Math.max(
+      0,
+      Math.round((RUN_CROSS_WARMUP[session.runType] ?? 0) + (session.crossCardioMin ?? 0)),
+    );
+    return { warmup, work, cooldown, cross, total: warmup + work + cooldown + cross };
   }
   if (session.kind === "lift") {
     // Strength sessions are a fixed 60 minutes (Tasks addition #4).
@@ -231,10 +293,20 @@ export function hybridOverheadMiles(easyPaceMinPerMile: number): number {
   return Math.round((leg(HYBRID_WARMUP) + leg(HYBRID_COOLDOWN)) * 10) / 10;
 }
 
-/** Warmup + cooldown minutes for a run type (fixed overhead not counted as work). */
+/**
+ * Warm-up + cool-down MINUTES for a run type — the whole of it, jogged and
+ * biked (fixed overhead, never counted as work).
+ *
+ * This is the TIME currency, and it is deliberately not the same as
+ * `runOverheadMiles`. Since part of a quality warm-up moved onto a bike
+ * (`RUN_CROSS_WARMUP`) the two have to be asked separately: the session cap owes
+ * every minute of the warm-up, the week's mileage owes only the miles that were
+ * actually run. Conflating them let a triathlon run reach 121 minutes under a
+ * 120-minute cap, because the budget could not see the bike.
+ */
 export function runOverhead(runType: RunSession["runType"]): number {
   const [w, c] = RUN_WARMUP_COOLDOWN[runType];
-  return w + c;
+  return w + c + (RUN_CROSS_WARMUP[runType] ?? 0);
 }
 
 /** Total weekly cardio minutes = run + hybrid session totals (weightlifting excluded). */

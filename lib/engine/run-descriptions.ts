@@ -12,8 +12,12 @@
 import type { ExperienceLevel, RunType } from "./types";
 import { formatPace, METERS_PER_MILE, type RunPaces } from "./paces";
 import { hrTargetLines, withHrLines, type HrTargetInput } from "./hr-targets";
-import { HYBRID_WARMUP, HYBRID_COOLDOWN } from "@/lib/session-volume";
-import { RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
+import {
+  HYBRID_WARMUP,
+  HYBRID_COOLDOWN,
+  RUN_CROSS_WARMUP,
+  RUN_WARMUP_COOLDOWN,
+} from "@/lib/session-volume";
 
 const PROGRESSION_BEGINNER =
   "A steady run that gradually builds effort. Warm up 10 minutes easy and conversational, run 20–30 minutes at your standard comfortable aerobic pace (1–2 min/mile faster than easy), pick up to a comfortably hard threshold effort for the final 10–15%, then cool down 5 minutes easy.";
@@ -62,6 +66,22 @@ function overheadLine(label: string, minutes: number, paces: RunPaces | null, ex
   const easySecPerMile = paces.easy;
   const miles = Math.round((minutes / (easySecPerMile / 60)) * 10) / 10;
   return `${label}: ${minutes} min easy (~${miles} mi) @ ${formatPace(easySecPerMile)}/mi${extra}`;
+}
+
+/**
+ * A quality session's warm-up, both halves of it.
+ *
+ * The first part is on a bike or rower (`RUN_CROSS_WARMUP`) — same minutes, same
+ * zone, none of the mileage (Levi, 2026-09-08). It has to be SAID: the plan
+ * budgets fifteen minutes of warm-up for an interval session and only seven of
+ * them are run, so a description that mentions the seven alone is telling the
+ * athlete to start their reps eight minutes cold.
+ */
+function warmupLine(runType: RunType, minutes: number, paces: RunPaces | null, extra = ""): string {
+  const jog = overheadLine("Warm up", minutes, paces, extra);
+  const cross = RUN_CROSS_WARMUP[runType] ?? 0;
+  if (cross === 0) return jog;
+  return `Warm up: ${cross} min easy on a bike, rower or elliptical (Zone 1-2, off your feet), then ${jog.slice("Warm up: ".length)}`;
 }
 
 /** Reps per session by running experience. */
@@ -132,7 +152,7 @@ function intervalDescription(
   const [wu, cd] = RUN_WARMUP_COOLDOWN.interval;
   return withHrLines(
     [
-      overheadLine("Warm up", wu, paces, " with 3-4 short strides"),
+      warmupLine("interval", wu, paces, " with 3-4 short strides"),
       `Work: ${work}`,
       overheadLine("Cooldown", cd, paces),
       ...(gaps ? ["Work:rest 1:1"] : []),
@@ -158,7 +178,7 @@ function thresholdDescription(
   const [wu, cd] = RUN_WARMUP_COOLDOWN.threshold;
   return withHrLines(
     [
-      overheadLine("Warm up", wu, paces),
+      warmupLine("threshold", wu, paces),
       `Work: ${work}`,
       overheadLine("Cooldown", cd, paces),
       ...(gaps ? ["Work:rest 2:1"] : []),

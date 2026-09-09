@@ -36,7 +36,9 @@ describe("sessionHrShape — the true time structure", () => {
   it("counts the between-rep recovery the stored timing leaves out", () => {
     // N reps have N-1 gaps, so at 1:1 the recovery is 0.8 of the rep time for a
     // 5-rep session — not 1.0. The session's own timing reports 45 min; the truth
-    // is 15 warmup + 20 reps + 16 recovery + 10 cooldown.
+    // is 15 warmup (7 jogged, 8 on the bike) + 20 reps + 16 recovery + 10
+    // cooldown. Moving part of the warm-up off the feet changed its MILEAGE, not
+    // its minutes or its zone, so this shape is unchanged.
     const rec = 20 * recoveryFactor("interval", "intermediate");
     expect(sessionHrShape(interval())).toEqual({ workMin: 20, easyMin: 15 + 10 + rec, totalMin: 20 + 15 + 10 + rec });
     expect(rec).toBeCloseTo(16, 5);

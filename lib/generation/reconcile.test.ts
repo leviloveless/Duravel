@@ -100,8 +100,20 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
 
   it("tight deload consolidates easy runs into the long run; mileage stays exact", () => {
     const days = daysOf([run("easy")], [run("easy")], [run("long")], [lift()]);
-    reconcileWeekVolume(days, 6, 150, P, "beginner");
-    expect(weekMileage({ days })).toBe(6);
+    const delivered = reconcileWeekVolume(days, 6, 150, P, "beginner");
+    // ONE easy run now survives beside the long run, where both used to be
+    // consolidated away. A run's floor is 3 miles rather than the 45 minutes it
+    // used to have to cover in distance (Levi, 2026-09-08), so a 6-mile week can
+    // hold two real sessions instead of one — which is the whole doctrine: volume
+    // is carried by more sessions, not longer ones.
+    //
+    // The two floors are 3.0 miles each and the week is 6, so it lands a rounding
+    // tenth over rather than exactly on. That is the documented honest-overshoot
+    // path: `reconcileWeekVolume` returns what it actually delivered and
+    // `assembleProgram` adopts it, so the prescription and the calendar agree.
+    expect(delivered).toBe(weekMileage({ days }));
+    expect(weekMileage({ days })).toBeGreaterThanOrEqual(6);
+    expect(weekMileage({ days })).toBeLessThanOrEqual(6.5);
     expect(weekWorkMileage({ days })).toBeLessThan(6);
     expect(weekCardioMinutes({ days })).toBe(150);
     expect(runsOf(days).some((r) => r.runType === "long")).toBe(true);
@@ -189,10 +201,21 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
           const days = daysOf(...sessions);
           const capacity = weekCardioCapacity(days, DEFAULT_CAPS);
           reconcileWeekVolume(days, mi, min, P, "intermediate");
-          // Total on-feet mileage is filled up to the target; it never undershoots a
-          // feasible target and only overshoots when the week's run minimums already
-          // exceed it (an unrealistic many-runs/tiny-target combo).
-          expect(weekMileage({ days })).toBeGreaterThanOrEqual(mi - 0.05);
+          // Total on-feet mileage is filled up to the target, and where it cannot
+          // be it lands within ONE REP of it — never further.
+          //
+          // The tolerance is the granularity of the thing that is left when
+          // everything else is exhausted. A rep-based run's distance snaps to
+          // whole reps (1 km for intervals, `REP_DISTANCE_MILES`), so a week whose
+          // long run is on its 90-minute cap and whose only other runs are an
+          // interval and a threshold session cannot be nudged by a tenth: the next
+          // move available to it is 0.62 of a mile. Measured, the worst such week
+          // lands 0.4 short.
+          //
+          // This is the regression guard for the honest-reporting change in
+          // `reconcileWeekVolume` (Levi, 2026-09-08: hours win, and the week says
+          // so). A week that quietly loses miles for any other reason fails here.
+          expect(weekMileage({ days })).toBeGreaterThanOrEqual(mi - 0.65);
           // Cardio is hit EXACTLY whenever the week can hold it. These targets are
           // deliberately generous (22 min per prescribed mile), so the largest of
           // them exceed what two-sessions-a-day can physically fit — and a target

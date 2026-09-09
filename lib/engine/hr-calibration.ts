@@ -29,7 +29,7 @@
 import type { Session } from "@/lib/schemas";
 import type { HrModel, Zone } from "@/lib/zones";
 import { zoneBpmRange } from "@/lib/zones";
-import { RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
+import { RUN_CROSS_WARMUP, RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
 import { recoveryFactor } from "./interval-structure";
 
 /** Quality runs are the only sessions with a sharp enough HR target to read. */
@@ -41,7 +41,8 @@ const EASY_ZONE: Zone = 2;
 export interface SessionHrShape {
   /** Minutes at the session's prescribed work zone. */
   workMin: number;
-  /** Minutes of easy running — warmup, cooldown and any between-rep recovery. */
+  /** Minutes of Zone 1–2 work — warm-up (run and bike), cooldown, and any
+   *  between-rep recovery. */
   easyMin: number;
   /** Total minutes actually spent on the session. */
   totalMin: number;
@@ -60,7 +61,11 @@ export function sessionHrShape(session: Session): SessionHrShape | null {
   // rep/rest structure for sessions generated before it was recorded.
   const recoveryMin =
     session.recoveryMin ?? workMin * recoveryFactor(session.runType, "intermediate");
-  const easyMin = warmup + cooldown + recoveryMin;
+  // The bike/rower half of a quality warm-up (`RUN_CROSS_WARMUP`) is Zone 1–2
+  // work like the jog it replaced, so it belongs in `easyMin` — the athlete's
+  // heart rate does not know which machine it is on. Leaving it out would make a
+  // correctly-executed session read as if it had skipped its warm-up.
+  const easyMin = warmup + cooldown + (RUN_CROSS_WARMUP[session.runType] ?? 0) + recoveryMin;
   return { workMin, easyMin, totalMin: workMin + easyMin };
 }
 

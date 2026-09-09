@@ -16,6 +16,8 @@
 
 import type {
   DaySlot,
+  TemplateSession,
+  WeekTemplate,
   ExperienceLevel,
   MicroWeekType,
   PhaseName,
@@ -121,6 +123,9 @@ export interface SessionCountTables {
    *  anchors, not 8–10 fragments). Trim comes off easy filler runs (then surplus
    *  hybrids for run sports). Set when the athlete gave an hours budget. */
   weeklySessionCap?: number;
+  /** `trainingDays × 2` — the absolute ceiling two-a-day implies. The mileage
+   *  floor may raise the weekly budget toward this, never past it. */
+  dayCapacity?: number;
   /** Runs preserved when trimming to weeklySessionCap (protects long + quality). */
   anchorRunFloor?: number;
 }
@@ -137,6 +142,69 @@ export interface SlotPlan {
   hybrids: number;
 }
 
+/**
+ * VOLUME GROWS BY SESSIONS, NOT BY SESSION LENGTH (Levi, 2026-09-08).
+ *
+ * The principle, in his words: *"doubling the length of any individual workout
+ * roughly doubles the rate of injury, but doubling mileage in a given week when
+ * the increase comes from additional workouts rather than increased length of any
+ * individual workout has little to no effect on injury risk."* It is the same
+ * finding the long-run jump cap is built on, generalised: the 5,205-runner
+ * cohort's signal was a single session outrunning what that athlete had recently
+ * done, while change in weekly VOLUME predicted little.
+ *
+ * So the engine grows a week's mileage the safe way round — **more sessions at a
+ * familiar length**, with each individual session allowed only small increments —
+ * and this is where the frequency half of that is decided. The length half is
+ * enforced elsewhere: the long run's +10% weekly jump ceiling, the 90-minute
+ * long-run cap, and the 20%-of-the-week ceiling on one quality session.
+ *
+ * The count this produces is a FLOOR — it only ever raises the phase table, never
+ * lowers it, so no existing program loses a session and the change is monotone in
+ * the only direction the principle argues for.
+ */
+/**
+ * The long run's share of the week — the same third the reconciler sizes it to
+ * (`LONG_RUN_TARGET_SHARE`). It lives here too because the run COUNT depends on
+ * it: the split rule below applies to the mileage the long run does not take.
+ */
+export const LONG_RUN_SHARE = 1 / 3;
+
+/**
+ * A run is not worth putting on the calendar below this (Levi, 2026-09-08:
+ * "each run should be at least 3 miles before a new session is added on").
+ *
+ * The stopping rule for splitting. Frequency is the safe way to add volume right
+ * up until the sessions stop being sessions: past this point another run adds a
+ * warm-up, a change of clothes and a trip, and takes training away from the runs
+ * it was split from. It matches `EASY_LONG_MIN_MI` in the reconciler, which is
+ * what the miles would collide with anyway.
+ */
+export const MIN_MILES_PER_RUN = 3;
+
+/**
+ * How many runs a week of this mileage should be spread across.
+ *
+ * ONE RULE, and it is a stopping rule rather than a target: keep splitting the
+ * week into more runs until another one would fall under `MIN_MILES_PER_RUN`.
+ * The long run is not in the split — it takes its third off the top and the
+ * remainder is what gets divided.
+ *
+ * This is the frequency half of the volume doctrine (Levi, 2026-09-08): doubling
+ * a single session's length roughly doubles the injury rate, while doubling a
+ * week by ADDING sessions of the same length costs little or nothing. So volume
+ * is bought with sessions first and length second, and the only thing that stops
+ * the buying is a run getting too small to be a run.
+ *
+ * Levi's worked examples, which this reproduces: a 15-mile week is four runs
+ * (6 long + 3 + 3 + 3), an 18-mile week is five (6 long + 3 + 3 + 3 + 3).
+ */
+export function runsForMileage(weeklyMileage: number): number {
+  if (!Number.isFinite(weeklyMileage) || weeklyMileage <= 0) return 0;
+  const afterLong = weeklyMileage * (1 - LONG_RUN_SHARE);
+  return clampInt(1 + Math.floor(afterLong / MIN_MILES_PER_RUN), 0, 8);
+}
+
 /** How many of each session kind a given week should contain. */
 export function planWeek(
   phase: PhaseName,
@@ -145,6 +213,10 @@ export function planWeek(
   hybridExp: ExperienceLevel,
   bias?: ProgramBias,
   counts: SessionCountTables = DEFAULT_COUNTS,
+  /** The week's mileage target. Omitted = the pre-2026-09-08 behaviour, where the
+   *  count came from the phase table alone and a bigger week simply meant longer
+   *  runs. */
+  weeklyMileage?: number,
 ): SlotPlan {
   if (microWeek === "race") {
     return { runs: 1, lifts: 0, hybrids: 0 }; // shakeout only; race is added separately
@@ -172,6 +244,21 @@ export function planWeek(
     hybrids = clampInt(hybrids + (bias.hybridCountDelta ?? 0), 0, Math.max(3, hybrids));
   }
 
+  // The week's mileage sets a FLOOR on how many runs carry it (see
+  // `MIN_MILES_PER_RUN`). Applied before the taper/deload cuts, which are
+  // deliberate reductions in frequency and must still win.
+  //
+  // ⚠️ This floor also has to survive the session-budget trim below, or it does
+  // nothing: measured, a 45 mi/week athlete was planned 4 lifts + 1 hybrid + 3
+  // runs, so the mileage rode on THREE 15-mile runs. The budget exists to stop a
+  // week fragmenting into 10 token pieces; a week whose runs are 15 miles long has
+  // the opposite problem, and Levi's principle says which way to err.
+  let mileageRunFloor = 0;
+  if (weeklyMileage !== undefined && counts.runFloor !== 0) {
+    mileageRunFloor = runsForMileage(weeklyMileage);
+    runs = clampInt(Math.max(runs, mileageRunFloor), runs, 8);
+  }
+
   if (microWeek === "taper") {
     // Taper: cut frequency AND volume for race-week freshness.
     runs = Math.max(runFloorTaper, Math.round(runs * 0.6));
@@ -193,21 +280,63 @@ export function planWeek(
   // seeded first in buildRunSlots, so they survive); then, for run-dominant
   // sports, shed surplus hybrids down to one. Never touches the research lift dose.
   if (counts.weeklySessionCap) {
-    const cap = counts.weeklySessionCap;
+    // TWO PASSES, and the order is the whole design.
+    //
+    // Pass one trims to the research budget exactly as it did before the mileage
+    // floor existed — easy filler runs down to the anchor floor first (the long
+    // run and the quality anchors are seeded first in `buildRunSlots`, so they
+    // survive), then surplus hybrids for run-dominant sports, never the research
+    // lift dose. The mileage floor is not consulted at all, so it can neither
+    // save a hybrid the budget decided against nor cost one it decided to keep.
+    // Both were live bugs: measuring the hybrid trim against the enlarged cap
+    // kept a THIRD hybrid and put an h0_5 week 309 minutes against a 300-minute
+    // band; measuring the runs against the unflexed one deleted the SECOND
+    // hybrid of a low-volume HYROX week to pay for a run.
+    //
+    // Pass two then buys runs back — and only runs (Levi, 2026-09-08: volume
+    // grows by sessions). The research budget exists so a week does not fragment
+    // into token pieces; it was never meant to force a 45 mi/week athlete onto
+    // THREE 15-mile runs, which is what it did — measured: 4 lifts + 1 hybrid
+    // left exactly three run slots. Two sessions a day stays absolute, so the
+    // floor can never ask for more room than the week physically has.
+    const budget = Math.min(counts.dayCapacity ?? counts.weeklySessionCap, counts.weeklySessionCap);
     const runAnchor = counts.anchorRunFloor ?? 3;
     let total = runs + lifts + hybrids;
-    while (total > cap && runs > runAnchor) {
+    while (total > budget && runs > runAnchor) {
       runs -= 1;
       total -= 1;
     }
     if (counts.runCharacter !== "maintenance") {
-      while (total > cap && hybrids > 1) {
+      while (total > budget && hybrids > 1) {
         hybrids -= 1;
         total -= 1;
       }
     }
+
+    const cap = Math.min(
+      counts.dayCapacity ?? counts.weeklySessionCap,
+      Math.max(budget, lifts + hybrids + mileageRunFloor),
+    );
+    const roomForRuns = Math.max(0, cap - lifts - hybrids);
+    runs = clampInt(Math.max(runs, Math.min(mileageRunFloor, roomForRuns)), 0, 8);
   }
 
+  if (process.env.ZZDEBUG)
+    console.log(
+      "PLANWEEK",
+      JSON.stringify({
+        phase,
+        microWeek,
+        weeklyMileage,
+        mileageRunFloor,
+        runs,
+        lifts,
+        hybrids,
+        cap: counts.weeklySessionCap,
+        anchor: counts.anchorRunFloor,
+        dayCap: counts.dayCapacity,
+      }),
+    );
   return { runs, lifts, hybrids };
 }
 
@@ -866,13 +995,22 @@ export function assignDays(
   const cappedCounts: SessionCountTables = {
     ...counts,
     weeklySessionCap: Math.min(counts.weeklySessionCap ?? Number.POSITIVE_INFINITY, dayCapacity),
+    dayCapacity,
   };
 
   let ordered: SessionSlot[];
   if (race && microWeek === "race") {
     ordered = raceWeekSlots(race.priority, counts.runCharacter === "maintenance");
   } else {
-    const plan = planWeek(phase, microWeek, runningExp, hybridExp, bias, cappedCounts);
+    const plan = planWeek(
+      phase,
+      microWeek,
+      runningExp,
+      hybridExp,
+      bias,
+      cappedCounts,
+      weeklyMileage,
+    );
     // Interleave kinds (run, lift, hybrid, run, lift, …) so similar sessions
     // don't cluster on adjacent days.
     const runs = buildRunSlots(
@@ -1126,6 +1264,222 @@ export function assignDays(
   }
 
   return days;
+}
+
+/**
+ * Build a week from a template the ATHLETE authored (custom tier, Levi
+ * 2026-09-08).
+ *
+ * The sibling of `assignDays`, and the difference between them is the whole
+ * point of the tier: `assignDays` decides which sessions a week holds and which
+ * day each lands on; this takes both as given and periodizes what it is handed.
+ *
+ * ## What it does NOT do, deliberately
+ *
+ * It does not run the placement guards. `applySequencingGuards`,
+ * `spaceHardRunAfterLongRun`, `separateLifts`, `spreadRuns` and `fillEmptyDays`
+ * all MOVE sessions between days, which on a generated week is exactly right and
+ * on an authored one is the engine quietly overruling the athlete. Levi's
+ * instruction was to warn, not to overrule — so those rules run ahead of time as
+ * `validateTemplate`, where they can say what they know and the athlete can
+ * decide. By the time a template reaches here the conversation has happened.
+ *
+ * A blocking issue (three sessions on a day, no long run) is refused at the door
+ * by the caller, so the shapes that would break the engine never arrive.
+ *
+ * ## What it DOES do
+ *
+ * Periodization, which the athlete did not author and should not have to. A
+ * template is one week; a program is sixteen, and they are not the same week
+ * sixteen times:
+ *
+ *   - an A/B **race** week ignores the template entirely — the taper protocol
+ *     owns it, exactly as it does today;
+ *   - a **taper** week sheds roughly 40% of the sessions, lightest first, and
+ *     keeps the long run and one quality session;
+ *   - a **deload** drops a run and a hybrid, the same cut `planWeek` makes;
+ *   - a **loading** week is built as authored.
+ *
+ * And run TYPES, where the athlete left them open. A slot with no `runType` is
+ * filled from `runFillers(phase, pos)`, so an authored "hard Tuesday" is a
+ * fartlek in base and an interval in peak without the athlete having to plan
+ * their own progression. A type they named always wins.
+ */
+export function assignDaysFromTemplate(
+  template: WeekTemplate,
+  trainingDays: TrainingDayName[],
+  phase: PhaseName,
+  microWeek: MicroWeekType,
+  race?: { priority: RacePriorityName; date?: string },
+  pos?: PhasePosition,
+  counts: SessionCountTables = DEFAULT_COUNTS,
+  /** The week's mileage target — the floor on how few runs may carry it. */
+  weeklyMileage?: number,
+): DaySlot[] {
+  const days: DaySlot[] = trainingDays.map((day) => ({ day, sessions: [] as SessionSlot[] }));
+  const idxByDay = new Map(days.map((d, i) => [d.day, i]));
+
+  // An A/B race week belongs to the taper protocol, not to the athlete's week.
+  // Same short-circuit `assignDays` takes, and for the same reason: race-week
+  // structure is a safety property, not a preference.
+  if (race && microWeek === "race") {
+    const ordered = raceWeekSlots(race.priority, counts.runCharacter === "maintenance");
+    for (let i = 0; i < ordered.length && i < days.length; i++) {
+      days[days.length - ordered.length + i]!.sessions.push(ordered[i]!); // safe: both indices bounded by the loop
+    }
+    const idx = raceDayIndex(days, race.date);
+    days[idx]!.sessions = [{ kind: "race", priority: race.priority }]; // safe: raceDayIndex returns an in-bounds index
+    for (const d of days) if (d.sessions.length === 0) d.sessions.push({ kind: "rest" });
+    return days;
+  }
+
+  // Place what the athlete wrote, on the days they wrote it.
+  for (const td of template.days) {
+    const i = idxByDay.get(td.day);
+    if (i === undefined) continue; // not a training day — `validateTemplate` blocks this
+    for (const ts of td.sessions) {
+      const slot = templateSlot(ts);
+      if (slot) days[i]!.sessions.push(slot); // safe: i came from idxByDay
+    }
+  }
+
+  // Fill the run types the athlete left open, from the phase's own pool. The
+  // long run is never filled — it is named or it is absent, and absent is
+  // blocked upstream.
+  const fillers = runFillers(phase, pos);
+  let f = 0;
+  for (const d of days) {
+    for (let i = 0; i < d.sessions.length; i++) {
+      const sl = d.sessions[i]!; // safe: i < length
+      if (sl.kind !== "run" || sl.runType !== PENDING_RUN_TYPE) continue;
+      const rt = fillers[f++ % fillers.length]!; // safe: runFillers is never empty
+      d.sessions[i] = { kind: "run", runType: rt, goalZone: GOAL_ZONE[rt] };
+    }
+  }
+
+  applyMicroWeekCut(days, microWeek, counts, weeklyMileage);
+
+  // A C race trains through: its week keeps the athlete's shape and the race
+  // simply overwrites its own day.
+  if (race) {
+    const idx = raceDayIndex(days, race.date);
+    days[idx]!.sessions = [{ kind: "race", priority: race.priority }]; // safe: raceDayIndex returns an in-bounds index
+  }
+
+  for (const d of days) {
+    if (d.sessions.length === 0) d.sessions.push({ kind: "rest" });
+    else if (d.sessions.length > 1) d.sessions = orderByPriority(d.sessions);
+  }
+  return days;
+}
+
+/**
+ * The run type an authored slot carries while it is still waiting for the phase
+ * to choose one.
+ *
+ * A sentinel rather than `undefined` because `RunSlot.runType` is required —
+ * every consumer downstream (`GOAL_ZONE`, the descriptions, the reconciler)
+ * assumes a run has a type. Making it optional to serve one caller would push an
+ * `undefined` check into all of them.
+ */
+const PENDING_RUN_TYPE = "__pending__" as unknown as RunType;
+
+/** One authored session as an engine slot, or null for a kind we cannot place. */
+function templateSlot(ts: TemplateSession): SessionSlot | null {
+  if (ts.kind === "lift") return { kind: "lift", liftType: ts.liftType ?? "full" };
+  if (ts.kind === "hybrid") return { kind: "hybrid", goalZone: 4 };
+  if (ts.kind === "run") {
+    if (ts.runType === undefined) return { kind: "run", runType: PENDING_RUN_TYPE, goalZone: 2 };
+    return {
+      kind: "run",
+      runType: ts.runType,
+      goalZone: GOAL_ZONE[ts.runType],
+      ...(ts.runType === "long" ? { isLong: true } : {}),
+    };
+  }
+  return null;
+}
+
+/**
+ * The deload and taper cuts, applied to an authored week.
+ *
+ * These are not preferences and the athlete does not author them — a template is
+ * one week and a program is sixteen. What is cut is chosen the same way
+ * `assignDays` sheds a surplus session: least movable first, so what goes is the
+ * week's lightest work and never the long run or the race.
+ */
+function applyMicroWeekCut(
+  days: DaySlot[],
+  microWeek: MicroWeekType,
+  counts: SessionCountTables,
+  weeklyMileage?: number,
+): void {
+  const workouts = () => days.flatMap((d) => d.sessions).filter((s) => s.kind !== "rest").length;
+  const dropOne = (pred: SlotPredicate): boolean => {
+    let best: { d: DaySlot; i: number } | undefined;
+    for (const d of days) {
+      for (let i = 0; i < d.sessions.length; i++) {
+        const sl = d.sessions[i]!; // safe: i < length
+        if (!pred(sl) || isLongRun(sl) || sl.kind === "race") continue;
+        if (!best || sessionMovability(sl) < sessionMovability(best.d.sessions[best.i]!))
+          best = { d, i };
+      }
+    }
+    if (!best) return false;
+    best.d.sessions.splice(best.i, 1);
+    return true;
+  };
+
+  if (microWeek === "deload") {
+    // The same cut `planWeek` makes: one run and one hybrid, keeping the long run
+    // and the week's intensity touch-points. Volume comes off through the −40%
+    // mileage target, not by gutting the week.
+    dropOne((s) => s.kind === "run");
+    if (counts.runCharacter !== "maintenance") dropOne((s) => s.kind === "hybrid");
+    return;
+  }
+
+  if (microWeek === "taper") {
+    // ~40% fewer sessions. Two things always survive: the long run (never a
+    // victim, above) and ONE quality session.
+    //
+    // The quality session matters more than it looks. A taper that sheds volume
+    // AND intensity is not a taper, it is a week off — the athlete arrives flat.
+    // The first cut of this kept "the first quality run we meet", which is not
+    // the same rule and did not hold: it re-checked whether ANY quality remained
+    // after each drop, so with two quality runs the guard released after the
+    // first one and the week lost both. Count them instead.
+    const isQuality = (s: SessionSlot) => s.kind === "run" && QUALITY_RUN_TYPES.has(s.runType);
+    const qualityLeft = () => days.flatMap((d) => d.sessions).filter(isQuality).length;
+    const target = Math.max(2, Math.round(workouts() * 0.6));
+
+    // ⚠️ AND NEVER BELOW THE RUNS THE WEEK'S MILEAGE NEEDS.
+    //
+    // The two cuts are not the same size: a taper drops ~40% of the SESSIONS but
+    // only ~20% of the MILEAGE, so cutting on session count alone leaves the same
+    // miles spread over far fewer runs. Measured on a 22.7-mile taper: the week
+    // came out with a 10.3-mile long run and an 8.5-mile easy run stacked on the
+    // same Saturday — 165 minutes on one day, in the week whose entire purpose is
+    // freshness. `runsForMileage` is the floor, and it is the volume doctrine
+    // again: the way to carry miles is more sessions, never longer ones.
+    const runsLeft = () => days.flatMap((d) => d.sessions).filter((s) => s.kind === "run").length;
+    const runFloor = weeklyMileage === undefined ? 0 : runsForMileage(weeklyMileage);
+    // ...and ONE LIFT SURVIVES. Protecting the runs alone made the lifts the
+    // cheapest thing to cut, and a taper that drops the barbell entirely is not
+    // the taper protocol — `planWeek` trims a generated week to two lifts, it does
+    // not empty it. Strength is the last thing to detrain and the first thing an
+    // athlete misses on race day.
+    const liftsLeft = () => days.flatMap((d) => d.sessions).filter((s) => s.kind === "lift").length;
+    while (workouts() > target) {
+      const dropped = dropOne(
+        (s) =>
+          (!isQuality(s) || qualityLeft() > 1) &&
+          (s.kind !== "run" || runsLeft() > runFloor) &&
+          (s.kind !== "lift" || liftsLeft() > 1),
+      );
+      if (!dropped) break;
+    }
+  }
 }
 
 function interleave(...groups: SessionSlot[][]): SessionSlot[] {
