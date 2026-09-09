@@ -1688,6 +1688,49 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
     return round1(weekMileage({ days }) - before);
   };
 
+  /**
+   * Return miles to the run they were taken from — but only as far as the long
+   * run allows (Levi, 2026-09-09: "hours should win… but do not exceed the time
+   * cap").
+   *
+   * A bare hand-back was the other half of the overrun problem. When the long run
+   * cannot take what a donor gave up, handing ALL of it back puts the donor
+   * exactly where it was — above the long run, which is where it was taken from
+   * for. Anything that will not fit under the line is simply not placed: the week
+   * reports what it delivers, which is the honest number and the one the calendar
+   * agrees with.
+   */
+  /**
+   * Grow `r` by up to `miles`, and NEVER past the long run — checked AFTER the
+   * write, because a rep-based run does not land where it is asked to.
+   *
+   * This is the whole-rep snap trap for the third time in this file. Asking a
+   * 1 km interval session for another 0.3 mi does not add 0.3: `setRunMiles`
+   * snaps to a whole number of reps, so it adds 0.62 — and the between-rep
+   * recovery that comes with it, which is another 0.2 on the total. Every guard
+   * that tested `total(r) + miles <= limit` BEFORE writing was therefore testing a
+   * number the write would not produce. Measured on a 9.6-mile week: an interval
+   * session cleared a 3.8-mile bound and landed at 5.6, against a 4.0-mile long
+   * run.
+   *
+   * So: write, measure, and put it back if it overshot. The miles that will not
+   * fit are not placed — hours win, and the week reports what it delivers.
+   */
+  const growUnderLong = (r: RunSession, miles: number): void => {
+    const limit = round1(total(long) - LONG_RUN_MARGIN);
+    if (miles <= 0.001 || total(r) >= limit) return;
+    const before = r.distanceMiles;
+    write(r, before + miles);
+    restamp();
+    if (total(r) > limit) {
+      write(r, before); // the snap overshot — leave it where it was
+      restamp();
+    }
+  };
+
+  /** Return miles a donor gave up, bounded the same way. */
+  const handBack = (r: RunSession, miles: number): void => growUnderLong(r, miles);
+
   // PASS 1 — grow the anchor toward its share, biggest donor first.
   for (let i = 0; i < 40 && total(long) < wanted - 0.05; i++) {
     const donor = rivals()
@@ -1700,11 +1743,11 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
     // The long run is at its ceiling and cannot take what was freed — hand it
     // back rather than quietly shrinking the week.
     if (given < freed - 0.001) {
-      // Through `write`, not a bare assignment: a rep-based run's distance has to
-      // stay on a whole-rep boundary or the prescription text and the stored
-      // number drift apart — the exact failure the comment above this helper
-      // describes. The hand-back is a distance change like any other.
-      write(donor, donor.distanceMiles + (freed - given));
+      // Through `handBack`, not a bare assignment: a rep-based run's distance has
+      // to stay on a whole-rep boundary (`setRunMiles` snaps it), and the return
+      // is bounded by the long run so the donor cannot climb back over the line it
+      // was just brought under.
+      handBack(donor, freed - given);
       restamp();
       break;
     }
@@ -1750,7 +1793,7 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
         const moved = takeFrom(donor, anchorStep(donor));
         if (moved > 0.001) {
           if (giveToLong(moved) < moved - 0.001) {
-            write(donor, donor.distanceMiles + moved); // snapped, for the same reason
+            handBack(donor, moved); // bounded by the long run, for the same reason
             restamp();
             break; // long run is at its ceiling too — nothing left to try
           }
@@ -1834,10 +1877,12 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
       // 2. The easy runs (Levi, 2026-09-09) — spread so none overtakes the long run.
       if (!grew()) spreadOntoEasyRuns(drift, rivals(), total(long), write, restamp, total);
 
-      // 3. Any other run that will not overtake it.
+      // 3. Any other run that will not overtake it — verified AFTER the write,
+      //    because a rep-based run lands on a whole rep rather than where it was
+      //    asked to. See `growUnderLong`.
       if (!grew()) {
-        const taker = byRoom.find((r) => total(r) + drift <= total(long) - LONG_RUN_MARGIN);
-        if (taker) write(taker, taker.distanceMiles + drift);
+        const taker = byRoom.find((r) => total(r) < total(long) - LONG_RUN_MARGIN);
+        if (taker) growUnderLong(taker, drift);
       }
 
       // 4. An easy run of its own, where the remainder is enough to be one.
@@ -1847,19 +1892,29 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
         if (slot !== -1) ctx.days[slot]!.sessions.push(...extra);
       }
 
-      // 5. LAST RESORT — the roomiest run, even though it ends up over the long
-      // run. Losing the miles is worse: the week would silently deliver less than
-      // the plan it just handed the athlete, and every mileage guarantee in this
-      // file rests on not doing that.
-      if (!grew()) {
-        // Easy runs first (`continuousFirst`), then most headroom — measured, that
-        // beats picking whichever run ends up smallest, which sounds better and
-        // scored worse (31.1% of weeks violated against 27.8%, worst 7.3 mi
-        // against 3.1): the smallest run is usually the one with least room, so
-        // the miles ended up split across several runs instead of one.
-        const fallback = byRoom.find((r) => anchorMaxTotal(r, ctx) - total(r) > 0.05);
-        if (fallback) write(fallback, fallback.distanceMiles + drift);
-      }
+      // 5. THERE IS NO FIFTH. HOURS WIN (Levi, 2026-09-09).
+      //
+      // His words, settling this: *"Hours should win; the extra miles going onto
+      // easy runs means that if a long run and other quality run workouts are
+      // already capped, extra miles should go to the easy runs; but do not exceed
+      // the time cap."*
+      //
+      // There used to be a last resort here that handed the remainder to the
+      // roomiest run **even though that left it longer than the long run**, on the
+      // reasoning that losing miles is worse than an overrun. That was the right
+      // call against the numbers it was measured on. It stopped being the right
+      // call once `recPerMi` fixed the reconciler's own accounting: with the sizing
+      // correct, this branch was no longer rescuing weeks that could not be
+      // placed — it was creating overruns out of its own redistribution churn.
+      // Measured, it accounted for the entire regression from 4 to 17 weeks
+      // (0.5% → 2%) with a worst case of 1.06× → 1.74×.
+      //
+      // So a remainder that will not fit inside the time caps, under the long run,
+      // simply is not placed. That is not a lost mile — `reconcileWeekVolume`
+      // returns what the week DELIVERS and `assembleProgram` adopts it as the
+      // week's target, so the prescription and the calendar still agree. The
+      // athlete reads a smaller honest number instead of a bigger one their
+      // calendar contradicts.
       restamp();
     } else {
       const donor = [long, ...rivals()]

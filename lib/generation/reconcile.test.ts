@@ -4,6 +4,7 @@ import {
   weekMileage,
   weekWorkMileage,
   weekCardioMinutes,
+  sessionMiles,
   sessionTiming,
 } from "@/lib/session-volume";
 import { computePaces, formatPace } from "@/lib/engine/paces";
@@ -201,21 +202,47 @@ describe("reconcile — fixed paces, mileage exact, cardio exact via non-running
           const days = daysOf(...sessions);
           const capacity = weekCardioCapacity(days, DEFAULT_CAPS);
           reconcileWeekVolume(days, mi, min, P, "intermediate");
-          // Total on-feet mileage is filled up to the target, and where it cannot
-          // be it lands within ONE REP of it — never further.
+          // HOURS WIN (Levi, 2026-09-09).
           //
-          // The tolerance is the granularity of the thing that is left when
-          // everything else is exhausted. A rep-based run's distance snaps to
-          // whole reps (1 km for intervals, `REP_DISTANCE_MILES`), so a week whose
-          // long run is on its 90-minute cap and whose only other runs are an
-          // interval and a threshold session cannot be nudged by a tenth: the next
-          // move available to it is 0.62 of a mile. Measured, the worst such week
-          // lands 0.4 short.
+          // His words, settling it: *"Hours should win; the extra miles going onto
+          // easy runs means that if a long run and other quality run workouts are
+          // already capped, extra miles should go to the easy runs; but do not
+          // exceed the time cap."*
           //
-          // This is the regression guard for the honest-reporting change in
-          // `reconcileWeekVolume` (Levi, 2026-09-08: hours win, and the week says
-          // so). A week that quietly loses miles for any other reason fails here.
-          expect(weekMileage({ days })).toBeGreaterThanOrEqual(mi - 0.65);
+          // So mileage is filled up to the target, and where it cannot be, the week
+          // is allowed to land short — but ONLY because it ran out of hours, never
+          // because miles went missing. Asserting a flat tolerance cannot tell those
+          // two apart: it passes a genuinely capped-out week and a leak of the same
+          // size equally. So the shortfall is allowed conditionally, and the
+          // condition is the reason.
+          //
+          // Within one rep (`REP_DISTANCE_MILES`, 0.62 mi for intervals) the week is
+          // simply on its granularity and no explanation is owed. Past that, the
+          // week must show its work: the long run is ON the session cap, and every
+          // other run is either shoulder-to-shoulder with it (`LONG_RUN_MARGIN`, no
+          // run may overtake the long run) or on a cap of its own. Nothing in the
+          // week has anywhere left to put a mile.
+          //
+          // A week that loses miles for any OTHER reason fails here, which is what
+          // the old flat tolerance was really for.
+          const shortfall = Math.round((mi - weekMileage({ days })) * 10) / 10;
+          if (shortfall > 0.65) {
+            const runs = runsOf(days);
+            const longRun = runs.find((r) => r.runType === "long");
+            // The long run is what pins the ceiling — it is the only run allowed to
+            // be the longest, so if it has room, the week has room.
+            expect(longRun).toBeDefined();
+            expect(sessionTiming(longRun!).total).toBe(DEFAULT_CAPS.session);
+            for (const r of runs) {
+              // `LONG_RUN_MARGIN` is 0.2 mi; the extra tenth is rounding.
+              const atLongRunBound = sessionMiles(r) >= sessionMiles(longRun!) - 0.3;
+              // ...or out of minutes. Measured, the tightest run in this sweep sits
+              // at 80 of its 90, one interval rep (plus that rep's recovery jog)
+              // away from the cap.
+              const atTimeCap = sessionTiming(r).total >= DEFAULT_CAPS.session - 10;
+              expect(atLongRunBound || atTimeCap).toBe(true);
+            }
+          }
           // Cardio is hit EXACTLY whenever the week can hold it. These targets are
           // deliberately generous (22 min per prescribed mile), so the largest of
           // them exceed what two-sessions-a-day can physically fit — and a target
