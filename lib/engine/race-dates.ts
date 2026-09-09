@@ -57,6 +57,78 @@ export function weeksBetween(start: Date, date: Date): number {
   return Math.ceil((date.getTime() - start.getTime()) / MS_PER_WEEK);
 }
 
+/**
+ * How far into the past a start date may sit before it is treated as a typo.
+ *
+ * Not zero, even though the form advertises `min={today}`. The form's "today"
+ * comes from `new Date().toISOString()`, which is a UTC date, while the athlete
+ * is picking from a calendar rendered in their own zone — in UTC-8 at 5pm those
+ * two disagree by a day, and rejecting the date the picker shows as today would
+ * be a bug of our own making. A week of slack is wider than any real offset and
+ * far narrower than the mistakes that matter.
+ */
+export const START_DATE_PAST_GRACE_DAYS = 7;
+
+/**
+ * Everything wrong with a program's start date, in the athlete's terms.
+ *
+ * This is the field the race-date checker CANNOT report on. `checkRaceDates`
+ * bails out with "no usable start date; the caller reports that separately" —
+ * and until now no caller did. That gap is not academic: the start date sits one
+ * control above the race dates, on the same step, in the same kind of native
+ * date input, and it carries the same decorative `min` attribute.
+ *
+ * Measured, on a HYROX program with one A race 11 weeks out:
+ *
+ *   start `2026-09-09` → 11-week program, A race in week 11.   (correct)
+ *   start `0226-09-09` → 24-week program, A race in week 24.   (year typo)
+ *   start `1990-01-01` → 24-week program, A race in week 24.   (past)
+ *   start `banana`     → RangeError: Invalid array length.     (crash)
+ *
+ * The last one is not reachable from a date picker, but it is reachable from the
+ * edit path and from any caller that is not a browser, and it is an unhandled
+ * 500 rather than a message. The middle two are the incident again with a
+ * different field: a program of the wrong length, aimed at the wrong week, with
+ * nothing on screen pointing at a date.
+ *
+ * `today` is a parameter rather than a `Date.now()` so this stays pure and the
+ * form and the server action can be handed the same clock.
+ */
+export function checkStartDate(
+  startDate: string | undefined | null,
+  today: string,
+  opts: { allowPast?: boolean } = {},
+): string | null {
+  // Blank is fine — both callers default an absent start date to today.
+  if (!startDate) return null;
+
+  const date = parseIsoDate(startDate);
+  if (!date) {
+    return `Your start date (${startDate}) isn't a real calendar date. Pick it from the date field.`;
+  }
+
+  // Worded like the race-date message on purpose. The remedy is four digits, and
+  // an athlete told their start date is "in the past" would go looking at the
+  // calendar rather than at the year they mistyped.
+  const year = date.getUTCFullYear();
+  if (year < 2000 || year > 2100) {
+    return `Your start date is ${startDate} — that year looks wrong. Check the four-digit year.`;
+  }
+
+  // Editing an existing program means its start date is legitimately behind us.
+  if (opts.allowPast) return null;
+
+  const now = parseIsoDate(today);
+  if (!now) return null; // no clock to compare against; the year check still stood
+
+  const daysPast = Math.floor((now.getTime() - date.getTime()) / MS_PER_DAY);
+  if (daysPast > START_DATE_PAST_GRACE_DAYS) {
+    return `Your start date (${startDate}) is ${daysPast} days ago. A new program starts today or later — pick a start date from today on.`;
+  }
+
+  return null;
+}
+
 export type RaceDateIssue = { index: number; message: string };
 
 /**

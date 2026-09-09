@@ -510,8 +510,16 @@ export function reconcileWeekVolume(
   stampBrickRun(days, easyPaceMin);
 
   // Fixed hybrid contribution.
+  //
+  // MILES ONLY. There used to be a `hybridMin` accumulated alongside this and
+  // never read by anything — a time budget that was either never wired or lost in
+  // a refactor, sitting next to a mileage budget that works, which is exactly the
+  // shape that reads as a missing feature. It is not: a hybrid's and a brick's
+  // MINUTES are accounted for further down, where `runningCardio` sums every
+  // session that has already spent aerobic time and the standalone filler takes
+  // only the remainder. Removed rather than wired, so nobody has to work that out
+  // twice. (Found by ESLint, once ESLint could run again.)
   let hybridMi = 0;
-  let hybridMin = 0;
   for (const d of days)
     for (const s of d.sessions) {
       if (s.kind === "hybrid") {
@@ -523,7 +531,6 @@ export function reconcileWeekVolume(
         // `weekMileage` (which includes it) onto the target, so the runs give
         // the distance back by getting shorter. Same total, no lost session.
         hybridMi += hybridRunMiles(s) + (s.overheadMiles ?? 0);
-        hybridMin += sessionTiming(s).total;
       }
       // A BRICK IS A FIXED CONTRIBUTION TOO, for the same reason a hybrid is:
       // the athlete asked for a bike into a run, not for a share of the week's
@@ -533,7 +540,6 @@ export function reconcileWeekVolume(
       // minutes are part of the week's cardio, not on top of it.
       if (s.kind === "brick" && s.countsTowardMileage) {
         hybridMi += sessionWorkMiles(s);
-        hybridMin += sessionTiming(s).total;
       }
     }
   // Collect run entries.
@@ -575,6 +581,12 @@ export function reconcileWeekVolume(
     }
   }
   const RM = Math.max(0, round1(targetMileage - hybridMi)); // running miles to place (work)
+  // The biggest single hybrid, measured AFTER `stampHybridOverhead` so its jog is
+  // in the figure. `hybridMi` above cannot be reused: it is the week's whole
+  // hybrid contribution and it is a SUM, while "longest session" is a per-session
+  // comparison — a week with two 3 mi hybrids would otherwise be asked for a long
+  // run past 6.
+  const hybridPeak = hybridPeakMiles(days);
 
   const added: Session[] = [];
 
@@ -680,6 +692,7 @@ export function reconcileWeekVolume(
     easyPaceMin,
     caps,
     longRunCap,
+    hybridPeak,
     days,
     place,
   });
@@ -1609,6 +1622,32 @@ const MIN_QUALITY_COOLDOWN = 5;
 const LONG_RUN_MARGIN = 0.2;
 
 /**
+ * TOTAL on-feet miles of the week's BIGGEST hybrid.
+ *
+ * ## Why the ordering rule has to ask this
+ *
+ * "The long run is the week's longest run" was only ever enforced against
+ * sessions of kind `run`. A HYROX hybrid is not one, and yet its inter-station
+ * legs are ordinary running: eight 1 km legs is 4.97 mi, and `stampHybridOverhead`
+ * adds the warm-up/cool-down jog on top, which is why `sessionMiles` counts a
+ * hybrid at all (Levi, 2026-08-06). Measured across 2,520 generated HYROX weeks
+ * that carried both a long run and a hybrid, 231 (9.2%) shipped a hybrid that
+ * covered MORE ground than the long run — median 2.1 mi more, worst 3.5 — and
+ * the athlete's longest run of the week was a station workout.
+ *
+ * The PEAK rather than the sum, deliberately. Two hybrids of 3 mi each are two
+ * ordinary sessions; one hybrid of 6.5 mi against a 3 mi long run is the thing
+ * the athlete notices, because dominance is a per-SESSION comparison — it is
+ * what one line of the calendar says against another.
+ */
+function hybridPeakMiles(days: ProgramDay[]): number {
+  let peak = 0;
+  for (const d of days)
+    for (const s of d.sessions) if (s.kind === "hybrid") peak = Math.max(peak, sessionMiles(s));
+  return peak;
+}
+
+/**
  * How much work distance one redistribution step moves.
  *
  * A rep-based run has to move in WHOLE reps — `setRunMiles` snaps it, so the text
@@ -1631,6 +1670,11 @@ interface AnchorContext {
   caps: TrainingCaps;
   /** The trailing-four-week ceiling, when the caller has one. */
   longRunCap?: number;
+  /**
+   * TOTAL on-feet miles of the week's BIGGEST hybrid — the rival this rule could
+   * not see until now. See `hybridPeakMiles`.
+   */
+  hybridPeak: number;
   /** Where a surplus easy run may legally go. */
   days: ProgramDay[];
   place: FillerPlacement;
@@ -1685,7 +1729,13 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
   // is already lower — gets a shorter long run without anything here knowing what
   // a deload is.
   const share = (ctx.phase && LONG_RUN_SHARE[ctx.phase]) || LONG_RUN_SHARE_DEFAULT;
-  const wanted = Math.min(longCeiling, ctx.targetMileage * share);
+  // ...and it must ALSO clear the week's biggest hybrid, whose run legs are on-feet
+  // distance the ordering rule never used to look at (`hybridPeakMiles`). Both are
+  // wants, not floors: `longCeiling` is still the last word, so a 90-minute long
+  // run against a bigger hybrid is a week this pass cannot fix — see the pass
+  // below for what it does instead.
+  const wantedHybrid = round1(ctx.hybridPeak + LONG_RUN_MARGIN);
+  const wanted = Math.min(longCeiling, Math.max(ctx.targetMileage * share, wantedHybrid));
 
   restamp();
 
@@ -1786,6 +1836,92 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
       restamp();
       break;
     }
+  }
+
+  // PASS 1b — THE HYBRID IS A RIVAL TOO.
+  //
+  // A hybrid's inter-station legs are running, and `sessionMiles` has counted
+  // them since 2026-08-06, but the ordering rule only ever compared sessions of
+  // kind `run`. So a 6.5 mi hybrid stood over a 3.0 mi long run and nothing in
+  // this file objected. This is the eleventh WORK-vs-TOTAL / kind-blindness pair
+  // in the repo and the same shape as the last one: the invariant was measured
+  // against a narrower population than the athlete experiences.
+  //
+  // The lever is deliberately NOT the hybrid. Its leg length is already
+  // budget-driven — below 12 mi/week the legs get 20% of the week and shorten
+  // before any couplet is dropped (`hybridRunPlan`) — and that decision is
+  // settled. Nothing here shortens a leg or drops a station; the long run comes
+  // UP to meet it, out of the same donor runs PASS 1 uses, so the week's total is
+  // untouched.
+  //
+  // Where PASS 1 stops at "every donor is at its work floor", this one goes one
+  // step further and trims a quality run's warm-up, exactly as PASS 2 does for a
+  // run rival.
+  //
+  // ## What this can and cannot buy, measured
+  //
+  // 231 → 225 beaten weeks across the same 2,520, with the week's mileage still
+  // exact to 0.00 mi and not one session gained or lost (9,046 runs, 4,854 of
+  // them quality, before and after). That is a small number and it is the honest
+  // ceiling for redistribution: in 162 of the 231 the week could not clear the
+  // hybrid even if EVERY other run in it vanished, because the hybrids alone are
+  // 44–76% of the week's running. The miles are not there to move.
+  //
+  // A further 48 could be bought by folding an easy run into the long run — and
+  // that is deliberately NOT done. `raiseLongRunFloor` settled the same question
+  // against a quality run and settled it the other way: a week only ever spends
+  // SLACK on the ordering, and where it has none "the ordering yields and the
+  // sessions stand". Wiring the hybrid into that floor instead of into this pass
+  // was tried and measured — it bought 15 weeks and cost 303 quality sessions,
+  // which is the trade that doctrine exists to refuse.
+  //
+  // The rest belongs to `hybridRunPlan`, not to this file. Its weekly leg budget
+  // switches off at exactly `LOW_VOLUME_MILEAGE_THRESHOLD` (12 mi/week), so a
+  // 12.7 mi week hands its hybrid all eight full 1 km legs — 6.5 mi on the feet
+  // against a 3.0 mi long run. No amount of moving run miles around fixes a week
+  // that has already spent them.
+  for (let i = 0; i < 40 && total(long) < wantedHybrid - 0.05; i++) {
+    // EVERY donor gets a turn, biggest first, and the first one that actually
+    // MOVES wins. PASS 1 stops at the biggest donor because it is only chasing a
+    // share and the next iteration will come back for the rest; here the loop
+    // exits for good the moment nothing moves, and stopping at the biggest was
+    // enough to miss the fix outright. A rep-based run is why: `takeFrom` asks a
+    // threshold session for one whole rep, that rep would put it under its own
+    // floor, and it frees nothing — while the interval session standing next to
+    // it had a rep to spare the whole time.
+    let freed = 0;
+    let donor: RunSession | undefined;
+    for (const r of rivals().sort((a, b) => total(b) - total(a))) {
+      if (r.distanceMiles - anchorMinWork(r, ctx) <= 0.001) continue;
+      freed = takeFrom(r, anchorStep(r));
+      if (freed > 0.001) {
+        donor = r;
+        break;
+      }
+    }
+    if (donor && freed > 0.001) {
+      const given = giveToLong(freed);
+      if (given < freed - 0.001) {
+        // Bounded by the long run, for the same reason PASS 1 bounds it: the
+        // donor must not climb back over the line it was just brought under.
+        handBack(donor, freed - given);
+        restamp();
+        break; // the long run is at its ceiling — nothing more to try
+      }
+      continue;
+    }
+    // Every run is at its work floor. The distance that is left is the quality
+    // session's OVERHEAD, and in a small week that is where it hides: a 5.2 mi
+    // interval session whose reps are 2.5 mi is carrying 25 minutes of warm-up
+    // and cool-down plus its recovery jog. Floored at what is safe before reps.
+    let freedOverhead = 0;
+    for (const r of rivals().sort((a, b) => total(b) - total(a))) {
+      freedOverhead = trimQualityOverhead(r, ctx);
+      if (freedOverhead > 0.001) break;
+    }
+    // What the long run cannot take is not lost: `trimQualityOverhead` only
+    // shrank the week, and the TRUE UP below puts the week back on its target.
+    if (freedOverhead <= 0.001 || giveToLong(freedOverhead) <= 0.001) break;
   }
 
   // PASS 2 — no other run may match or beat it. Where the long run is already at
@@ -1969,14 +2105,24 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
  * Cut a quality run's warm-up and cool-down toward the safety floors, returning
  * the total miles that frees. Proportional, so a 15/10 session keeps its 3:2
  * shape rather than losing the whole cool-down first.
+ *
+ * A TRIM ONLY, NEVER A STRETCH. `Math.max(MIN_QUALITY_WARMUP, wu - 5)` on its
+ * own is a floor, and a floor RAISES anything already below it: a threshold run
+ * jogs 6 minutes of warm-up (`RUN_WARMUP_COOLDOWN`, the rest of its warm-up
+ * being on a bike), so asking to trim it moved 6 → 10 and handed back 6/8 → 10/5,
+ * a net LONGER session. The caller reads the return value as "miles freed", saw
+ * -0.1, and stopped — which is why the hybrid rivalry below could never get past
+ * a week whose only donors were threshold runs. Clamping each leg to its own
+ * current value keeps the safety floors doing the one job they have, which is to
+ * stop a cut going too far.
  */
 function trimQualityOverhead(s: RunSession, ctx: AnchorContext): number {
   if (s.runType === "long" || s.runType === "easy") return 0;
   const [wu, cd] = runOverheadFor(s);
   if (wu <= MIN_QUALITY_WARMUP && cd <= MIN_QUALITY_COOLDOWN) return 0;
   const before = sessionMiles(s);
-  s.warmupMin = Math.max(MIN_QUALITY_WARMUP, wu - 5);
-  s.cooldownMin = Math.max(MIN_QUALITY_COOLDOWN, cd - 5);
+  s.warmupMin = Math.min(wu, Math.max(MIN_QUALITY_WARMUP, wu - 5));
+  s.cooldownMin = Math.min(cd, Math.max(MIN_QUALITY_COOLDOWN, cd - 5));
   s.overheadMiles = runOverheadMilesFor(s, ctx.easyPaceMin);
   return round1(before - sessionMiles(s));
 }

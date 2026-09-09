@@ -125,8 +125,13 @@ describe("a generated program prescribes HR per rep and per recovery jog", () =>
   });
 
   it("leaves easy, long and hybrid sessions alone", () => {
+    // The QUALITY runs are exempt: interval and threshold carry their two rep-based
+    // lines, tempo the single continuous band it gained later. Everything else —
+    // easy, long, fartlek, every hybrid and lift — has no sharp HR target to state
+    // beyond its zone, and gets nothing.
+    const QUALITY = ["interval", "threshold", "tempo"];
     for (const s of sessions) {
-      if (s.kind === "run" && (s.runType === "interval" || s.runType === "threshold")) continue;
+      if (s.kind === "run" && QUALITY.includes(s.runType)) continue;
       expect(hrLines(s), `${s.kind}`).toHaveLength(0);
     }
   });

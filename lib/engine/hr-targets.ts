@@ -41,6 +41,14 @@ import { zoneBpmRange } from "@/lib/zones";
 const REP_RUN_TYPES: readonly RunType[] = ["interval", "threshold"];
 
 /**
+ * The one CONTINUOUS quality run. It has no reps and no recovery jogs, so it
+ * takes neither of the rep-based lines — but it is still a run with a prescribed
+ * effort, and until now it was the only quality run whose athlete was told a pace
+ * and left to guess at the heart rate that goes with it.
+ */
+const TEMPO_RUN_TYPE: RunType = "tempo";
+
+/**
  * Every HR line starts with this. It is the marker that lets a stored
  * description's baked lines be swapped for freshly-computed ones — see
  * `stripHrLines`. Changing it orphans the lines in already-generated programs
@@ -116,6 +124,104 @@ export function repPeakBpm(
   });
 }
 
+/**
+ * The shape of a CONTINUOUS tempo effort, as fractions up the session zone's own
+ * span — the tempo answer to `REP_RAMP`.
+ *
+ * A tempo run has no reps, so there is no rep-by-rep climb to describe; what it
+ * has instead is one long effort whose heart rate settles a few minutes in and
+ * then drifts upward for the rest of the block. Both ends are worth stating, and
+ * for the same reason the rep line states two: an athlete who sees a single flat
+ * number reads their first five minutes as a failure and pushes the pace, which
+ * is precisely the mistake a tempo run is built to prevent.
+ *
+ * DERIVATION — off the athlete's own model, not a generic percentage. Tempo is
+ * assigned Zone 3 by the engine (`slots.ts` `GOAL_ZONE`), and Zone 3's bounds are
+ * whatever the athlete's anchoring says they are: under LTHR (Friel, the anchor
+ * this project prefers) that is 0.90–0.94 × threshold HR, under HRR it is
+ * Karvonen's 70–80% of reserve, under %HRmax 80–87%. Everything below is a
+ * fraction of THAT span, so the band moves with the athlete's threshold HR and
+ * max HR and can never contradict their Zone 3 chip:
+ *
+ *   `settleFrac` — a fifth of the way up the band, not at its floor. The floor is
+ *                  the boundary with Zone 2, and an effort held at the boundary is
+ *                  an easy run that the athlete has been told to call a tempo.
+ *   `driftFrac`  — four fifths, not the top. The top of the band is the next
+ *                  zone's floor; drifting across it converts a tempo into the
+ *                  threshold session, which is a different workout with a
+ *                  different work:rest structure and a different weekly cost.
+ *
+ * Sub-threshold is the DEFINITION of tempo, not a preference, so there is a hard
+ * ceiling underneath threshold HR as well (`THRESHOLD_ZONE`). It never bites on
+ * the engine's own Zone 3 — it is there for an athlete with hand-entered custom
+ * bands, where nothing else guarantees the ordering.
+ */
+const TEMPO_DRIFT = { settleFrac: 0.2, driftFrac: 0.8 };
+
+/**
+ * Minutes into the block by which a continuous effort's heart rate has arrived.
+ * Stated in the line rather than left implicit: "by the end of rep 1" is what
+ * carries the lag on a rep-based run, and a continuous run has no rep 1 to hang
+ * it on.
+ */
+const TEMPO_SETTLE_MIN = 5;
+
+/**
+ * Where this project puts threshold HR under EVERY anchoring method: the top of
+ * Zone 4. Under LTHR that boundary is 1.00 × threshold HR by construction; under
+ * HRR and %HRmax the 4/5 boundary is the same threshold proxy the zone tables
+ * were built around. So one lookup gives a threshold ceiling that respects
+ * whatever data the athlete has actually supplied.
+ */
+const THRESHOLD_ZONE: Zone = 4;
+
+/**
+ * The two ends of a tempo run's HR band, in bpm: where it settles and where the
+ * drift leaves it.
+ *
+ * Same estimate-not-promise caveat as `repPeakBpm` — heat, sleep and a stale
+ * strap move these numbers as much as fitness does. What is being modelled is the
+ * SHAPE: arrives a few minutes in, drifts up, stops short of threshold.
+ */
+export function tempoBandBpm(model: HrBandSource, zone: Zone): { settled: number; end: number } {
+  const { min: lo, max: hi } = zoneBpmRange(model, zone);
+  const span = Math.max(0, hi - lo);
+  // The ceiling binds BOTH ends, not just the drifted one. A band whose lower
+  // figure sat above threshold while its upper figure was clamped under it would
+  // print backwards, and would be telling the athlete to start a sub-threshold
+  // run above threshold.
+  const ceiling = Math.min(zoneBpmRange(model, THRESHOLD_ZONE).max - 1, model.maxHR);
+  const settled = Math.min(Math.round(lo + TEMPO_DRIFT.settleFrac * span), ceiling);
+  const drifted = Math.min(Math.round(lo + TEMPO_DRIFT.driftFrac * span), ceiling);
+  return { settled, end: Math.max(settled, drifted) };
+}
+
+/**
+ * The single number a LOGGED session peak should be judged against — the same
+ * estimate the athlete's own prescription printed as the top of its HR line.
+ *
+ * For a rep-based run that is the LAST rep's peak, never the first. Heart rate on
+ * a rep is a lagging, back-half signal: rep 1 ends while HR is still climbing and
+ * peaks below the band by design, so treating an early rep's figure as the bar
+ * measures the ramp instead of the work. For a tempo it is the drifted end of the
+ * band, for the same reason.
+ *
+ * Exported because the calibration path has to read the same number the
+ * prescription path prints. When they were computed separately, an athlete who
+ * executed the session exactly as written was judged against a bar they were
+ * never given.
+ */
+export function expectedPeakBpm(
+  model: HrBandSource,
+  zone: Zone,
+  runType: RunType,
+  reps: number,
+): number | null {
+  if (runType === TEMPO_RUN_TYPE) return tempoBandBpm(model, zone).end;
+  const peaks = repPeakBpm(model, zone, runType, reps);
+  return peaks.length ? peaks[peaks.length - 1]! : null;
+}
+
 export interface HrTargetInput {
   runType: RunType;
   /** The session's engine-assigned goal zone (interval 5, threshold 4). */
@@ -148,9 +254,24 @@ function asZone(zone: number): Zone | null {
  */
 export function hrTargetLines(input: HrTargetInput): string[] {
   const { runType, goalZone, model, reps } = input;
-  if (!REP_RUN_TYPES.includes(runType) || !model) return [];
+  if (!model) return [];
   const zone = asZone(goalZone);
   if (zone === null) return [];
+  // A tempo run gets ONE line and takes the rep line's slot. The prescription is
+  // six lines because it was cut to six on purpose, three rounds of simplifying
+  // ending in "as simple as possible", so a tempo band that needed a line of its
+  // own would not be worth what it cost. It does not need one: a continuous run
+  // has no recovery jogs, so the second HR line has nothing to say and the band
+  // fits in the first. The label is "tempo" and not "reps" because the run has no
+  // reps — this file already refuses to print "between reps" on a single-rep
+  // session for the same reason.
+  if (runType === TEMPO_RUN_TYPE) {
+    const band = tempoBandBpm(model, zone);
+    return [
+      `${HR_LINE_PREFIX}tempo: ${band.settled} by ${TEMPO_SETTLE_MIN} min in - ${band.end} by the end`,
+    ];
+  }
+  if (!REP_RUN_TYPES.includes(runType)) return [];
   const peaks = repPeakBpm(model, zone, runType, reps);
   if (!peaks.length) return [];
   const first = peaks[0]!;

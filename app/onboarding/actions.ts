@@ -5,7 +5,15 @@ import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/sc
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
 import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
-import { checkRaceDates } from "@/lib/engine/race-dates";
+import { checkRaceDates, checkStartDate } from "@/lib/engine/race-dates";
+import {
+  checkBenchmarkTimes,
+  checkHeartRates,
+  checkHrZones,
+  checkProfileNumbers,
+  checkStartingVolume,
+  checkStrengthNumbers,
+} from "@/lib/engine/input-checks";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -41,6 +49,7 @@ function todayISO(): string {
  */
 function parseGenerationInput(
   formData: FormData,
+  opts: { allowPastStart?: boolean } = {},
 ):
   | { input: GenerationInput; programNameInput?: string; error?: undefined }
   | { error: string; input?: undefined } {
@@ -138,17 +147,78 @@ function parseGenerationInput(
     if (date && priority) races.push({ raceDate: date, priority });
   }
 
-  // The same date checks the form runs as the athlete advances, run again here.
+  // The same checks the form runs as the athlete advances, run again here.
   //
   // Not belt-and-braces: this action is also the EDIT path, and a client check
   // is a courtesy rather than a guarantee. A race dated year 0226 reached the
   // engine once (Levi, 2026-09-09) and came out the other side as an A race in
   // week 1, a four-week program, and an authored week silently overruled by the
   // taper protocol — three bug reports for one typo.
+  //
+  // The root cause was never really the date. The form blocks native submit so a
+  // stray Enter cannot start a generation, and that blocks native VALIDATION
+  // too, which makes every `min`/`max`/`step` in it decorative. So these run over
+  // the whole intake, not just the races, in the order the form asks for them —
+  // the first message an athlete sees should name a field they can still see.
   const startDateRaw = str(formData, "startDate");
+
+  const profileIssue = checkProfileNumbers({
+    age: num(formData, "age"),
+    bodyWeight: num(formData, "bodyWeight"),
+    weightUnit: formData.get("weightUnit") === "kg" ? "kg" : "lbs",
+  });
+  if (profileIssue) return { error: profileIssue };
+
+  const hrIssue = checkHeartRates({
+    age: num(formData, "age"),
+    sex,
+    maxHr,
+    restingHr,
+    thresholdHr,
+  });
+  if (hrIssue) return { error: hrIssue };
+
+  if (hrZones) {
+    const zoneIssue = checkHrZones(
+      [hrZones.z1, hrZones.z2, hrZones.z3, hrZones.z4, hrZones.z5].map((b) => ({
+        low: b.low ?? NaN,
+        high: b.high ?? NaN,
+      })),
+    );
+    if (zoneIssue) return { error: zoneIssue };
+  }
+
+  // A start date one control above the races, in the same kind of native date
+  // field, with the same decorative `min`. Checked FIRST, and unconditionally:
+  // `checkRaceDates` abandons the race-vs-start comparison when the start date
+  // is unusable, and a general-fitness program never reaches it at all. Measured
+  // on an 11-week HYROX build: `0226-09-09` yields a 24-week program with the A
+  // race in week 24, and a start date that is not a date at all reaches
+  // `toEngineInput` as NaN weeks and throws `RangeError: Invalid array length`.
+  const startIssue = checkStartDate(startDateRaw, todayISO(), {
+    allowPast: opts.allowPastStart,
+  });
+  if (startIssue) return { error: startIssue };
+
   if (!isGenFit && races.length > 0) {
     const bad = checkRaceDates(races, startDateRaw ?? todayISO());
     if (bad.length > 0) return { error: bad[0]!.message };
+  }
+
+  const volumeIssue = checkStartingVolume({
+    startMileage: num(formData, "startMileage"),
+    startCardioMinutes: num(formData, "startCardioMinutes"),
+  });
+  if (volumeIssue) return { error: volumeIssue };
+
+  if (benchmarks) {
+    const timeIssue = checkBenchmarkTimes(benchmarks);
+    if (timeIssue) return { error: timeIssue };
+    const strengthIssue = checkStrengthNumbers(
+      benchmarks,
+      formData.get("weightUnit") === "kg" ? "kg" : "lbs",
+    );
+    if (strengthIssue) return { error: strengthIssue };
   }
 
   // Duration: derived from the goal race for goal_event; explicit otherwise.
@@ -386,7 +456,10 @@ export async function updateProgramInputs(
     .single();
   if (!existing) return { error: "Program not found." };
 
-  const parsed = parseGenerationInput(formData);
+  // An existing program legitimately started before today — refusing a past start
+  // date here would make a mid-program recalculate impossible. The year check
+  // inside `checkStartDate` still applies, which is the half that matters.
+  const parsed = parseGenerationInput(formData, { allowPastStart: true });
   if (!parsed.input) return { error: parsed.error ?? "Please check your answers and try again." };
   const input = parsed.input;
 

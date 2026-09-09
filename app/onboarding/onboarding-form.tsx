@@ -13,7 +13,16 @@ import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
 import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
-import { checkRaceDates } from "@/lib/engine/race-dates";
+import { checkRaceDates, checkStartDate } from "@/lib/engine/race-dates";
+import {
+  TIME_BENCHMARK_FIELDS,
+  checkBenchmarkTimes,
+  checkHeartRates,
+  checkHrZones,
+  checkProfileNumbers,
+  checkStartingVolume,
+  checkStrengthNumbers,
+} from "@/lib/engine/input-checks";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 
 const initialState: OnboardingState = { error: null };
@@ -685,18 +694,72 @@ export default function OnboardingForm({
     }
   }
 
-  /** Validate the current step against the live form values before advancing. */
+  /**
+   * Validate the current step against the live form values before advancing.
+   *
+   * ⚠️ EVERY check in this form has to live here or in `parseGenerationInput`,
+   * because the form blocks native submit (see `handleGenerate`) and blocking
+   * native submit blocks the browser's native VALIDATION with it. The `min`,
+   * `max` and `step` attributes on the inputs below are DECORATIVE — they render,
+   * they constrain the spinner arrows, and they stop nothing. A race dated year
+   * 0226 is what proved it (Levi, 2026-09-09).
+   *
+   * The checks themselves are pure functions in `lib/engine/`, called again by
+   * the server action, so the client courtesy and the server guarantee cannot
+   * drift.
+   */
   function validateStep(current: number): string | null {
     const fd = formRef.current ? new FormData(formRef.current) : null;
     const get = (k: string) => (fd?.get(k) as string | null)?.trim() ?? "";
+    /** A numeric field's value, or undefined when it is blank. */
+    const numOf = (k: string): number | undefined => {
+      const v = get(k);
+      if (!v) return undefined;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    };
 
     if (current === 0) {
       if (!get("firstName")) return "Enter your first name.";
-      const age = Number(get("age"));
-      if (!age || age < 13 || age > 100) return "Enter an age between 13 and 100.";
-      if (!(Number(get("bodyWeight")) > 0)) return "Enter your body weight.";
+      if (!get("age")) return "Enter an age between 13 and 100.";
+      if (!get("bodyWeight")) return "Enter your body weight.";
+      // Range AND whole-number, on the step that owns the control. The range
+      // check used to live here alone, so a fractional age (25.5) advanced from
+      // this step and was refused four steps later in Zod's words, on a screen
+      // with no age field on it.
+      const numbers = checkProfileNumbers({
+        age: numOf("age"),
+        bodyWeight: numOf("bodyWeight"),
+        weightUnit: get("weightUnit") === "kg" ? "kg" : "lbs",
+      });
+      if (numbers) return numbers;
+      // Each HR is bounded on its own by the schema and none of those bounds is
+      // wrong; what nothing compared was the three against each other. A
+      // threshold HR above max collapses Z2–Z5 onto one bpm, and the only
+      // symptom is five identical zone chips.
+      const hr = checkHeartRates({
+        age: numOf("age"),
+        sex: (get("sex") || undefined) as "male" | "female" | "other" | undefined,
+        maxHr: numOf("maxHr"),
+        restingHr: numOf("restingHr"),
+        thresholdHr: numOf("thresholdHr"),
+      });
+      if (hr) return hr;
+      if (customZones) {
+        const zoneIssue = checkHrZones(zones);
+        if (zoneIssue) return zoneIssue;
+      }
+      const goalTime = checkBenchmarkTimes({ goalFinishTime: get("goalFinishTime") });
+      if (goalTime) return goalTime;
     }
     if (current === 2) {
+      // The start date sits one control above the race dates, in the same kind
+      // of native date field, carrying the same decorative `min`. Checked BEFORE
+      // the races, because `checkRaceDates` gives up on the race-vs-start
+      // comparison when the start date is unusable — and until this call existed,
+      // nothing reported that.
+      const startIssue = checkStartDate(startDate, today, { allowPast: isEdit });
+      if (startIssue) return startIssue;
       if (days.length < 3) return "Pick at least 3 training days.";
       // `!bandOffered` also catches a band carried over from a sport that offered
       // it — switching to HYROX leaves no radio checked, so re-selecting is the
@@ -729,8 +792,54 @@ export default function OnboardingForm({
         if (bad.length > 0) return bad[0]!.message;
       }
       // fixed_duration races are optional; empty rows are ignored on submit.
+
+      // Both starting-volume inputs carry `min={0}` and are labelled optional,
+      // while the schema is `positive()`. A literal 0 therefore looked accepted
+      // for four more steps and was refused at the end in Zod's words.
+      const volume = checkStartingVolume({
+        startMileage: numOf("startMileage"),
+        startCardioMinutes: numOf("startCardioMinutes"),
+      });
+      if (volume) return volume;
     }
     return null;
+  }
+
+  /**
+   * The Benchmarks step's checks.
+   *
+   * They cannot live in `validateStep`: Benchmarks is the LAST step, so `next()`
+   * never runs from it and `validateStep(3)` is never called. Run from
+   * `handleGenerate` instead, which is the only path that starts a generation —
+   * and which is on screen with these fields, so the message lands next to the
+   * box that has to change.
+   */
+  function validateBenchmarks(): string | null {
+    const fd = formRef.current ? new FormData(formRef.current) : null;
+    const get = (k: string) => (fd?.get(k) as string | null)?.trim() ?? "";
+    const numOf = (k: string): number | undefined => {
+      const v = get(k);
+      if (!v) return undefined;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    // Field names come from the checker's own list, so this cannot fall behind
+    // the set of times it knows how to read.
+    const times: Record<string, string> = {};
+    for (const name of TIME_BENCHMARK_FIELDS) times[name] = get(name);
+    const timeIssue = checkBenchmarkTimes({ ...times, paceUnit: paceUnit === "km" ? "km" : "mi" });
+    if (timeIssue) return timeIssue;
+
+    return checkStrengthNumbers(
+      {
+        fiveRmSquat: numOf("fiveRmSquat"),
+        fiveRmBench: numOf("fiveRmBench"),
+        fiveRmDeadlift: numOf("fiveRmDeadlift"),
+        bike20MinCals: numOf("bike20MinCals"),
+      },
+      get("weightUnit") === "kg" ? "kg" : "lbs",
+    );
   }
 
   function next() {
@@ -763,6 +872,12 @@ export default function OnboardingForm({
     // (guards against a double-click on "Next" carrying through to "Generate").
     if (Date.now() - enteredLastStepAt.current < 300) return;
     if (!formRef.current) return;
+    const benchIssue = validateBenchmarks();
+    if (benchIssue) {
+      setStepError(benchIssue);
+      return;
+    }
+    setStepError(null);
     const formData = new FormData(formRef.current);
     // The dispatch from useActionState must run inside a transition when
     // invoked manually (rather than via a form action prop).

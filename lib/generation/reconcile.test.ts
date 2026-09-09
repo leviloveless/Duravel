@@ -6,6 +6,7 @@ import {
   weekCardioMinutes,
   sessionMiles,
   sessionTiming,
+  RUN_WARMUP_COOLDOWN,
 } from "@/lib/session-volume";
 import { computePaces, formatPace } from "@/lib/engine/paces";
 import type { ProgramDay, Session } from "@/lib/schemas";
@@ -750,5 +751,104 @@ describe("filler is planned before it is written", () => {
         )
         .join(" ");
     expect(layout(a)).toBe(layout(b));
+  });
+});
+
+/**
+ * THE LONG RUN OUT-MEASURES THE WEEK'S HYBRIDS, NOT JUST ITS RUNS (2026-09-09).
+ *
+ * The ordering rule — "the long run is the week's longest run" — was enforced
+ * against sessions of kind `run` and nothing else. A HYROX hybrid is not one, and
+ * its inter-station legs are ordinary running: eight full 1 km legs is 4.97 mi
+ * before `stampHybridOverhead` adds the warm-up/cool-down jog, which is why
+ * `sessionMiles` counts a hybrid at all. So the week's longest piece of running
+ * could be a station workout and no pass in this file objected.
+ *
+ * Measured across 2,520 generated HYROX weeks carrying both a long run and a
+ * hybrid: 231 (9.2%) shipped a hybrid that covered more ground than the long run,
+ * median 2.1 mi more, worst 3.5. The fix is redistribution only — the long run
+ * comes UP out of the same donor runs, the hybrid is never resized, and the
+ * week's mileage is exact before and after.
+ */
+describe("the long run out-measures the week's hybrids", () => {
+  // A full race-shaped hybrid: eight 1 km legs, so 4.97 mi of running before the
+  // hybrid's own warm-up/cool-down jog is stamped on top. This is what a HYROX
+  // athlete gets at or above 12 mi/week, where `hybridRunPlan`'s weekly leg
+  // budget stops applying.
+  const STATIONS = [
+    "ski erg",
+    "sled push",
+    "sled pull",
+    "burpee broad jump",
+    "row erg",
+    "farmers carry",
+    "sandbag lunges",
+    "wall balls",
+  ];
+  const raceHybrid = (): Session => ({
+    kind: "hybrid",
+    goalZone: 4,
+    elements: STATIONS.flatMap((station) => [
+      { exercise: "run", prescription: "1000m @ 8:00 min/mile (threshold)" },
+      { exercise: station, prescription: "50 m" },
+    ]),
+  });
+
+  it("grows the long run clear of a race-distance hybrid, and moves no miles into or out of the week", () => {
+    // Before this rule the long run stopped at its phase share — 0.3 x 20 = 6.0,
+    // which `setRunMiles` landed at 6.4 — and TIED the 6.4 mi hybrid exactly. The
+    // athlete's longest run of the week was the station workout.
+    const days = daysOf(
+      [raceHybrid()],
+      [run("easy", 5)],
+      [],
+      [run("threshold", 5)],
+      [],
+      [run("long", 6)],
+    );
+    const delivered = reconcileWeekVolume(days, 20, 400, P, "intermediate", 4, {}, DEFAULT_CAPS);
+    const hy = days.flatMap((d) => d.sessions).find((s) => s.kind === "hybrid")!;
+    const long = runsOf(days).find((r) => r.runType === "long")!;
+    // A clear margin, not a tie: `LONG_RUN_MARGIN` is 0.2, and the comparison is
+    // written against a rounded gap so a tenth of float noise cannot decide it.
+    const gap = Math.round((sessionMiles(long) - sessionMiles(hy)) * 10) / 10;
+    expect(gap, `long ${sessionMiles(long)} vs hybrid ${sessionMiles(hy)}`).toBeGreaterThanOrEqual(
+      0.2,
+    );
+    // REDISTRIBUTION, not creation. This is the invariant that outranks the
+    // ordering one: a week that quietly gains or loses miles contradicts the
+    // calendar the athlete was handed.
+    expect(delivered).toBe(20);
+    expect(weekMileage({ days })).toBe(20);
+    // ...and the hybrid itself is untouched. Its leg length is `hybridRunPlan`'s
+    // decision, made against the week's budget, and nothing here re-litigates it.
+    expect(sessionMiles(hy)).toBe(6.4);
+  });
+
+  it("trims a quality run's warm-up toward the floor and never past it — in the shortening direction", () => {
+    // `Math.max(MIN_QUALITY_WARMUP, wu - 5)` is a floor, and a floor RAISES
+    // anything already under it. A threshold run jogs only 6 minutes of its
+    // warm-up (the rest is on a bike), so the "trim" moved it 6 -> 10 and handed
+    // back a LONGER session than it was given. The caller reads the return value
+    // as miles freed, saw -0.1, and stopped — which is how a week whose only
+    // donor was a threshold run could never fund its long run at all.
+    const days = daysOf(
+      [raceHybrid()],
+      [run("easy", 5)],
+      [],
+      [run("threshold", 5)],
+      [],
+      [run("long", 6)],
+    );
+    reconcileWeekVolume(days, 16, 400, P, "intermediate", 4, {}, DEFAULT_CAPS);
+    const threshold = runsOf(days).find((r) => r.runType === "threshold")!;
+    // The trim really ran: the cool-down is at its safety floor.
+    expect(threshold.cooldownMin).toBe(5);
+    // ...and the warm-up came DOWN or stayed put. Never up.
+    for (const r of runsOf(days)) {
+      const [wu, cd] = RUN_WARMUP_COOLDOWN[r.runType];
+      expect(r.warmupMin ?? wu, `${r.runType} warm-up`).toBeLessThanOrEqual(wu);
+      expect(r.cooldownMin ?? cd, `${r.runType} cool-down`).toBeLessThanOrEqual(cd);
+    }
   });
 });

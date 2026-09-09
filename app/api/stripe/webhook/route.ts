@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { pricesFromEnv, resolvePrice, type PriceResolution } from "@/lib/stripe-prices";
 import { sendEmail } from "@/lib/email/send";
 import type { ReceiptProps } from "@/lib/email/templates/types";
 
@@ -29,27 +30,34 @@ import type { ReceiptProps } from "@/lib/email/templates/types";
 // Always run server-side against the untouched request body; never cache.
 export const dynamic = "force-dynamic";
 
-function planFromPriceId(priceId: string | null): "monthly" | "annual" | null {
-  if (!priceId) return null;
-  if (priceId === env.STRIPE_PRICE_ANNUAL) return "annual";
-  if (priceId === env.STRIPE_PRICE_MONTHLY) return "monthly";
-  if (priceId === env.STRIPE_PRICE_CUSTOM_MONTHLY) return "monthly";
-  return null;
-}
-
 /**
- * The PRODUCT LEVEL a price buys, as opposed to its billing interval.
+ * Resolve a price id into the interval and product level it buys.
  *
- * Deliberately fails closed: an unrecognised price id — a new one created in the
- * Stripe dashboard before the env var is set, say — reads as `standard`, so the
- * worst case is a customer who paid for custom and has to wait for a redeploy.
- * The reverse default would hand the tier to everyone the moment a price id
- * drifted, and this webhook is the only thing standing between a price and an
- * entitlement.
+ * The mapping itself now lives in `lib/stripe-prices` so that it can be
+ * unit-tested — see the note there on why it takes the configured ids as an
+ * argument instead of reading `env`. This wrapper exists to do the one thing a
+ * pure function cannot: make noise.
+ *
+ * `resolvePrice` fails closed, which is the right direction and a completely
+ * silent one. A custom subscriber whose price id does not match the configured
+ * `STRIPE_PRICE_CUSTOM_MONTHLY` is written down as `standard` — downgraded to a
+ * product they did not buy, with no error raised, no failed webhook, and nothing
+ * to notice until they open the app and find the feature they are paying for
+ * missing. So an unrecognised price id is logged loudly here, with the id
+ * included, so the drift is greppable in the platform logs at the moment it
+ * happens rather than reconstructed later from a support ticket.
  */
-function tierFromPriceId(priceId: string | null): "standard" | "custom" {
-  if (priceId && priceId === env.STRIPE_PRICE_CUSTOM_MONTHLY) return "custom";
-  return "standard";
+function resolveSubscriptionPrice(priceId: string | null, context: string): PriceResolution {
+  const resolution = resolvePrice(priceId, pricesFromEnv());
+  if (resolution.unrecognized) {
+    console.warn(
+      `[stripe] price ${priceId} (${context}) matches no configured price id; ` +
+        `writing plan=null tier=standard. If this is a paying customer they are being ` +
+        `UNDER-ENTITLED — check STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL / ` +
+        `STRIPE_PRICE_CUSTOM_MONTHLY against the live price ids in Stripe.`,
+    );
+  }
+  return resolution;
 }
 
 async function upsertFromSubscription(sub: Stripe.Subscription) {
@@ -62,6 +70,7 @@ async function upsertFromSubscription(sub: Stripe.Subscription) {
 
   const item = sub.items.data[0];
   const priceId = item?.price.id ?? null;
+  const price = resolveSubscriptionPrice(priceId, `subscription ${sub.id}`);
   // `current_period_end` lives on the subscription item in recent API versions
   // and on the subscription in older ones — read defensively across versions.
   const periodEndUnix: number | null =
@@ -81,8 +90,8 @@ async function upsertFromSubscription(sub: Stripe.Subscription) {
       stripe_subscription_id: sub.id,
       status: sub.status,
       price_id: priceId,
-      plan: planFromPriceId(priceId),
-      tier: tierFromPriceId(priceId),
+      plan: price.plan,
+      tier: price.tier,
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
       // Flexible billing mode (new API default) records a portal cancellation in
       // `cancel_at` and leaves `cancel_at_period_end` false; classic mode uses the
@@ -164,9 +173,18 @@ async function handleInvoicePaid(stripe: Stripe, invoice: Stripe.Invoice): Promi
 
     const item = sub?.items.data[0];
     const priceId = item?.price.id ?? null;
-    const plan = planFromPriceId(priceId);
+    const { plan, tier } = resolveSubscriptionPrice(priceId, `invoice ${invoiceId}`);
+    // The receipt names the product level as well as the interval, because a
+    // custom subscriber and a standard monthly one are billed on the same cycle
+    // and would otherwise get identical receipts for different products.
     const planLabel =
-      plan === "annual" ? "Duravel Annual" : plan === "monthly" ? "Duravel Monthly" : "Duravel";
+      tier === "custom"
+        ? "Duravel Custom"
+        : plan === "annual"
+          ? "Duravel Annual"
+          : plan === "monthly"
+            ? "Duravel Monthly"
+            : "Duravel";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const periodEndUnix: number | null =

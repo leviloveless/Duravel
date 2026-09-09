@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
+import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
 import type { Plan } from "@/lib/subscription";
 
 /**
@@ -45,12 +46,38 @@ export async function POST(request: Request) {
     );
   }
 
+  // "This plan is not on sale yet" and "billing is broken" are two different
+  // things and used to answer with the same 500 and the same opaque sentence.
+  //
+  // The custom tier's price genuinely does not exist yet, so a request for it is
+  // an ordinary, expected outcome rather than a server fault — the pricing page
+  // will not offer a checkout button for it while that is true, so anything
+  // reaching here is a stale tab or a direct caller. It gets a 409 and a sentence
+  // a person can act on, because a 5xx would put a real visitor in front of
+  // "something went wrong" for a state that is entirely under our control and
+  // completely normal.
+  //
+  // A missing monthly or annual price id stays a 500: those are LIVE and paid
+  // for, so their absence is a genuine misconfiguration of a running product and
+  // should read as an outage, not as a polite decline.
+  const prices = pricesFromEnv();
+  if (selection === "custom_monthly" && !customTierIsPurchasable(prices)) {
+    return NextResponse.json(
+      {
+        error:
+          "The custom plan isn't available to buy yet — we're still setting it up. " +
+          "The monthly and annual plans are ready now.",
+      },
+      { status: 409 },
+    );
+  }
+
   const priceId =
     selection === "annual"
-      ? env.STRIPE_PRICE_ANNUAL
+      ? prices.annual
       : selection === "custom_monthly"
-        ? env.STRIPE_PRICE_CUSTOM_MONTHLY
-        : env.STRIPE_PRICE_MONTHLY;
+        ? prices.customMonthly
+        : prices.monthly;
   if (!priceId) {
     return NextResponse.json({ error: "Billing is not configured" }, { status: 500 });
   }

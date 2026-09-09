@@ -23,6 +23,16 @@ const PROGRESS_STAGES: { at: number; label: string }[] = [
   { at: 34000, label: "Assembling and checking your program…" },
 ];
 
+/**
+ * When to give up client-side.
+ *
+ * Deliberately LONGER than the route's own `maxDuration = 60`: if we abort
+ * first we turn a request the server was about to answer into a failure of our
+ * own making. Five seconds of grace is enough for the response to come back over
+ * a slow connection and short enough that nobody sits looking at a spinner.
+ */
+const GENERATE_TIMEOUT_MS = 65_000;
+
 function Spinner() {
   return (
     <svg className="h-4 w-4 animate-spin text-zinc-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -65,11 +75,22 @@ export default function GenerateTrigger({
     setError(null);
     setRateLimited(false);
     setPaymentRequired(false);
+    // The route is capped at `maxDuration = 60`, and when the platform kills it
+    // there is NO response — the fetch just dies. Every branch below reads a
+    // status code, so that case fell out of the bottom into `(e as Error).message`
+    // and the athlete got "Failed to fetch", or on some browsers nothing at all,
+    // on a program that had in fact simply run out of time (Levi, 2026-09-09).
+    //
+    // Abort a little PAST the server's own ceiling, so a request the server is
+    // about to answer is never cut off by us — and say what actually happened.
+    const ac = new AbortController();
+    const killAt = setTimeout(() => ac.abort(), GENERATE_TIMEOUT_MS);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ programId }),
+        signal: ac.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
@@ -91,8 +112,14 @@ export default function GenerateTrigger({
       }
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        (e as Error)?.name === "AbortError"
+          ? "Your program took longer than a minute to build and the request timed out. Nothing is lost — press Try again. If it keeps timing out, a week with a lot of sessions in it is the usual reason."
+          : ((e as Error).message ?? "Generation failed. Please try again."),
+      );
       setRunning(false);
+    } finally {
+      clearTimeout(killAt);
     }
   }
 

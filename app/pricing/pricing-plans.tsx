@@ -60,14 +60,41 @@ export default function PricingPlans({
   hasSubscription,
   plan,
   tier = "standard",
+  customAvailable,
 }: {
   hasSubscription: boolean;
   plan: Plan | null;
   tier?: Tier;
+  /**
+   * Whether the custom tier's Stripe price actually exists yet, decided on the
+   * server (the price ids are server-only). Required rather than defaulted,
+   * because either default is a lie waiting to happen: defaulting to `true`
+   * re-creates the bug this fixes, and defaulting to `false` would let a new
+   * caller hide a plan that IS on sale and never find out.
+   */
+  customAvailable: boolean;
 }) {
   const [selected, setSelected] = useState<Selection>("annual");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * The custom tier is being SHOWN but cannot be bought.
+   *
+   * Showing it at all is the deliberate choice here, over dropping the tab
+   * entirely. The tier is genuinely built — the feature ships, the entitlement
+   * ladder knows about it, the engine periodizes an authored week — and the only
+   * missing piece is a Stripe price object. Hiding it would make the page lie by
+   * omission about a product that exists, and would remove the one visible thing
+   * that keeps the unfinished setup from being forgotten. A "Soon" badge sitting
+   * on the live pricing page is a standing reminder; a hidden tab is not.
+   *
+   * What it must not do is take money it cannot take. So the tab selects and the
+   * feature list reads, and only the checkout button is inert. The previous
+   * behaviour — an enabled button that produced a 500 and "Billing is not
+   * configured" — was the worst of both: it advertised the plan AND broke.
+   */
+  const customPending = selected === "custom_monthly" && !customAvailable;
 
   async function post(url: string, body?: unknown) {
     setPending(true);
@@ -132,7 +159,7 @@ export default function PricingPlans({
                   selected === p ? "bg-white/20 text-white" : "bg-sky-100 text-sky-800"
                 }`}
               >
-                New
+                {customAvailable ? "New" : "Soon"}
               </span>
             )}
             {p === "annual" && (
@@ -154,8 +181,20 @@ export default function PricingPlans({
             <span className="text-4xl font-semibold">{PRICES[selected].price}</span>
             <span className="pb-1 text-sm text-zinc-500">{PRICES[selected].per}</span>
           </div>
-          <span className="text-sm text-zinc-500">{PRICES[selected].sub}</span>
+          <span className="text-sm text-zinc-500">
+            {customPending
+              ? "design your own week — not available to buy yet"
+              : PRICES[selected].sub}
+          </span>
         </div>
+
+        {customPending && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <b>Coming soon.</b> The custom plan is built — we&apos;re finishing the billing setup
+            for it. Everything below is what it will include when it opens. The monthly and annual
+            plans are available now.
+          </p>
+        )}
 
         <ul className="flex flex-col gap-2 text-sm text-zinc-700">
           {(selected === "custom_monthly" ? CUSTOM_FEATURES : STANDARD_FEATURES).map((f) => (
@@ -170,14 +209,16 @@ export default function PricingPlans({
 
         <button
           onClick={() => post("/api/stripe/checkout", { plan: selected })}
-          disabled={pending}
+          disabled={pending || customPending}
           className="rounded-full bg-black px-6 py-3 text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
         >
-          {pending
-            ? "Redirecting…"
-            : selected === "custom_monthly"
-              ? "Subscribe to Custom"
-              : `Subscribe ${selected === "annual" ? "annually" : "monthly"}`}
+          {customPending
+            ? "Coming soon"
+            : pending
+              ? "Redirecting…"
+              : selected === "custom_monthly"
+                ? "Subscribe to Custom"
+                : `Subscribe ${selected === "annual" ? "annually" : "monthly"}`}
         </button>
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
         <p className="text-center text-xs text-zinc-400">Secure checkout via Stripe</p>

@@ -169,8 +169,12 @@ describe("the recovery-jog line", () => {
 });
 
 describe("what does NOT get HR lines", () => {
-  it("skips run types that have no reps", () => {
-    for (const runType of ["easy", "long", "tempo", "fartlek", "progression"] as const) {
+  it("skips run types with no prescribed HR shape at all", () => {
+    // `tempo` used to belong on this list and no longer does — it is a quality run
+    // with a prescribed effort, and it now carries a single continuous band (see
+    // `tempo-hr.test.ts`). Everything left here is a run whose target IS just its
+    // zone, which the session's own Zone chip already states.
+    for (const runType of ["easy", "long", "fartlek", "progression"] as const) {
       expect(lines({ runType }), runType).toEqual([]);
     }
   });

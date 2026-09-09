@@ -99,6 +99,15 @@ const rawEnv = {
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   STRIPE_PRICE_MONTHLY: process.env.STRIPE_PRICE_MONTHLY,
   STRIPE_PRICE_ANNUAL: process.env.STRIPE_PRICE_ANNUAL,
+  // Declared in the schema above but never read out of `process.env` here, which
+  // is a silent and total failure: `rawEnv` is what gets parsed, so
+  // `env.STRIPE_PRICE_CUSTOM_MONTHLY` was `undefined` no matter what the hosting
+  // dashboard held. Both consequences are invisible — checkout for the custom
+  // tier answers "Billing is not configured" even once the price EXISTS, and the
+  // webhook reads a genuine custom subscriber's price id as unrecognised and
+  // writes them down as `standard`. An optional var that is declared but not
+  // plumbed looks configured from every angle except the one that decides.
+  STRIPE_PRICE_CUSTOM_MONTHLY: process.env.STRIPE_PRICE_CUSTOM_MONTHLY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   BILLING_ENABLED: process.env.BILLING_ENABLED,
   STRAVA_CLIENT_ID: process.env.STRAVA_CLIENT_ID,

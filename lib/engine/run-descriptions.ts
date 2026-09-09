@@ -188,6 +188,27 @@ function thresholdDescription(
 }
 
 /**
+ * Tempo how-to: the fixed prose, plus the one HR line a continuous effort carries.
+ *
+ * Tempo was the odd one out. Interval and threshold have told the athlete what
+ * their heart rate should be doing since the per-rep targets shipped; tempo — the
+ * third quality run, and the one an athlete is most likely to run by feel because
+ * there are no reps to break it up — said nothing. `hrTargetLines` supplies a
+ * single settle-to-drift band for it (derivation in `hr-targets.ts`), and
+ * `withHrLines` attaches it exactly as it does for the rep-based runs. That is
+ * what keeps ONE function producing these lines on the generation path and the
+ * render path alike: adding a tempo band only here would have baked a line the
+ * program view then strips, because the view drops every baked HR line and
+ * rebuilds it from the athlete's live model on each render.
+ *
+ * `reps` is 0 and unused — a tempo run has none, and the tempo branch of
+ * `hrTargetLines` never reads it.
+ */
+function tempoDescription(hr?: HrPrescription): string {
+  return withHrLines(RUN_DESCRIPTIONS.tempo, hrLines("tempo", 0, hr));
+}
+
+/**
  * The description for a run of the given type. Interval and threshold are built
  * from the athlete's paces (min/mi + min/km + a derived rest time); progression
  * varies by experience; every other type is a fixed string.
@@ -202,6 +223,7 @@ export function runDescription(
 ): string {
   if (runType === "interval") return intervalDescription(runningExp, paces, reps, hr, mi);
   if (runType === "threshold") return thresholdDescription(runningExp, paces, reps, hr, mi);
+  if (runType === "tempo") return tempoDescription(hr);
   if (runType === "progression") {
     return runningExp === "beginner" ? PROGRESSION_BEGINNER : PROGRESSION_ADVANCED;
   }

@@ -21,8 +21,18 @@
  * correctly-executed session forever.
  *
  * So an average is compared against an EXPECTED average — the time-weighted blend
- * of the zones the session actually prescribes — and a peak is compared against
- * the work-zone band. Which comparison runs depends on which datum is available.
+ * of the zones the session actually prescribes. Which comparison runs depends on
+ * which datum is available.
+ *
+ * The peak has the same trap one level down, and it bit. A peak was compared
+ * against the flat FLOOR of the work zone, but the prescription the athlete reads
+ * has never stated a flat floor — it states a per-rep ramp, one estimated peak
+ * for each rep, precisely because heart rate lags the work and rep 1 finishes
+ * below the band no matter how well it is run. Two numbers computed in two places
+ * for the same question will disagree, and here they did: an athlete who executed
+ * the session exactly as written could be told they under-performed against a bar
+ * they were never given. A peak is now compared against `expectedPeakBpm` — the
+ * prescription's own function, reading the athlete's own model.
  * ---------------------------------------------------------------------------
  */
 
@@ -30,7 +40,8 @@ import type { Session } from "@/lib/schemas";
 import type { HrModel, Zone } from "@/lib/zones";
 import { zoneBpmRange } from "@/lib/zones";
 import { RUN_CROSS_WARMUP, RUN_WARMUP_COOLDOWN } from "@/lib/session-volume";
-import { recoveryFactor } from "./interval-structure";
+import { recoveryFactor, repsForWorkMiles } from "./interval-structure";
+import { expectedPeakBpm } from "./hr-targets";
 
 /** Quality runs are the only sessions with a sharp enough HR target to read. */
 const QUALITY_RUN_TYPES = new Set(["interval", "threshold", "tempo"]);
@@ -89,6 +100,38 @@ export function expectedAverageHr(session: Session, model: HrModel): number | nu
   return Math.round((work * shape.workMin + easy * shape.easyMin) / shape.totalMin);
 }
 
+/**
+ * The peak a correctly-executed session should REACH — the same number the
+ * athlete's own prescription printed as the top of its HR line.
+ *
+ * This used to be the flat floor of the session's work zone, and that was the
+ * bug. The prescription has never stated a flat band: it states a per-rep ramp
+ * ("HR reps: 166 by the end of rep 1 - 179 by the end of rep 5"), because heart
+ * rate lags the work that produces it and rep 1 ends below the zone by design.
+ * Judging a logged peak against the zone floor therefore measured the athlete
+ * against a bar nobody ever gave them — sometimes too low, and on a Zone 5
+ * interval session, far too low. `expectedPeakBpm` is the prescription's own
+ * function, so the two can no longer disagree.
+ *
+ * The rep count comes from the run's WORK DISTANCE, exactly as the description
+ * and the program view derive it (`repsForWorkMiles`) — the reconciler resizes
+ * every quality run to hit the week's mileage, so the experience-level rep tables
+ * describe a workout that in general is not the one the athlete was given. An
+ * experience level is not recorded on a session, and "intermediate" only ever
+ * feeds the zero-distance placeholder case, which the description path does not
+ * rewrite either.
+ *
+ * Falls back to the work-zone floor when the run type has no modelled shape at
+ * all, which is a stimulus floor rather than a target, and better than refusing
+ * to judge the session.
+ */
+export function expectedPeakHr(session: Session, model: HrModel): number | null {
+  if (session.kind !== "run" || !QUALITY_RUN_TYPES.has(session.runType)) return null;
+  const zone = session.goalZone as Zone;
+  const reps = repsForWorkMiles(session.runType, session.distanceMiles, "intermediate") ?? 0;
+  return expectedPeakBpm(model, zone, session.runType, reps) ?? zoneBpmRange(model, zone).min;
+}
+
 export type HrReading =
   | { kind: "peak"; bpm: number }
   | { kind: "average"; bpm: number };
@@ -109,9 +152,14 @@ export interface SessionCalibration {
 const ON_TARGET_BPM = 5;
 
 /**
- * Judge one session. A peak is measured against the bottom of the work zone —
- * a session that never reaches its zone floor did not deliver its stimulus. An
- * average is measured against the expected blended average.
+ * Judge one session. A peak is measured against the peak the PRESCRIPTION stated
+ * for this run — the last rep's estimate on a rep-based session, the drifted end
+ * of the band on a tempo. An average is measured against the expected blended
+ * average.
+ *
+ * Both comparisons now read a number the athlete was actually shown. That is the
+ * whole point: a calibration verdict that disagrees with the session text is not
+ * a judgement about the athlete, it is a bug in the judge.
  */
 export function judgeSession(
   session: Session,
@@ -120,9 +168,7 @@ export function judgeSession(
 ): SessionCalibration | null {
   if (session.kind !== "run" || !QUALITY_RUN_TYPES.has(session.runType)) return null;
   const expected =
-    reading.kind === "peak"
-      ? zoneBpmRange(model, session.goalZone as Zone).min
-      : expectedAverageHr(session, model);
+    reading.kind === "peak" ? expectedPeakHr(session, model) : expectedAverageHr(session, model);
   if (expected === null || !Number.isFinite(reading.bpm) || reading.bpm <= 0) return null;
   const deltaBpm = Math.round(reading.bpm - expected);
   const verdict: SessionVerdict =

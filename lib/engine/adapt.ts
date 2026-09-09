@@ -106,15 +106,56 @@ function extraLoadMinutes(x: ExtraWorkout): number {
   return 0;
 }
 
-/** Minutes used to weight a session's RPE into session-RPE load (Review #5).
- *  Prefers the logged actual duration; else the session's estimated total. */
+/**
+ * Minutes used to weight a session's RPE into session-RPE load (Review #5).
+ * Prefers the logged actual duration; else the session's estimated total.
+ *
+ * ## A hybrid is timed like everything else (Levi, 2026-09-09)
+ *
+ * A hybrid used to return a flat `ADAPT.DEFAULT_HYBRID_MINUTES` here — 45
+ * minutes, whatever the session was — while every other kind already delegated
+ * to `sessionTiming`. That is a fair number for the ordinary case and badly
+ * wrong for exactly one session. Measured across 672 generated weeks (3
+ * experience levels × 4 hour-bands × 4 starting mileages × 16 weeks): the
+ * week-in-week-out hybrid is 8 elements and times out at **40–46 minutes**, so
+ * the flat 45 was within a couple of minutes of the truth. The **race
+ * simulation** in the peak block is 16 elements — 8 runs and 8 stations — and
+ * times out at **86 minutes**. It was being charged at 45: barely over HALF the
+ * load of the hardest session in the program, in the two weeks before the taper.
+ *
+ * This is not a display figure. `weeklyLoad` feeds `weekLoad` → ACWR, and
+ * `decideAdaptation` reads `ctx.acwr` in three places: `load_spike` (≥ 1.5 →
+ * early deload), `load_caution` (≥ 1.3 into an increase week → hold), and the
+ * `earned_bump` gate. So unlike the 2026-08-22 work-vs-total bug — which
+ * flattered the review screen and reached no rule, because the decision never
+ * read those fields — this one changed what the athlete was prescribed.
+ *
+ * How often, honestly: on a smooth fully-compliant program ACWR barely moves
+ * (mean |Δ| 0.018, max 0.18) and crossed a threshold in 1 week of 672, because a
+ * ratio cancels an error present in both of its halves. The crossings live where
+ * ACWR actually fires — an acute week measured against a baseline of partly
+ * missed weeks, which is the only shape that pushes the ratio past 1.3. Across
+ * 768 such week-scenarios the applied RULE changed in **51 (6.6%)**: 46 of them
+ * the engine finally seeing load it had been blind to (26 `load_caution` →
+ * `load_spike`, 20 `none` → `load_caution`), 5 the reverse, where the flat 45
+ * had over-stated an ordinary week. **36 of the 51 are the peak-phase simulation
+ * week** — which is the whole finding in one line.
+ *
+ * `sessionTiming` is DELEGATED to rather than re-derived, so the load metric,
+ * the week header and the session card can never disagree about how long a
+ * session was. It also carries the legacy answer for free: a hybrid built before
+ * `workMin` was stamped has no such field, and `sessionTiming` falls back to its
+ * element-count proxy clamped at `HYBRID_MIN_WORK`, so an old 8-element session
+ * reads 55 minutes rather than collapsing to zero. `ADAPT.DEFAULT_HYBRID_MINUTES`
+ * stays where it is used: an EXTRA hybrid the athlete logged has no elements and
+ * no timing, and 45 is still the best guess available for one.
+ */
 function sessionLoadMinutes(
   session: ProgramWeek["days"][number]["sessions"][number],
   log: WorkoutLog | undefined,
 ): number {
   const actual = log?.actuals?.durationMin;
   if (typeof actual === "number" && actual > 0) return actual;
-  if (session.kind === "hybrid") return ADAPT.DEFAULT_HYBRID_MINUTES;
   return sessionTiming(session).total;
 }
 
