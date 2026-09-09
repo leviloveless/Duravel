@@ -129,6 +129,15 @@ export interface SessionCountTables {
   dayCapacity?: number;
   /** Runs preserved when trimming to weeklySessionCap (protects long + quality). */
   anchorRunFloor?: number;
+  /**
+   * Day-slots held back for standalone Zone 1-2 blocks (`bandCardioSlots`).
+   *
+   * The mileage floor below may buy run slots back above `weeklySessionCap`, up
+   * to `dayCapacity`. On the top bands it bought ALL of them — 13 of 14 — and
+   * the week's aerobic surplus, which is most of its minutes, had nowhere left
+   * to go. This is the share of the week that is not for sale.
+   */
+  cardioSlotReserve?: number;
 }
 
 export const DEFAULT_COUNTS: SessionCountTables = {
@@ -314,10 +323,21 @@ export function planWeek(
       }
     }
 
-    const cap = Math.min(
-      counts.dayCapacity ?? counts.weeklySessionCap,
-      Math.max(budget, lifts + hybrids + mileageRunFloor),
+    // The buy-back's ceiling is the week's slots MINUS the ones held for Zone 1-2
+    // (`cardioSlotReserve`). Without that subtraction the mileage floor took every
+    // slot the day count allowed — 13 of 14 on an h20_30 peak week — and the
+    // aerobic volume the band actually prescribes had a single slot to land in:
+    // 1560 minutes prescribed, 580 delivered, and the shortfall was pure Zone 1-2.
+    //
+    // Floored at `budget` so the reserve can only ever give back slots the mileage
+    // floor had TAKEN. It is not allowed to cut the week below the research session
+    // budget itself — that budget is the shape the band was designed around, and a
+    // reserve that could eat into it would be trading anchors for filler.
+    const slotBudget = Math.max(
+      budget,
+      (counts.dayCapacity ?? counts.weeklySessionCap) - (counts.cardioSlotReserve ?? 0),
     );
+    const cap = Math.min(slotBudget, Math.max(budget, lifts + hybrids + mileageRunFloor));
     const roomForRuns = Math.max(0, cap - lifts - hybrids);
     runs = clampInt(Math.max(runs, Math.min(mileageRunFloor, roomForRuns)), 0, 8);
   }

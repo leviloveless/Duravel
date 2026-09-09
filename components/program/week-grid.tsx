@@ -131,7 +131,40 @@ export default function WeekGrid({
    *  it, so the caller can save it, serialise it, or gate its own submit. */
   onChange?: (template: WeekTemplate, issues: TemplateIssue[]) => void;
 }) {
-  const trainingDays = DAY_ORDER.filter((d) => context.trainingDays.includes(d));
+  /**
+   * ⚠️ THESE TWO KEYS EXIST TO STOP AN INFINITE RENDER LOOP. Do not inline them.
+   *
+   * `trainingDays` used to be a bare `.filter()` — a fresh array on every render.
+   * That was harmless while the grid and the save button lived in one component,
+   * because nothing downstream compared identities. Extracting the grid on
+   * 2026-09-09 made it fatal: a new `trainingDays` invalidates the `template`
+   * memo, which invalidates the `issues` memo, which re-fires the `onChange`
+   * effect, which calls the parent's `setState`, which re-renders us — forever.
+   * The tab pegs a core and stops responding, and the symptom is not a crash or
+   * a warning. It is that nothing on the page reacts: Levi reported it as "the
+   * back link isn't working".
+   *
+   * So both memos hang off VALUE keys rather than object identity. That also
+   * makes the component safe for a caller that builds its context inline — the
+   * onboarding wizard passes `{ trainingDays: days }` straight from client
+   * state, which is a new object every keystroke and would have reintroduced the
+   * loop the moment it shipped.
+   */
+  const daysKey = context.trainingDays.join(",");
+  const contextKey = [
+    daysKey,
+    context.peakMileage,
+    context.weeklyHours,
+    context.runningExp,
+    context.prescribesRunning,
+    context.prescribesHybrid,
+  ].join("|");
+
+  const trainingDays = useMemo(
+    () => DAY_ORDER.filter((d) => daysKey.split(",").includes(d)),
+    [daysKey],
+  );
+
   const [week, setWeek] = useState<Week>(() => {
     const base = emptyWeek(trainingDays);
     for (const d of initial?.days ?? []) {
@@ -165,7 +198,9 @@ export default function WeekGrid({
   // The SAME validator the server runs at save. Running it here as the athlete
   // types is the entire point of the tier — the rules explain themselves while
   // the week is still being written, not after it has been submitted.
-  const issues = useMemo(() => validateTemplate(template, context), [template, context]);
+  // Keyed by CONTENT (`contextKey`), not by the `context` object — see above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const issues = useMemo(() => validateTemplate(template, context), [template, contextKey]);
   const sessionCount = template.days.reduce((n, d) => n + d.sessions.length, 0);
 
   // In an effect, not in the handlers: the caller wants the template AFTER the

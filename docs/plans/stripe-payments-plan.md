@@ -8,12 +8,12 @@ Stripe was integrated and went live on 2026‑07‑14. This document records the
 
 ### What's already in place
 
-- **Payment page** — `app/pricing/page.tsx` + `app/pricing/pricing-plans.tsx`. Shows the two plans ($19.99/month, $159.99/year — "about $13.33/mo"), a 14‑day no‑card free trial, the feature list, and a checkout button. Returning subscribers see a manage‑subscription state instead.
+- **Payment page** — `app/pricing/page.tsx` + `app/pricing/pricing-plans.tsx`. Shows the two plans ($19.99/month, $119.99/year — "about $10/mo"), a 14‑day no‑card free trial, the feature list, and a checkout button. Returning subscribers see a manage‑subscription state instead.
 - **Checkout** — `POST /api/stripe/checkout` creates a Stripe Checkout Session in subscription mode for the signed‑in user, reusing an existing Stripe customer when present, and stamps `client_reference_id` + `subscription_data.metadata.user_id` so webhook events map back to a Duravel user with no extra lookup. Prices resolve from `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL`.
 - **Billing portal** — `app/api/stripe/portal` opens the Stripe Customer Portal so users self‑serve upgrades, downgrades, payment‑method changes, and cancellation.
 - **Webhook** — `app/api/stripe/webhook` is the **sole entitlement writer**: it listens to Stripe subscription lifecycle events and writes the `subscriptions` table (status, plan, customer id, period). The app never grants access from the client. `BILLING_ENABLED=true` gates the flow.
 - **Supporting libs** — `lib/stripe.ts` (client), `lib/subscription.ts` (Plan type + entitlement helpers), `lib/env.ts` (validates the Stripe env vars).
-- **Pricing** — Stripe holds the Price objects; annual moved to $159.99 on 2026‑07‑17 and `STRIPE_PRICE_ANNUAL` points at it. Existing annual subscribers keep $149 until they resubscribe.
+- **Pricing** — Stripe holds the Price objects. Annual moved to $159.99 on 2026‑07‑17 and then to **$119.99 on 2026‑07‑18**, which is where it has stayed; `STRIPE_PRICE_ANNUAL` points at `price_1TuBKrEnQhxb3rRAMKVzVpE3` on `prod_Ut3BnXkptmdRK0`. Existing annual subscribers keep $149 until they resubscribe. **No $159.99 Price object was ever created in Stripe** — it existed only in copy written the day before the decision changed, which is why this document disagreed with the pricing page for seven weeks.
 
 ### Architecture principle (keep this)
 

@@ -1,6 +1,6 @@
 # Getting Duravel onto the Apple App Store — step plan
 
-_Tasks addition #1. Written July 2026. Duravel is today a Next.js web app on Vercel (duravel.app) selling a $19.99/mo · $159.99/yr subscription with a 14‑day no‑card trial, billed through Stripe. This plan takes it to a shippable iOS app and flags the one decision that dominates the economics: how in‑app subscriptions are paid for._
+_Tasks addition #1. Written July 2026. Duravel is today a Next.js web app on Vercel (duravel.app) selling a $19.99/mo · $119.99/yr subscription with a 14‑day no‑card trial, billed through Stripe. This plan takes it to a shippable iOS app and flags the one decision that dominates the economics: how in‑app subscriptions are paid for._
 
 ## The decision that shapes everything: payments
 

@@ -136,6 +136,67 @@ export const BAND_CARDIO_SESSION_MINUTES: Partial<Record<WeeklyHoursBand, number
   h30_40: 300,
 };
 
+/**
+ * Day-SLOTS a band must keep free for standalone Zone 1-2 blocks (Levi,
+ * 2026-09-09: *"as the hours available to train goes up, the max session length
+ * needs to increase accordingly so that this does not happen"*).
+ *
+ * `BAND_CARDIO_SESSION_MINUTES` raised the CEILING on a Zone 1-2 block. It did
+ * not give the week anywhere to put one, and that is where the top two bands
+ * were losing two thirds of their prescription. Measured on a HYROX `h20_30`
+ * advanced build, peak week: 1560 cardio minutes prescribed, 580 delivered. The
+ * week held 8 runs + 4 lifts + 1 hybrid = 13 of its 14 slots (7 days x 2, and
+ * two-a-day is absolute), so exactly ONE slot was left for the Zone 1-2 work
+ * that a 26-hour aerobic week is mostly made of. `h10_20` was the same shape:
+ * 13 slots used, 975 prescribed, 502 delivered.
+ *
+ * The runs got there honestly — `runsForMileage` buys mileage with SESSIONS
+ * rather than length, which is the right rule and the one the injury cohort
+ * supports. But it is a rule about RUNNING IMPACT, and it was being applied to a
+ * week whose remaining volume is deliberately NOT running: `BAND_START_MILEAGE`
+ * caps h20_30 at 48 mi against an hours-equivalent of 60 precisely so the
+ * surplus lands on the bike / row / ski. The run count was spending the slots
+ * that surplus needs.
+ *
+ * So the slot budget is split before the runs are counted, not after.
+ *
+ * THE ARITHMETIC, at the h20_30 peak that produced the report:
+ *   1560 prescribed - 86 (hybrid) - 580 (runs, whose minutes are fixed by the
+ *   mileage target) = ~894 minutes with nowhere to go. At
+ *   `BAND_CARDIO_SESSION_MINUTES.h20_30` = 240 that is 3.7 blocks.
+ *
+ * WHY THREE AND NOT FOUR. The reserve is bounded above by the MILEAGE, not by
+ * taste, so it lands one slot short of the minutes. Every run has to stay under
+ * the long run (`anchorLongRun`), the long run is pinned at 90 minutes for a
+ * station sport (`HYBRID_LONG_RUN_MINUTES`) — about 9.2 miles — and 50 running
+ * miles under a 9.2-mile ceiling needs SIX runs. A fourth reserved slot forces
+ * five, and the miles that no longer fit are simply not placed: measured, it
+ * takes cardio delivery from 74% to 86% and puts three weeks of a 16-week block
+ * up to 1.4 mi under their stated mileage. That trade may yet be the right one —
+ * Levi's own ruling is that hours win over miles when the two contradict — but
+ * it should be made deliberately, and the cheaper half of the gap is not a slot
+ * problem at all (see `session-cap.test.ts` on `weekCardioCapacity`).
+ *
+ * The lower bands get nothing, deliberately: measured, `h0_5` and `h5_10`
+ * deliver their prescribed cardio EXACTLY (180/180, 360/360) with 3-5 slots
+ * already spare. A reserve there would take sessions off athletes who are not
+ * short of anything.
+ *
+ * `h30_40` has no entry because nothing can reach it: only HYROX and DEKA carry
+ * the `bandZone3Z` table this wiring keys off, both are `station_hybrid`, and
+ * `MAX_BAND_BY_FAMILY` clamps that family at 20-30 hours. An unmeasured number
+ * here would be a guess; the 0 default is exactly today's behaviour.
+ */
+export const BAND_CARDIO_SLOTS: Partial<Record<WeeklyHoursBand, number>> = {
+  h10_20: 3,
+  h20_30: 3,
+};
+
+/** Day-slots this band keeps clear for Zone 1-2 blocks (0 for the low bands). */
+export function bandCardioSlots(band: WeeklyHoursBand): number {
+  return BAND_CARDIO_SLOTS[band] ?? 0;
+}
+
 const RANK: Record<ExperienceLevel, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 const BY_RANK: readonly ExperienceLevel[] = ["beginner", "intermediate", "advanced"];
 

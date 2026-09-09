@@ -17,6 +17,57 @@
  * run TYPES moved. Across 192 audited weeks this took hard running from 39.1%
  * of weekly mileage to 31.1%, and easy running from 8.2% back up to 19.6%.
  *
+ * ⚠️ BASELINE MOVED 2026-09-09, deliberately — the four STATION snapshots at
+ * h10_20 and h20_30 only. Triathlon and the two low bands are byte-identical,
+ * which is again the tell that the change landed where it was aimed.
+ *
+ * The week now holds day-slots back for Zone 1-2 (`BAND_CARDIO_SLOTS`). The
+ * mileage run floor was buying every slot the day count allowed — 13 of 14 on a
+ * 7-day h20_30 build — and the aerobic volume those bands actually prescribe had
+ * one slot to land in: 1560 cardio minutes prescribed, 580 delivered. Measured
+ * across a full 16-week program, delivery went 54% -> 74% at h20_30 and 71% ->
+ * 92% at h10_20, with the weekly mileage still hit exactly.
+ *
+ * What moves in these fixtures is the EASY FILLER: a fartlek and an easy run
+ * come off, the long run, the interval and the whole lift dose stay. Note these
+ * inputs train 5 days at a band whose minimum is 7 (`BAND_MIN_TRAINING_DAYS`),
+ * so they are hand-built `EngineInput`s rather than anything onboarding can
+ * produce — through `toEngineInput` the day count is raised to 7 first. On the
+ * 5-day shape the reserve is floored at the research session budget, which is
+ * why these lose exactly two filler runs and nothing else.
+ *
+ * ⚠️ BASELINE MOVED 2026-09-09, deliberately — the four TRIATHLON snapshots at
+ * h5_10 through h30_40 only. The station snapshots and 70.3 @ h0_5 are
+ * byte-identical, which is the tell in the other direction this time: only the
+ * triathlon path was touched, and the smallest band was already under every cap.
+ *
+ * The triathlon builder computed a phase-gated ceiling for the long run
+ * (120/105 min at 70.3) and the long ride (75% of the race bike distance), then
+ * `fitTriSlotsToTarget` re-scaled every slot against `caps.session` /
+ * `caps.cardioSession` and nothing else — so the phase caps were applied and
+ * discarded one function later. `caps.longRun` was never consulted on this path
+ * at all, and the swim had no ceiling of any kind, so once the run and the ride
+ * were bounded it inherited the whole surplus. Across 576 audited weeks: 634
+ * runs past their phase long-run cap (worst +230 min), 153 long-ride legs past
+ * theirs, and the long run was not even the longest run of the week in 231 of
+ * them. All three now read zero.
+ *
+ * What moves in these fixtures is DURATION and only duration. Session kinds,
+ * run types, day placement and every `targetCardioMinutes` are unchanged in all
+ * four — the periodization did not move, the sessions inside it got honest. In
+ * the h30_40 fixture the longest of each discipline goes
+ *
+ *     swim 265 -> 90,  non-long run 290 -> 86,  ride 300 -> 113
+ *
+ * and the week's prescribed minutes fall with them: 25,783 -> 15,263 across the
+ * program, a 41% drop. THAT IS THE CHANGE, not a regression to paper over. A
+ * 290-minute easy run and a 265-minute swim were how a 30-40 h band was being
+ * filled; with them gone the surplus has nowhere legitimate to go, and hours
+ * lose to caps — the week lands short and says so. The shortfall scales
+ * inversely with race distance exactly as it should: over the full sweep the
+ * 140.6 at h30_40 still delivers 76% of its target, the 70.3 62%, and the
+ * Olympic — whose race is a 1500 m swim, 40 km ride and 10 km run — 35%.
+ *
  * A diff here still means drift. Update these only with a reason written down.
  */
 import { describe, it, expect } from "vitest";

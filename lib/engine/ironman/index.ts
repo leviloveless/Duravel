@@ -93,6 +93,18 @@ const RACE_BIKE_MILES: Record<string, number> = { olympic: 24.8, "70_3": 56, "14
 const LONG_RIDE_MPH = 16; // steady Z2 long-ride pace incl. terrain/stops
 const LONG_RIDE_STANDARD_MAX_MIN = 210; // 3.5h ceiling through base + build
 
+/**
+ * How much bigger the week's KEY session is than an ordinary one of the same
+ * discipline. The builder has always sized the long ride and the long run at
+ * 1.4x their discipline's per-session share; naming the number lets the CEILING
+ * be built from the same shape the session was built from, so an ordinary ride
+ * or run can never be scaled up past the key one it is supposed to support.
+ */
+const LONG_SESSION_MULTIPLE = 1.4;
+
+/** Longest Z2 run tail on the aerobic long-ride brick (its construction bound). */
+const BRICK_TAIL_MAX_MIN = 30;
+
 /** Duration cap (min) for the long ride: 75% of race bike distance, phase-gated. */
 function longRideCapMin(cfg: SportConfig, phase: PhaseName): number {
   const miles = RACE_BIKE_MILES[distanceKey(cfg.id)] ?? 112;
@@ -112,6 +124,49 @@ const LONG_RUN_CAP: Record<string, { peak: number; standard: number }> = {
 };
 function longRunCapMin(cfg: SportConfig, phase: PhaseName): number {
   const c = LONG_RUN_CAP[distanceKey(cfg.id)] ?? LONG_RUN_CAP["70_3"]!;
+  return phase === "peak" ? c.peak : c.standard;
+}
+
+// --- long-SWIM model: phase-gated duration cap ------------------------------
+/**
+ * The swim's phase-gated ceiling (Levi to confirm the NUMBERS, 2026-09-09).
+ *
+ * Two things are worth separating here. That the swim needs a ceiling AT ALL is
+ * not a policy question — it is the same defect that had just been fixed for the
+ * run and the ride arriving in the third discipline. Once those two carry caps,
+ * the swim is the only session left that will absorb whatever the week's time
+ * target has spare, and the fitter duly gave it: measured over 576 generated
+ * weeks, swims past two hours went from 424 to 577 and swims past two and a half
+ * from 258 to 473, topping out at a **300-minute — FIVE HOUR — swim in an
+ * OLYMPIC-distance program**, whose race swim is 1500 m. Nothing bounded it but
+ * `caps.cardioSession`, which is a statement about the athlete's longest Zone 2
+ * BLOCK and was written with the long ride in mind.
+ *
+ * The NUMBERS below are a different matter and are Levi's to confirm. They are
+ * not derived from a race-distance table on purpose — there is no swim distance
+ * anywhere in `SportConfig`, and inventing one to divide by an assumed pace
+ * would dress a judgement up as a calculation. They are stated directly, and
+ * sanity-checked against the race distances through the engine's own pace model
+ * (`swimContent`, ~51 m/min including rest and turns at a 1:45/100 m CSS):
+ *
+ *   olympic  75 peak / 60 standard  -> ~3.8 km / ~3.1 km   (race 1500 m)
+ *   70_3     90 peak / 75 standard  -> ~4.6 km / ~3.8 km   (race 1900 m)
+ *   140_6   120 peak / 100 standard -> ~6.2 km / ~5.1 km   (race 3800 m)
+ *
+ * Each is a plausible upper bound for a peak-week long swim in that distance —
+ * roughly 1.5x race distance for the 140.6, more for the short courses, where
+ * the session is limited by what a pool session sensibly is rather than by the
+ * race. The non-peak figure is ~0.8x the peak one, the same shape the run and
+ * ride caps already use. All three are CEILINGS reached only in the top hours
+ * bands, not prescriptions.
+ */
+const LONG_SWIM_CAP: Record<string, { peak: number; standard: number }> = {
+  "140_6": { peak: 120, standard: 100 },
+  "70_3": { peak: 90, standard: 75 },
+  olympic: { peak: 75, standard: 60 },
+};
+function longSwimCapMin(cfg: SportConfig, phase: PhaseName): number {
+  const c = LONG_SWIM_CAP[distanceKey(cfg.id)] ?? LONG_SWIM_CAP["70_3"]!;
   return phase === "peak" ? c.peak : c.standard;
 }
 
@@ -147,16 +202,72 @@ function balanceFor(
 // --- cardio slot generation -------------------------------------------------
 
 /**
+ * A slot's own ceiling in SESSION-TOTAL minutes, keyed by slot identity.
+ *
+ * The phase caps (`longRunCapMin`, `longRideCapMin`) are decided when the week
+ * is BUILT and have to survive into the rescaler, which otherwise knows only
+ * `caps.session` / `caps.cardioSession` and would happily undo them. Keying by
+ * object identity rather than index is deliberate: `distributeCardio` returns a
+ * SUBSET of these same slot objects and `fitTriSlotsToTarget` is then run again
+ * over that subset, so an index-based table would silently mis-align and hand a
+ * run the long ride's ceiling.
+ *
+ * Anything absent is unbounded here and falls back to `triSlotCap` alone.
+ */
+type SlotCeilings = Map<SessionSlot, number>;
+
+/**
+ * The largest this brick can be scaled to with NEITHER leg past its own cap.
+ *
+ * `scaleSlot` grows a brick pro rata, so bounding the session total is not the
+ * same as bounding the ride inside it: a 240-minute ceiling on a brick that is
+ * 90% bike is a 216-minute ride whatever the long-ride cap says. Scaling the
+ * whole session by the tightest per-leg factor is the only bound that holds,
+ * and it also works downward — a brick built over its ride cap gets a ceiling
+ * BELOW its current size, so the first clamp pass pulls it back.
+ */
+function brickCeiling(
+  segments: { discipline: string; durationMin: number }[],
+  bikeCapMin: number,
+  runCapMin: number,
+): number {
+  const bike = segments.reduce((a, x) => a + (x.discipline === "bike" ? x.durationMin : 0), 0);
+  const run = segments.reduce((a, x) => a + (x.discipline === "run" ? x.durationMin : 0), 0);
+  const total = bike + run;
+  if (total <= 0) return Number.POSITIVE_INFINITY;
+  let factor = Number.POSITIVE_INFINITY;
+  if (bike > 0) factor = Math.min(factor, bikeCapMin / bike);
+  if (run > 0) factor = Math.min(factor, runCapMin / run);
+  // Floor, not round: `scaleSlot` rounds each segment, and a half-minute of
+  // rounding up on the ride is still a ride over its cap.
+  return Math.floor(total * factor);
+}
+
+/**
  * Build the swim / bike / run / brick slots for one week's cardio minutes.
  * The long ride is emitted as a discrete Z2 bike→run BRICK (feature B); the long
  * run is a capped ramp (feature A). Strength is placed separately (feature C).
+ *
+ * Returns each slot WITH the ceiling it was built under. Until 2026-09-09 it
+ * returned the slots alone: the phase caps were applied here and then thrown
+ * away, because `fitTriSlotsToTarget` re-scaled every slot against `triSlotCap`
+ * and nothing else. Measured across 576 generated triathlon weeks, that left
+ * 634 runs past their own phase long-run cap (worst +230 min), 153 long-ride
+ * legs past the long-ride cap, and — because the long run was the ONLY run
+ * carrying a cap, so every surplus minute landed on the uncapped easy runs — a
+ * **290-minute "easy" run in an OLYMPIC-distance build**, whose race run is
+ * 10 km and whose long run that week was capped at 60. And in 231 of those 576
+ * weeks (40%) the long run was not the longest run of the week measured in
+ * running minutes — 256 (44%) measured in session total: the identical
+ * inversion that took a long fix on the HYROX side, arriving by another road.
  */
 function triCardioSlots(
   phase: PhaseName,
   totalMin: number,
   cfg: SportConfig,
   idx: number,
-): SessionSlot[] {
+  caps: TrainingCaps,
+): { slots: SessionSlot[]; ceilings: SlotCeilings } {
   const bal = balanceFor(cfg, phase);
   const swimN = n(cfg.sessionCounts.swim, phase, idx);
   const bikeN = n(cfg.sessionCounts.bike, phase, idx);
@@ -171,44 +282,81 @@ function triCardioSlots(
 
   const longRideCap = longRideCapMin(cfg, phase);
   const longRunCap = longRunCapMin(cfg, phase);
+  const longSwimCap = longSwimCapMin(cfg, phase);
+
+  // The long run's ceiling in SESSION-TOTAL minutes — the currency the fitter
+  // and `caps` both speak. Two separate ceilings meet here and the tighter wins:
+  // the phase cap, which is a question about the RACE, and `caps.longRun`, which
+  // is a question about the ATHLETE (150 for a triathlete, or their band session
+  // cap when that is higher). `caps.longRun` was never consulted on this path at
+  // all, which is how a beginner in a 5-10 h band could still be handed the
+  // 140.6 peak long run in full.
+  const longRunTotalCap = Math.min(longRunCap + runOverhead("long"), caps.longRun);
+  const longRunDurCap = Math.max(20, longRunTotalCap - runOverhead("long"));
+  // ...and everything ELSE is held below the key session of its discipline, at
+  // exactly the ratio the builder used to size them apart in the first place.
+  // Without this the caps are still trivially defeated: the fitter has to put
+  // the week's surplus somewhere, and a cap on the long run alone just redirects
+  // it into the easy runs — which is how the longest run of an Olympic week
+  // became a 290-minute easy run sitting beside a 60-minute long run.
+  const easyRunDurCap = Math.max(20, Math.round(longRunDurCap / LONG_SESSION_MULTIPLE));
+  const rideDurCap = Math.max(20, Math.round(longRideCap / LONG_SESSION_MULTIPLE));
+  const swimDurCap = Math.max(20, Math.round(longSwimCap / LONG_SESSION_MULTIPLE));
 
   const slots: SessionSlot[] = [];
+  const ceilings: SlotCeilings = new Map();
 
-  // Swim
+  // Swim — every swim is built at the same share, so which one is allowed to be
+  // the week's LONG swim is a designation, exactly as `k === 0` designates the
+  // long ride and the long run. It is the LAST slot rather than the first, and
+  // for a reason: outside base the first swim is the week's CSS set, which is
+  // Zone 4 and therefore already held to `caps.session` by `triSlotCap`. The
+  // swim that can actually run away is the aerobic one — the endurance swim
+  // outside base, a technique swim within it — and that is the one carrying the
+  // long-swim allowance here. Everything else is held below it at the same ratio
+  // the runs use, so the surplus cannot simply relocate into a technique swim.
   for (let k = 0; k < swimN; k++) {
     const sessionType =
       k === 0 && phase !== "base" ? "css" : phase === "base" ? "technique" : "endurance";
-    slots.push({
+    const isLongSwim = k === swimN - 1;
+    const cap = isLongSwim ? longSwimCap : swimDurCap;
+    const swim: SessionSlot = {
       kind: "swim",
       goalZone: SWIM_ZONE[sessionType]!,
-      durationMin: swimMin,
+      durationMin: Math.min(swimMin, cap),
       sessionType,
-    });
+    };
+    slots.push(swim);
+    ceilings.set(swim, cap);
   }
 
   // Bike — k === 0 is the weekly long ride, now a discrete Z2 brick (feature B).
   for (let k = 0; k < bikeN; k++) {
     if (k === 0) {
-      const bikeLongMin = Math.min(Math.round(bikeMin * 1.4), longRideCap);
-      const runTail = clampInt(runMin * 0.3, 15, 30); // short Z2 run off the bike
-      slots.push({
+      const bikeLongMin = Math.min(Math.round(bikeMin * LONG_SESSION_MULTIPLE), longRideCap);
+      const runTail = clampInt(runMin * 0.3, 15, BRICK_TAIL_MAX_MIN); // short Z2 run off the bike
+      const brick: SessionSlot = {
         kind: "brick",
         goalZone: 2, // Z2 marks this as the aerobic long-ride brick (vs. Z3 race bricks)
         segments: [
           { discipline: "bike", durationMin: bikeLongMin, goalZone: 2 },
           { discipline: "run", durationMin: runTail, goalZone: 2 },
         ],
-      });
+      };
+      slots.push(brick);
+      ceilings.set(brick, brickCeiling(brick.segments, longRideCap, BRICK_TAIL_MAX_MIN));
       continue;
     }
     const sessionType = phase === "build" || phase === "peak" ? "sweet_spot" : "endurance";
-    slots.push({
+    const ride: SessionSlot = {
       kind: "bike",
       goalZone: BIKE_ZONE[sessionType]!,
       durationMin: bikeMin,
       isLong: false,
       sessionType,
-    });
+    };
+    slots.push(ride);
+    ceilings.set(ride, rideDurCap);
   }
 
   // Run — k === 0 is the long run: min(1.4× easy, phase cap) (feature A).
@@ -219,31 +367,43 @@ function triCardioSlots(
       : k === 1 && (phase === "build" || phase === "peak")
         ? "tempo"
         : "easy";
-    const durationMin = isLong ? Math.min(Math.round(runMin * 1.4), longRunCap) : runMin;
-    slots.push({
+    const durationMin = isLong
+      ? Math.min(Math.round(runMin * LONG_SESSION_MULTIPLE), longRunDurCap)
+      : Math.min(runMin, easyRunDurCap);
+    const run: SessionSlot = {
       kind: "run",
       runType,
       goalZone: runType === "tempo" ? 3 : 2,
       isLong,
       durationMin,
-    });
+    };
+    slots.push(run);
+    ceilings.set(
+      run,
+      isLong ? longRunTotalCap : Math.min(easyRunDurCap, longRunDurCap - 1) + runOverhead(runType),
+    );
   }
 
   // Dedicated mid-week race-specific bricks (Z3), kept as-is.
   for (let k = 0; k < brickN; k++) {
     const bikeSeg = Math.round(bikeMin * (phase === "peak" ? 1.6 : 1.2));
     const runSeg = Math.min(90, Math.round(runMin * 0.7));
-    slots.push({
+    const brick: SessionSlot = {
       kind: "brick",
       goalZone: 3,
       segments: [
         { discipline: "bike", durationMin: bikeSeg, goalZone: 2 },
         { discipline: "run", durationMin: runSeg, goalZone: 3 },
       ],
-    });
+    };
+    slots.push(brick);
+    // A mid-week brick is race REHEARSAL, not the week's key aerobic work: its
+    // ride is held under the long ride's cap and its run leg under an ordinary
+    // run's, so the session that is supposed to be the biggest one still is.
+    ceilings.set(brick, brickCeiling(brick.segments, longRideCap, easyRunDurCap));
   }
 
-  return slots;
+  return { slots, ceilings };
 }
 
 /**
@@ -259,6 +419,23 @@ function triSlotCap(slot: SessionSlot, caps: TrainingCaps): number {
   const zone =
     slot.kind === "lift" || slot.kind === "race" || slot.kind === "rest" ? 0 : slot.goalZone;
   return zone <= 2 ? caps.cardioSession : caps.session;
+}
+
+/**
+ * The ceiling a slot is actually held to: the athlete's cap AND the phase cap
+ * the slot was built under, whichever is lower.
+ *
+ * This is the whole fix. `triSlotCap` answers "how long may THIS ATHLETE train
+ * in one go" and is the only thing the rescaler ever asked. The phase caps
+ * answer "how long should this session be FOR THIS RACE, in this phase" — a
+ * different question with a different, usually much smaller, answer. Asking only
+ * the first is how an Olympic-distance athlete on a 30-40 h band got sessions
+ * sized for a 30-40 h athlete: the caps were computed, applied, and discarded
+ * one function later.
+ */
+function slotCeiling(slot: SessionSlot, caps: TrainingCaps, ceilings?: SlotCeilings): number {
+  const phase = ceilings?.get(slot) ?? Number.POSITIVE_INFINITY;
+  return Math.min(triSlotCap(slot, caps), phase);
 }
 
 /**
@@ -308,13 +485,27 @@ function scaleSlot(slot: SessionSlot, minutes: number): void {
  * The relative shape (long ride dominant, long run next) is preserved because
  * every slot scales by the same factor. If the caps alone can't reach the target,
  * the week lands short rather than shipping an 11-hour session.
+ *
+ * `ceilings` is the second half of that rule and was missing until 2026-09-09.
+ * "Its own cap" used to mean `triSlotCap` alone — the athlete's session cap —
+ * so the phase caps that `triCardioSlots` had just applied were re-scaled away
+ * on the very next line. Passing them through is what makes the clamp mean
+ * something. THE WEEKS GET SHORTER as a result, and that is the correct answer
+ * rather than a regression: the surplus that used to land on an uncapped easy
+ * run has nowhere legitimate to go, and hours win — a capped-out week lands
+ * short and says so, exactly as it already did when the session caps bound.
  */
-function fitTriSlotsToTarget(slots: SessionSlot[], totalMin: number, caps: TrainingCaps): void {
+function fitTriSlotsToTarget(
+  slots: SessionSlot[],
+  totalMin: number,
+  caps: TrainingCaps,
+  ceilings?: SlotCeilings,
+): void {
   const cardio = slots.filter((s) => s.kind !== "lift" && s.kind !== "race" && s.kind !== "rest");
   if (cardio.length === 0 || totalMin <= 0) return;
 
   for (const s of cardio) {
-    const cap = triSlotCap(s, caps);
+    const cap = slotCeiling(s, caps, ceilings);
     if (slotTotalMinutes(s) > cap) scaleSlot(s, cap);
   }
 
@@ -327,7 +518,7 @@ function fitTriSlotsToTarget(slots: SessionSlot[], totalMin: number, caps: Train
     const factor = totalMin / current;
     let headroom = false;
     for (const s of cardio) {
-      const cap = triSlotCap(s, caps);
+      const cap = slotCeiling(s, caps, ceilings);
       const want = slotTotalMinutes(s) * factor;
       scaleSlot(s, Math.min(want, cap));
       if (slotTotalMinutes(s) < cap) headroom = true;
@@ -350,40 +541,58 @@ function fitTriSlotsToTarget(slots: SessionSlot[], totalMin: number, caps: Train
  * (feature D): cap durations, drop all bricks, and downgrade any hard swim/bike/
  * run to easy endurance. No vo2 / threshold / brick survives.
  */
-function toActiveRecovery(slots: SessionSlot[]): SessionSlot[] {
+function toActiveRecovery(slots: SessionSlot[]): { slots: SessionSlot[]; ceilings: SlotCeilings } {
   const out: SessionSlot[] = [];
+  const ceilings: SlotCeilings = new Map();
+  const keep = (slot: SessionSlot, ceiling: number) => {
+    out.push(slot);
+    ceilings.set(slot, ceiling);
+  };
   for (const s of slots) {
     if (s.kind === "brick") continue; // no bricks in a recovery week
     if (s.kind === "swim") {
       const sessionType =
         s.sessionType === "threshold" || s.sessionType === "css" ? "endurance" : s.sessionType;
-      out.push({
-        ...s,
-        sessionType,
-        goalZone: SWIM_ZONE[sessionType]!,
-        durationMin: Math.min(s.durationMin, RECOVERY_CAP.swim),
-      });
+      keep(
+        {
+          ...s,
+          sessionType,
+          goalZone: SWIM_ZONE[sessionType]!,
+          durationMin: Math.min(s.durationMin, RECOVERY_CAP.swim),
+        },
+        RECOVERY_CAP.swim,
+      );
     } else if (s.kind === "bike") {
-      out.push({
-        kind: "bike",
-        sessionType: "endurance",
-        goalZone: BIKE_ZONE.endurance!,
-        isLong: false,
-        durationMin: Math.min(s.durationMin, RECOVERY_CAP.bike),
-      });
+      keep(
+        {
+          kind: "bike",
+          sessionType: "endurance",
+          goalZone: BIKE_ZONE.endurance!,
+          isLong: false,
+          durationMin: Math.min(s.durationMin, RECOVERY_CAP.bike),
+        },
+        RECOVERY_CAP.bike,
+      );
     } else if (s.kind === "run") {
-      out.push({
-        kind: "run",
-        runType: "easy",
-        goalZone: 2,
-        isLong: false,
-        durationMin: Math.min(s.durationMin ?? 40, RECOVERY_CAP.run),
-      });
+      keep(
+        {
+          kind: "run",
+          runType: "easy",
+          goalZone: 2,
+          isLong: false,
+          durationMin: Math.min(s.durationMin ?? 40, RECOVERY_CAP.run),
+        },
+        RECOVERY_CAP.run + runOverhead("easy"),
+      );
     } else {
       out.push(s);
     }
   }
-  return out;
+  // The recovery caps are ceilings for the FITTER too, not just for this pass.
+  // They were applied here and then scaled straight back out: a post-race week
+  // whose target minutes exceeded what 30-minute runs and 90-minute rides could
+  // hold simply grew them again, which is the same discard bug one layer up.
+  return { slots: out, ceilings };
 }
 
 // --- day placement ----------------------------------------------------------
@@ -488,22 +697,26 @@ function assembleTriDays(
   const isTaper = phase === "taper";
   const postRace = !ctx.raceThis && !!ctx.raceLast && !isTaper;
 
-  let slots = triCardioSlots(phase, totalMin, cfg, idx);
-  if (postRace) slots = toActiveRecovery(slots);
+  let { slots, ceilings } = triCardioSlots(phase, totalMin, cfg, idx, caps);
+  if (postRace) ({ slots, ceilings } = toActiveRecovery(slots));
 
   const liftN = raceWeek || postRace ? 0 : LIFT_BY_PHASE[phase];
   const raceSlots = raceWeek ? 1 : 0;
 
   // Hold the week to its prescribed minutes and every session to its cap BEFORE
   // placing anything — the day layout then only has legal sessions to place.
-  fitTriSlotsToTarget(slots, totalMin, caps);
+  fitTriSlotsToTarget(slots, totalMin, caps, ceilings);
 
   const { days, unplaced } = distributeCardio(input.trainingDays, slots, liftN + raceSlots);
   // Anything that could not get a slot gives its minutes back to the sessions
   // that did, so the week keeps its volume instead of silently losing a session.
+  // This is the pass that used to do the most damage: fewer slots carrying the
+  // same target means a bigger scale factor, and with nothing but the athlete's
+  // session cap in the way it is where the 290-minute "easy" runs came from.
+  // The ceilings travel with the slot objects, so the survivors keep theirs.
   if (unplaced.length > 0) {
     const placedSlots = days.flatMap((d) => d.sessions);
-    fitTriSlotsToTarget(placedSlots, totalMin, caps);
+    fitTriSlotsToTarget(placedSlots, totalMin, caps, ceilings);
   }
 
   // After an A race: near-complete rest early — clear the first training day.

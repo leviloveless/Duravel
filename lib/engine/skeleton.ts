@@ -36,7 +36,7 @@ import {
   type SessionCountTables,
 } from "./slots";
 import { spreadFullLiftTypes, isLongRunSlot } from "./sequencing";
-import { trainingCaps } from "./caps";
+import { bandCardioSlots, trainingCaps } from "./caps";
 import { STRENGTH_SESSION_MIN } from "@/lib/session-volume";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 import { getSport, type SportConfig } from "./sports";
@@ -197,6 +197,9 @@ export function buildSkeleton(input: EngineInput): ProgramSkeleton {
   if (input.weeklyHours && cfg.bandZone3Z) {
     counts.weeklySessionCap = bandSessionCap(input.weeklyHours);
     counts.anchorRunFloor = bandAnchorRunFloor(input.weeklyHours);
+    // ...and hold back the day-slots the band's Zone 1-2 volume needs, before the
+    // mileage floor can spend them on runs (see `BAND_CARDIO_SLOTS`).
+    counts.cardioSlotReserve = bandCardioSlots(input.weeklyHours);
   }
 
   // General fitness has no race to peak toward: a rotating-emphasis macro-arc

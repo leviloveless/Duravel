@@ -67,7 +67,7 @@ Existing rows default to `standard`, so every current subscriber is unaffected �
 
 **Fourth gate** — `app/api/generate/route.ts` must reject a program whose `input_snapshot` carries a `weekTemplate` when the user is not on `custom`. Otherwise the tier is decorative: the template rides in the input snapshot and Recalculate would honour it forever.
 
-**`app/pricing/pricing-plans.tsx`** — third card. Note while in here: the hardcoded annual price is **$119.99** but `docs/plans/stripe-payments-plan.md` says **$159.99**. One of them is wrong and it should be settled before adding a third number.
+**`app/pricing/pricing-plans.tsx`** — third card. (Settled 2026‑09‑09: the annual price is **$119.99**. The docs that said $159.99 were written on 2026‑07‑17 and never updated when the decision changed the next day; no $159.99 Price object ever existed in Stripe.)
 
 ### Open assumption
 
