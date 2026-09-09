@@ -5,6 +5,7 @@ import { GenerationInputSchema, Equipment, type GenerationInput } from "@/lib/sc
 import { toEngineInput, buildSkeleton } from "@/lib/engine";
 import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
+import { checkRaceDates } from "@/lib/engine/race-dates";
 import { PHILOSOPHY_VERSION } from "@/lib/ai/philosophy";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -137,6 +138,19 @@ function parseGenerationInput(
     if (date && priority) races.push({ raceDate: date, priority });
   }
 
+  // The same date checks the form runs as the athlete advances, run again here.
+  //
+  // Not belt-and-braces: this action is also the EDIT path, and a client check
+  // is a courtesy rather than a guarantee. A race dated year 0226 reached the
+  // engine once (Levi, 2026-09-09) and came out the other side as an A race in
+  // week 1, a four-week program, and an authored week silently overruled by the
+  // taper protocol — three bug reports for one typo.
+  const startDateRaw = str(formData, "startDate");
+  if (!isGenFit && races.length > 0) {
+    const bad = checkRaceDates(races, startDateRaw ?? todayISO());
+    if (bad.length > 0) return { error: bad[0]!.message };
+  }
+
   // Duration: derived from the goal race for goal_event; explicit otherwise.
   const durationWeeks = programType === "goal_event" ? undefined : num(formData, "durationWeeks");
 
@@ -176,7 +190,7 @@ function parseGenerationInput(
     races: isGenFit ? undefined : races.length > 0 ? races : undefined,
     startMileage: num(formData, "startMileage"),
     startCardioMinutes: num(formData, "startCardioMinutes"),
-    startDate: str(formData, "startDate"),
+    startDate: startDateRaw,
   };
 
   const parsed = GenerationInputSchema.safeParse(candidate);

@@ -13,6 +13,7 @@ import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
 import { bandMinTrainingDays, bandAllowedForFamily } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
+import { checkRaceDates } from "@/lib/engine/race-dates";
 import type { WeeklyHoursBand } from "@/lib/schemas";
 
 const initialState: OnboardingState = { error: null };
@@ -714,6 +715,19 @@ export default function OnboardingForm({
         if (races.length === 0 || races.some((r) => !r.date)) return "Add a date for each race.";
         if (!races.some((r) => r.priority === "A")) return "Mark your main race as an A race.";
       }
+      // ⚠️ `min` on a date input enforces NOTHING here: this form blocks native
+      // submit on purpose, so nothing ever runs the browser's own validation. A
+      // race stored as year 0226 is what taught us that (Levi, 2026-09-09) — it
+      // produced an A race in week 1, a four-week program and a discarded
+      // authored week, and none of the three looked like a bad date.
+      if (showRaces) {
+        const dated = races.filter((r) => r.date);
+        const bad = checkRaceDates(
+          dated.map((r) => ({ raceDate: r.date, priority: r.priority })),
+          startDate,
+        );
+        if (bad.length > 0) return bad[0]!.message;
+      }
       // fixed_duration races are optional; empty rows are ignored on submit.
     }
     return null;
@@ -812,6 +826,7 @@ export default function OnboardingForm({
           </select>
           <span className="text-xs text-zinc-400">{sportBlurb}</span>
         </label>
+
         {isGeneralFitness && (
           <label className="flex flex-col gap-1 text-sm">
             Primary goal
