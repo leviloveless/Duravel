@@ -206,3 +206,41 @@ describe("a bike is aerobic time, never mileage", () => {
     expect(templateStartMileage(withBike)).toBe(12);
   });
 });
+
+describe("a size keeps the precision the athlete typed", () => {
+  // Levi, 2026-09-10: "the mile insert needs to allow for up to 2 decimal
+  // points". Two decimals is a real training distinction — 3.25 miles is 4 x
+  // 1300m, and 3.3 is not — and the engine has no reason to round it away.
+  const precise: WeekTemplate = {
+    days: [
+      { day: "tue", sessions: [{ kind: "run", runType: "easy", startMiles: 3.25 }] },
+      { day: "thu", sessions: [{ kind: "run", runType: "easy", startMiles: 3.25 }] },
+      { day: "sat", sessions: [{ kind: "run", runType: "long", startMiles: 8.75 }] },
+    ],
+  };
+
+  it("adds the sizes up at two decimals, not one", () => {
+    // 3.25 + 3.25 + 8.75 = 15.25. Rounding the SUM coarser than its parts is how
+    // a week quietly stops adding up to the numbers on screen.
+    expect(templateStartMileage(precise)).toBe(15.25);
+  });
+
+  it("carries a two-decimal size through to the built week", () => {
+    // WHERE THE SECOND DECIMAL ACTUALLY LIVES, stated plainly because it is not
+    // where you would guess: in the week's TARGET and in the run's SHARE of it,
+    // both of which carry full precision. It does NOT survive into the stored
+    // `distanceMiles` — every distance the engine writes goes through `round1`,
+    // so a run lands on a tenth and its total picks up its own overhead on top.
+    //
+    // That is the honest contract: type 3.25 and the week is built from 3.25;
+    // read the session back and it says 3.3. Widening `round1` to two decimals
+    // across the engine to close that gap would be a change to every distance in
+    // every program, and nothing about a tenth of a mile on a prescription is
+    // worth it.
+    const w1 = build(precise).program.weeks[0]!;
+    const long = runsOf(w1).find((r) => r.runType === "long");
+    expect(long).toBeDefined();
+    expect(sessionMiles(long!)).toBeGreaterThan(8.5);
+    expect(sessionMiles(long!)).toBeLessThan(9.1);
+  });
+});

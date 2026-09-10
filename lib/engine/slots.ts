@@ -1443,7 +1443,11 @@ export function templateStartMileage(template: WeekTemplate): number {
       }
     }
   }
-  return sized ? Math.round(miles * 10) / 10 : 0;
+  // TWO decimals, not one. The athlete can type 3.25 (Levi, 2026-09-10) and a
+  // week built from four of those should come to 13, not to 13.2 — rounding the
+  // SUM coarser than its parts is how a week quietly stops adding up to the
+  // numbers on screen.
+  return sized ? Math.round(miles * 100) / 100 : 0;
 }
 
 /** One authored session as an engine slot, or null for a kind we cannot place. */

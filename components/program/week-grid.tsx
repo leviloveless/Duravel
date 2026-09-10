@@ -547,23 +547,63 @@ function SizeField({
   const [asTime, setAsTime] = useState(false);
 
   const stored = field === "miles" ? session.startMiles : session.startMin;
-  const shown =
+  const canonical =
     asTime && pace !== undefined && stored !== undefined
       ? String(Math.round(stored * pace))
       : stored !== undefined
         ? String(stored)
         : "";
 
+  /**
+   * THE BOX KEEPS ITS OWN TEXT, AND THAT IS THE ONLY WAY A DECIMAL CAN BE TYPED.
+   *
+   * This was fully controlled from the stored number, which meant a keystroke had
+   * to survive a round trip through `Number()` before it came back on screen —
+   * and `Number("3.")` is `3`. So the moment you typed the decimal point it was
+   * parsed away and the box re-rendered as "3". You could not enter 3.25 at all;
+   * you could not enter any decimal at all. Levi reported it as "the mile input
+   * needs to allow for up to 2 decimal points", and the second half of that is
+   * true but the first half was worse than it sounded.
+   *
+   * So the input owns a DRAFT string. What the athlete typed stays exactly as
+   * typed — "3.", "3.2", ".5" — while the parsed value goes up on every
+   * keystroke. The effect below re-syncs only when the stored number stops
+   * agreeing with the draft, which is what happens on an undo or a preset; it
+   * deliberately does NOT fire when the parent merely echoes back the value this
+   * box just sent, or the draft would be rewritten under the cursor.
+   *
+   * ⚠️ That last sentence is also the render-loop guard. Comparing NUMBERS rather
+   * than strings is what keeps "3." from being replaced by "3" on the very next
+   * render — and an effect that writes state on every render is exactly how this
+   * component froze the page once already.
+   */
+  const [draft, setDraft] = useState(canonical);
+  const [seen, setSeen] = useState(canonical);
+  if (canonical !== seen) {
+    // Adjusting state DURING RENDER, not in an effect. React documents this for
+    // exactly this case and it re-renders before committing, so nothing flickers
+    // — and `react-hooks/set-state-in-effect` is right to refuse the effect
+    // version. An effect that writes state on every render is how this very
+    // component froze the page on 2026-09-09; the lint that catches it only
+    // started running the same day.
+    setSeen(canonical);
+    if (Number(draft) !== Number(canonical)) setDraft(canonical);
+  }
+
   const commit = (raw: string) => {
+    setDraft(raw);
     const n = Number(raw);
     const empty = raw.trim() === "" || !Number.isFinite(n) || n <= 0;
     if (field === "minutes") {
-      onResize({ startMin: empty ? Number.NaN : n });
+      onResize({ startMin: empty ? Number.NaN : Math.round(n) });
       return;
     }
-    // Miles — converting from minutes first when that is what was typed.
+    // Miles — converting from a typed TIME first when that is the unit shown.
+    // The conversion result keeps two decimals even though the typed minutes
+    // were whole: 25 minutes at 8:30/mi is 2.94 miles, and rounding that to 2.9
+    // would lose distance the athlete never chose to give up.
     const miles = asTime && pace !== undefined && pace > 0 ? n / pace : n;
-    onResize({ startMiles: empty ? Number.NaN : Math.round(miles * 10) / 10 });
+    onResize({ startMiles: empty ? Number.NaN : Math.round(miles * 100) / 100 });
   };
 
   const unit = field === "miles" && asTime ? "min" : SIZE_LABEL[field];
@@ -575,7 +615,7 @@ function SizeField({
       <input
         type="text"
         inputMode="decimal"
-        value={shown}
+        value={draft}
         onChange={(e) => commit(e.target.value)}
         aria-label={`${sessionLabel(session)} on ${DAY_SHORT[day]} — starting ${unit === "min" ? "time" : "distance"}`}
         placeholder="—"
