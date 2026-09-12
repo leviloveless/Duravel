@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasTier } from "@/lib/subscription";
 import type { GenerationInput } from "@/lib/schemas";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import OnboardingForm, { type EditInitial } from "@/app/onboarding/onboarding-form";
@@ -77,6 +78,10 @@ export default async function EditProgramPage({
 
   const initial: EditInitial = {
     sport: snap.sport,
+    // So a recalculate does not silently discard the athlete's authored week —
+    // see the `carried` note in `updateProgramInputs`. Pre-filling it here is
+    // what lets them EDIT it on this path too, rather than merely keep it.
+    weekTemplate: snap.weekTemplate,
     subGoal: snap.subGoal,
     programType: snap.programType,
     races: (snap.races ?? []).map((r) => ({ date: r.raceDate, priority: r.priority })),
@@ -108,7 +113,13 @@ export default async function EditProgramPage({
         Saving replaces the current sessions with a freshly generated program. Any logged workouts stay attached to their
         week numbers.
       </p>
-      <OnboardingForm profile={profileRow} mode="edit" programId={id} initial={initial} />
+      <OnboardingForm
+        profile={profileRow}
+        mode="edit"
+        programId={id}
+        initial={initial}
+        hasCustomTier={await hasTier("custom")}
+      />
     </main>
   );
 }

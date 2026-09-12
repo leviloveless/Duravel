@@ -120,6 +120,7 @@ export default async function DesignWeekPage({ params }: { params: Promise<{ id:
         initial={storedTemplate(program.input_snapshot)}
         context={context}
         includeHybrid={cfg.sessionCounts?.hybrid !== undefined}
+        includeSwim={cfg.family === "triathlon"}
       />
     </Shell>
   );

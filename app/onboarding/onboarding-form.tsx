@@ -8,11 +8,16 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import Link from "next/link";
 import { submitOnboarding, updateProgramInputs, type OnboardingState } from "./actions";
+import WeekGrid from "@/components/program/week-grid";
+import type { TemplateContext, TemplateIssue } from "@/lib/engine/template-validate";
+import type { TrainingDayName, WeekTemplate } from "@/lib/engine/types";
 import type { ProfileRow } from "@/lib/supabase/queries";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
 import { bandMinTrainingDays, bandAllowedForSport } from "@/lib/engine/time-budget";
 import { getSport } from "@/lib/engine/sports";
+import { trainingCaps } from "@/lib/engine/caps";
 import { checkRaceDates, checkStartDate } from "@/lib/engine/race-dates";
 import {
   TIME_BENCHMARK_FIELDS,
@@ -239,7 +244,20 @@ const ZONE_META = [
   { label: "Zone 5", desc: "Max / VO2" },
 ] as const;
 
-const STEPS = ["About you", "Experience", "Schedule & goal", "Benchmarks"] as const;
+const STEPS = ["About you", "Experience", "Schedule & goal", "Benchmarks", "Your week"] as const;
+
+/**
+ * The step that shows the week designer.
+ *
+ * Named rather than written as `4` because adding a step is exactly how the
+ * BENCHMARKS checks came to be skipped: they lived in `validateBenchmarks`,
+ * called only from `handleGenerate`, on the documented assumption that
+ * Benchmarks was last and `validateStep(3)` could never fire. Making it
+ * non-final quietly turned that assumption false. The checks now run from
+ * `validateStep` like every other step's, and this constant is here so the next
+ * person to add a step sees the dependency.
+ */
+const WEEK_STEP = 4;
 
 /** Sports the engine can generate today (HYROX + the DEKA family). */
 const SPORT_OPTIONS = [
@@ -530,6 +548,16 @@ export type EditInitial = {
   /** Triathlon per-discipline experience (edit-mode pre-fill). */
   swimExp?: string;
   bikeExp?: string;
+  /**
+   * The week this program was already built from, if the athlete authored one.
+   *
+   * Its absence was a live bug before the designer reached onboarding, and a
+   * quiet one: `updateProgramInputs` rebuilds the whole `input_snapshot` from
+   * the form, so a recalculate on a program with an authored week DROPPED that
+   * week and silently rebuilt it generically. Nothing errored, and the athlete's
+   * own design simply stopped being in their program.
+   */
+  weekTemplate?: WeekTemplate;
 };
 
 const inputClass =
@@ -540,11 +568,14 @@ export default function OnboardingForm({
   mode = "create",
   programId,
   initial,
+  hasCustomTier = false,
 }: {
   profile: ProfileRow | null;
   mode?: "create" | "edit";
   programId?: string;
   initial?: EditInitial;
+  /** Whether this athlete's plan includes the week designer (custom tier). */
+  hasCustomTier?: boolean;
 }) {
   const isEdit = mode === "edit" && !!programId;
   const action = isEdit ? updateProgramInputs.bind(null, programId!) : submitOnboarding;
@@ -590,6 +621,8 @@ export default function OnboardingForm({
   // there is no legitimate Olympic session long enough to spend more. Offering
   // 20-30 h there is a promise the sport cannot keep. See `MAX_BAND_BY_SPORT`.
   const sportCfg = getSport(sport as Parameters<typeof getSport>[0]);
+  const sportIsTriathlon = sportCfg.family === "triathlon";
+  const sportPrescribesHybrid = sportCfg.sessionCounts?.hybrid !== undefined;
   const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForSport(sportCfg, b.value));
   const bandOffered = offeredBands.some((b) => b.value === weeklyHours);
 
@@ -606,6 +639,61 @@ export default function OnboardingForm({
   }, []);
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
+
+  // --- the authored week (custom tier) --------------------------------------
+  const [weekTemplate, setWeekTemplate] = useState<WeekTemplate | null>(
+    initial?.weekTemplate ?? null,
+  );
+  const [weekIssues, setWeekIssues] = useState<TemplateIssue[]>([]);
+  /**
+   * What the validator knows about this athlete DURING onboarding.
+   *
+   * Thinner than `templateContextFor`, which the program-level designer uses,
+   * and deliberately so: that one reads `peakMileage` off a built skeleton and
+   * run paces off stored benchmarks, neither of which exists yet — there is no
+   * program to build a skeleton from, and the benchmarks are still being typed
+   * one step back. Both fields are optional in `TemplateContext` and both
+   * degrade to silence rather than to a wrong number: the volume-doctrine
+   * warning holds its tongue, and the designer's size boxes take miles only
+   * instead of offering a minutes toggle that would need a pace to convert.
+   *
+   * ⚠️ Built inline, which means a NEW OBJECT ON EVERY KEYSTROKE. That is safe
+   * only because `WeekGrid` keys its internal memos off VALUE strings rather
+   * than object identity — the fix for the render loop of 2026-09-10, whose own
+   * docblock names this caller as the reason it was written that way. Do not
+   * "optimise" the grid's memos back onto `context`.
+   */
+  const weekContext: TemplateContext = {
+    // `days` is `string[]` (it comes from checkbox names); `TrainingDayName` is
+    // the narrowed enum. Filtering against the real day list rather than casting
+    // means a stray value can never reach the engine as a day it does not have.
+    trainingDays: DAYS.map((d) => d.key).filter((k): k is TrainingDayName => days.includes(k)),
+    weeklyHours: (weeklyHours || undefined) as TemplateContext["weeklyHours"],
+    prescribesRunning: sportCfg.runFloor !== 0,
+    prescribesHybrid: sportPrescribesHybrid,
+    prescribesSwimBike: sportIsTriathlon,
+    /**
+     * The ceiling `week_cannot_carry_hours` is measured against.
+     *
+     * The experience triple is required by `trainingCaps` but does NOT move
+     * `cardioSession` — measured across beginner / intermediate / advanced at
+     * every band, it is 180 at h10_20 for all three, because a Zone 1-2 session
+     * is limited by the clock rather than by what the athlete can recover from.
+     * So a constant is passed rather than plumbing three radio groups into React
+     * state purely to feed a number that would not change.
+     *
+     * ⚠️ If `cardioSession` ever starts varying by experience, this goes stale
+     * silently. The experience fields are uncontrolled inputs on step 2; making
+     * them stateful is the fix, not widening this comment.
+     */
+    maxSessionMinutes: weeklyHours
+      ? trainingCaps(
+          sportCfg.family,
+          { runningExp: "intermediate", hybridExp: "intermediate", liftingExp: "intermediate" },
+          weeklyHours as WeeklyHoursBand,
+        ).cardioSession
+      : undefined,
+  };
   // Custom HR zones (new-additions #3) — off by default; standard bands preset.
   const [customZones, setCustomZones] = useState<boolean>(!!profile?.hr_zones);
   const [zones, setZones] = useState<{ low: number; high: number }[]>(() => {
@@ -807,17 +895,26 @@ export default function OnboardingForm({
       });
       if (volume) return volume;
     }
+    // Benchmarks is no longer the last step, so advancing off it is now a real
+    // transition and has to be checked like any other. See `validateBenchmarks`.
+    if (current === 3) return validateBenchmarks();
     return null;
   }
 
   /**
    * The Benchmarks step's checks.
    *
-   * They cannot live in `validateStep`: Benchmarks is the LAST step, so `next()`
-   * never runs from it and `validateStep(3)` is never called. Run from
-   * `handleGenerate` instead, which is the only path that starts a generation —
-   * and which is on screen with these fields, so the message lands next to the
-   * box that has to change.
+   * ⚠️ THESE USED TO BE UNREACHABLE FROM `validateStep` BY DESIGN. Benchmarks was
+   * the last step, `next()` never ran from it, and the comment here said so. On
+   * 2026-09-11 a fifth step ("Your week") went in behind it, which made
+   * `validateStep(3)` reachable for the first time — so these are now called from
+   * BOTH places: from `validateStep` when the athlete advances off Benchmarks,
+   * and still from `handleGenerate`, which remains the only path that starts a
+   * generation and must not trust that the athlete ever walked through step 3.
+   *
+   * The generalisation is the one `race-dates.ts` already learned the hard way:
+   * a check whose reachability depends on a step being LAST is a check that
+   * stops running the day someone adds a step.
    */
   function validateBenchmarks(): string | null {
     const fd = formRef.current ? new FormData(formRef.current) : null;
@@ -880,6 +977,17 @@ export default function OnboardingForm({
     const benchIssue = validateBenchmarks();
     if (benchIssue) {
       setStepError(benchIssue);
+      return;
+    }
+    // A week the engine cannot build from is refused HERE rather than at the
+    // server, so the athlete is still looking at the grid that has to change.
+    // The same gate the program-level designer applies on save — and the reason
+    // `assignDaysFromTemplate` and `triTemplateDays` can both assume the shapes
+    // that would break them never arrive.
+    const blocking = weekIssues.filter((i) => i.severity === "blocking");
+    if (hasCustomTier && blocking.length > 0) {
+      setStep(WEEK_STEP);
+      setStepError(blocking[0]!.message);
       return;
     }
     setStepError(null);
@@ -1815,6 +1923,68 @@ export default function OnboardingForm({
             </div>
           </div>
         )}
+      </fieldset>
+
+      {/* Step 5 — Your week (custom tier) */}
+      <fieldset className={`flex flex-col gap-5 ${step === WEEK_STEP ? "" : "hidden"}`}>
+        {hasCustomTier ? (
+          <>
+            <p className="text-sm text-zinc-500">
+              Lay out a normal training week — which sessions, and which days. The engine takes it
+              from there: it periodizes your week across the whole program, sizes every session to
+              the hours you picked, and tapers it into your race. Leave this blank and it builds
+              your week for you.
+            </p>
+            {days.length >= 3 ? (
+              <WeekGrid
+                initial={weekTemplate}
+                context={weekContext}
+                includeHybrid={sportPrescribesHybrid}
+                includeSwim={sportIsTriathlon}
+                onChange={(t, i) => {
+                  setWeekTemplate(t);
+                  setWeekIssues(i);
+                }}
+              />
+            ) : (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Pick your training days on the Schedule step first — the designer lays out the days
+                you train, so it needs to know which they are.
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-500">
+              Design your own training week — which sessions, which days — and have the engine
+              periodize it across the program. It&apos;s part of the Custom plan.
+            </p>
+            <Link
+              href="/pricing"
+              className="self-start rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              See the Custom plan
+            </Link>
+            <p className="text-xs text-zinc-500">
+              Not now? Carry on — the engine will build your week from everything you&apos;ve
+              already told it.
+            </p>
+          </div>
+        )}
+        {/* The authored week rides to the server in the form, like every other
+            answer. A hidden field rather than a separate request because the
+            program row is written once, from one FormData: anything saved on its
+            own would be a second source of truth for the same program, and the
+            two would drift the first time a submit failed. */}
+        <input
+          type="hidden"
+          name="weekTemplate"
+          value={
+            hasCustomTier && weekTemplate && weekTemplate.days.some((d) => d.sessions.length > 0)
+              ? JSON.stringify(weekTemplate)
+              : ""
+          }
+        />
       </fieldset>
 
       {(stepError || state.error) && (

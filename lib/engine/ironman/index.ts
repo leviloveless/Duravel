@@ -16,6 +16,7 @@
  * `buildTriProgramData`, preserved from the original.
  */
 import { allocateMesocycles, expandPhases } from "../mesocycles";
+import { templateForWeek } from "../template-for-week";
 import { microcyclePattern } from "../microcycles";
 import { parseTimeToSeconds } from "../paces";
 import { clampInt } from "../math";
@@ -35,6 +36,8 @@ import type {
   SessionSlot,
   WeekSkeleton,
   DaySlot,
+  WeekTemplate,
+  TemplateSession,
 } from "../types";
 import type { SportConfig, PhaseCountTable } from "../sports/types";
 import type { ProgramData, ProgramWeek, ProgramDay, Session } from "@/lib/schemas";
@@ -407,6 +410,302 @@ function triCardioSlots(
 }
 
 /**
+ * Build a triathlon week from a template the ATHLETE authored (custom tier,
+ * Levi 2026-09-11: "expand the custom builder to triathlon").
+ *
+ * ## Why triathlon needed its own version of this
+ *
+ * `assignDaysFromTemplate` — the station-hybrid side's equivalent — was never
+ * reachable here. `buildSkeleton` short-circuits to `buildTriathlonSkeleton`
+ * before `weekDays` is ever called, so for the first two days of the custom
+ * tier's life a triathlete could author a week, save it, pay $39.99 for the
+ * privilege, and have the engine ignore every word of it. The designer governed
+ * station_hybrid and general_fitness only, which was not what the tier said on
+ * the tin.
+ *
+ * The reason it could not simply reuse the station path is that the two engines
+ * budget in different currencies. A station week is sized in MILES and its runs
+ * carry `distanceMiles`, reconciled afterwards; a triathlon week is sized in
+ * MINUTES and every slot carries `durationMin` before it ever leaves the
+ * skeleton. An authored session has to be born into one or the other.
+ *
+ * ## The bargain, unchanged
+ *
+ * "The template says WHAT and WHERE, never HOW MUCH." On this path that rule
+ * needs no bending at all, which is a pleasant change: the athlete says which
+ * disciplines they train and on which days, and `fitTriSlotsToTarget` still owns
+ * every minute — the band ceiling, the phase caps, the long-ride and long-run
+ * and long-swim allowances all bind exactly as they do on a generated week.
+ *
+ * What the athlete DOES get to move, per Levi's 2026-09-11 decision, is the
+ * DISCIPLINE MIX. Two swims where the engine wanted four gives two swims, and
+ * `validateTemplate` says what it thinks of that. This is the same "warn, never
+ * overrule" line the station path draws, and it is the reason someone buys the
+ * tier: pool hours, a group ride, a bike commute and a masters squad are facts
+ * about a life, not preferences the engine gets a vote on.
+ *
+ * ## What the engine keeps
+ *
+ *   - **race weeks** and the week after an A race never reach here. Race-week
+ *     structure is a safety property, the same short-circuit `assignDaysFromTemplate`
+ *     takes, and for the same reason.
+ *   - **every ceiling.** Each authored slot is emitted with the phase ceiling its
+ *     generated counterpart would have carried. Getting this wrong would have
+ *     been the `d4c51e6` bug again from the other direction: `slotCeiling` falls
+ *     back to the athlete's `caps` when a slot has no entry in the map, so an
+ *     authored week with no ceilings would silently lose the long-ride,
+ *     long-run and long-swim caps and nothing would have failed.
+ *   - **the taper.** A triathlon taper sheds MINUTES rather than sessions
+ *     (`A_TAPER` scales `hoursThis`), so an authored week tapers correctly by
+ *     doing nothing here — which is also what a generated one does.
+ */
+function triTemplateDays(
+  template: WeekTemplate,
+  input: EngineInput,
+  cfg: SportConfig,
+  phase: PhaseName,
+  totalMin: number,
+  // No `idx` here, and its absence is the feature. On the generated path the
+  // athlete's experience index chooses how many of each discipline the week
+  // holds (`n(cfg.sessionCounts.swim, phase, idx)`); on an authored week the
+  // athlete has already answered that question, which is the whole point of the
+  // tier. Everything experience still governs — the caps — arrives via `caps`.
+  caps: TrainingCaps,
+): { days: DaySlot[]; ceilings: SlotCeilings } {
+  const days: DaySlot[] = input.trainingDays.map((day) => ({ day, sessions: [] as SessionSlot[] }));
+  const idxByDay = new Map(days.map((d, i) => [d.day, i]));
+  const ceilings: SlotCeilings = new Map();
+
+  // Authored sessions in CALENDAR order, each still knowing which day it is on.
+  // Order matters twice below — which swim is the week's CSS set, and which ride
+  // is the long one — and "the order the athlete happened to click" is not it.
+  const entries: { dayIndex: number; s: TemplateSession }[] = [];
+  for (const day of days) {
+    const authored = template.days.find((d) => d.day === day.day);
+    if (!authored) continue;
+    const i = idxByDay.get(day.day)!; // safe: idxByDay was built from `days`
+    for (const s of authored.sessions) entries.push({ dayIndex: i, s });
+  }
+
+  const swims = entries.filter((e) => e.s.kind === "swim");
+  const bikes = entries.filter((e) => e.s.kind === "bike");
+  const runs = entries.filter((e) => e.s.kind === "run");
+  const bricks = entries.filter((e) => e.s.kind === "brick");
+
+  // The discipline BALANCE stays the engine's, even though the mix is now the
+  // athlete's. The split between swimming, riding and running is a property of
+  // the RACE — a 70.3 is a known shape — whereas how many sessions carry each
+  // discipline is a property of the athlete's week. So the athlete's counts
+  // divide the race's shares, rather than replacing them. A brick draws on two
+  // shares because a brick is two disciplines.
+  const bal = balanceFor(cfg, phase);
+  const per = (share: number, count: number) =>
+    count > 0 ? Math.max(20, Math.round((totalMin * share) / count)) : 0;
+  const swimMin = per(bal.swim, swims.length);
+  const bikeMin = per(bal.bike, bikes.length + bricks.length);
+  const runMin = per(bal.run, runs.length + bricks.length);
+
+  const longRideCap = longRideCapMin(cfg, phase);
+  const longRunCap = longRunCapMin(cfg, phase);
+  const longSwimCap = longSwimCapMin(cfg, phase);
+  const longRunTotalCap = Math.min(longRunCap + runOverhead("long"), caps.longRun);
+  const longRunDurCap = Math.max(20, longRunTotalCap - runOverhead("long"));
+  const easyRunDurCap = Math.max(20, Math.round(longRunDurCap / LONG_SESSION_MULTIPLE));
+  const rideDurCap = Math.max(20, Math.round(longRideCap / LONG_SESSION_MULTIPLE));
+  const swimDurCap = Math.max(20, Math.round(longSwimCap / LONG_SESSION_MULTIPLE));
+
+  // Which ride is the LONG ride, and which swim the long swim.
+  //
+  // A run needs no such guess: "Long run" is a thing the athlete picks by name
+  // in the designer, so it is named or it is absent. Riding and swimming have no
+  // such vocabulary — nobody writes "long swim", they write "swim" — so the
+  // designation is inferred, and the two signals are taken in the order an
+  // athlete would mean them: if they sized their rides, the biggest one is the
+  // long ride; if they sized none, it is the one latest in the week, because
+  // that is where a long ride lives.
+  const longestOf = (xs: { dayIndex: number; s: TemplateSession }[]) => {
+    if (xs.length === 0) return -1;
+    const sized = xs.filter((e) => e.s.startMin !== undefined);
+    const pick = sized.length > 0 ? sized : xs;
+    return pick.reduce((a, b) =>
+      sized.length > 0
+        ? (b.s.startMin ?? 0) > (a.s.startMin ?? 0)
+          ? b
+          : a
+        : b.dayIndex > a.dayIndex
+          ? b
+          : a,
+    ).dayIndex;
+  };
+  const longRideDay = longestOf(bikes);
+  const longSwimDay = longestOf(swims);
+
+  const push = (dayIndex: number, slot: SessionSlot, cap: number) => {
+    days[dayIndex]!.sessions.push(slot); // safe: dayIndex came from idxByDay
+    ceilings.set(slot, cap);
+  };
+
+  for (const [k, e] of swims.entries()) {
+    const isLongSwim = e.dayIndex === longSwimDay;
+    // Same designation rule the generated week uses: outside base the FIRST swim
+    // of the week is the CSS set, and the aerobic swim — the one that can
+    // actually run away with the minutes — is the one carrying the long
+    // allowance.
+    const sessionType =
+      k === 0 && phase !== "base" ? "css" : phase === "base" ? "technique" : "endurance";
+    const cap = isLongSwim ? longSwimCap : swimDurCap;
+    push(
+      e.dayIndex,
+      {
+        kind: "swim",
+        goalZone: SWIM_ZONE[sessionType]!, // safe: every sessionType above is a SWIM_ZONE key
+        durationMin: Math.min(Math.round(swimMin * weightIn(e.s, swims, "startMin")), cap),
+        sessionType,
+      },
+      cap,
+    );
+  }
+
+  for (const e of bikes) {
+    const isLongRide = e.dayIndex === longRideDay;
+    const sessionType = isLongRide
+      ? "endurance"
+      : phase === "build" || phase === "peak"
+        ? "sweet_spot"
+        : "endurance";
+    const cap = isLongRide ? longRideCap : rideDurCap;
+    // The long multiplier and an authored size are two ways of saying the same
+    // thing, so only one of them may speak. An athlete who sized their rides has
+    // already told the engine which is the big one and by how much; applying 1.4
+    // on top of their own ratio turned a 45-vs-180 week into a 3.7x spread the
+    // athlete never asked for. Unsized rides still get the multiplier, because
+    // then nobody has said anything and the engine has to.
+    const authoredSize = e.s.startMin !== undefined;
+    const want = isLongRide && !authoredSize ? bikeMin * LONG_SESSION_MULTIPLE : bikeMin;
+    push(
+      e.dayIndex,
+      {
+        kind: "bike",
+        goalZone: BIKE_ZONE[sessionType]!, // safe: both branches are BIKE_ZONE keys
+        durationMin: Math.min(Math.round(want * weightIn(e.s, bikes, "startMin")), cap),
+        isLong: isLongRide,
+        sessionType,
+      },
+      cap,
+    );
+  }
+
+  for (const e of runs) {
+    const runType = e.s.runType ?? (phase === "build" || phase === "peak" ? "tempo" : "easy");
+    const long = runType === "long";
+    // Same rule as the ride above: a size the athlete typed replaces the long
+    // multiplier rather than stacking with it.
+    const want = long && e.s.startMiles === undefined ? runMin * LONG_SESSION_MULTIPLE : runMin;
+    const durCap = long ? longRunDurCap : easyRunDurCap;
+    push(
+      e.dayIndex,
+      {
+        kind: "run",
+        runType,
+        goalZone: GOAL_ZONE_TRI[runType] ?? 2,
+        isLong: long,
+        durationMin: Math.min(Math.round(want * weightIn(e.s, runs, "startMiles")), durCap),
+      },
+      long ? longRunTotalCap : Math.min(easyRunDurCap, longRunDurCap - 1) + runOverhead(runType),
+    );
+  }
+
+  for (const e of bricks) {
+    // Both legs Zone 2. A brick trains running on legs that have already ridden,
+    // not a second hard session — compromised running at intensity is what the
+    // HYBRID is for (training rule, 2026-07), and it is why an authored brick is
+    // aerobic even in peak.
+    const segments = [
+      {
+        discipline: "bike" as const,
+        durationMin: Math.max(20, Math.round(bikeMin * weightIn(e.s, bricks, "startMin"))),
+        goalZone: 2,
+      },
+      {
+        discipline: "run" as const,
+        durationMin: Math.max(
+          10,
+          Math.min(
+            BRICK_TAIL_MAX_MIN,
+            Math.round(runMin * 0.7 * weightIn(e.s, bricks, "startMiles")),
+          ),
+        ),
+        goalZone: 2,
+      },
+    ];
+    push(
+      e.dayIndex,
+      { kind: "brick", goalZone: 2, segments },
+      brickCeiling(segments, longRideCap, BRICK_TAIL_MAX_MIN),
+    );
+  }
+
+  // Lifts last, on the days the athlete put them. `placeLifts` is deliberately
+  // NOT called on this path: it spaces lifts across the week by itself, which on
+  // a generated week is right and on an authored one is the engine moving a
+  // session the athlete placed on purpose. `validateTemplate` already warns about
+  // lifts on consecutive days.
+  for (const e of entries) {
+    if (e.s.kind !== "lift") continue;
+    days[e.dayIndex]!.sessions.push({ kind: "lift", liftType: e.s.liftType ?? "full" }); // safe: from idxByDay
+  }
+
+  return { days, ceilings };
+}
+
+/**
+ * How far one authored session sits from the others of its discipline.
+ *
+ * The sizes an athlete types are used as RATIOS here, never as minutes. The
+ * week's absolute volume is the band's and the phase's, and `fitTriSlotsToTarget`
+ * will rescale everything to it regardless — so the only thing an authored size
+ * can honestly express on this path is "this ride is twice that one", which is
+ * also the thing a triathlete actually means when they size their week.
+ *
+ * Taking the ratio against the MEAN of the sized sessions (rather than against
+ * the biggest, or against the target) is what makes a partly-sized week behave:
+ * size two of your four rides and the other two stay at the engine's own number
+ * instead of being scaled by a figure the athlete never supplied.
+ *
+ * Runs are sized in MILES and ridden in MINUTES, and this needs no pace to
+ * bridge them — a ratio of miles is a ratio of minutes at any single pace, and
+ * every run in the group is being compared against its own kind.
+ */
+function weightIn(
+  s: TemplateSession,
+  group: { s: TemplateSession }[],
+  field: "startMin" | "startMiles",
+): number {
+  const mine = s[field];
+  if (mine === undefined || mine <= 0) return 1;
+  const sized = group.map((e) => e.s[field]).filter((v): v is number => v !== undefined && v > 0);
+  if (sized.length === 0) return 1;
+  const mean = sized.reduce((a, b) => a + b, 0) / sized.length;
+  if (mean <= 0) return 1;
+  // Bounded because these arrive from a form and a runaway ratio would defeat
+  // the balance the shares just computed. Beyond 3x the athlete is not weighting
+  // a discipline, they are describing a different week.
+  return Math.min(3, Math.max(0.33, mine / mean));
+}
+
+/** Zone for an authored run type on the triathlon path. */
+const GOAL_ZONE_TRI: Record<string, number> = {
+  easy: 2,
+  long: 2,
+  tempo: 3,
+  threshold: 4,
+  interval: 5,
+  fartlek: 4,
+  progression: 3,
+  hybrid_run: 3,
+};
+
+/**
  * The cap a triathlon session is held to.
  *
  * Same rule as the station-hybrid side (Levi, 2026-08-04): a ZONE 1-2 session is
@@ -692,10 +991,30 @@ function assembleTriDays(
   idx: number,
   ctx: { raceThis?: EngineRace; raceLast?: EngineRace },
   caps: TrainingCaps,
+  template?: WeekTemplate,
 ): DaySlot[] {
   const raceWeek = !!ctx.raceThis;
   const isTaper = phase === "taper";
   const postRace = !ctx.raceThis && !!ctx.raceLast && !isTaper;
+
+  // An authored week owns its own layout — but never a race week or the week
+  // after an A race, which belong to the taper and recovery protocols. Same
+  // short-circuit `assignDaysFromTemplate` takes on the station side.
+  if (template && !raceWeek && !postRace) {
+    const built = triTemplateDays(template, input, cfg, phase, totalMin, caps);
+    // The SAME fitter the generated path uses, so the band ceiling, the phase
+    // caps and the athlete's own session caps all still bind on an authored week.
+    fitTriSlotsToTarget(
+      built.days.flatMap((d) => d.sessions),
+      totalMin,
+      caps,
+      built.ceilings,
+    );
+    for (const d of built.days) {
+      if (d.sessions.length === 0) d.sessions.push({ kind: "rest" });
+    }
+    return built.days;
+  }
 
   let { slots, ceilings } = triCardioSlots(phase, totalMin, cfg, idx, caps);
   if (postRace) ({ slots, ceilings } = toActiveRecovery(slots));
@@ -837,7 +1156,16 @@ export function buildTriathlonSkeleton(input: EngineInput, cfg: SportConfig): Pr
       zoneTargets: input.weeklyHours
         ? applyBandZoneShift(cfg.phaseZoneTargets[phase], input.weeklyHours)
         : { ...cfg.phaseZoneTargets[phase] },
-      days: assembleTriDays(input, cfg, phase, totalMin, idx, { raceThis, raceLast }, caps),
+      days: assembleTriDays(
+        input,
+        cfg,
+        phase,
+        totalMin,
+        idx,
+        { raceThis, raceLast },
+        caps,
+        templateForWeek(input, weekNumber),
+      ),
       ...(raceThis
         ? {
             raceDay: {

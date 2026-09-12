@@ -135,7 +135,7 @@ export interface EngineInput {
  * progresses base → build → peak. A type they DID name always wins.
  */
 export interface TemplateSession {
-  kind: "run" | "lift" | "hybrid" | "brick" | "bike";
+  kind: "run" | "lift" | "hybrid" | "brick" | "bike" | "swim";
   runType?: RunType;
   liftType?: LiftSlot["liftType"];
   /**

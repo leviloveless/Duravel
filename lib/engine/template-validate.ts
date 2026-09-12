@@ -48,7 +48,7 @@ import type {
 import type { WeeklyHoursBand } from "@/lib/schemas";
 import { MAX_SESSIONS_PER_DAY } from "./caps";
 import { MIN_MILES_PER_RUN, runsForMileage } from "./slots";
-import { bandSessionCap } from "./time-budget";
+import { bandMaxWeeklyMinutes, bandSessionCap } from "./time-budget";
 
 export type TemplateIssueSeverity = "blocking" | "warning" | "note";
 
@@ -73,6 +73,32 @@ export interface TemplateContext {
   prescribesRunning?: boolean;
   /** True when the sport has hybrid/station work to place (HYROX, DEKA). */
   prescribesHybrid?: boolean;
+  /**
+   * True for a triathlon sport, where the week is three disciplines rather than
+   * one (Levi, 2026-09-11).
+   *
+   * The validator needs this because almost every rule below is a rule about
+   * RUNNING, and a triathlon week that trips none of them can still be a bad
+   * week — a build with no swim in it is not something the run rules can see.
+   */
+  prescribesSwimBike?: boolean;
+  /**
+   * The longest a single aerobic session may run, in minutes (`caps.cardioSession`).
+   *
+   * Supplied by the caller rather than derived here because computing it needs
+   * the sport FAMILY and the athlete's experience, neither of which belongs in a
+   * validator that is otherwise about the shape of a week. Both callers already
+   * hold them.
+   *
+   * Without it the `week_cannot_carry_hours` check below stays silent, which is
+   * the right failure: the first version of that check reached for
+   * `bandSessionCap` on the assumption it was a per-session MINUTE cap. It is a
+   * per-week SESSION COUNT (5-8), so the warning told a triathlete their sessions
+   * were capped at "8 minutes" and their week topped out at "0.9 h". It read as
+   * obvious nonsense only because the message was printed and looked at — the
+   * test around it passed either way.
+   */
+  maxSessionMinutes?: number;
   /**
    * Minutes per mile for each run type, when the athlete's benchmarks give the
    * engine enough to compute them.
@@ -121,6 +147,14 @@ const isQualityRun = (s: TemplateSession) =>
 const isHard = (s: TemplateSession) =>
   isQualityRun(s) || isLong(s) || s.kind === "hybrid" || s.kind === "brick";
 
+// A SWIM is absent from both predicates too, for a reason worth writing down:
+// it is the one discipline whose hard sessions cost the legs almost nothing.
+// A CSS set is genuinely hard work and belongs nowhere near `isQualityRun`,
+// which is a rule about running impact — and stacking a hard swim beside a hard
+// run is standard practice in every triathlon plan rather than a mistake to warn
+// about. Counting it as a hard day would make a normal triathlon week look
+// reckless and teach the athlete to ignore the warnings that matter.
+//
 // A standalone Zone 1-2 RIDE is deliberately absent from BOTH predicates above,
 // and that is the rule rather than an oversight. It costs the athlete time and
 // almost no recovery, which is the entire reason to prescribe one — so it must
@@ -220,6 +254,20 @@ export function validateTemplate(t: WeekTemplate, ctx: TemplateContext): Templat
     const a = days[i]!; // safe: i < DAY_ORDER.length
     const b = days[i + 1]!; // safe: i + 1 < DAY_ORDER.length
     if (a.sessions.some(isHard) && b.sessions.some(isHard)) {
+      // THE TRIATHLON WEEKEND IS THE EXCEPTION, and it is not a grudging one.
+      // A long ride (or the brick that carries it) on Saturday followed by the
+      // long run on Sunday is what every triathlon plan does, for a reason the
+      // generic rule cannot see: the two sessions stress different tissue, and
+      // running on a Sunday off Saturday's bike IS the adaptation the sport is
+      // after. Warning about it would be the engine lecturing a triathlete about
+      // their sport — and worse, the preset we hand them raises it against
+      // itself the moment they click it, which is the specific failure
+      // `suggestTemplate` was written to avoid.
+      const triWeekend =
+        ctx.prescribesSwimBike &&
+        a.sessions.some((x) => x.kind === "brick" || x.kind === "bike") &&
+        b.sessions.some(isLong);
+      if (triWeekend) continue;
       issues.push({
         severity: "warning",
         code: "back_to_back_hard_days",
@@ -342,6 +390,77 @@ export function validateTemplate(t: WeekTemplate, ctx: TemplateContext): Templat
       code: "too_much_quality",
       message: `${qualityRuns.length} quality runs. Two hard running sessions a week is the ceiling most athletes adapt to; a third usually costs the quality of the other two.`,
     });
+  }
+
+  // A week too SPARSE to carry the hours, which is the opposite failure to
+  // `over_session_budget` above and — measured on the triathlon path, 2026-09-11
+  // — much the more common one. An athlete authoring their own week reaches for
+  // a tidy six sessions; the engine's own 70.3 build uses eleven. Six cannot
+  // hold seventeen hours, because every session is capped, so the week silently
+  // lands hours short and then stops progressing entirely once each one is
+  // pinned at its ceiling: base and build come out identical and nothing says
+  // why.
+  //
+  // "Hours win" means a capped-out week lands short and SAYS SO (Levi,
+  // 2026-09-09). On a generated week the engine adds sessions and nobody needs
+  // telling. On an authored one it may not — adding sessions is exactly the
+  // overruling the tier exists to prevent — so the saying-so has to happen here.
+  if (ctx.weeklyHours && ctx.maxSessionMinutes) {
+    const cardio = all.filter((s) => s.kind !== "lift");
+    const wanted = bandMaxWeeklyMinutes(ctx.weeklyHours);
+    // The best this week can hold: every aerobic session at its own ceiling.
+    const holdable = cardio.length * ctx.maxSessionMinutes;
+    // 85% rather than 100%: a week is allowed to land a little under its band
+    // without being called broken, and only ONE session a week is realistically
+    // long enough to sit at `cardioSession` anyway. Below this the shortfall
+    // stops being rounding and starts being hours.
+    if (cardio.length > 0 && holdable < wanted * 0.85) {
+      const hrs = (n: number) => Math.round(n / 6) / 10;
+      issues.push({
+        severity: "warning",
+        code: "week_cannot_carry_hours",
+        message: `${cardio.length} training sessions cannot hold the hours you asked for. Even with every one at its ${ctx.maxSessionMinutes}-minute ceiling this week tops out near ${hrs(holdable)} h against the ${hrs(wanted)} h your band allows, so it will come in short — and once every session is at its cap the week stops growing, which makes your late blocks look identical to your early ones. Add sessions rather than lengthening these: volume is safest carried by frequency.`,
+      });
+    }
+  }
+
+  // --- triathlon ------------------------------------------------------------
+
+  if (ctx.prescribesSwimBike) {
+    const swims = all.filter((s) => s.kind === "swim");
+    const rides = all.filter((s) => s.kind === "bike" || s.kind === "brick");
+    if (swims.length === 0) {
+      issues.push({
+        severity: "warning",
+        code: "no_swim",
+        message:
+          "No swim. It is a third of the race and the discipline that punishes absence most — technique decays faster than fitness, and the swim is where an untrained athlete loses time they cannot get back on the bike.",
+      });
+    }
+    if (rides.length === 0) {
+      issues.push({
+        severity: "warning",
+        code: "no_bike",
+        message:
+          "No ride. The bike is the largest share of race day by time in every triathlon distance, and the engine budgets roughly half your week to it.",
+      });
+    }
+    if (swims.length === 1) {
+      issues.push({
+        severity: "note",
+        code: "single_swim",
+        message:
+          "One swim a week. That holds technique about as well as anything can at that frequency, but it will not build the swim — two is the usual floor for improving, three for a distance step up.",
+      });
+    }
+    if (!all.some((s) => s.kind === "brick")) {
+      issues.push({
+        severity: "note",
+        code: "no_brick",
+        message:
+          "No brick. Running off the bike is the specific skill triathlon asks for and the one nothing else rehearses; most plans carry at least one a week from build onward.",
+      });
+    }
   }
 
   // --- note -----------------------------------------------------------------

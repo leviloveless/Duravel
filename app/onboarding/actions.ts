@@ -47,6 +47,37 @@ function todayISO(): string {
  * GenerationInput. Returns either the input (+ the raw program-name field) or a
  * user-facing error message.
  */
+/**
+ * The athlete's authored week, as it arrives from the onboarding form.
+ *
+ * A hidden field carrying JSON, which is worth one line of justification: every
+ * other answer in this form is a flat form field, and a nested seven-day grid of
+ * two-session days is not one. The alternative — forty-odd `day_mon_0_kind`
+ * fields — encodes the same object less legibly and parses back less safely.
+ *
+ * WARNING: THE SCHEMA IS THE VALIDATION, not this function.
+ * `GenerationInputSchema` parses `weekTemplate` through `WeekTemplateSchema`
+ * like every other field, so a malformed grid is refused by the same code path
+ * that refuses a malformed age. What this does is narrower and purely
+ * defensive: turn text that is not JSON at all into `undefined` rather than
+ * letting `JSON.parse` throw out of a server action, where the athlete would see
+ * a 500 instead of a message.
+ *
+ * AND IT IS NOT THE ENTITLEMENT CHECK. Anyone can post this field. The gate that
+ * matters is in `/api/generate`, which refuses a snapshot carrying a
+ * `weekTemplate` without the custom tier — the same gate that has always stood,
+ * and the reason this one does not need to.
+ */
+function parseWeekTemplate(formData: FormData): unknown {
+  const raw = str(formData, "weekTemplate");
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 function parseGenerationInput(
   formData: FormData,
   opts: { allowPastStart?: boolean } = {},
@@ -261,6 +292,7 @@ function parseGenerationInput(
     startMileage: num(formData, "startMileage"),
     startCardioMinutes: num(formData, "startCardioMinutes"),
     startDate: startDateRaw,
+    weekTemplate: parseWeekTemplate(formData),
   };
 
   const parsed = GenerationInputSchema.safeParse(candidate);
@@ -453,10 +485,11 @@ export async function updateProgramInputs(
   } = await supabase.auth.getUser();
   if (!user) return { error: "You must be signed in." };
 
-  // Ownership check (RLS also scopes this to the caller's own rows).
+  // Ownership check (RLS also scopes this to the caller's own rows). The stored
+  // snapshot comes back too — see `carried` below, which needs it.
   const { data: existing } = await supabase
     .from("programs")
-    .select("id")
+    .select("id, input_snapshot")
     .eq("id", programId)
     .single();
   if (!existing) return { error: "Program not found." };
@@ -468,8 +501,38 @@ export async function updateProgramInputs(
   if (!parsed.input) return { error: parsed.error ?? "Please check your answers and try again." };
   const input = parsed.input;
 
+  /**
+   * The parts of a program that live OUTSIDE the form, carried across a
+   * recalculate.
+   *
+   * A recalculate rebuilds the entire `input_snapshot` from the posted form, and
+   * anything the form does not carry is therefore deleted. That was already
+   * silently true of the athlete's authored week before the designer reached
+   * onboarding: editing any input at all — a race date, a benchmark — dropped
+   * `weekTemplate` and rebuilt the program generically, with nothing shown and
+   * nothing logged. The athlete's own design simply stopped being in their
+   * program.
+   *
+   * `weekTemplateChanges` is the more important half, and the form will NEVER
+   * carry it. It is the history of mid-program amendments — "from week 9, this
+   * is my week" — which exists precisely so the weeks already generated under
+   * the old shape keep reading the way they were run. Rebuilding that from a
+   * form that only knows about one week would be lossy by construction, so it is
+   * carried rather than re-posted.
+   */
+  const storedSnapshot = GenerationInputSchema.safeParse(existing.input_snapshot);
+  const inputWithCarried: GenerationInput = storedSnapshot.success
+    ? {
+        ...input,
+        // The form wins when it carries a week, so an edit through the designer
+        // can still CHANGE it; the stored one is a fallback, never an override.
+        weekTemplate: input.weekTemplate ?? storedSnapshot.data.weekTemplate,
+        weekTemplateChanges: storedSnapshot.data.weekTemplateChanges,
+      }
+    : input;
+
   const start = input.startDate ?? todayISO();
-  const engineInput = toEngineInput(input, start);
+  const engineInput = toEngineInput(inputWithCarried, start);
   const skeleton = buildSkeleton(engineInput);
   const programName =
     parsed.programNameInput ?? defaultProgramName(input, engineInput.durationWeeks);
@@ -489,7 +552,7 @@ export async function updateProgramInputs(
       status: "generating",
       program_data: null,
       skeleton,
-      input_snapshot: input,
+      input_snapshot: inputWithCarried,
       philosophy_version: PHILOSOPHY_VERSION,
     })
     .eq("id", programId);

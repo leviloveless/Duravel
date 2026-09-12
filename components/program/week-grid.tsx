@@ -71,6 +71,7 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
   { label: "Tempo run", session: { kind: "run", runType: "tempo" } },
   { label: "Fartlek", session: { kind: "run", runType: "fartlek" } },
   { label: "Hybrid / stations", session: { kind: "hybrid" } },
+  { label: "Swim", hint: "the engine picks the set", session: { kind: "swim" } },
   { label: "Brick", hint: "bike, then run", session: { kind: "brick" } },
   { label: "Bike", hint: "easy aerobic, no impact", session: { kind: "bike" } },
   { label: "Lift — full body", session: { kind: "lift", liftType: "full" } },
@@ -83,6 +84,30 @@ const CHOICES: { label: string; hint?: string; session: TemplateSession }[] = [
   },
 ];
 
+/**
+ * The choices that make sense for THIS sport.
+ *
+ * Offering everything to everyone was fine while the designer served two station
+ * sports; it stops being fine the moment a triathlete opens it and is offered
+ * "Hybrid / stations", or a HYROX athlete is offered a swim the engine has
+ * nowhere to put. A menu that offers work the sport cannot use is not a richer
+ * menu, it is a way of authoring a week that quietly loses sessions.
+ *
+ * Filtering here rather than at the callsite because the grid is the only thing
+ * that knows what a choice IS — `week-designer` and the onboarding wizard both
+ * just pass the sport's own flags through.
+ */
+function choicesFor(opts: { includeHybrid: boolean; includeSwim: boolean }) {
+  return CHOICES.filter((c) => {
+    if (c.session.kind === "hybrid") return opts.includeHybrid;
+    if (c.session.kind === "swim") return opts.includeSwim;
+    // The race's four loaded stations. Meaningless without a station race to
+    // load them from, so it travels with the hybrid rather than with the lifts.
+    if (c.session.kind === "lift" && c.session.liftType === "power") return opts.includeHybrid;
+    return true;
+  });
+}
+
 const LIFT_LABEL: Record<NonNullable<TemplateSession["liftType"]>, string> = {
   full: "full body",
   upper: "upper",
@@ -92,6 +117,7 @@ const LIFT_LABEL: Record<NonNullable<TemplateSession["liftType"]>, string> = {
 
 export function sessionLabel(s: TemplateSession): string {
   if (s.kind === "hybrid") return "Hybrid";
+  if (s.kind === "swim") return "Swim";
   if (s.kind === "brick") return "Brick · bike→run";
   if (s.kind === "bike") return "Bike";
   if (s.kind === "lift") return `Lift · ${LIFT_LABEL[s.liftType ?? "full"]}`;
@@ -125,6 +151,7 @@ export function sessionLabel(s: TemplateSession): string {
 function sizeFieldsFor(s: TemplateSession): ("miles" | "minutes")[] {
   if (s.kind === "run") return ["miles"];
   if (s.kind === "bike") return ["minutes"];
+  if (s.kind === "swim") return ["minutes"];
   if (s.kind === "brick") return ["minutes", "miles"];
   return [];
 }
@@ -146,11 +173,20 @@ export default function WeekGrid({
   initial,
   context,
   includeHybrid,
+  includeSwim = false,
   onChange,
 }: {
   initial: WeekTemplate | null;
   context: TemplateContext;
   includeHybrid: boolean;
+  /**
+   * Whether this sport swims (triathlon, Levi 2026-09-11).
+   *
+   * Defaulted rather than required so the two existing callers keep compiling
+   * unchanged — and because `false` is the truthful answer for every sport that
+   * is not a triathlon, which is most of them.
+   */
+  includeSwim?: boolean;
   /** Called after every edit with the template and what the validator makes of
    *  it, so the caller can save it, serialise it, or gate its own submit. */
   onChange?: (template: WeekTemplate, issues: TemplateIssue[]) => void;
@@ -187,6 +223,14 @@ export default function WeekGrid({
   const trainingDays = useMemo(
     () => DAY_ORDER.filter((d) => daysKey.split(",").includes(d)),
     [daysKey],
+  );
+
+  // Memoized for the same reason `trainingDays` is: seven DayCards receive this,
+  // and a fresh array each render is the identity churn the loop above was made
+  // of. Both flags are booleans, so the dependency list is honest.
+  const choices = useMemo(
+    () => choicesFor({ includeHybrid, includeSwim }),
+    [includeHybrid, includeSwim],
   );
 
   const [week, setWeek] = useState<Week>(() => {
@@ -297,6 +341,7 @@ export default function WeekGrid({
     const t = suggestTemplate(goal, {
       trainingDays,
       includeHybrid,
+      includeSwimBike: includeSwim,
       peakMileage: context.peakMileage,
     });
     const next = emptyWeek(trainingDays);
@@ -363,6 +408,7 @@ export default function WeekGrid({
               sessions={week[day] ?? []}
               issues={issues.filter((i) => i.day === day)}
               paces={context.runPaceMin}
+              choices={choices}
               onAdd={(s) => addTo(day, s)}
               onRemove={(i) => removeFrom(day, i)}
               onResize={(i, patch) => resize(day, i, patch)}
@@ -409,6 +455,7 @@ function DayCard({
   sessions,
   issues,
   paces,
+  choices,
   onAdd,
   onRemove,
   onResize,
@@ -417,6 +464,10 @@ function DayCard({
   sessions: TemplateSession[];
   issues: TemplateIssue[];
   paces: TemplateContext["runPaceMin"];
+  /** What this sport lets the athlete add. Computed once by the grid, because
+   *  it is the same list on all seven days and rebuilding it per card would
+   *  hand every card a new array on every render. */
+  choices: typeof CHOICES;
   onAdd: (s: TemplateSession) => void;
   onRemove: (i: number) => void;
   onResize: (i: number, patch: { startMiles?: number; startMin?: number }) => void;
@@ -481,7 +532,7 @@ function DayCard({
       {sessions.length < 2 &&
         (open ? (
           <div className="flex flex-col gap-1">
-            {CHOICES.map((c) => (
+            {choices.map((c) => (
               <button
                 key={c.label}
                 type="button"

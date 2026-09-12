@@ -9,6 +9,7 @@
 import { GenerationInputSchema, type WeekTemplate } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { getSport } from "@/lib/engine/sports";
+import { trainingCaps } from "@/lib/engine/caps";
 import type { TemplateContext } from "@/lib/engine/template-validate";
 import { computePaces, effectivePace } from "@/lib/engine/paces";
 import type { RunType } from "@/lib/engine/types";
@@ -66,6 +67,16 @@ export function templateContextFor(
     runningExp: input.profile.runningExp,
     prescribesRunning: cfg.runFloor !== 0,
     prescribesHybrid: (cfg.sessionCounts?.hybrid ?? undefined) !== undefined,
+    prescribesSwimBike: cfg.family === "triathlon",
+    maxSessionMinutes: trainingCaps(
+      cfg.family,
+      {
+        runningExp: input.profile.runningExp,
+        hybridExp: input.profile.hybridExp,
+        liftingExp: input.profile.liftingExp,
+      },
+      input.profile.weeklyHours,
+    ).cardioSession,
   };
 }
 

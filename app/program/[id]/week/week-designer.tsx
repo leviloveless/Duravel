@@ -21,11 +21,14 @@ export default function WeekDesigner({
   initial,
   context,
   includeHybrid,
+  includeSwim = false,
 }: {
   programId: string;
   initial: WeekTemplate | null;
   context: TemplateContext;
   includeHybrid: boolean;
+  /** Whether this sport swims (triathlon). Passed straight through to the grid. */
+  includeSwim?: boolean;
 }) {
   const [template, setTemplate] = useState<WeekTemplate>({ days: [] });
   const [issues, setIssues] = useState<TemplateIssue[]>([]);
@@ -90,6 +93,7 @@ export default function WeekDesigner({
         initial={initial}
         context={context}
         includeHybrid={includeHybrid}
+        includeSwim={includeSwim}
         onChange={(t, i) => {
           setTemplate(t);
           setIssues(i);

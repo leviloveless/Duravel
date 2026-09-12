@@ -252,7 +252,7 @@ export const LiftType = z.enum(["upper", "lower", "full", "power"]);
  * still progresses base → build → peak.
  */
 export const TemplateSessionSchema = z.object({
-  kind: z.enum(["run", "lift", "hybrid", "brick", "bike"]),
+  kind: z.enum(["run", "lift", "hybrid", "brick", "bike", "swim"]),
   runType: RunType.optional(),
   liftType: LiftType.optional(),
   /** Week-one size, when the athlete gave one. `startMiles` for a run (and a

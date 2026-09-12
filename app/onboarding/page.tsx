@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/queries";
+import { hasTier } from "@/lib/subscription";
 import OnboardingForm from "./onboarding-form";
 
 export default async function OnboardingPage() {
@@ -12,6 +13,10 @@ export default async function OnboardingPage() {
   if (!user) redirect("/login");
 
   const profile = await getCurrentProfile();
+  // The week designer is a custom-tier feature. Everyone still SEES the step —
+  // it carries a one-line offer for anyone without the plan (Levi, 2026-09-11)
+  // — but only an entitled athlete gets a grid they can author.
+  const hasCustomTier = await hasTier("custom");
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-16">
@@ -29,7 +34,7 @@ export default async function OnboardingPage() {
           Exit to dashboard
         </Link>
       </div>
-      <OnboardingForm profile={profile} />
+      <OnboardingForm profile={profile} hasCustomTier={hasCustomTier} />
     </main>
   );
 }

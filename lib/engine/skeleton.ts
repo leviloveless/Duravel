@@ -36,6 +36,8 @@ import {
   DEFAULT_COUNTS,
   type SessionCountTables,
 } from "./slots";
+import { templateForWeek } from "./template-for-week";
+export { templateForWeek };
 import { spreadFullLiftTypes, isLongRunSlot } from "./sequencing";
 import { bandCardioSlots, trainingCaps } from "./caps";
 import { STRENGTH_SESSION_MIN } from "@/lib/session-volume";
@@ -84,22 +86,6 @@ function confineToTrainingDays(
 ): WeekTemplate | undefined {
   if (!t) return undefined;
   return { days: t.days.filter((d) => trainingDays.includes(d.day)) };
-}
-
-/**
- * The template in force for `weekNumber` — the latest change that has taken
- * effect, falling back to the program's original week.
- */
-export function templateForWeek(input: EngineInput, weekNumber: number) {
-  let best = input.weekTemplate;
-  let bestFrom = 0;
-  for (const change of input.weekTemplateChanges ?? []) {
-    if (change.fromWeek <= weekNumber && change.fromWeek >= bestFrom) {
-      best = change.template;
-      bestFrom = change.fromWeek;
-    }
-  }
-  return best;
 }
 
 function weekDays(

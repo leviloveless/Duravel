@@ -73,6 +73,15 @@ export interface PresetOptions {
   trainingDays: TrainingDayName[];
   /** Does the sport have station work to place? HYROX and DEKA do. */
   includeHybrid?: boolean;
+  /**
+   * Does the sport swim and ride? Triathlon does (Levi, 2026-09-11).
+   *
+   * This is not a modifier on the running presets — it selects an entirely
+   * different layout. Handing a triathlete the station preset with a swim bolted
+   * on would give them a week that is four-fifths running, which is the opposite
+   * of the discipline balance the engine is about to build against.
+   */
+  includeSwimBike?: boolean;
   /** How many lifts to place. Default 2 — enough to matter, few enough to fit. */
   lifts?: number;
   /**
@@ -97,6 +106,7 @@ export interface PresetOptions {
 export function suggestTemplate(goal: TemplateGoal, opts: PresetOptions): WeekTemplate {
   const days = DAY_ORDER.filter((d) => opts.trainingDays.includes(d));
   if (days.length < 3) return { days: [] };
+  if (opts.includeSwimBike) return suggestTriTemplate(goal, days, opts);
 
   const sessions = new Map<TrainingDayName, TemplateSession[]>(days.map((d) => [d, []]));
   const add = (d: TrainingDayName, s: TemplateSession) => {
@@ -279,4 +289,120 @@ function dayBefore(day: TrainingDayName, days: TrainingDayName[]): TrainingDayNa
     if (days.includes(cand)) return cand;
   }
   return undefined;
+}
+
+/**
+ * A starting triathlon week (Levi, 2026-09-11).
+ *
+ * The same promise as the running presets — a week that passes its own
+ * validator — against a different problem. A running week has one discipline and
+ * spends its design budget on WHEN the hard days fall. A triathlon week has
+ * three, and most of its design is spent on making sure all three appear at all,
+ * on a number of days that may be as low as three.
+ *
+ * The layout rule, in one line: **the weekend carries the brick and the long
+ * run, every discipline appears before any discipline repeats, and the swim goes
+ * wherever is left because a swim costs the legs nothing.**
+ *
+ * That last clause is the one that makes a triathlon week tractable. A swim can
+ * sit next to anything — the day after a long run, the morning of a hard ride —
+ * without the back-to-back-hard problem that dominates the running layout, which
+ * is why it is placed last here and why it is the discipline that doubles up on
+ * a day when a week runs short of them.
+ */
+function suggestTriTemplate(
+  goal: TemplateGoal,
+  days: TrainingDayName[],
+  opts: PresetOptions,
+): WeekTemplate {
+  const sessions = new Map<TrainingDayName, TemplateSession[]>(days.map((d) => [d, []]));
+  const add = (d: TrainingDayName | undefined, s: TemplateSession) => {
+    if (!d) return;
+    const list = sessions.get(d);
+    if (list && list.length < 2) list.push(s);
+  };
+  const isFree = (d: TrainingDayName) => (sessions.get(d)?.length ?? 0) === 0;
+
+  // 1. THE LONG RUN takes the last training day of the week — Sunday where it
+  //    exists. This is the reverse of the running presets, which prefer Saturday
+  //    so Sunday can be the rest day. A triathlete has no such spare day: the
+  //    long ride wants the weekend too, and a long ride the day AFTER a long run
+  //    is the shape every triathlon plan avoids.
+  const longRunDay = days.includes("sun") ? "sun" : days[days.length - 1]!; // safe: length >= 3
+  add(longRunDay, { kind: "run", runType: "long" });
+
+  // 2. THE BRICK takes the day before it — the long ride with a run off the
+  //    bike, which is the single most race-specific session of the week and the
+  //    reason the weekend is the weekend. Two hard days back to back is a
+  //    deliberate exception here rather than an oversight: the ride/run weekend
+  //    IS triathlon's training block, and `validateTemplate` is given a week
+  //    whose alternative — splitting them — costs the athlete the one session
+  //    that rehearses race day.
+  const brickDay = dayBefore(longRunDay, days);
+  add(brickDay, { kind: "brick" });
+
+  // 3. THE QUALITY SESSION, in the discipline the goal is about, placed as far
+  //    from the weekend as the week allows. It goes on the BIKE where the goal
+  //    is aerobic — a hard ride costs the legs less than a hard run for the same
+  //    stimulus, which is the standard triathlon trade — and on the run where the
+  //    goal is threshold, because threshold is a running quality an athlete feels
+  //    on race day.
+  const midweek = days.filter((d) => d !== longRunDay && d !== brickDay);
+  const qualityDay = midweek[0];
+  if (goal === "lactate_threshold") {
+    add(qualityDay, { kind: "run", runType: "threshold" });
+  } else if (goal === "aerobic_capacity") {
+    add(qualityDay, { kind: "run", runType: "interval" });
+  } else {
+    add(qualityDay, { kind: "bike" });
+  }
+
+  // 4. A SECOND RIDE and a SECOND RUN, spread across what is left. The bike gets
+  //    first refusal on a free day because it is roughly half the week's minutes
+  //    in every distance — the engine will be spending that time whether or not
+  //    a day was set aside for it.
+  const free = midweek.filter(isFree);
+  add(free[free.length - 1], { kind: "bike" });
+  add(
+    free.find((d) => isFree(d)),
+    { kind: "run", runType: "easy" },
+  );
+
+  // 5. SWIMS LAST, and they fill rather than claim: first every day still empty,
+  //    then doubling up beside whatever is already there. Two is the floor for a
+  //    swim that improves; below three training days a week there is nowhere to
+  //    put a second, and `validateTemplate` says so rather than this pretending
+  //    otherwise.
+  let swims = 0;
+  for (const d of days) {
+    if (swims >= 2) break;
+    if (isFree(d) && d !== longRunDay) {
+      add(d, { kind: "swim" });
+      swims += 1;
+    }
+  }
+  for (const d of midweek) {
+    if (swims >= 2) break;
+    if ((sessions.get(d)?.length ?? 0) === 1) {
+      add(d, { kind: "swim" });
+      swims += 1;
+    }
+  }
+
+  // 6. ONE LIFT, stacked on a day that is already working. Triathlon gets one
+  //    rather than the running presets' two: the week already holds three
+  //    disciplines, and `LIFT_BY_PHASE` gives a triathlon build one lift anyway.
+  const liftCount = opts.lifts ?? 1;
+  let placed = 0;
+  for (const d of midweek) {
+    if (placed >= liftCount) break;
+    if ((sessions.get(d)?.length ?? 0) === 1 && d !== brickDay) {
+      add(d, { kind: "lift", liftType: "full" });
+      placed += 1;
+    }
+  }
+
+  return {
+    days: days.map((day) => ({ day, sessions: sessions.get(day) ?? [] })),
+  };
 }
