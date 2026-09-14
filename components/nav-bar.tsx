@@ -19,6 +19,8 @@ const linkClass =
 /** Marketing pages shown to everyone. */
 const PUBLIC_LINKS = [
   { href: "/science", label: "Science" },
+  { href: "/library", label: "Library" },
+  { href: "/diagnostic", label: "Find my limiter" },
   { href: "/tools", label: "Tools" },
   { href: "/coaching", label: "Coaching" },
   { href: "/impact", label: "Impact" },
@@ -28,7 +30,10 @@ const PUBLIC_LINKS = [
 /** App pages shown once signed in. */
 const APP_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/calendar", label: "Calendar" },
+  { href: "/events", label: "Races" },
   { href: "/onboarding", label: "New program" },
+  { href: "/library", label: "Library" },
   { href: "/activity", label: "Activity" },
   { href: "/science", label: "Science" },
   { href: "/profile", label: "Profile" },
@@ -64,12 +69,17 @@ export default async function NavBar() {
               </button>
             </form>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-md bg-black px-4 py-1.5 text-white transition-colors hover:bg-zinc-800"
-            >
-              Log in
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link href="/login" className={linkClass}>
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="bg-accent hover:bg-accent-hi rounded-md px-4 py-1.5 text-white transition-colors"
+              >
+                Start free
+              </Link>
+            </div>
           )}
         </div>
 
@@ -91,9 +101,14 @@ export default async function NavBar() {
                 </button>
               </form>
             ) : (
-              <Link href="/login" className={linkClass}>
-                Log in
-              </Link>
+              <>
+                <Link href="/login" className={linkClass}>
+                  Log in
+                </Link>
+                <Link href="/signup" className={linkClass}>
+                  Start free
+                </Link>
+              </>
             )}
           </div>
         </details>

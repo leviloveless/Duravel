@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcome } from "@/lib/email/flows/welcome";
+import { ensureProfileFromSignup } from "@/lib/signup-profile";
 import { redirect } from "next/navigation";
 import { after, type NextRequest } from "next/server";
 import { type EmailOtpType, type SupabaseClient } from "@supabase/supabase-js";
@@ -38,6 +39,14 @@ async function completeConfirmation(supabase: SupabaseClient, next: string): Pro
   } = await supabase.auth.getUser();
   if (user) {
     const userId = user.id;
+
+    // Create the profile row from the answers signup stashed on the auth user.
+    // AWAITED rather than deferred to after(), because the very next page can
+    // read it (the trial banner, and /start's "your trial is running"), and a
+    // row that appears a beat later reads as a bug. It is a single insert that
+    // no-ops when a row exists, and it never throws — see lib/signup-profile.ts.
+    await ensureProfileFromSignup(supabase);
+
     after(async () => {
       try {
         await sendWelcome(createAdminClient(), userId);

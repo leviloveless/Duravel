@@ -6,12 +6,20 @@ export const metadata: Metadata = {
   description: "The terms governing your use of Duravel.",
 };
 
-// NOTE (for Levi): a solid starting draft, not legal advice. Replace the
-// [bracketed] placeholders and have counsel review before the App Store launch.
-const SUPPORT_EMAIL = "support@duravel.app"; // TODO: replace with your real support address
-const ENTITY = "Duravel"; // TODO: replace with your legal entity name
-const GOVERNING_LAW = "[your state/country]"; // TODO: replace
-const UPDATED = "July 14, 2026";
+// NOTE (for Levi): a starting draft, not legal advice — still worth counsel's
+// eyes before the App Store submission. The [bracketed] placeholders are gone
+// as of 2026-09-12: they had been live on a billing-enabled site since July 14,
+// with the governing-law clause reading "the laws of [your state/country]".
+//
+// ⚠️ SUPPORT_EMAIL IS STILL UNCONFIRMED. It is the one value here nobody has
+// verified receives mail — `privacy/page.tsx` carries the same address and the
+// same doubt. Sending users to a black hole from a Terms page is its own
+// problem, so confirm the alias exists (duravel.app has no MX record this
+// session could read) or point both pages at an address that does.
+const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
+const ENTITY = "Duravel LLC"; // Texas LLC, doing business as "Duravel"
+const GOVERNING_LAW = "the State of Texas";
+const UPDATED = "September 12, 2026";
 
 export default function TermsPage() {
   return (
@@ -29,7 +37,8 @@ export default function TermsPage() {
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">The Service</h2>
       <p>
-        Duravel generates individualized HYROX training programs and adapts them based on the
+        Duravel generates individualized training programs for hybrid-fitness and endurance racing —
+        including HYROX, DEKA, triathlon, and general fitness — and adapts them based on the
         information and session data you provide. Program content is produced with the help of
         automated systems and is provided for general fitness and informational purposes.
       </p>
@@ -48,7 +57,10 @@ export default function TermsPage() {
       <p>
         You are responsible for the accuracy of the information you provide and for keeping your
         account credentials secure. You must be at least 13 years old (or the age of majority where
-        required) to use the Service. You may delete your account at any time from your profile page.
+        required) to use the Service. We ask for your date of birth when you create an account and
+        will not create an account for anyone under 13; if we learn that an account belongs to
+        someone under 13, we will close it and delete the associated data. You may delete your
+        account at any time from your profile page.
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Free trial, subscriptions, and billing</h2>
@@ -58,7 +70,11 @@ export default function TermsPage() {
         Subscriptions are billed through Stripe on a recurring basis (monthly or annually) at the
         prices shown on our pricing page, and renew automatically until cancelled. You can cancel at
         any time from your billing portal; cancellation stops future renewals and takes effect at the
-        end of the current billing period. Except where required by law, payments are non-refundable.
+        end of the current billing period. Refunds are governed by our{" "}
+        <Link href="/refunds" className="underline">
+          Refund Policy
+        </Link>
+        , which forms part of these Terms.
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Acceptable use</h2>

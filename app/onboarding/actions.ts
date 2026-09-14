@@ -449,15 +449,18 @@ export async function submitOnboarding(
   }
 
   if (input.races && input.races.length > 0) {
-    const { error: racesError } = await supabase
-      .from("races")
-      .insert(
-        input.races.map((r) => ({
-          program_id: program.id,
-          race_date: r.raceDate,
-          priority: r.priority,
-        })),
-      );
+    // `races` became `events` in 0047 — user-scoped, and able to hold a race
+    // with no program behind it. Rows written here are `source: "program"`,
+    // which is what makes them the only ones regeneration may delete below.
+    const { error: racesError } = await supabase.from("events").insert(
+      input.races.map((r) => ({
+        user_id: user.id,
+        program_id: program.id,
+        race_date: r.raceDate,
+        priority: r.priority,
+        source: "program",
+      })),
+    );
     if (racesError) return { error: racesError.message };
   }
 
@@ -558,18 +561,27 @@ export async function updateProgramInputs(
     .eq("id", programId);
   if (updateError) return { error: updateError.message };
 
-  // Replace the program's race rows with the edited set.
-  await supabase.from("races").delete().eq("program_id", programId);
+  // Replace the program's own race rows with the edited set.
+  //
+  // ⚠️ SCOPED TO `source = "program"`. Since 0047 an athlete's own events can be
+  // linked to a program, and an unscoped delete on program_id would take them
+  // with it — silently destroying a race they entered by hand because they
+  // regenerated the block built for it.
+  await supabase
+    .from("events")
+    .delete()
+    .eq("program_id", programId)
+    .eq("source", "program");
   if (input.races && input.races.length > 0) {
-    const { error: racesError } = await supabase
-      .from("races")
-      .insert(
-        input.races.map((r) => ({
-          program_id: programId,
-          race_date: r.raceDate,
-          priority: r.priority,
-        })),
-      );
+    const { error: racesError } = await supabase.from("events").insert(
+      input.races.map((r) => ({
+        user_id: user.id,
+        program_id: programId,
+        race_date: r.raceDate,
+        priority: r.priority,
+        source: "program",
+      })),
+    );
     if (racesError) return { error: racesError.message };
   }
 

@@ -3,9 +3,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/queries";
 import { hasTier } from "@/lib/subscription";
-import OnboardingForm from "./onboarding-form";
+import { getUserEvents } from "@/lib/supabase/queries";
+import OnboardingForm, { type EditInitial } from "./onboarding-form";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ eventId?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,6 +22,29 @@ export default async function OnboardingPage() {
   // it carries a one-line offer for anyone without the plan (Levi, 2026-09-11)
   // — but only an entitled athlete gets a grid they can author.
   const hasCustomTier = await hasTier("custom");
+
+  // "Build a program for this" on /events arrives here with an eventId. The form
+  // already takes an `initial` for edit mode, so prefill reuses that exact
+  // mechanism rather than adding a second one — `mode` stays "create", so this
+  // still submits through `submitOnboarding` and every field stays editable.
+  const params = await searchParams;
+  let prefill: EditInitial | undefined;
+  if (params.eventId) {
+    const event = (await getUserEvents()).find((e) => e.id === params.eventId);
+    if (event) {
+      const now = new Date();
+      prefill = {
+        sport: event.sport?.toLowerCase() || undefined,
+        programType: "goal_event",
+        // The form has its OWN local Race shape keyed on `date`, not the
+        // engine's `raceDate` (onboarding-form.tsx, ~line 528).
+        races: [{ date: event.race_date, priority: event.priority }],
+        durationWeeks: 12,
+        startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+        programName: event.name ?? "",
+      };
+    }
+  }
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-16">
@@ -34,7 +62,7 @@ export default async function OnboardingPage() {
           Exit to dashboard
         </Link>
       </div>
-      <OnboardingForm profile={profile} hasCustomTier={hasCustomTier} />
+      <OnboardingForm profile={profile} initial={prefill} hasCustomTier={hasCustomTier} />
     </main>
   );
 }

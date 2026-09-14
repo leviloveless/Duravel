@@ -10,17 +10,6 @@ const CredentialsSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-const SignUpSchema = z
-  .object({
-    email: z.string().email(),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
 const EmailSchema = z.object({ email: z.string().email() });
 
 const UpdatePasswordSchema = z
@@ -53,26 +42,16 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   redirect("/dashboard");
 }
 
-export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
-  const parsed = SignUpSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/confirm` },
-  });
-  if (error) return { error: error.message };
-
-  redirect("/login?checkEmail=1");
-}
+/**
+ * Account creation lives in `app/signup/actions.ts` as of 2026-09-13.
+ *
+ * The `signUp` action that used to sit here took an email and a password and
+ * nothing else. Leaving it exported once `/signup` shipped would have left a
+ * second, weaker door into the same table: a POST straight to it would create an
+ * account with no name, no date of birth — so no age gate — and no record of
+ * which policies were accepted or when. Deleted rather than deprecated, because
+ * a server action is reachable whether or not any page renders a form for it.
+ */
 
 /**
  * Step 1 of password reset: email the user a recovery link. The "Reset Password"

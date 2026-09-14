@@ -6,10 +6,12 @@ export const metadata: Metadata = {
   description: "How Duravel collects, uses, and protects your data.",
 };
 
-// NOTE (for Levi): this is a solid starting draft, not legal advice. Before the
-// App Store submission, confirm the support email and governing-law location and
-// have it reviewed by counsel.
-const SUPPORT_EMAIL = "support@duravel.app"; // TODO: confirm this is monitored
+// NOTE (for Levi): a starting draft, not legal advice — still worth counsel's
+// eyes before the App Store submission.
+//
+// ⚠️ SUPPORT_EMAIL IS STILL UNCONFIRMED — the same address and the same doubt as
+// `terms/page.tsx`. It is the last unverified value on either page.
+const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
 const ENTITY = "Duravel LLC"; // Texas LLC, doing business as "Duravel"
 const UPDATED = "July 18, 2026";
 
@@ -29,17 +31,30 @@ export default function PrivacyPage() {
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Information we collect</h2>
       <p>
-        <strong>Account information.</strong> Your email address and authentication details, used to
-        create and secure your account.
+        <strong>Account information.</strong> Your name, email address and authentication details,
+        used to create and secure your account. If you sign in with Google or Apple, we receive the
+        name and email address associated with that account and nothing else; we never receive your
+        password for those services.
+      </p>
+      <p>
+        <strong>Date of birth.</strong> Collected when you create an account. It confirms you meet
+        the minimum age in our Terms of Use, and your age sets your heart-rate zones and the
+        age-graded benchmark bands your projections are measured against.
+      </p>
+      <p>
+        <strong>Your acceptance of our policies.</strong> When you create an account we record that
+        you accepted the Terms of Use, Privacy Policy and Refund Policy, the time you did so, and
+        which published version of those documents was in force.
       </p>
       <p>
         <strong>Training profile and inputs.</strong> Details you provide to build your programs —
-        such as first name, age, body weight, experience levels, training days, race dates and goals,
-        and optional performance benchmarks (e.g. run, erg, and strength numbers).
+        such as your name, age, primary sport, body weight, experience levels, training days, race
+        dates and goals, and optional performance benchmarks (e.g. run, erg, and strength numbers).
       </p>
       <p>
-        <strong>Health-related metrics you provide or connect.</strong> Optional inputs such as
-        biological sex, resting heart rate, heart-rate variability, maximum and threshold heart rate,
+        <strong>Health-related metrics you provide or connect.</strong> Inputs such as biological
+        sex (asked when you create an account, and answerable as &ldquo;prefer not to say&rdquo;),
+        resting heart rate, heart-rate variability, maximum and threshold heart rate,
         session RPE, and logged workout details. Some of these may be entered by you directly, and
         some may be imported from a fitness service you choose to connect (see{" "}
         <em>Connected services &amp; wearables</em> below). You are never required to provide these;

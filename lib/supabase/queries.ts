@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { EventRow } from "@/lib/events/derive";
 
 /** Row shape from the `profiles` table (see supabase/migrations/0001_init.sql). */
 export type ProfileRow = {
@@ -43,6 +44,26 @@ export type ProfileRow = {
   /** IANA time zone from the browser (migration 0039). NULL until captured;
    *  every reader falls back to UTC. */
   timezone: string | null;
+  /** Surname, collected at signup (migration 0046). */
+  last_name: string | null;
+  /** Collected at signup (0046). The AUTHORITY for age — `age` above is derived
+   *  from it and goes stale; this does not. Also the 13+ gate. */
+  date_of_birth: string | null;
+  /** Sport chosen at signup (0046). Not the program's sport — that lives on the
+   *  program; this picks benchmark tables and defaults onboarding. */
+  primary_sport: string | null;
+  /** When the combined Terms/Privacy/Refund consent was given (0046), and which
+   *  published version it was. The pair a billing dispute turns on. */
+  terms_accepted_at: string | null;
+  terms_version: string | null;
+  /** Height in inches, from account setup (0046) — used by the height-dependent
+   *  station standards. */
+  height_in: number | null;
+  /** When the athlete finished or skipped `/setup` (0046). NULL means they have
+   *  not been through it, which is what the dashboard nudge reads. Nullable
+   *  rather than a false-defaulting boolean so "never saw it" and "skipped it"
+   *  stay distinguishable. */
+  setup_completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -148,6 +169,33 @@ export async function getProgramExtras(programId: string): Promise<ExtraWorkoutR
 }
 
 /** Row shape from `adaptations` (Phase 2 — supabase/migrations/0006). */
+/**
+ * Every race this athlete has recorded (migration 0047), soonest first.
+ *
+ * Read-own via RLS on `events.user_id`. Includes rows the generator wrote for a
+ * program (`source: "program"`) and rows the athlete entered by hand, because a
+ * season plan wants both — which one it came from is on the row.
+ */
+export async function getUserEvents(): Promise<EventRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, user_id, program_id, race_date, priority, name, sport, goal_time, notes, source")
+    .eq("user_id", user.id)
+    .order("race_date", { ascending: true });
+
+  // Swallowed rather than thrown: a deploy that lands before 0047 is applied
+  // would 400 on the unknown table, and an empty events card is a far better
+  // failure than a dashboard that will not render at all.
+  if (error) return [];
+  return (data as EventRow[] | null) ?? [];
+}
+
 export type AdaptationRow = {
   id: string;
   program_id: string;

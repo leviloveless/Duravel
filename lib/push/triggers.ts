@@ -8,7 +8,7 @@ import type { ProgramWeek, WorkoutLog } from "@/lib/schemas";
  * only decide "given this week + these logs, is a reminder warranted?".
  */
 
-/** getDay() index → training-day key. Matches components/dashboard/this-week-card. */
+/** getDay() index → training-day key. Matches components/dashboard/week-strip. */
 export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 /**

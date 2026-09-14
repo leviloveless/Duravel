@@ -13,11 +13,7 @@ import OnboardingForm, { type EditInitial } from "@/app/onboarding/onboarding-fo
  * used at onboarding. Saving rewrites the snapshot and regenerates the program
  * from the new inputs.
  */
-export default async function EditProgramPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const {
@@ -69,6 +65,17 @@ export default async function EditProgramPage({
     day_preferences: p.dayPreferences ?? null,
     equipment: p.equipment ?? null,
     current_days_per_week: p.currentDaysPerWeek ?? null,
+    // The 0046 signup/setup columns are NOT in a program snapshot and never will
+    // be: a snapshot records the answers that built THIS program, while a date of
+    // birth or a consent timestamp is a property of the account, not of a block.
+    // Null here means "do not pre-fill these from the snapshot", which is right.
+    last_name: null,
+    date_of_birth: null,
+    primary_sport: null,
+    terms_accepted_at: null,
+    terms_version: null,
+    height_in: null,
+    setup_completed_at: null,
     // The form re-reads the browser's zone on mount, so this is only what the
     // snapshot happened to carry (migration 0039).
     timezone: p.timezone ?? null,
@@ -91,7 +98,8 @@ export default async function EditProgramPage({
     startMileage: snap.startMileage,
     startCardioMinutes: snap.startCardioMinutes,
     weeklyHours: p.weeklyHours,
-    benchmarks: (p.benchmarks as Record<string, string | number | undefined> | undefined) ?? undefined,
+    benchmarks:
+      (p.benchmarks as Record<string, string | number | undefined> | undefined) ?? undefined,
     swimExp: (p as { swimExp?: string }).swimExp,
     bikeExp: (p as { bikeExp?: string }).bikeExp,
   };
@@ -102,7 +110,8 @@ export default async function EditProgramPage({
         <div>
           <h1 className="text-2xl font-semibold">Edit program inputs</h1>
           <p className="text-sm text-zinc-500">
-            Change any of your original answers, then save to recalculate the program from the new inputs.
+            Change any of your original answers, then save to recalculate the program from the new
+            inputs.
           </p>
         </div>
         <Link href={`/program/${id}`} className="text-sm underline">
@@ -110,8 +119,8 @@ export default async function EditProgramPage({
         </Link>
       </div>
       <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        Saving replaces the current sessions with a freshly generated program. Any logged workouts stay attached to their
-        week numbers.
+        Saving replaces the current sessions with a freshly generated program. Any logged workouts
+        stay attached to their week numbers.
       </p>
       <OnboardingForm
         profile={profileRow}

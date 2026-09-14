@@ -51,3 +51,4 @@ _phase3_draft/
 
 # scratch/trash dir — never compile or track
 _to_delete/
+*.patch
