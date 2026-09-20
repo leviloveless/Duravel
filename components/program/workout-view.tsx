@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@/lib/schemas";
+import { brickSegmentLine, type BrickTargets } from "@/lib/engine/brick-targets";
 import {
   LIFT_TYPE_LABEL,
   elementLine,
@@ -45,7 +46,7 @@ function sessionTitle(s: Session): string {
   }
 }
 
-function sessionItems(s: Session): string[] {
+function sessionItems(s: Session, targets?: BrickTargets): string[] {
   switch (s.kind) {
     case "run":
       return [runLine(s)];
@@ -59,10 +60,7 @@ function sessionItems(s: Session): string[] {
     case "hybrid":
       return s.elements.map(elementLine);
     case "brick":
-      return s.segments.map(
-        (seg) =>
-          `${cap(seg.discipline)} — ${Math.round(seg.durationMin)} min — Zone ${seg.goalZone}`,
-      );
+      return s.segments.map((seg) => brickSegmentLine(seg, targets));
     case "swim":
     case "bike":
     case "cardio":
@@ -93,14 +91,16 @@ function SessionBlock({
   day,
   sessionIndex,
   session,
+  targets,
 }: {
   programId: string;
   weekNumber: number;
   day: string;
   sessionIndex: number;
   session: Session;
+  targets?: BrickTargets;
 }) {
-  const items = sessionItems(session);
+  const items = sessionItems(session, targets);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [rpe, setRpe] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
@@ -217,11 +217,15 @@ export default function WorkoutView({
   weekNumber,
   day,
   sessions,
+  targets,
 }: {
   programId: string;
   weekNumber: number;
   day: string;
   sessions: Session[];
+  /** The athlete's FTP and training paces, so a brick's legs carry real targets
+   *  rather than a bare zone. Optional: absent simply drops the target. */
+  targets?: BrickTargets;
 }) {
   const native = useIsNative();
 
@@ -262,6 +266,7 @@ export default function WorkoutView({
           day={day}
           sessionIndex={si}
           session={s}
+          targets={targets}
         />
       ))}
     </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import type { ZoneBands } from "./format";
+import type { BrickTargets } from "@/lib/engine/brick-targets";
 import { currentWeekNumber } from "./format";
 import type { SyncSuggestion, SyncActivitySummary } from "@/lib/wearables/suggest-data";
 import PhaseTimeline from "./phase-timeline";
@@ -27,6 +28,15 @@ export interface ProgramMeta {
   zoneBands?: ZoneBands;
   /** Athlete first name for shareable result cards. */
   athleteName?: string;
+  /**
+   * FTP and training paces, so a brick's legs read as watts and a pace rather
+   * than as two bare zones (Levi, 2026-09-20).
+   *
+   * On `meta` rather than its own prop because it is a fact about the ATHLETE,
+   * like `maxHR` and `zoneBands` beside it, and it is resolved in exactly the
+   * same place and the same way they are.
+   */
+  brickTargets?: BrickTargets;
 }
 
 /** Phase 2 logging/adaptation state, assembled by the program page. */
@@ -193,6 +203,7 @@ export default function ProgramView({
               athleteName={meta.athleteName}
               programName={meta.name}
               stravaWriteEnabled={stravaWriteEnabled}
+              targets={meta.brickTargets}
               logging={
                 activity
                   ? {

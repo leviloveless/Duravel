@@ -421,6 +421,13 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                       maxHR,
                       zoneBands,
                       athleteName: snapshotProfile?.firstName ?? undefined,
+                      // Resolved here beside maxHR and zoneBands because it is
+                      // the same kind of fact and the same source. `runPaces` is
+                      // already computed above for the VDOT card.
+                      brickTargets: {
+                        ftpWatts: snapshotProfile?.benchmarks?.ftpWatts,
+                        paces: runPaces,
+                      },
                     }}
                     activity={activity}
                     stravaWriteEnabled={envFlag(env.STRAVA_WRITE_ENABLED)}

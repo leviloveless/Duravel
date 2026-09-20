@@ -1,4 +1,5 @@
 import type { Session } from "@/lib/schemas";
+import { brickSegmentLine, type BrickTargets } from "@/lib/engine/brick-targets";
 import {
   LIFT_TYPE_LABEL,
   elementLine,
@@ -33,7 +34,14 @@ function Tag({ kind }: { kind: Session["kind"] }) {
 }
 
 /** Renders one session in the spec §5 output format. */
-export default function SessionCard({ session }: { session: Session }) {
+export default function SessionCard({
+  session,
+  targets,
+}: {
+  session: Session;
+  /** FTP + training paces, for a brick's leg targets. */
+  targets?: BrickTargets;
+}) {
   if (session.kind === "run") {
     return (
       <div className="flex items-start gap-2">
@@ -159,8 +167,8 @@ export default function SessionCard({ session }: { session: Session }) {
           <p className="font-medium">Brick</p>
           <ul className="mt-0.5 flex flex-col gap-0.5">
             {session.segments.map((s, i) => (
-              <li key={i} className="capitalize text-zinc-700">
-                {s.discipline} — {Math.round(s.durationMin)} min — Zone {s.goalZone}
+              <li key={i} className="text-zinc-700">
+                {brickSegmentLine(s, targets)}
               </li>
             ))}
           </ul>

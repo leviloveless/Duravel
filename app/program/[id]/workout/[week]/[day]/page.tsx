@@ -1,7 +1,9 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { ProgramData } from "@/lib/schemas";
+import type { ProgramData, GenerationInput } from "@/lib/schemas";
+import { computePaces } from "@/lib/engine/paces";
+import type { BrickTargets } from "@/lib/engine/brick-targets";
 import WorkoutView from "@/components/program/workout-view";
 
 /**
@@ -24,7 +26,7 @@ export default async function WorkoutPage({
 
   const { data: program } = await supabase
     .from("programs")
-    .select("id, name, program_data")
+    .select("id, name, program_data, input_snapshot")
     .eq("id", id)
     .single();
   if (!program) notFound();
@@ -33,6 +35,17 @@ export default async function WorkoutPage({
   const weekNumber = Number(week);
   const w = data?.weeks.find((x) => x.weekNumber === weekNumber);
   const sessions = w?.days.find((d) => d.day === day)?.sessions ?? [];
+
+  // The athlete's own anchors, so a brick's legs read as watts and a pace rather
+  // than as two bare zones. Read from the program's stored inputs — the same
+  // place `/program/[id]` reads them — and computed at RENDER, so a program
+  // generated before this shipped gains its targets without regeneration.
+  const snapshot = program.input_snapshot as GenerationInput | null;
+  const bench = snapshot?.profile?.benchmarks;
+  const targets: BrickTargets = {
+    ftpWatts: bench?.ftpWatts,
+    paces: computePaces(bench ?? null),
+  };
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-6">
@@ -45,7 +58,13 @@ export default async function WorkoutPage({
         </span>
       </div>
       <h1 className="text-xl font-semibold tracking-tight">Workout view</h1>
-      <WorkoutView programId={id} weekNumber={weekNumber} day={day} sessions={sessions} />
+      <WorkoutView
+        programId={id}
+        weekNumber={weekNumber}
+        day={day}
+        sessions={sessions}
+        targets={targets}
+      />
     </main>
   );
 }

@@ -22,6 +22,7 @@ import {
   weekTimeByCategory,
 } from "@/lib/session-volume";
 import { hrTargetLines, withHrLines, stripHrLines } from "@/lib/engine/hr-targets";
+import { brickSegmentLine, type BrickTargets } from "@/lib/engine/brick-targets";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
 import {
   DAY_LABEL,
@@ -180,7 +181,15 @@ function formatProvider(provider: string): string {
 }
 
 /** The details cell content for a session (distance / movements / elements + how-to description). */
-function SessionDetail({ session, hr }: { session: Session; hr?: SessionHrModel }) {
+function SessionDetail({
+  session,
+  hr,
+  targets,
+}: {
+  session: Session;
+  hr?: SessionHrModel;
+  targets?: BrickTargets;
+}) {
   if (session.kind === "run") {
     // Show TOTAL on-feet distance (work + warmup/cooldown + between-rep recovery),
     // the same figure the weekly "Running mileage" sums to — so a run's headline
@@ -227,6 +236,38 @@ function SessionDetail({ session, hr }: { session: Session; hr?: SessionHrModel 
           </p>
         )}
       </div>
+    );
+  }
+  if (session.kind === "brick") {
+    // ⚠️ THIS BRANCH DID NOT EXIST. `SessionDetail` handled run / lift / hybrid /
+    // cardio and returned `null` for everything else, so on the main week view a
+    // brick showed its title and NOTHING ELSE — not the legs, not the durations,
+    // not the zones. The most race-specific session a triathlete does was the
+    // one you had to open a second page to see at all. Found while adding the
+    // targets Levi asked for, which is the usual way: the bug is next to the
+    // thing you were sent to change.
+    return (
+      <div className="flex flex-col gap-1">
+        <ul className="mt-0.5 flex flex-col gap-0.5 text-zinc-500">
+          {session.segments.map((seg, i) => (
+            <li key={i}>{brickSegmentLine(seg, targets)}</li>
+          ))}
+        </ul>
+        {session.description && (
+          <p className="max-w-md whitespace-pre-line leading-snug text-zinc-500">
+            {session.description}
+          </p>
+        )}
+      </div>
+    );
+  }
+  if (session.kind === "swim" || session.kind === "bike") {
+    // Same omission, one step less severe: a swim or a ride at least carries its
+    // duration in the row's own time column, but its zone lived nowhere.
+    return (
+      <span className="text-zinc-500">
+        {Math.round(session.durationMin)} min — Zone {session.goalZone}
+      </span>
     );
   }
   if (session.kind === "cardio") {
@@ -302,6 +343,7 @@ function MobileDayList({
   logging,
   athleteName,
   programName,
+  targets,
   stravaWriteEnabled,
   coach,
 }: {
@@ -316,6 +358,7 @@ function MobileDayList({
   /** Whether the Strava activity-write path is switched on (STRAVA_WRITE_ENABLED). */
   stravaWriteEnabled?: boolean;
   coach?: { programId: string };
+  targets?: BrickTargets;
 }) {
   const byDay = new Map(week.days.map((d) => [d.day, d.sessions]));
   const hr: SessionHrModel = { maxHR, bands: zoneBands ?? DEFAULT_ZONE_BANDS };
@@ -412,7 +455,7 @@ function MobileDayList({
                     </span>
                   </div>
                   <div className="mt-0.5 text-xs">
-                    <SessionDetail session={s} hr={hr} />
+                    <SessionDetail session={s} hr={hr} targets={targets} />
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
                     {sessionPace(s) !== "—" && <span>Pace {sessionPace(s)}</span>}
@@ -469,6 +512,7 @@ export default function WeekCard({
   programName,
   stravaWriteEnabled,
   coach,
+  targets,
 }: {
   week: ProgramWeek;
   startDate: string;
@@ -479,6 +523,9 @@ export default function WeekCard({
   programName?: string | null;
   stravaWriteEnabled?: boolean;
   coach?: { programId: string };
+  /** FTP + training paces, so a brick's legs carry watts and a pace. Computed at
+   *  RENDER from the athlete's live benchmarks, like the HR lines above. */
+  targets?: BrickTargets;
 }) {
   const colors = PHASE_COLORS[week.phase];
   const hr: SessionHrModel = { maxHR, bands: zoneBands ?? DEFAULT_ZONE_BANDS };
@@ -623,6 +670,7 @@ export default function WeekCard({
         programName={programName}
         stravaWriteEnabled={stravaWriteEnabled}
         coach={coach}
+        targets={targets}
       />
 
       {/* Desktop: Mon→Sun session table */}
@@ -725,7 +773,7 @@ export default function WeekCard({
                         {sessionTypeLabel(s)}
                       </span>
                       <div className="text-xs">
-                        <SessionDetail session={s} hr={hr} />
+                        <SessionDetail session={s} hr={hr} targets={targets} />
                       </div>
                       <PlannedVsActual
                         session={s}
