@@ -520,6 +520,25 @@ export const HYBRID_LEG_BUDGET_SHARE = 0.2;
 export const MIN_HYBRID_RUN_METERS = 500;
 
 /**
+ * The shortest leg THIS race may be prescribed.
+ *
+ * ⚠️ ALWAYS GO THROUGH THIS, NEVER `MIN_HYBRID_RUN_METERS` DIRECTLY. A floor of
+ * 500 m is only a floor for a race whose legs are at least 500 m. DEKA MILE's
+ * are **160 m**, so from the day the low-volume path shipped, a DEKA MILE
+ * athlete under 12 mi/week was prescribed 500 m legs — more than three times
+ * the race distance, on the one format whose entire identity is short sprints.
+ * The guard against under-racing was quietly enforcing over-racing, and it did
+ * it only to the lowest-volume athletes, who are least able to absorb it.
+ *
+ * A floor exists so a budget-squeezed session still rehearses something
+ * race-like. A floor ABOVE the race's own distance rehearses a different race,
+ * which is strictly worse than what the floor was protecting against.
+ */
+export function hybridRunFloor(interStationRunMeters: number): number {
+  return Math.min(MIN_HYBRID_RUN_METERS, interStationRunMeters);
+}
+
+/**
  * Threshold minutes a hybrid must carry before it may CREDIT the week's separate
  * threshold run (see `buildRunSlots`).
  *
@@ -559,6 +578,9 @@ export function hybridRunPlan(
   const cat = catalog ?? HYROX_CATALOG;
   const full = cat.interStationRunMeters;
   const dose = coupletsForThresholdDose(runningExp, thresholdSecPerMile, cat);
+  // Never above the race's own leg — see `hybridRunFloor`. This is the line that
+  // stops a 160 m DEKA MILE sprint being "floored" up to 500 m.
+  const floor = hybridRunFloor(full);
 
   // Station-only formats, and every athlete at or above the threshold, are
   // untouched — this is the no-op path that keeps existing programs identical.
@@ -576,19 +598,19 @@ export function hybridRunPlan(
     Math.max(1, hybridsInWeek);
   const perLeg = budgetMeters / dose;
 
-  if (perLeg >= MIN_HYBRID_RUN_METERS) {
+  if (perLeg >= floor) {
     // Round DOWN to a whole 100 m so the prescription reads like something a
     // human wrote, and never exceed the race's own distance.
     const rounded = Math.min(full, Math.floor(perLeg / 100) * 100);
-    return { runMeters: Math.max(MIN_HYBRID_RUN_METERS, rounded), couplets: dose };
+    return { runMeters: Math.max(floor, rounded), couplets: dose };
   }
 
   // Legs are already at the floor: shed couplets, but never below the minimum
   // that still resembles a race. Under that the week runs honestly over budget
   // rather than shipping a two-station "hybrid".
-  const affordable = Math.floor(budgetMeters / MIN_HYBRID_RUN_METERS);
+  const affordable = Math.floor(budgetMeters / floor);
   const couplets = Math.min(dose, Math.max(MIN_HYBRID_COUPLETS, affordable));
-  return { runMeters: MIN_HYBRID_RUN_METERS, couplets };
+  return { runMeters: floor, couplets };
 }
 
 /** Accumulated minutes at threshold a plan buys at this pace. */
