@@ -26,6 +26,8 @@ import {
   zoneMix,
 } from "@/lib/dashboard/derive";
 import {
+  AcwrChart,
+  AcwrWeeks,
   FitnessChart,
   HoursChart,
   StationBandChart,
@@ -43,6 +45,7 @@ import {
   FORM_BLURB,
   FORM_LABEL,
 } from "@/lib/dashboard/fitness";
+import { acwrSeries, weeklyAcwr, ACWR_BAND_LABEL, ACWR_BAND_BLURB } from "@/lib/dashboard/acwr";
 import TrialBanner from "@/components/trial-banner";
 import Walkthrough from "@/components/onboarding/walkthrough";
 import RenameProgram from "./rename-program";
@@ -218,6 +221,19 @@ export default async function DashboardPage() {
     const todayPoint = series[series.length - 1];
     const state = todayPoint ? formState(todayPoint) : null;
 
+    // ACWR from the SAME daily load the curves above are built from, so the four
+    // numbers on this page cannot disagree with each other (Levi, 2026-09-20).
+    // ⚠️ This is not the ACWR the adaptation engine acts on — that one is
+    // session-RPE based and lives in `lib/engine/load.ts`. See `acwr.ts`.
+    const acwrDaily = acwrSeries(load, weekStartISO(1), toISO(new Date(now)));
+    const acwrToday = [...acwrDaily].reverse().find((p) => p.acwr !== null) ?? null;
+    const acwrWeeks = weeklyAcwr(
+      load,
+      weekStartISO,
+      data.weeks.map((w) => w.weekNumber),
+      toISO(new Date(now)),
+    );
+
     // The countdown comes from the athlete's EVENTS first and falls back to the
     // block's own race week. Events are season-level and can name the race;
     // `raceDay` only knows there is one. When both exist the events card is what
@@ -337,6 +353,11 @@ export default async function DashboardPage() {
             foot={state ? FORM_LABEL[state] : "Log a few sessions to see this"}
           />
           <Tile
+            label="Load ratio"
+            value={acwrToday ? acwrToday.acwr!.toFixed(2) : "—"}
+            foot={acwrToday ? ACWR_BAND_LABEL[acwrToday.band!] : "Three weeks of logs to see this"}
+          />
+          <Tile
             label="Weakest station"
             value={weakest ? `${Math.round(weakest.position * 100)}` : "—"}
             unit={weakest ? "%" : undefined}
@@ -384,6 +405,26 @@ export default async function DashboardPage() {
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
               Duravel&rsquo;s own load units, not TSS — a sled push has no threshold pace to score
               against. The shape is what to read, not the absolute number.
+            </p>
+          </Card>
+        )}
+
+        {acwrToday && acwrDaily.filter((p) => p.acwr !== null).length > 1 && (
+          <Card title="Training load ratio" meta="Acute 7 days ÷ chronic 28 days">
+            <AcwrChart points={acwrDaily} />
+            <p className="bg-accent-wash mt-3 rounded-lg px-3 py-2.5 text-[13px] leading-relaxed text-zinc-700">
+              <b>{ACWR_BAND_LABEL[acwrToday.band!]}.</b> {ACWR_BAND_BLURB[acwrToday.band!]}
+            </p>
+            {acwrWeeks.length > 0 && (
+              <div className="mt-4">
+                <h3 className="mb-1 text-[11px] tracking-wide text-zinc-500 uppercase">By week</h3>
+                <AcwrWeeks weeks={acwrWeeks} />
+              </div>
+            )}
+            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+              Built from the same logged load as the curves above. It answers one question — is this
+              week bigger than what you are used to — and it needs three weeks of history before it
+              means anything.
             </p>
           </Card>
         )}

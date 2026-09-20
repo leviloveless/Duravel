@@ -39,6 +39,19 @@
   --color-goal-maxstrength: #8a42d2;
   --color-goal-maxpower: #c32c80;
 
+  /* STATUS set — state, not identity. Reserved: never reuse these for a series,
+     and never ship them without the state's NAME beside them. Four steps
+     because "under what you are adapted to" is its own answer and the one
+     athletes never hear, not merely the absence of a warning.
+     Validated 2026-09-20 against the light surface: lightness band, chroma
+     floor, adjacent CVD separation (worst 9.2 protan), normal-vision floor
+     (19.5) and 3:1 contrast all pass. Re-run the validator before changing a
+     hex — green/gold is the pair that fails, which is why caution is orange. */
+  --color-state-low: #2f62ce;
+  --color-state-good: #2f7d4f;
+  --color-state-caution: #c87f0a;
+  --color-state-high: #b3261e;
+
   /* HR zones 1-5 are a SEQUENTIAL ramp (one hue, light to dark), not a category
      set — they encode magnitude, and colouring them as seven unrelated hues is
      the single most common way a zone chart stops being readable. */
