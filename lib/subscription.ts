@@ -8,10 +8,40 @@ import { env, envFlag } from "@/lib/env";
  * through the normal RLS-scoped server client, so a user only ever sees their own
  * row.
  *
- * Free trial: every user gets a 14-day, no-card trial that starts when their
- * `profiles` row is created (onboarding). It's enforced here, app-side — there is
- * deliberately no Stripe trial, so the trial never requires a card. Entitlement is
- * therefore: billing off, OR a live subscription, OR still inside the trial window.
+ * Free trial: a 7-day trial that REQUIRES A CARD, run by Stripe
+ * (`trial_period_days` on the Checkout session) rather than by this file.
+ *
+ * ## What changed on 2026-09-20, and why
+ *
+ * It used to be a 14-day NO-CARD trial enforced here, app-side, starting when
+ * the `profiles` row was created. That is the opposite of what the numbers want.
+ * Opt-in trials convert at roughly 4-6%; opt-out (card-required) at 25-35% — and
+ * measured end to end, accounting for the smaller number of people willing to
+ * hand over a card, opt-out still produces about 2.9x more paying customers per
+ * thousand visitors. On Levi's pricing that is the difference between a ~$140
+ * cost per paying customer and a ~$48 one, which is the difference between
+ * being unable to advertise and being able to.
+ *
+ * Seven days rather than fourteen because a fortnight is a long time to forget
+ * you started something, and a forgotten trial becomes a surprise $19.99 and a
+ * Stripe dispute. The reminder emails matter more than the length.
+ *
+ * ## Where the card is asked for, which is the part that is easy to get wrong
+ *
+ * NOT at signup. The athlete signs up, onboards, and the engine builds them a
+ * real 16-week program; `gateProgramWeeks` then shows them the first
+ * `FREE_PREVIEW_WEEKS` of it and the paywall asks for the card. Contextual
+ * capture like that keeps roughly 3x more trial starts than asking upfront,
+ * because the ask lands after there is something worth paying for rather than
+ * against an empty form.
+ *
+ * ⚠️ That flow only works because the app-side trial is GONE. While
+ * `getEntitlement` handed every new profile a free window, a brand-new user was
+ * `entitled` and the paywall never fired — the gate existed and was unreachable.
+ * Deleting the app-side trial is what turns the paywall on, not any new code.
+ *
+ * Entitlement is therefore: billing off, OR a live subscription — where
+ * "live" includes Stripe's own `trialing`, which is what a carded trial is.
  */
 
 export type Plan = "monthly" | "annual";
@@ -51,8 +81,9 @@ export type SubscriptionRow = {
 
 const ENTITLED_STATUSES = new Set(["active", "trialing"]);
 
-/** Length of the no-card free trial, in days. */
-export const TRIAL_DAYS = 14;
+// The trial length lives in `billing-constants.ts` — see that file for why — and
+// is re-exported here so every existing `from "@/lib/subscription"` still works.
+export { TRIAL_DAYS } from "./billing-constants";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -82,32 +113,24 @@ export async function getSubscription(): Promise<SubscriptionRow | null> {
   return { ...row, tier: row.tier ?? "standard" } as SubscriptionRow;
 }
 
-/** True when the caller has a live subscription (active/trialing, not expired). */
-export async function hasActiveSubscription(): Promise<boolean> {
-  const sub = await getSubscription();
+/**
+ * Whether a subscription row is live — PURE, so it can be tested.
+ *
+ * `trialing` counts, which is the whole basis of the carded trial: Stripe holds
+ * the card, charges nothing until the trial ends, and reports `trialing` the
+ * entire time. An expired period does not count whatever the status says, which
+ * covers the window between a failed renewal and the webhook catching up.
+ */
+export function subscriptionIsLive(sub: SubscriptionRow | null, now: number = Date.now()): boolean {
   if (!sub) return false;
   if (!ENTITLED_STATUSES.has(sub.status)) return false;
-  if (sub.current_period_end && new Date(sub.current_period_end).getTime() < Date.now()) {
-    return false;
-  }
+  if (sub.current_period_end && new Date(sub.current_period_end).getTime() < now) return false;
   return true;
 }
 
-/** The signed-in user's trial start (profiles.trial_started_at), or null. */
-async function getTrialStartedAt(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data } = await supabase
-    .from("profiles")
-    .select("trial_started_at")
-    .eq("id", user.id)
-    .maybeSingle();
-  const started = (data as { trial_started_at?: string } | null)?.trial_started_at;
-  return started ?? null;
+/** True when the caller has a live subscription (active/trialing, not expired). */
+export async function hasActiveSubscription(): Promise<boolean> {
+  return subscriptionIsLive(await getSubscription());
 }
 
 export type EntitlementReason = "billing_off" | "subscription" | "trial" | "none";
@@ -136,13 +159,32 @@ export type Entitlement = {
  * Full entitlement status for the signed-in user. Drives both the server gate
  * (isEntitled) and trial UI (dashboard banner, pricing page):
  *
- *   billing off        → always entitled (pre-launch / testing)
- *   live subscription  → entitled
- *   inside trial        → entitled, with days remaining
- *   trial ended / none  → not entitled
+ *   billing off             → always entitled (pre-launch / testing)
+ *   active subscription     → entitled
+ *   Stripe `trialing`       → entitled, with days remaining
+ *   no subscription at all  → NOT entitled, and this is the common case
+ *
+ * ⚠️ THE LAST LINE IS THE WHOLE FEATURE. A freshly onboarded athlete with no
+ * card on file is not entitled, so `gateProgramWeeks` truncates their program to
+ * the preview and the paywall asks for a card. Reinstating any app-side grace
+ * window here silently disables the paywall everywhere — that is exactly what
+ * the old 14-day no-card trial did.
  */
-export async function getEntitlement(): Promise<Entitlement> {
-  if (!billingEnabled) {
+/**
+ * Entitlement from a subscription row — PURE, so it can actually be tested.
+ *
+ * Separated from `getEntitlement` on 2026-09-20 because this function decides
+ * whether an athlete can see the program they paid for, and until then it was
+ * reachable only through two Supabase round-trips and was therefore covered by
+ * no test whatsoever. Getting it wrong in one direction gives the product away;
+ * in the other it locks out someone who is paying.
+ */
+export function entitlementFor(
+  sub: SubscriptionRow | null,
+  opts: { billingEnabled: boolean; now?: number },
+): Entitlement {
+  const now = opts.now ?? Date.now();
+  if (!opts.billingEnabled) {
     return {
       entitled: true,
       reason: "billing_off",
@@ -151,40 +193,43 @@ export async function getEntitlement(): Promise<Entitlement> {
       trialDaysLeft: null,
     };
   }
-  const sub = await getSubscription();
-  if (await hasActiveSubscription()) {
+
+  // A carded trial IS a live subscription to Stripe and to this app — `trialing`
+  // is in ENTITLED_STATUSES. The only thing that sets it apart for the UI is the
+  // countdown, and that comes off `current_period_end`: during a trial Stripe
+  // sets the period end TO the trial end, so there is no second date to keep in
+  // step with anything.
+  const trialing = sub?.status === "trialing";
+  const trialEndsAt = trialing ? (sub?.current_period_end ?? null) : null;
+
+  if (subscriptionIsLive(sub, now)) {
     return {
       entitled: true,
-      reason: "subscription",
+      reason: trialing ? "trial" : "subscription",
       tier: sub?.tier ?? "standard",
-      trialEndsAt: null,
-      trialDaysLeft: null,
+      trialEndsAt,
+      trialDaysLeft: trialEndsAt
+        ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - now) / DAY_MS))
+        : null,
     };
   }
-  const startedAt = await getTrialStartedAt();
-  if (startedAt) {
-    const endMs = new Date(startedAt).getTime() + TRIAL_DAYS * DAY_MS;
-    const msLeft = endMs - Date.now();
-    const trialEndsAt = new Date(endMs).toISOString();
-    if (msLeft > 0) {
-      return {
-        entitled: true,
-        reason: "trial",
-        tier: "standard",
-        trialEndsAt,
-        trialDaysLeft: Math.ceil(msLeft / DAY_MS),
-      };
-    }
-    return { entitled: false, reason: "none", tier: "standard", trialEndsAt, trialDaysLeft: 0 };
-  }
-  // No profile yet (hasn't onboarded) → nothing to gate here.
+
+  // Everyone else: onboarded but never carded, or a subscription that lapsed.
+  // Both see the preview and the paywall, and that is the INTENDED state rather
+  // than an edge case — see the note on `getEntitlement` below.
   return {
     entitled: false,
     reason: "none",
     tier: "standard",
-    trialEndsAt: null,
-    trialDaysLeft: null,
+    trialEndsAt,
+    trialDaysLeft: trialEndsAt ? 0 : null,
   };
+}
+
+export async function getEntitlement(): Promise<Entitlement> {
+  // One round-trip, not two: this used to call `getSubscription()` and then
+  // `hasActiveSubscription()`, which fetched the same row again.
+  return entitlementFor(billingEnabled ? await getSubscription() : null, { billingEnabled });
 }
 
 /**

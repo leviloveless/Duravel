@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TRIAL_DAYS } from "@/lib/billing-constants";
 import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import type { ZoneBands } from "./format";
 import type { BrickTargets } from "@/lib/engine/brick-targets";
@@ -227,19 +228,32 @@ export default function ProgramView({
                 🔒
               </span>
               <h2 className="text-lg font-semibold">
-                {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"} in this plan
+                {lock.lockedWeeks} more {lock.lockedWeeks === 1 ? "week" : "weeks"}, built and
+                waiting
               </h2>
+              {/* The ask is a TRIAL, not a purchase, and the copy has to say so.
+                  This panel is where the card is captured (2026-09-20) — it is
+                  the first thing an athlete sees after the engine has built them
+                  a real program, which is the whole reason the card is asked for
+                  here rather than at signup. "Subscribe" framing at the moment
+                  of highest interest converts worse than "start your trial" for
+                  the same billing outcome. */}
               <p className="max-w-md text-sm text-zinc-600">
-                You&rsquo;re viewing the first {program.weeks.length} weeks. Subscribe to unlock the
-                full periodized program — every week through race day, plus weekly adaptation and
-                readiness.
+                Your full {program.weeks.length + lock.lockedWeeks}-week program is already
+                periodized through race day. You&rsquo;re seeing the first {program.weeks.length}.
+                Start your {TRIAL_DAYS}-day free trial to open the rest — plus weekly adaptation
+                that rebuilds it around what you actually train.
               </p>
               <Link
                 href="/pricing"
                 className="mt-1 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
               >
-                Unlock the full program
+                Start your {TRIAL_DAYS}-day free trial
               </Link>
+              <p className="text-xs text-zinc-500">
+                Card required. Cancel any time in the first {TRIAL_DAYS} days and you won&rsquo;t be
+                charged.
+              </p>
             </section>
           ) : undefined
         }

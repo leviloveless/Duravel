@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
 import type { Plan } from "@/lib/subscription";
+import { TRIAL_DAYS } from "@/lib/billing-constants";
 
 /**
  * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" }
@@ -101,7 +102,20 @@ export async function POST(request: Request) {
       ? { customer: existing.stripe_customer_id }
       : { customer_email: user.email ?? undefined }),
     client_reference_id: user.id,
-    subscription_data: { metadata: { user_id: user.id } },
+    // The trial lives in STRIPE, not in the app (see `lib/subscription.ts`).
+    // Checkout in subscription mode collects a card regardless, so adding the
+    // trial here is what makes it a card-required trial rather than a free
+    // window anyone can take: the card is captured now, nothing is charged for
+    // TRIAL_DAYS, and Stripe bills automatically at the end unless they cancel.
+    //
+    // `trial_settings` tells Stripe what to do when the trial ends with no
+    // usable payment method — cancel rather than leave a dangling unpaid
+    // subscription that reads as entitled.
+    subscription_data: {
+      metadata: { user_id: user.id },
+      trial_period_days: TRIAL_DAYS,
+      trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+    },
     metadata: { user_id: user.id, plan: selection },
     allow_promotion_codes: true,
     success_url: `${origin}/dashboard?checkout=success`,
