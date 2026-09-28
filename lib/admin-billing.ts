@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { env } from "@/lib/env";
 import { getStripe } from "@/lib/stripe";
+import { stripeCustomerExists } from "@/lib/stripe-customer";
 
 /**
  * Stripe, from the admin side (2026-09-27).
@@ -107,7 +108,9 @@ export async function customerIdsFor(
   recordedCustomerId: string | null,
 ): Promise<string[]> {
   const ids = new Set<string>();
-  if (recordedCustomerId) ids.add(recordedCustomerId);
+  if (recordedCustomerId && (await stripeCustomerExists(stripe, recordedCustomerId))) {
+    ids.add(recordedCustomerId);
+  }
   if (email) {
     for (const e of new Set([email, email.toLowerCase()])) {
       const list = await stripe.customers.list({ email: e, limit: 10 });

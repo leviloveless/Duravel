@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { stripeCustomerExists } from "@/lib/stripe-customer";
 import { env } from "@/lib/env";
 import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
 import type { Plan } from "@/lib/subscription";
@@ -95,12 +96,18 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const stripe = getStripe();
+  // A customer id recorded under the OTHER Stripe mode (the July test pass) does
+  // not exist under this key, and passing it fails the whole checkout. Fall back
+  // to the email so the athlete can still subscribe.
+  const reuseCustomer =
+    existing?.stripe_customer_id &&
+    (await stripeCustomerExists(stripe, existing.stripe_customer_id))
+      ? existing.stripe_customer_id
+      : null;
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
-    ...(existing?.stripe_customer_id
-      ? { customer: existing.stripe_customer_id }
-      : { customer_email: user.email ?? undefined }),
+    ...(reuseCustomer ? { customer: reuseCustomer } : { customer_email: user.email ?? undefined }),
     client_reference_id: user.id,
     // The trial lives in STRIPE, not in the app (see `lib/subscription.ts`).
     // Checkout in subscription mode collects a card regardless, so adding the

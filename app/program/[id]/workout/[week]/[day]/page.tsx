@@ -1,6 +1,8 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getAdmin } from "@/lib/admin";
 import type { ProgramData, GenerationInput } from "@/lib/schemas";
 import { computePaces } from "@/lib/engine/paces";
 import type { BrickTargets } from "@/lib/engine/brick-targets";
@@ -24,11 +26,21 @@ export default async function WorkoutPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: program } = await supabase
+  const COLUMNS = "id, name, program_data, input_snapshot";
+  const { data: ownProgram } = await supabase
     .from("programs")
-    .select("id, name, program_data, input_snapshot")
+    .select(COLUMNS)
     .eq("id", id)
-    .single();
+    .maybeSingle();
+  // The admin's preview of an athlete's program links here too; RLS hides
+  // other athletes' programs, so the administrator reads it with the service
+  // role (see the note in ../../../page.tsx). Read only.
+  let program = ownProgram;
+  if (!program && (await getAdmin())) {
+    const adminDb = createAdminClient();
+    const { data } = await adminDb.from("programs").select(COLUMNS).eq("id", id).maybeSingle();
+    program = data;
+  }
   if (!program) notFound();
 
   const data = program.program_data as ProgramData | null;

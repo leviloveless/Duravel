@@ -1807,7 +1807,6 @@ export default function OnboardingForm({
                 <input
                   name={name}
                   type="text"
-                  inputMode="numeric"
                   placeholder={paceUnit === "km" ? "5:15" : "8:30"}
                   defaultValue={benchDefault(name)}
                   className={inputClass}

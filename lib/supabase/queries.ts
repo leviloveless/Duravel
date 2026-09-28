@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type { EventRow } from "@/lib/events/derive";
 
@@ -107,11 +108,16 @@ export type WorkoutLogRow = {
   updated_at: string;
 };
 
-export async function getProgramLogs(programId: string): Promise<WorkoutLogRow[]> {
-  const supabase = await createClient();
+export async function getProgramLogs(
+  programId: string,
+  client?: SupabaseClient,
+): Promise<WorkoutLogRow[]> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("workout_logs")
-    .select("id, program_id, week_number, day, session_index, status, rpe, actuals, note, actual_day, logged_at, updated_at")
+    .select(
+      "id, program_id, week_number, day, session_index, status, rpe, actuals, note, actual_day, logged_at, updated_at",
+    )
     .eq("program_id", programId)
     .order("week_number", { ascending: true });
   return (data as WorkoutLogRow[] | null) ?? [];
@@ -151,8 +157,11 @@ const EXTRA_COLUMNS =
  * extras silently VANISHING from the program page — not as an error anyone could
  * read. Migrations here are applied by hand, so that window is real.
  */
-export async function getProgramExtras(programId: string): Promise<ExtraWorkoutRow[]> {
-  const supabase = await createClient();
+export async function getProgramExtras(
+  programId: string,
+  client?: SupabaseClient,
+): Promise<ExtraWorkoutRow[]> {
+  const supabase = client ?? (await createClient());
   const withStrava = await supabase
     .from("extra_workouts")
     .select(`${EXTRA_COLUMNS}, strava_activity_id`)
@@ -208,11 +217,16 @@ export type AdaptationRow = {
   created_at: string;
 };
 
-export async function getProgramAdaptations(programId: string): Promise<AdaptationRow[]> {
-  const supabase = await createClient();
+export async function getProgramAdaptations(
+  programId: string,
+  client?: SupabaseClient,
+): Promise<AdaptationRow[]> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("adaptations")
-    .select("id, program_id, week_number, target_week, decision, rule_applied, signals, revised_targets, created_at")
+    .select(
+      "id, program_id, week_number, target_week, decision, rule_applied, signals, revised_targets, created_at",
+    )
     .eq("program_id", programId)
     .order("week_number", { ascending: true });
   return (data as AdaptationRow[] | null) ?? [];
@@ -245,8 +259,11 @@ export type ReadinessCheckinRow = {
 };
 
 /** All readiness check-ins for a program (Review #7). */
-export async function getProgramReadiness(programId: string): Promise<ReadinessCheckinRow[]> {
-  const supabase = await createClient();
+export async function getProgramReadiness(
+  programId: string,
+  client?: SupabaseClient,
+): Promise<ReadinessCheckinRow[]> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("readiness_checkins")
     .select("week_number, sleep, fatigue, stress, soreness, resting_hr, hrv")
@@ -262,16 +279,23 @@ export type DailyMetricRow = {
 };
 
 /** All daily resting-HR/HRV rows for the signed-in user (Tasks addition #7). */
-export async function getDailyMetrics(): Promise<DailyMetricRow[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function getDailyMetrics(forUser?: {
+  client: SupabaseClient;
+  userId: string;
+}): Promise<DailyMetricRow[]> {
+  const supabase = forUser?.client ?? (await createClient());
+  let userId = forUser?.userId;
+  if (!userId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+    userId = user.id;
+  }
   const { data } = await supabase
     .from("daily_metrics")
     .select("date, resting_hr, hrv")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("date", { ascending: true });
   return (data as DailyMetricRow[] | null) ?? [];
 }

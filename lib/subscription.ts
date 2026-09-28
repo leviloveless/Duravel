@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { env, envFlag } from "@/lib/env";
 
@@ -339,6 +340,36 @@ export async function getEntitlement(): Promise<Entitlement> {
   // `hasActiveSubscription()`, which fetched the same row again.
   if (!billingEnabled) return entitlementFor(null, { billingEnabled });
   const [sub, override] = await Promise.all([getSubscription(), getOwnOverride()]);
+  return entitlementFor(sub, { billingEnabled, override });
+}
+
+/**
+ * The entitlement of ANOTHER account (2026-09-28), for the admin's "view as the
+ * athlete sees it". Same rules as `getEntitlement`, but the two rows are read
+ * through the client passed in — the service-role client there, because RLS
+ * shows each athlete only their own rows. Never call this with a user-scoped
+ * client for someone else: it would read nothing and report "no access".
+ */
+export async function getEntitlementFor(
+  client: SupabaseClient,
+  userId: string,
+): Promise<Entitlement> {
+  if (!billingEnabled) return entitlementFor(null, { billingEnabled });
+  const [subRes, overrideRes] = await Promise.all([
+    client
+      .from("subscriptions")
+      .select("status, plan, tier, price_id, current_period_end, cancel_at_period_end")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    client
+      .from("entitlement_overrides")
+      .select("access, grant_tier, grant_expires_at")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+  const row = subRes.data as Partial<SubscriptionRow> | null;
+  const sub = row ? ({ ...row, tier: row.tier ?? "standard" } as SubscriptionRow) : null;
+  const override = overrideRes.error ? null : ((overrideRes.data as AccessOverride | null) ?? null);
   return entitlementFor(sub, { billingEnabled, override });
 }
 

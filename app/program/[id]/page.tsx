@@ -1,7 +1,9 @@
 import { env, envFlag } from "@/lib/env";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdmin } from "@/lib/admin";
 import type { ProgramData, WorkoutLog } from "@/lib/schemas";
 import {
@@ -43,9 +45,9 @@ import WeekSummaryTable from "@/components/program/week-summary-table";
 import GuardrailCard from "@/components/program/guardrail-card";
 import { analyzeGuardrails } from "@/lib/engine/guardrails";
 import type { SportId, WeeklyHoursBand } from "@/lib/schemas";
-import { getProgramSyncData } from "@/lib/wearables/suggest-data";
+import { getProgramSyncData, type ProgramSyncData } from "@/lib/wearables/suggest-data";
 import { getConnectionStatuses } from "@/lib/wearables/connections";
-import { getEntitlement } from "@/lib/subscription";
+import { getEntitlement, getEntitlementFor } from "@/lib/subscription";
 import { gateProgramWeeks } from "@/lib/program-access";
 import ProgramGlossary from "@/components/program/program-glossary";
 import CoachingNotesView, { type CoachNote } from "@/components/program/coaching-notes-view";
@@ -107,6 +109,39 @@ function elapsedWeeks(startDate: string): number {
   return Math.max(0, Math.floor((Date.now() - wk1.getTime()) / MS_PER_WEEK));
 }
 
+const NO_SYNC_DATA: ProgramSyncData = {
+  suggestions: [],
+  linkableActivities: [],
+  linkedBySession: {},
+};
+
+/** The strip across the top of an admin preview, so it is never mistaken for the admin's own program. */
+function PreviewBanner({
+  programId,
+  athleteName,
+  lockedWeeks,
+}: {
+  programId: string;
+  athleteName: string | null;
+  lockedWeeks: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p>
+        <span className="font-semibold">Admin preview</span> — {athleteName ?? "This athlete"}
+        &apos;s program as they see it.
+        {lockedWeeks > 0
+          ? ` ${lockedWeeks} week${lockedWeeks === 1 ? " is" : "s are"} locked for them (no active plan).`
+          : ""}{" "}
+        Check-in forms and sync are hidden here.
+      </p>
+      <Link href={`/admin/program/${programId}`} className="font-medium underline">
+        Back to admin
+      </Link>
+    </div>
+  );
+}
+
 export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -116,13 +151,42 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: program } = await supabase
+  const PROGRAM_COLUMNS =
+    "id, user_id, name, status, duration_weeks, program_type, start_date, program_data, input_snapshot";
+  const { data: ownProgram } = await supabase
     .from("programs")
-    .select(
-      "id, name, status, duration_weeks, program_type, start_date, program_data, input_snapshot",
-    )
+    .select(PROGRAM_COLUMNS)
     .eq("id", id)
-    .single();
+    .maybeSingle();
+
+  // "View as the athlete sees it" (2026-09-28). RLS shows each athlete only
+  // their own programs, so for anyone else's program the query above finds
+  // nothing — which is why the admin's link to an athlete's program always
+  // answered "Program not found". For the administrator only (getAdmin: the
+  // allowlist, a confirmed email and 2FA), the program and the athlete's own
+  // rows are read with the service-role client instead, and the page renders in
+  // PREVIEW: reads only. Nothing on this page writes as the athlete — the stuck-
+  // generation repair, the weekly check-in and daily HR forms, and the sync
+  // control are all left out, because the signed-in user is the admin and those
+  // would act on the admin's account, not the athlete's.
+  let program = ownProgram;
+  let db: SupabaseClient = supabase;
+  let ownerId: string = user.id;
+  let preview = false;
+  if (!program && isCoach) {
+    const adminDb = createAdminClient();
+    const { data: anyProgram } = await adminDb
+      .from("programs")
+      .select(PROGRAM_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (anyProgram) {
+      program = anyProgram;
+      db = adminDb;
+      ownerId = (anyProgram as { user_id: string }).user_id;
+      preview = true;
+    }
+  }
 
   if (!program) {
     return (
@@ -147,7 +211,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   // longer ago than the stuck threshold, mark it failed so the view offers a
   // retry instead of spinning forever.
   let status = program.status;
-  if (status === "generating") {
+  if (status === "generating" && !preview) {
     const { data: lastEvent } = await supabase
       .from("generation_events")
       .select("created_at")
@@ -252,15 +316,15 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       connectionStatuses,
       profileRow,
     ] = await Promise.all([
-      getProgramLogs(program.id),
-      getProgramAdaptations(program.id),
-      getProgramReadiness(program.id),
-      getProgramSyncData(program.id),
-      getDailyMetrics(),
-      getEntitlement(),
-      getProgramExtras(program.id),
-      getConnectionStatuses(user.id),
-      supabase.from("profiles").select("timezone").eq("id", user.id).maybeSingle(),
+      getProgramLogs(program.id, preview ? db : undefined),
+      getProgramAdaptations(program.id, preview ? db : undefined),
+      getProgramReadiness(program.id, preview ? db : undefined),
+      preview ? Promise.resolve(NO_SYNC_DATA) : getProgramSyncData(program.id),
+      getDailyMetrics(preview ? { client: db, userId: ownerId } : undefined),
+      preview ? getEntitlementFor(db, ownerId) : getEntitlement(),
+      getProgramExtras(program.id, preview ? db : undefined),
+      getConnectionStatuses(ownerId),
+      db.from("profiles").select("timezone, first_name").eq("id", ownerId).maybeSingle(),
     ]);
 
     // Header "Sync workouts" control: how many API sources are connected, and
@@ -270,8 +334,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     // INSTANT, and formatting an instant with the ambient zone renders one
     // string on the server and another in the browser — which is what threw
     // React #418 on every load of this page until 2026-08-13. See `formatInstant`.
-    const timeZone = ((profileRow?.data as { timezone?: string | null } | null)?.timezone ??
-      null) as string | null;
+    const ownerProfile = profileRow?.data as {
+      timezone?: string | null;
+      first_name?: string | null;
+    } | null;
+    const timeZone = (ownerProfile?.timezone ?? null) as string | null;
     const connected = connectionStatuses.filter((s) => s.connected);
     const lastSyncAt = connected
       .map((s) => s.last_sync_at)
@@ -284,7 +351,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     const gate = gateProgramWeeks(data, entitlement.entitled);
 
     // Coaching notes (#15/#16) — the athlete reads their own via RLS.
-    const { data: coachNotesData } = await supabase
+    const { data: coachNotesData } = await db
       .from("coaching_notes")
       .select("id, body, created_at")
       .eq("program_id", program.id)
@@ -315,10 +382,10 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     if (sport === "hyrox" && projection && projection.perEvent.length > 0) {
       const kWeek = Math.min(elapsed, program.duration_weeks);
       const adherence = computeAdherence(data, logs, kWeek).overall.completionRate;
-      const { data: curProfile } = await supabase
+      const { data: curProfile } = await db
         .from("profiles")
         .select("benchmarks")
-        .eq("id", user.id)
+        .eq("id", ownerId)
         .maybeSingle();
       const curBench = (curProfile?.benchmarks ?? null) as Record<
         string,
@@ -396,6 +463,13 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
 
     return (
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+        {preview ? (
+          <PreviewBanner
+            programId={program.id}
+            athleteName={ownerProfile?.first_name ?? snapshotProfile?.firstName ?? null}
+            lockedWeeks={gate.previewing ? gate.lockedWeeks : 0}
+          />
+        ) : null}
         <div>
           <span className="inline-block rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
             {sportLabel}
@@ -430,13 +504,17 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                       },
                     }}
                     activity={activity}
-                    stravaWriteEnabled={envFlag(env.STRAVA_WRITE_ENABLED)}
+                    stravaWriteEnabled={!preview && envFlag(env.STRAVA_WRITE_ENABLED)}
                     suggestions={syncData.suggestions}
-                    sync={{
-                      connectedCount: connected.length,
-                      lastSync: lastSyncAt ?? null,
-                      timeZone,
-                    }}
+                    sync={
+                      preview
+                        ? undefined
+                        : {
+                            connectedCount: connected.length,
+                            lastSync: lastSyncAt ?? null,
+                            timeZone,
+                          }
+                    }
                     linking={{
                       linkableActivities: syncData.linkableActivities,
                       linkedBySession: syncData.linkedBySession,
@@ -488,25 +566,29 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     content: <VdotCard paces={runPaces} manual={manualPaces} />,
                   }
                 : null,
-              {
-                id: "readiness",
-                // "Weekly check-in" / "Daily HR/HRV" — the tab labels now say the
-                // CADENCE, which is what made the two feel duplicative (Levi,
-                // 2026-08-05). "Readiness" named neither when nor how often.
-                label: "Weekly check-in",
-                content: (
-                  <ReadinessForm
-                    programId={program.id}
-                    weekNumber={readinessWeek}
-                    existing={existingReadiness}
-                  />
-                ),
-              },
-              {
-                id: "daily",
-                label: "Daily HR/HRV",
-                content: <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />,
-              },
+              preview
+                ? null
+                : {
+                    id: "readiness",
+                    // "Weekly check-in" / "Daily HR/HRV" — the tab labels now say the
+                    // CADENCE, which is what made the two feel duplicative (Levi,
+                    // 2026-08-05). "Readiness" named neither when nor how often.
+                    label: "Weekly check-in",
+                    content: (
+                      <ReadinessForm
+                        programId={program.id}
+                        weekNumber={readinessWeek}
+                        existing={existingReadiness}
+                      />
+                    ),
+                  },
+              preview
+                ? null
+                : {
+                    id: "daily",
+                    label: "Daily HR/HRV",
+                    content: <DailyMetricsForm today={new Date().toISOString().slice(0, 10)} />,
+                  },
               {
                 id: "summary",
                 label: "Weekly summary",
@@ -549,10 +631,17 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         {sportLabel} · {program.duration_weeks}-week {program.program_type.replace("_", " ")}{" "}
         program.
       </p>
-      <GenerateTrigger
-        programId={program.id}
-        initialStatus={status === "failed" ? "failed" : "generating"}
-      />
+      {preview ? (
+        <p className="text-sm text-zinc-600">
+          Admin preview: this program is <span className="font-medium">{status}</span>. It builds
+          when the athlete opens it — generating from here would run as your account.
+        </p>
+      ) : (
+        <GenerateTrigger
+          programId={program.id}
+          initialStatus={status === "failed" ? "failed" : "generating"}
+        />
+      )}
     </main>
   );
 }
