@@ -1,0 +1,105 @@
+<!doctype html>
+<!--
+  The iPhone app's offline screen (2026-09-28). Bundled into the app; shown only
+  when https://duravel.app cannot be reached (capacitor.config.ts → errorPath).
+  Self-contained on purpose: nothing here can depend on the network.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Duravel</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #f1f3f6;
+        color: #101218;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      }
+      .wrap {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .mark {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: #0b0b0f;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 30px;
+        letter-spacing: -0.02em;
+        margin-bottom: 24px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      p {
+        margin: 0 0 28px;
+        max-width: 290px;
+        font-size: 15px;
+        line-height: 1.5;
+        color: #5b6472;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 13px 32px;
+        background: #00747e;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      button:active {
+        background: #00949f;
+      }
+      .status {
+        margin-top: 16px;
+        min-height: 18px;
+        font-size: 13px;
+        color: #8a93a1;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="mark" aria-hidden="true">D</div>
+      <h1>Can't reach Duravel</h1>
+      <p>Check your connection. Your program is safe — it will be here when you're back online.</p>
+      <button id="retry" type="button">Try again</button>
+      <div class="status" id="status" role="status"></div>
+    </main>
+    <script>
+      (function () {
+        var HOME = "https://duravel.app/dashboard";
+        var status = document.getElementById("status");
+        function retry() {
+          status.textContent = "Connecting…";
+          window.location.replace(HOME);
+        }
+        document.getElementById("retry").addEventListener("click", retry);
+        // Recover by itself when the connection comes back.
+        window.addEventListener("online", retry);
+      })();
+    </script>
+  </body>
+</html>

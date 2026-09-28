@@ -21,6 +21,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "~0.110.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
     "@react-email/components": "1.0.12",
     "@react-email/render": "2.1.0",
     "@supabase/ssr": "^0.12.0",
@@ -35,6 +38,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

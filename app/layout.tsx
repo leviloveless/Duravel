@@ -4,6 +4,7 @@ import "./globals.css";
 import NavBar from "@/components/nav-bar";
 import SiteFooter from "@/components/site-footer";
 import TimezoneSync from "@/components/timezone-sync";
+import NativeBridge from "@/components/native/native-bridge";
 
 /**
  * Three faces, each with a job (2026-09-13).
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col font-sans">
         <NavBar />
         <TimezoneSync />
+        <NativeBridge />
         <div className="flex-1">{children}</div>
         <SiteFooter />
       </body>

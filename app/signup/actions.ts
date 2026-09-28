@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { appAuthRedirect } from "@/lib/native/deep-link";
 import {
   TERMS_VERSION,
   isSignupSex,
@@ -125,11 +126,11 @@ export async function signUpAthlete(_prev: SignUpState, formData: FormData): Pro
  * an open blocker. Both are wired here; only enable in Supabase what is actually
  * configured, or the button returns a provider error.
  */
-async function startOAuth(provider: "google" | "apple"): Promise<never> {
+async function startOAuth(provider: "google" | "apple", next: string): Promise<never> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: await authRedirectUrl("/setup") },
+    options: { redirectTo: await authRedirectUrl(next) },
   });
   if (error || !data?.url) {
     redirect(`/signup?error=${provider}`);
@@ -137,10 +138,47 @@ async function startOAuth(provider: "google" | "apple"): Promise<never> {
   redirect(data.url);
 }
 
-export async function signUpWithGoogle(): Promise<never> {
-  return startOAuth("google");
+/**
+ * Where to land afterwards: `/setup` from the signup page (a new account), the
+ * dashboard from sign-in (2026-09-28). Only these two — the value comes from a
+ * hidden field, and an open redirect through the auth flow is the last thing
+ * this should become.
+ */
+function oauthNext(form?: FormData): string {
+  return form?.get("next") === "/dashboard" ? "/dashboard" : "/setup";
 }
 
-export async function signUpWithApple(): Promise<never> {
-  return startOAuth("apple");
+export async function signUpWithGoogle(form?: FormData): Promise<never> {
+  return startOAuth("google", oauthNext(form));
+}
+
+export async function signUpWithApple(form?: FormData): Promise<never> {
+  return startOAuth("apple", oauthNext(form));
+}
+
+/**
+ * The same sign-in, started from the iPhone app (2026-09-28). Returns the
+ * provider's URL instead of redirecting, because the app opens it in an in-app
+ * Safari sheet — Google refuses to sign in inside a web view — and asks Supabase
+ * to come back to `duravel://auth/confirm`, which the app turns into
+ * /auth/confirm in its web view (lib/native/deep-link.ts).
+ *
+ * The PKCE verifier cookie this call sets lands in the web view, which is exactly
+ * where /auth/confirm will look for it.
+ */
+export async function oauthUrlForApp(
+  provider: "google" | "apple",
+  next: string,
+): Promise<{ url: string } | { error: string }> {
+  if (provider !== "google" && provider !== "apple") return { error: "Unknown provider." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: appAuthRedirect(next === "/dashboard" ? "/dashboard" : "/setup"),
+      skipBrowserRedirect: true,
+    },
+  });
+  if (error || !data?.url) return { error: "That sign-in isn't available right now." };
+  return { url: data.url };
 }

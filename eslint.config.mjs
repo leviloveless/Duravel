@@ -12,7 +12,7 @@ const eslintConfig = [
   {
     // Apple/ holds iOS integration drafts that are copied into the Capacitor
     // project, not compiled here.
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts", "Apple/**"],
+    ignores: [".next/**", "node_modules/**", "next-env.d.ts", "Apple/**", "ios/**"],
   },
   {
     // The codebase marks deliberately unused parameters with a leading "_"

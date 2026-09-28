@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { signIn, type AuthState } from "./actions";
+import OAuthButtons from "@/components/auth/oauth-buttons";
 
 const initialState: AuthState = { error: null };
 
@@ -25,6 +26,14 @@ export default function LoginForm({ checkEmail }: { checkEmail: boolean }) {
           Check your email for a confirmation link before signing in.
         </p>
       )}
+
+      <OAuthButtons next="/dashboard" />
+
+      <div className="flex items-center gap-3 text-xs text-zinc-400">
+        <span className="h-px flex-1 bg-zinc-200" />
+        or sign in with email
+        <span className="h-px flex-1 bg-zinc-200" />
+      </div>
 
       <form action={formAction} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
