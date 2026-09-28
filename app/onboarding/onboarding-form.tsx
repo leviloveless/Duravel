@@ -3,9 +3,9 @@
 import {
   startTransition,
   useActionState,
-  useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
@@ -216,7 +216,6 @@ function DayPills({
               onChange={() => {
                 if (!blocked) onToggle(d.key);
               }}
-              aria-pressed={on}
               className="sr-only"
             />
             {d.label}
@@ -563,6 +562,16 @@ export type EditInitial = {
 const inputClass =
   "rounded-md border border-zinc-300 px-3 py-2 focus:border-black focus:outline-none";
 
+const noSubscribe = () => () => {};
+
+function readBrowserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+  } catch {
+    return ""; // no Intl zone available — the server falls back to UTC
+  }
+}
+
 export default function OnboardingForm({
   profile,
   mode = "create",
@@ -626,17 +635,10 @@ export default function OnboardingForm({
   const offeredBands = BUDGET_BANDS.filter((b) => bandAllowedForSport(sportCfg, b.value));
   const bandOffered = offeredBands.some((b) => b.value === weeklyHours);
 
-  // Read AFTER mount, not in the initializer: `Intl` resolves to UTC on the
-  // server, and a server/client mismatch on a rendered value is a hydration
-  // error. Empty until mount, which is fine — submit is a click away.
-  const [browserTimeZone, setBrowserTimeZone] = useState("");
-  useEffect(() => {
-    try {
-      setBrowserTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
-    } catch {
-      /* no Intl zone available — the server falls back to UTC */
-    }
-  }, []);
+  // The browser's zone, never the server's: `Intl` resolves to UTC on the
+  // server, so the server snapshot is "" and hydration swaps in the real zone
+  // without a mismatch. Nothing to subscribe to — a zone does not change mid-form.
+  const browserTimeZone = useSyncExternalStore(noSubscribe, readBrowserTimeZone, () => "");
 
   const [days, setDays] = useState<string[]>(profile?.training_days ?? []);
 

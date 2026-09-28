@@ -35,9 +35,18 @@ const GENERATE_TIMEOUT_MS = 65_000;
 
 function Spinner() {
   return (
-    <svg className="h-4 w-4 animate-spin text-zinc-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      className="h-4 w-4 animate-spin text-zinc-500"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   );
 }
@@ -60,7 +69,6 @@ export default function GenerateTrigger({
   // Advance the staged progress message on a timer while running.
   useEffect(() => {
     if (!running) return;
-    setStage(PROGRESS_STAGES[0]!.label);
     const start = Date.now();
     const id = setInterval(() => {
       const elapsed = Date.now() - start;
@@ -71,6 +79,7 @@ export default function GenerateTrigger({
   }, [running]);
 
   async function run() {
+    setStage(PROGRESS_STAGES[0]!.label);
     setRunning(true);
     setError(null);
     setRateLimited(false);
@@ -101,7 +110,9 @@ export default function GenerateTrigger({
       }
       if (res.status === 429) {
         setRateLimited(true);
-        setError(data?.message ?? "You've reached today's generation limit. Please try again later.");
+        setError(
+          data?.message ?? "You've reached today's generation limit. Please try again later.",
+        );
         setRunning(false);
         return;
       }
@@ -139,12 +150,16 @@ export default function GenerateTrigger({
           <Spinner />
           <div className="flex flex-col">
             <p className="text-sm text-zinc-700">{stage}</p>
-            <p className="text-xs text-zinc-400">This usually takes up to a minute — no need to refresh.</p>
+            <p className="text-xs text-zinc-400">
+              This usually takes up to a minute — no need to refresh.
+            </p>
           </div>
         </div>
       ) : error ? (
         <>
-          <p className={`text-sm ${rateLimited ? "text-amber-700" : paymentRequired ? "text-zinc-700" : "text-red-600"}`}>
+          <p
+            className={`text-sm ${rateLimited ? "text-amber-700" : paymentRequired ? "text-zinc-700" : "text-red-600"}`}
+          >
             {error}
           </p>
           {paymentRequired ? (

@@ -828,7 +828,7 @@ function fitTriSlotsToTarget(
   // Per-slot rounding can leave the week a minute or two OVER, which is enough to
   // push it past the band ceiling the caller sized against. Never round upward
   // out of the athlete's budget: shave the excess off the longest session.
-  let excess = cardio.reduce((a, s) => a + slotTotalMinutes(s), 0) - totalMin;
+  const excess = cardio.reduce((a, s) => a + slotTotalMinutes(s), 0) - totalMin;
   if (excess > 0) {
     const longest = cardio.reduce((a, b) => (slotTotalMinutes(b) > slotTotalMinutes(a) ? b : a));
     scaleSlot(longest, Math.max(10, slotTotalMinutes(longest) - excess));

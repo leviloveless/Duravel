@@ -55,14 +55,17 @@ export default function SessionTracker({
   weeks,
   logs,
   startDate,
+  nowMs,
 }: {
   weeks: ProgramData["weeks"];
   logs: WorkoutLog[];
   startDate: string;
+  /** The request's "now", read once by the page, so every card agrees on it. */
+  nowMs: number;
 }) {
   const logMap = new Map<string, WorkoutLog>();
   for (const l of logs) logMap.set(`${l.weekNumber}:${l.day}:${l.sessionIndex}`, l);
-  const now = Date.now();
+  const now = nowMs;
 
   let total = 0;
   let done = 0;
@@ -78,7 +81,11 @@ export default function SessionTracker({
         let status: Status;
         if (log) {
           status =
-            log.status === "completed" ? "completed" : log.status === "partial" ? "partial" : "skipped";
+            log.status === "completed"
+              ? "completed"
+              : log.status === "partial"
+                ? "partial"
+                : "skipped";
           if (log.status === "completed" || log.status === "partial") done++;
         } else {
           const d = weekStartDate(startDate, w.weekNumber);
@@ -114,12 +121,18 @@ export default function SessionTracker({
           <span className="text-sm text-zinc-500">completed</span>
         </div>
         <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#0f766e" }} />
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${pct}%`, backgroundColor: "#0f766e" }}
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
           {(Object.keys(STATUS_STYLE) as Status[]).map((k) => (
             <span key={k} className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_STYLE[k].bg }} />
+              <span
+                className="h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: STATUS_STYLE[k].bg }}
+              />
               {STATUS_STYLE[k].label}
             </span>
           ))}

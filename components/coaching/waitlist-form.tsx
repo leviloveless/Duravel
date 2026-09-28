@@ -37,9 +37,10 @@ export default function WaitlistForm({
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
         <p className="text-2xl">✅</p>
-        <h3 className="mt-2 text-lg font-semibold text-emerald-900">You're on the list</h3>
+        <h3 className="mt-2 text-lg font-semibold text-emerald-900">You&apos;re on the list</h3>
         <p className="mt-1 text-sm text-emerald-800">
-          Thanks — I review every application personally and will reach out by email if it's a fit.
+          Thanks — I review every application personally and will reach out by email if it&apos;s a
+          fit.
         </p>
       </div>
     );
@@ -105,7 +106,9 @@ export default function WaitlistForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </span>
       {children}
     </label>
   );

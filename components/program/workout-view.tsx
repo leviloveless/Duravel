@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Session } from "@/lib/schemas";
 import { brickSegmentLine, type BrickTargets } from "@/lib/engine/brick-targets";
@@ -72,15 +72,18 @@ function sessionItems(s: Session, targets?: BrickTargets): string[] {
   }
 }
 
+const noSubscribe = () => () => {};
+
+function readIsNative(): boolean {
+  const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+  const native = !!w.Capacitor?.isNativePlatform?.();
+  const preview = new URLSearchParams(window.location.search).has("preview");
+  return native || preview;
+}
+
+/** In the native app (or `?preview` on the web). False on the server. */
 function useIsNative(): boolean {
-  const [ok, setOk] = useState(false);
-  useEffect(() => {
-    const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
-    const native = !!w.Capacitor?.isNativePlatform?.();
-    const preview = new URLSearchParams(window.location.search).has("preview");
-    setOk(native || preview);
-  }, []);
-  return ok;
+  return useSyncExternalStore(noSubscribe, readIsNative, () => false);
 }
 
 const RPE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

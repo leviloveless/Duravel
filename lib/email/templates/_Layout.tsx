@@ -11,6 +11,8 @@ import {
 } from '@react-email/components';
 import type { ReactNode } from 'react';
 import type { FooterLink } from './types';
+import { env } from '@/lib/env';
+import { footerAddress } from '../postal';
 import {
   MAILING_ADDRESS,
   bodySection,
@@ -60,7 +62,7 @@ export function Layout({ preview, footnote, footerLinks, address, children }: La
             <Text style={footerText}>
               {footnote}
               <br />
-              Duravel &middot; {address ?? MAILING_ADDRESS}
+              Duravel &middot; {address ?? footerAddress(env.EMAIL_POSTAL_ADDRESS, MAILING_ADDRESS)}
               {footerLinks.map((link) => (
                 <span key={link.href}>
                   {' '}

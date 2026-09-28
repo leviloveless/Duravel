@@ -10,7 +10,24 @@ const eslintConfig = [
   ...nextCoreWebVitals,
   ...nextTypeScript,
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts"],
+    // Apple/ holds iOS integration drafts that are copied into the Capacitor
+    // project, not compiled here.
+    ignores: [".next/**", "node_modules/**", "next-env.d.ts", "Apple/**"],
+  },
+  {
+    // The codebase marks deliberately unused parameters with a leading "_"
+    // (stub signatures, positional callbacks). Honour that convention.
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
+    },
   },
 ];
 

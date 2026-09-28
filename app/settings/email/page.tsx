@@ -11,9 +11,21 @@ import { updateEmailPreferences } from "./actions";
 export const dynamic = "force-dynamic";
 
 const CATEGORIES: { key: string; title: string; desc: string }[] = [
-  { key: "onboarding", title: "Onboarding", desc: "Getting-started nudges while you set up your first plan." },
-  { key: "weekly_summary", title: "Weekly summary", desc: "Your week's training recap and what's next." },
-  { key: "race", title: "Race reminders", desc: "Countdowns and taper reminders for your goal race." },
+  {
+    key: "onboarding",
+    title: "Onboarding",
+    desc: "Getting-started nudges while you set up your first plan.",
+  },
+  {
+    key: "weekly_summary",
+    title: "Weekly summary",
+    desc: "Your week's training recap and what's next.",
+  },
+  {
+    key: "race",
+    title: "Race reminders",
+    desc: "Countdowns and taper reminders for your goal race.",
+  },
   { key: "milestone", title: "Milestones", desc: "Personal bests and progress milestones." },
   { key: "winback", title: "Win-back", desc: "Occasional check-ins if you drift away." },
   { key: "engagement", title: "Engagement", desc: "Tips and prompts to get more out of Duravel." },
@@ -74,7 +86,7 @@ export default async function EmailPreferencesPage() {
           <span className="flex flex-col">
             <span className="font-medium">Unsubscribe from all lifecycle emails</span>
             <span className="text-sm text-zinc-500">
-              Turns off every optional email above. You'll still get billing and receipts.
+              Turns off every optional email above. You&apos;ll still get billing and receipts.
             </span>
           </span>
           <input
@@ -94,7 +106,7 @@ export default async function EmailPreferencesPage() {
       </form>
 
       <p className="text-xs text-zinc-400">
-        Billing and account emails (receipts, trial reminders) are transactional and can't be
+        Billing and account emails (receipts, trial reminders) are transactional and can&apos;t be
         turned off here.
       </p>
 

@@ -179,7 +179,7 @@ describe("A race taper (2 weeks, -30%/-30%)", () => {
   const base = {
     mileage: new Array(D).fill(flat),
     cardioMinutes: new Array(D).fill(400),
-    microLabels: new Array(D).fill("rebound") as any,
+    microLabels: new Array(D).fill("rebound") as Parameters<typeof applyTapers>[0]["microLabels"],
   };
   const res = applyTapers(base, [{ weekNumber: 20, priority: "A" }]);
 
@@ -199,7 +199,7 @@ describe("B race taper (1 week, -40%)", () => {
   const base = {
     mileage: new Array(D).fill(30),
     cardioMinutes: new Array(D).fill(300),
-    microLabels: new Array(D).fill("rebound") as any,
+    microLabels: new Array(D).fill("rebound") as Parameters<typeof applyTapers>[0]["microLabels"],
   };
   const res = applyTapers(base, [{ weekNumber: 12, priority: "B" }]);
   it("reduces the race week by 40% and labels it race", () => {
@@ -213,7 +213,7 @@ describe("multi-race taper (mid-program B, resume, end A)", () => {
   const base = {
     mileage: new Array(D).fill(40),
     cardioMinutes: new Array(D).fill(400),
-    microLabels: new Array(D).fill("increase") as any,
+    microLabels: new Array(D).fill("increase") as Parameters<typeof applyTapers>[0]["microLabels"],
   };
   const res = applyTapers(base, [
     { weekNumber: 10, priority: "B" },
@@ -240,7 +240,7 @@ describe("C race trains through (no taper, no volume cut)", () => {
   const base = {
     mileage: new Array(D).fill(40),
     cardioMinutes: new Array(D).fill(400),
-    microLabels: new Array(D).fill("increase") as any,
+    microLabels: new Array(D).fill("increase") as Parameters<typeof applyTapers>[0]["microLabels"],
   };
   const res = applyTapers(base, [{ weekNumber: 12, priority: "C" }]);
   it("leaves the race week's volume and label unchanged", () => {

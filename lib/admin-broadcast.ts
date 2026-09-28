@@ -90,14 +90,8 @@ export function sendConfirmationMatches(typed: string, recipients: number): bool
   return typed.trim() !== "" && Number(typed.trim().replace(/,/g, "")) === recipients;
 }
 
-/**
- * The postal address for the footer, or null when none is set. Anything shorter
- * than a plausible address is treated as unset rather than printed.
- */
-export function postalAddressFrom(raw: string | null | undefined): string | null {
-  const s = (raw ?? "").trim().replace(/\s+/g, " ");
-  return s.length >= 10 ? s : null;
-}
+/** The postal-address rule lives with the email footer; re-exported for the admin. */
+export { postalAddressFrom } from "@/lib/email/postal";
 
 /** Idempotency key: one send per athlete per broadcast, so a second click resumes. */
 export function broadcastKey(broadcastId: string, userId: string): string {

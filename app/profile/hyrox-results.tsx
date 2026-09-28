@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import HyroxLookup from "@/components/onboarding/hyrox-lookup";
 import { saveHyroxResults, type HyroxSaveState } from "./actions";
 
@@ -49,16 +49,20 @@ const RACE_TYPE_LABEL: Record<string, string> = {
  * to their profile. Saved splits then pre-fill every future program's onboarding.
  */
 export default function HyroxResults({ saved }: { saved: SavedHyrox }) {
-  const [state, formAction, pending] = useActionState(saveHyroxResults, initialState);
   const [open, setOpen] = useState(false);
+  // Collapse back to the summary once a save succeeds (the server re-renders with
+  // the freshly saved values). Done in the action itself rather than in an
+  // effect watching its result, so it is one render, not two.
+  const [state, formAction, pending] = useActionState(
+    async (prev: Parameters<typeof saveHyroxResults>[0], fd: FormData) => {
+      const next = await saveHyroxResults(prev, fd);
+      if (next.saved) setOpen(false);
+      return next;
+    },
+    initialState,
+  );
   const raceTypeRef = useRef<HTMLSelectElement | null>(null);
   const splitRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  // Collapse back to the summary once a save succeeds (the server re-renders with
-  // the freshly saved values).
-  useEffect(() => {
-    if (state.saved) setOpen(false);
-  }, [state.saved]);
 
   const savedSplits = SPLIT_INPUTS.filter((s) => saved[s.name]);
   const hasSaved = savedSplits.length > 0 || !!saved.hyroxRaceType;

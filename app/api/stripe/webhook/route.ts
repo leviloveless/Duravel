@@ -201,7 +201,6 @@ async function handleInvoicePaid(stripe: Stripe, invoice: Stripe.Invoice): Promi
             ? "Duravel Monthly"
             : "Duravel";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const periodEndUnix: number | null =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (item as any)?.current_period_end ??

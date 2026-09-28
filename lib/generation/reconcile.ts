@@ -2078,7 +2078,7 @@ function anchorLongRun(days: ProgramDay[], ctx: AnchorContext): void {
       .filter((r) => total(r) > total(long) - LONG_RUN_MARGIN)
       .sort((a, b) => total(b) - total(a))[0];
     if (!over) break;
-    let freed = takeFrom(over, anchorStep(over));
+    const freed = takeFrom(over, anchorStep(over));
     if (freed <= 0.001) {
       // The offender is at its own floor: its reps cannot come down any further
       // without dropping under the session minimum. Fund the long run from

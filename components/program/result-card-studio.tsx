@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import ResultCard, {
   RACE_LABELS,
@@ -158,25 +158,33 @@ export interface ResultCardStudioProps {
   initial?: Partial<CardData>;
 }
 
+const noSubscribe = () => () => {};
+
+let fileShareSupport: boolean | undefined;
+/** Probed once per page load and cached, so the snapshot stays stable. */
+function detectFileShare(): boolean {
+  if (fileShareSupport === undefined) {
+    try {
+      const probe = new File([new Blob()], "probe.png", { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d?: { files?: File[] }) => boolean };
+      fileShareSupport = typeof nav.canShare === "function" && nav.canShare({ files: [probe] });
+    } catch {
+      fileShareSupport = false;
+    }
+  }
+  return fileShareSupport;
+}
+
 export default function ResultCardStudio({ open, onClose, initial }: ResultCardStudioProps) {
   const [type, setType] = useState<CardType>(initial?.type ?? "race");
   const [format, setFormat] = useState<CardFormat>("story");
   const [fields, setFields] = useState<StudioFields>(() => seedFields(initial));
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [canShareFiles, setCanShareFiles] = useState(false);
-
-  // Detect Web Share w/ files (mobile Safari/Chrome) so we can offer a native
-  // share sheet — the real growth-loop action — with download as the fallback.
-  useEffect(() => {
-    try {
-      const probe = new File([new Blob()], "probe.png", { type: "image/png" });
-      const nav = navigator as Navigator & { canShare?: (d?: { files?: File[] }) => boolean };
-      setCanShareFiles(typeof nav.canShare === "function" && nav.canShare({ files: [probe] }));
-    } catch {
-      setCanShareFiles(false);
-    }
-  }, []);
+  // Web Share with files (mobile Safari/Chrome) lets us offer a native share
+  // sheet — the real growth-loop action — with download as the fallback.
+  // False on the server; hydration swaps in the real answer.
+  const canShareFiles = useSyncExternalStore(noSubscribe, detectFileShare, () => false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -381,7 +389,9 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
 
           {/* Type toggle */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Card type</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Card type
+            </p>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               {TYPE_OPTIONS.map((o) => (
                 <button
@@ -403,7 +413,9 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
 
           {/* Format toggle */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Format</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Format
+            </p>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               {FORMAT_OPTIONS.map((o) => (
                 <button
@@ -427,15 +439,35 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
           <div className="flex flex-col gap-3">
             {type === "race" && (
               <>
-                <TextField label="Athlete" value={fields.athlete} onChange={(v) => upd("athlete", v)} />
+                <TextField
+                  label="Athlete"
+                  value={fields.athlete}
+                  onChange={(v) => upd("athlete", v)}
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <TextField label="Event" value={fields.event} onChange={(v) => upd("event", v)} />
-                  <TextField label="Division" value={fields.division} onChange={(v) => upd("division", v)} />
+                  <TextField
+                    label="Division"
+                    value={fields.division}
+                    onChange={(v) => upd("division", v)}
+                  />
                 </div>
-                <TextField label="Total time" value={fields.total} onChange={(v) => upd("total", v)} />
+                <TextField
+                  label="Total time"
+                  value={fields.total}
+                  onChange={(v) => upd("total", v)}
+                />
                 <div className="grid grid-cols-2 gap-2">
-                  <TextField label="Division rank" value={fields.rankDiv} onChange={(v) => upd("rankDiv", v)} />
-                  <TextField label="Overall rank" value={fields.rankOverall} onChange={(v) => upd("rankOverall", v)} />
+                  <TextField
+                    label="Division rank"
+                    value={fields.rankDiv}
+                    onChange={(v) => upd("rankDiv", v)}
+                  />
+                  <TextField
+                    label="Overall rank"
+                    value={fields.rankOverall}
+                    onChange={(v) => upd("rankOverall", v)}
+                  />
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -459,40 +491,112 @@ export default function ResultCardStudio({ open, onClose, initial }: ResultCardS
 
             {type === "session" && (
               <>
-                <TextField label="Athlete" value={fields.athlete} onChange={(v) => upd("athlete", v)} />
-                <TextField label="Session type" value={fields.sessType} onChange={(v) => upd("sessType", v)} />
-                <TextField label="Main set" value={fields.sessMain} onChange={(v) => upd("sessMain", v)} />
+                <TextField
+                  label="Athlete"
+                  value={fields.athlete}
+                  onChange={(v) => upd("athlete", v)}
+                />
+                <TextField
+                  label="Session type"
+                  value={fields.sessType}
+                  onChange={(v) => upd("sessType", v)}
+                />
+                <TextField
+                  label="Main set"
+                  value={fields.sessMain}
+                  onChange={(v) => upd("sessMain", v)}
+                />
                 <div className="grid grid-cols-2 gap-2">
-                  <TextField label="Volume" value={fields.sessVol} onChange={(v) => upd("sessVol", v)} />
-                  <TextField label="Time" value={fields.sessTime} onChange={(v) => upd("sessTime", v)} />
+                  <TextField
+                    label="Volume"
+                    value={fields.sessVol}
+                    onChange={(v) => upd("sessVol", v)}
+                  />
+                  <TextField
+                    label="Time"
+                    value={fields.sessTime}
+                    onChange={(v) => upd("sessTime", v)}
+                  />
                 </div>
-                <TextField label="Heart rate" value={fields.sessHr} onChange={(v) => upd("sessHr", v)} />
-                <TextField label="Coach note" value={fields.coachNote} onChange={(v) => upd("coachNote", v)} />
+                <TextField
+                  label="Heart rate"
+                  value={fields.sessHr}
+                  onChange={(v) => upd("sessHr", v)}
+                />
+                <TextField
+                  label="Coach note"
+                  value={fields.coachNote}
+                  onChange={(v) => upd("coachNote", v)}
+                />
               </>
             )}
 
             {type === "pr" && (
               <>
-                <TextField label="Athlete" value={fields.athlete} onChange={(v) => upd("athlete", v)} />
-                <TextField label="PR title" value={fields.prTitle} onChange={(v) => upd("prTitle", v)} />
+                <TextField
+                  label="Athlete"
+                  value={fields.athlete}
+                  onChange={(v) => upd("athlete", v)}
+                />
+                <TextField
+                  label="PR title"
+                  value={fields.prTitle}
+                  onChange={(v) => upd("prTitle", v)}
+                />
                 <div className="grid grid-cols-2 gap-2">
-                  <TextField label="New value" value={fields.prValue} onChange={(v) => upd("prValue", v)} />
-                  <TextField label="Improvement" value={fields.prDelta} onChange={(v) => upd("prDelta", v)} />
+                  <TextField
+                    label="New value"
+                    value={fields.prValue}
+                    onChange={(v) => upd("prValue", v)}
+                  />
+                  <TextField
+                    label="Improvement"
+                    value={fields.prDelta}
+                    onChange={(v) => upd("prDelta", v)}
+                  />
                 </div>
-                <TextField label="Context" value={fields.prContext} onChange={(v) => upd("prContext", v)} />
+                <TextField
+                  label="Context"
+                  value={fields.prContext}
+                  onChange={(v) => upd("prContext", v)}
+                />
               </>
             )}
 
             {type === "program" && (
               <>
-                <TextField label="Athlete" value={fields.athlete} onChange={(v) => upd("athlete", v)} />
-                <TextField label="Badge title" value={fields.progTitle} onChange={(v) => upd("progTitle", v)} />
-                <TextField label="Program name" value={fields.progName} onChange={(v) => upd("progName", v)} />
+                <TextField
+                  label="Athlete"
+                  value={fields.athlete}
+                  onChange={(v) => upd("athlete", v)}
+                />
+                <TextField
+                  label="Badge title"
+                  value={fields.progTitle}
+                  onChange={(v) => upd("progTitle", v)}
+                />
+                <TextField
+                  label="Program name"
+                  value={fields.progName}
+                  onChange={(v) => upd("progName", v)}
+                />
                 <div className="grid grid-cols-2 gap-2">
-                  <TextField label="Sessions done" value={fields.progStat1} onChange={(v) => upd("progStat1", v)} />
-                  <TextField label="Fitness gain" value={fields.progStat2} onChange={(v) => upd("progStat2", v)} />
+                  <TextField
+                    label="Sessions done"
+                    value={fields.progStat1}
+                    onChange={(v) => upd("progStat1", v)}
+                  />
+                  <TextField
+                    label="Fitness gain"
+                    value={fields.progStat2}
+                    onChange={(v) => upd("progStat2", v)}
+                  />
                 </div>
-                <TextField label="Note" value={fields.progNote} onChange={(v) => upd("progNote", v)} />
+                <TextField
+                  label="Note"
+                  value={fields.progNote}
+                  onChange={(v) => upd("progNote", v)}
+                />
               </>
             )}
           </div>
@@ -544,7 +648,9 @@ function TextField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

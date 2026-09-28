@@ -109,6 +109,15 @@ function elapsedWeeks(startDate: string): number {
   return Math.max(0, Math.floor((Date.now() - wk1.getTime()) / MS_PER_WEEK));
 }
 
+/**
+ * The current time, read once per request. A server component renders once per
+ * request, so "now" is part of the request; reading it once keeps the stuck-
+ * generation check and the tracker's missed/upcoming split on the same instant.
+ */
+function requestNow(): number {
+  return Date.now();
+}
+
 const NO_SYNC_DATA: ProgramSyncData = {
   suggestions: [],
   linkableActivities: [],
@@ -144,6 +153,7 @@ function PreviewBanner({
 
 export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const requestNowMs = requestNow();
   const supabase = await createClient();
   const isCoach = !!(await getAdmin());
   const {
@@ -220,7 +230,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       .limit(1)
       .maybeSingle();
     const startedMs = lastEvent ? new Date(lastEvent.created_at).getTime() : null;
-    if (startedMs !== null && Date.now() - startedMs > STUCK_GENERATION_MS) {
+    if (startedMs !== null && requestNowMs - startedMs > STUCK_GENERATION_MS) {
       await supabase
         .from("programs")
         .update({ status: "failed" })
@@ -530,6 +540,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                 label: "Tracker",
                 content: (
                   <SessionTracker
+                    nowMs={requestNowMs}
                     weeks={gate.program.weeks}
                     logs={logs}
                     startDate={program.start_date}

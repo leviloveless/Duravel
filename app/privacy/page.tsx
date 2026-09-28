@@ -9,9 +9,8 @@ export const metadata: Metadata = {
 // NOTE (for Levi): a starting draft, not legal advice — still worth counsel's
 // eyes before the App Store submission.
 //
-// ⚠️ SUPPORT_EMAIL IS STILL UNCONFIRMED — the same address and the same doubt as
-// `terms/page.tsx`. It is the last unverified value on either page.
-const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
+// SUPPORT_EMAIL: the mailbox exists (created 2026-09-27); same address as /terms and /refunds.
+const SUPPORT_EMAIL = "support@duravel.app";
 const ENTITY = "Duravel LLC"; // Texas LLC, doing business as "Duravel"
 const UPDATED = "July 18, 2026";
 

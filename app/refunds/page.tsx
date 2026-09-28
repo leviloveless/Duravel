@@ -12,9 +12,8 @@ export const metadata: Metadata = {
 // disclosure and cancellation-flow obligations that bite on a monthly plan sold
 // to US consumers, and the Texas governing-law tie-in should match the Terms.
 //
-// ⚠️ SUPPORT_EMAIL carries the same doubt as /terms and /privacy: nobody has
-// confirmed it receives mail, and this is now the THIRD page pointing at it.
-const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
+// SUPPORT_EMAIL: the mailbox exists (created 2026-09-27); same address as /terms and /privacy.
+const SUPPORT_EMAIL = "support@duravel.app";
 const ENTITY = "Duravel LLC";
 const UPDATED = "September 28, 2026";
 /** Days after the initial annual charge (and after each renewal) that we refund in full. */

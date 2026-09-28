@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 /**
  * "Workout reminders" push toggle. Owns the whole browser side of web push:
@@ -25,21 +25,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 
 type Status = "loading" | "unsupported" | "off" | "on" | "busy";
 
+const noSubscribe = () => () => {};
+
+function readPushSupport(): boolean {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
 export default function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [state, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  const supported =
-    typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window;
+  // null on the server (unknown); the browser answers after hydration.
+  const supported = useSyncExternalStore(noSubscribe, readPushSupport, () => null);
+  const status: Status = supported === false ? "unsupported" : state;
 
   useEffect(() => {
-    if (!supported) {
-      setStatus("unsupported");
-      return;
-    }
+    if (!supported) return;
     let cancelled = false;
     (async () => {
       try {

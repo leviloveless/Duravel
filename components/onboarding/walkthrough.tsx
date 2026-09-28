@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -11,6 +11,17 @@ import { Button } from "@/components/ui/button";
  */
 
 const STORAGE_KEY = "duravel_tour_v1";
+
+const noSubscribe = () => () => {};
+
+/** Whether the tour was already seen. Unreadable storage counts as seen: never auto-open blind. */
+function readSeen(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
 
 interface Step {
   emoji: string;
@@ -57,20 +68,14 @@ export default function Walkthrough({
   /** Auto-open on first visit (e.g. a brand-new user with no programs yet). */
   autoStart?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  // null = the athlete hasn't opened or closed it yet this visit, so first-run
+  // auto-open decides; true/false once they have.
+  const [openChoice, setOpen] = useState<boolean | null>(null);
+  const seenBefore = useSyncExternalStore(noSubscribe, readSeen, () => true);
+  const open = openChoice ?? (autoStart && !seenBefore);
   const [step, setStep] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
-
-  // First-run auto-open (only if they haven't seen it before).
-  useEffect(() => {
-    if (!autoStart) return;
-    try {
-      if (!localStorage.getItem(STORAGE_KEY)) setOpen(true);
-    } catch {
-      /* localStorage unavailable — just don't auto-open */
-    }
-  }, [autoStart]);
 
   // Accessible modal behaviour.
   useEffect(() => {

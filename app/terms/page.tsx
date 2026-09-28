@@ -11,12 +11,9 @@ export const metadata: Metadata = {
 // as of 2026-09-12: they had been live on a billing-enabled site since July 14,
 // with the governing-law clause reading "the laws of [your state/country]".
 //
-// ⚠️ SUPPORT_EMAIL IS STILL UNCONFIRMED. It is the one value here nobody has
-// verified receives mail — `privacy/page.tsx` carries the same address and the
-// same doubt. Sending users to a black hole from a Terms page is its own
-// problem, so confirm the alias exists (duravel.app has no MX record this
-// session could read) or point both pages at an address that does.
-const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
+// SUPPORT_EMAIL: Levi created the support@duravel.app mailbox on 2026-09-27.
+// /privacy and /refunds carry the same address — change all three together.
+const SUPPORT_EMAIL = "support@duravel.app";
 const ENTITY = "Duravel LLC"; // Texas LLC, doing business as "Duravel"
 const GOVERNING_LAW = "the State of Texas";
 const UPDATED = "September 28, 2026";
