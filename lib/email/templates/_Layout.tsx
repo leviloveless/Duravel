@@ -31,6 +31,8 @@ interface LayoutProps {
   footnote: string;
   /** Footer action links (Manage preferences, Unsubscribe, Manage billing). */
   footerLinks: FooterLink[];
+  /** Overrides the default footer address (group emails pass EMAIL_POSTAL_ADDRESS). */
+  address?: string;
   children: ReactNode;
 }
 
@@ -38,7 +40,7 @@ interface LayoutProps {
  * Shared shell: orange-dot DURAVEL wordmark header, content, CAN-SPAM footer.
  * Every template composes this so the brand + legal footer stay identical.
  */
-export function Layout({ preview, footnote, footerLinks, children }: LayoutProps) {
+export function Layout({ preview, footnote, footerLinks, address, children }: LayoutProps) {
   return (
     <Html lang="en">
       <Head />
@@ -58,7 +60,7 @@ export function Layout({ preview, footnote, footerLinks, children }: LayoutProps
             <Text style={footerText}>
               {footnote}
               <br />
-              Duravel &middot; {MAILING_ADDRESS}
+              Duravel &middot; {address ?? MAILING_ADDRESS}
               {footerLinks.map((link) => (
                 <span key={link.href}>
                   {' '}

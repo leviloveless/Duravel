@@ -10,6 +10,10 @@ import {
   deleteConfirmationMatches,
   expiryFromDays,
   isSelfLockout,
+  parseBulkDelete,
+  parseNewAccount,
+  summarizeBulkDelete,
+  type BulkDeleteOutcome,
 } from "@/lib/admin-account-rules";
 import {
   cancelAllLive,
@@ -17,6 +21,7 @@ import {
   customerIdsFor,
   endTrialNow,
   extendTrial,
+  liveSubscriptionIds,
   refundCharge,
   resumeSubscription,
   stripeAdmin,
@@ -256,28 +261,102 @@ export async function sendPasswordReset(form: FormData): Promise<void> {
   back(userId, outcome);
 }
 
-/** Create an account by invitation. Supabase emails them a link to set a password. */
-export async function inviteUser(form: FormData): Promise<void> {
+/**
+ * Create an account by hand (2026-09-28).
+ *
+ * Unlike an invite, the account exists — confirmed — the moment this returns, so
+ * a comp can be attached to it straight away. The athlete still owns their
+ * password: they either get the set-a-password email, or sign in with Google on
+ * the same address, or use "Forgot password" later. The admin never sets or sees
+ * one.
+ *
+ * ⚠️ An account made here has NOT been through /signup, so no date of birth and
+ * no Terms acceptance is on file for it. The audit entry records that it was
+ * made by hand, and by whom.
+ */
+export async function createAccount(form: FormData): Promise<void> {
   const actor = await requireAdmin();
   let newId = "";
   let error = "";
+  let ok = "created";
   try {
-    const email = field(form, "email").toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      throw new Error("That doesn't look like an email address.");
-    const admin = createAdminClient();
-    const { data, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${siteUrl()}/auth/confirm?next=/setup`,
+    const input = parseNewAccount({
+      email: field(form, "email"),
+      firstName: field(form, "firstName"),
+      lastName: field(form, "lastName"),
+      onboarding: field(form, "onboarding"),
+      access: field(form, "access"),
+      tier: field(form, "tier"),
+      days: field(form, "days"),
+      note: field(form, "note"),
     });
-    if (inviteError || !data?.user) throw new Error(inviteError?.message ?? "Invite failed.");
-    newId = data.user.id;
-    await recordAdminAction(admin, actor, { id: newId, email }, "account.invite");
+    const fullName = [input.firstName, input.lastName].filter(Boolean).join(" ") || undefined;
+    const metadata = {
+      ...(input.firstName ? { first_name: input.firstName } : {}),
+      ...(input.lastName ? { last_name: input.lastName } : {}),
+      ...(fullName ? { full_name: fullName } : {}),
+      created_by_admin: true,
+    };
+    const admin = createAdminClient();
+
+    if (input.onboarding === "invite") {
+      const { data, error: inviteError } = await admin.auth.admin.inviteUserByEmail(input.email, {
+        data: metadata,
+        redirectTo: `${siteUrl()}/auth/confirm?next=/setup`,
+      });
+      if (inviteError || !data?.user) throw new Error(inviteError?.message ?? "Invite failed.");
+      newId = data.user.id;
+      ok = "created_invited";
+    } else {
+      const { data, error: createError } = await admin.auth.admin.createUser({
+        email: input.email,
+        email_confirm: true,
+        user_metadata: metadata,
+      });
+      if (createError || !data?.user) {
+        throw new Error(createError?.message ?? "Could not create the account.");
+      }
+      newId = data.user.id;
+      if (input.onboarding === "set_password") {
+        const { error: resetError } = await admin.auth.resetPasswordForEmail(input.email, {
+          redirectTo: `${siteUrl()}/auth/confirm?next=/account/update-password`,
+        });
+        // The account exists either way; say so rather than failing the whole action.
+        ok = resetError ? "created_no_email" : "created_reset_sent";
+      }
+    }
+
+    if (input.comp) {
+      const { error: compError } = await admin.from("entitlement_overrides").upsert(
+        {
+          user_id: newId,
+          access: "grant",
+          grant_tier: input.comp.tier,
+          grant_expires_at: expiryFromDays(input.comp.days, Date.now()),
+          note: input.note,
+          updated_by: actor.id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (compError) ok = "created_comp_failed";
+    }
+
+    await recordAdminAction(admin, actor, { id: newId, email: input.email }, "account.create", {
+      onboarding: input.onboarding,
+      comp: input.comp,
+      note: input.note,
+      signup_checks: "collected at first sign-in (/welcome)",
+    });
   } catch (err) {
     error = message(err);
   }
-  if (error || !newId)
-    redirect(`/admin/users?error=${encodeURIComponent(error || "Invite failed.")}`);
-  redirect(`/admin/users/${newId}?ok=invited`);
+  if (error || !newId) {
+    redirect(
+      `/admin/users/new?error=${encodeURIComponent(error || "Could not create the account.")}`,
+    );
+  }
+  redirect(`/admin/users/${newId}?ok=${ok}`);
 }
 
 // ─── suspend & delete ─────────────────────────────────────────────────────────
@@ -365,6 +444,56 @@ export async function deleteAccount(form: FormData): Promise<void> {
     redirect(`/admin/users?error=${encodeURIComponent(error)}`);
   }
   redirect(`/admin/users?ok=deleted`);
+}
+
+/**
+ * Delete several accounts at once, from the checkboxes on the Accounts list
+ * (2026-09-28).
+ *
+ * Deliberately more cautious than the single delete, because it is one click
+ * for many people: an account with a LIVE Stripe subscription (trialing, active,
+ * past due …) is skipped, not canceled. Cancel it on the account's own page
+ * first, or use the single delete there, which cancels and deletes in one step
+ * after you type their email. Each account is handled on its own, so one
+ * failure never stops the rest, and each is audited before it is deleted.
+ */
+export async function deleteAccounts(form: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  let summary = "";
+  let error = "";
+  try {
+    const raw = form.getAll("userId").filter((v): v is string => typeof v === "string");
+    const { ids, skippedSelf } = parseBulkDelete(raw, field(form, "confirm"), actor.id);
+    const admin = createAdminClient();
+    const stripe = stripeAdmin();
+    const outcomes: BulkDeleteOutcome[] = [];
+    for (const id of ids) {
+      let email: string | null = null;
+      try {
+        const target = await targetOf(id);
+        email = target.email ?? null;
+        if (stripe) {
+          const customers = await customerIdsFor(stripe, email, await recordedCustomer(admin, id));
+          const live = await liveSubscriptionIds(stripe, customers);
+          if (live.length > 0) {
+            outcomes.push({ email, result: "skipped", reason: "live Stripe subscription" });
+            continue;
+          }
+        }
+        await recordAdminAction(admin, actor, { id, email }, "account.delete", { bulk: true });
+        const { error: delError } = await admin.auth.admin.deleteUser(id);
+        if (delError) throw new Error(delError.message);
+        outcomes.push({ email, result: "deleted" });
+      } catch (err) {
+        outcomes.push({ email, result: "skipped", reason: message(err) });
+      }
+    }
+    summary = summarizeBulkDelete(outcomes, skippedSelf);
+  } catch (err) {
+    error = message(err);
+  }
+  if (error) redirect(`/admin/users?error=${encodeURIComponent(error)}`);
+  redirect(`/admin/users?ok=bulk_deleted&detail=${encodeURIComponent(summary)}`);
 }
 
 // ─── programs ─────────────────────────────────────────────────────────────────

@@ -373,3 +373,125 @@ export function normalizeSvgDataUrl(raw: string): string {
   }
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(payload)}`;
 }
+
+// ─── creating an account by hand (2026-09-28) ─────────────────────────────────
+
+/**
+ * How a hand-made account's owner gets in.
+ * - `set_password`: the account is created confirmed, and they are emailed a
+ *   link to choose a password (the same email "Forgot password" sends).
+ * - `invite`: Supabase's invitation email; the account stays unconfirmed until
+ *   they click it.
+ * - `none`: nothing is sent. They can sign in with Google on the same address,
+ *   or use "Forgot password" whenever they like.
+ */
+export type NewAccountOnboarding = "set_password" | "invite" | "none";
+
+export type NewAccount = {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  onboarding: NewAccountOnboarding;
+  comp: { tier: "standard" | "custom"; days: number | null } | null;
+  note: string | null;
+};
+
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Validate the "Add account" form. Throws a message fit to show the admin. */
+export function parseNewAccount(raw: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  onboarding: string;
+  access: string;
+  tier: string;
+  days: string;
+  note: string;
+}): NewAccount {
+  const email = raw.email.trim().toLowerCase();
+  if (!EMAIL_SHAPE.test(email)) throw new Error("That doesn't look like an email address.");
+  const onboarding: NewAccountOnboarding =
+    raw.onboarding === "invite" ? "invite" : raw.onboarding === "none" ? "none" : "set_password";
+  let comp: NewAccount["comp"] = null;
+  if (raw.access === "grant") {
+    const daysText = raw.days.trim();
+    const days = daysText === "" ? null : Number(daysText);
+    if (days !== null && (!Number.isFinite(days) || days <= 0 || days > 3650)) {
+      throw new Error("Comp length must be a number of days between 1 and 3650, or blank.");
+    }
+    comp = { tier: raw.tier === "custom" ? "custom" : "standard", days };
+  }
+  const clean = (s: string, max: number) => {
+    const t = s.trim().slice(0, max);
+    return t === "" ? null : t;
+  };
+  return {
+    email,
+    firstName: clean(raw.firstName, 80),
+    lastName: clean(raw.lastName, 80),
+    onboarding,
+    comp,
+    note: clean(raw.note, 500),
+  };
+}
+
+// ─── deleting several accounts at once (2026-09-28) ──────────────────────────
+
+export const BULK_DELETE_MAX = 50;
+export const BULK_DELETE_WORD = "DELETE";
+
+const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate a bulk delete. The admin must type DELETE (any case); ids are
+ * deduplicated, malformed ones rejected, and the admin's own account is always
+ * removed from the set — there is no second administrator to restore it.
+ */
+export function parseBulkDelete(
+  ids: readonly string[],
+  confirm: string,
+  adminId: string,
+): { ids: string[]; skippedSelf: boolean } {
+  if (confirm.trim().toUpperCase() !== BULK_DELETE_WORD) {
+    throw new Error(`Type ${BULK_DELETE_WORD} to confirm.`);
+  }
+  const unique = [...new Set(ids.map((s) => s.trim()).filter(Boolean))];
+  if (unique.some((id) => !ACCOUNT_ID.test(id))) throw new Error("Invalid account id.");
+  const skippedSelf = unique.includes(adminId);
+  const rest = unique.filter((id) => id !== adminId);
+  if (rest.length === 0) {
+    throw new Error(
+      skippedSelf ? "You can't delete your own account." : "Select at least one account.",
+    );
+  }
+  if (rest.length > BULK_DELETE_MAX) {
+    throw new Error(`Delete at most ${BULK_DELETE_MAX} accounts at a time.`);
+  }
+  return { ids: rest, skippedSelf };
+}
+
+export type BulkDeleteOutcome =
+  | { email: string | null; result: "deleted" }
+  | { email: string | null; result: "skipped"; reason: string };
+
+/** One sentence for the flash message after a bulk delete. */
+export function summarizeBulkDelete(
+  outcomes: readonly BulkDeleteOutcome[],
+  skippedSelf: boolean,
+): string {
+  const deleted = outcomes.filter((o) => o.result === "deleted").length;
+  const skipped = outcomes.filter(
+    (o): o is Extract<BulkDeleteOutcome, { result: "skipped" }> => o.result === "skipped",
+  );
+  const parts = [`Deleted ${deleted} account${deleted === 1 ? "" : "s"}.`];
+  if (skipped.length > 0) {
+    parts.push(
+      `Skipped ${skipped.length}: ` +
+        skipped.map((s) => `${s.email ?? "(no email)"} — ${s.reason}`).join("; ") +
+        ".",
+    );
+  }
+  if (skippedSelf) parts.push("Your own account was left alone.");
+  return parts.join(" ");
+}

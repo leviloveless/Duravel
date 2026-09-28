@@ -84,6 +84,7 @@ const BENIGN_SKIPS: ReadonlySet<string> = new Set([
   "category_off",
   "frequency_cap",
   "now_subscribed",
+  "no_pending_charge",
   "duplicate",
 ]);
 
@@ -92,6 +93,8 @@ const KNOWN_TEMPLATES: readonly EmailTemplate[] = [
   "welcome",
   "onboarding_nudge",
   "trial_ending",
+  "trial_notice",
+  "broadcast",
   "receipt",
 ];
 

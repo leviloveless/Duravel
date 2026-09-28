@@ -211,6 +211,22 @@ export async function refundCharge(
   return { amount: refund.amount, currency: refund.currency };
 }
 
+/** Subscriptions on these customers that can still charge (anything not canceled or expired). */
+export async function liveSubscriptionIds(
+  stripe: Stripe,
+  customerIds: string[],
+): Promise<string[]> {
+  const live: string[] = [];
+  for (const customer of customerIds) {
+    const subs = await stripe.subscriptions.list({ customer, status: "all", limit: 100 });
+    for (const s of subs.data) {
+      if (s.status === "canceled" || s.status === "incomplete_expired") continue;
+      live.push(s.id);
+    }
+  }
+  return live;
+}
+
 /**
  * Cancel every live subscription on these customers immediately. Used before a
  * permanent delete, so nobody keeps being charged for an account that no longer

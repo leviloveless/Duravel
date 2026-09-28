@@ -171,6 +171,16 @@ const OK_TEXT: Record<string, string> = {
   email_changed: "Email changed.",
   reset_sent: "Password reset email sent.",
   invited: "Invitation sent. They'll get an email with a link to set a password.",
+  created:
+    'Account created and confirmed. Nothing was emailed — they can sign in with Google on this address, or use "Forgot password".',
+  created_reset_sent:
+    "Account created and confirmed. They've been emailed a link to set their password.",
+  created_invited: "Account created. They'll get an invitation email and must click it to finish.",
+  created_no_email:
+    'Account created and confirmed, but the set-a-password email failed. Use "Send password reset" below to retry.',
+  created_comp_failed:
+    "Account created, but the comp didn't save (has migration 0048 run?). Set access below.",
+  bulk_deleted: "Bulk delete finished.",
   suspended:
     "Account suspended. They can't sign in; a session already open may last up to an hour.",
   unsuspended: "Account restored.",
@@ -189,7 +199,7 @@ const OK_TEXT: Record<string, string> = {
   promo_off: "Promo code deactivated. Existing discounts keep running; nobody new can redeem it.",
 };
 
-export function Flash({ ok, error }: { ok?: string; error?: string }) {
+export function Flash({ ok, error, detail }: { ok?: string; error?: string; detail?: string }) {
   if (error) {
     return (
       <div
@@ -206,7 +216,7 @@ export function Flash({ ok, error }: { ok?: string; error?: string }) {
         role="status"
         className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
       >
-        {OK_TEXT[ok] ?? "Saved."}
+        {detail ?? OK_TEXT[ok] ?? "Saved."}
       </div>
     );
   }
@@ -229,6 +239,10 @@ export function one(v: string | string[] | undefined): string | undefined {
 
 const NAV = [
   { href: "/admin/users", label: "Accounts" },
+  { href: "/admin/revenue", label: "Revenue" },
+  { href: "/admin/wearables", label: "Wearables" },
+  { href: "/admin/webhooks", label: "Webhooks" },
+  { href: "/admin/broadcast", label: "Email a group" },
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/promos", label: "Promo codes" },
   { href: "/admin/mfa", label: "Two-factor" },

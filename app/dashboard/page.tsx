@@ -50,6 +50,14 @@ import TrialBanner from "@/components/trial-banner";
 import Walkthrough from "@/components/onboarding/walkthrough";
 import RenameProgram from "./rename-program";
 import DeleteProgram from "./delete-program";
+import { setActiveProgram } from "./actions";
+import {
+  firstLoadDate,
+  mergeDailyLoads,
+  pickActiveProgram,
+  programWindow,
+  type ActivePick,
+} from "@/lib/dashboard/active-program";
 
 const TYPE_LABEL: Record<string, string> = {
   goal_event: "Goal event",
@@ -62,8 +70,6 @@ const STATUS_STYLE: Record<ProgramSummaryRow["status"], string> = {
   generating: "bg-amber-100 text-amber-800",
   failed: "bg-red-100 text-red-800",
 };
-
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * The current time, read once per request.
@@ -137,6 +143,65 @@ function Card({
   );
 }
 
+/**
+ * Says, first and plainly, which program this dashboard is about — and lets the
+ * athlete change it. Everything below the bar that describes a PLAN follows this
+ * program; the fitness and load history covers all of them.
+ */
+function ActiveProgramBar({
+  programs,
+  activeId,
+  activeName,
+  statusLine,
+  howLine,
+}: {
+  programs: { id: string; title: string }[];
+  activeId: string;
+  activeName: string;
+  statusLine: string;
+  howLine: string | null;
+}) {
+  return (
+    <section className="border-line flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <span className="font-mono text-[10px] tracking-[0.14em] text-zinc-500 uppercase">
+          Active program
+        </span>
+        <p className="truncate text-lg font-semibold text-zinc-900">{activeName}</p>
+        <p className="text-xs text-zinc-500">
+          {statusLine}
+          {howLine ? ` · ${howLine}` : ""}
+        </p>
+      </div>
+      {programs.length > 1 ? (
+        <form action={setActiveProgram} className="flex items-center gap-2">
+          <label htmlFor="active-program" className="sr-only">
+            Choose your active program
+          </label>
+          <select
+            id="active-program"
+            name="programId"
+            defaultValue={activeId}
+            className="border-line-strong max-w-[16rem] rounded-md border bg-white px-2 py-1.5 text-sm"
+          >
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="border-line-strong rounded-md border px-3 py-1.5 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Make active
+          </button>
+        </form>
+      ) : null}
+    </section>
+  );
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -155,48 +220,62 @@ export default async function DashboardPage() {
   const nowDate = new Date();
   const todayISO = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
 
-  // The active program: most recent ready one that has started and not finished.
-  // Same rule the "This week" card used, kept here so the dashboard has one
-  // answer to "which program am I looking at" rather than two.
+  // Every ready program with a plan, newest first. The athlete's pick decides
+  // which one the plan-shaped cards follow; every one of them feeds the history.
+  // See lib/dashboard/active-program.ts.
   const { data: candidates } = await supabase
     .from("programs")
     .select("id, name, duration_weeks, start_date, program_data")
     .eq("user_id", user.id)
     .eq("status", "ready")
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(20);
+  const readyPrograms = (candidates ?? []).filter((p) => p.program_data);
 
   const { ms: now, dayIndex } = requestNow();
-  const active = (candidates ?? []).find((p) => {
-    const start = weekStartDate(p.start_date, 1).getTime();
-    return now >= start && now < start + p.duration_weeks * MS_PER_WEEK && p.program_data;
-  });
+  const pick: ActivePick<(typeof readyPrograms)[number]> | null = pickActiveProgram(
+    readyPrograms,
+    profile?.active_program_id ?? null,
+    now,
+  );
+  const active = pick?.program;
 
   let body: React.ReactNode = null;
 
-  if (active) {
+  if (active && pick) {
     const data = active.program_data as ProgramData;
-    const start = weekStartDate(active.start_date, 1).getTime();
-    const elapsed = Math.max(0, Math.floor((now - start) / MS_PER_WEEK));
-    const currentWeek = Math.min(active.duration_weeks, elapsed + 1);
+    const win = programWindow(active.start_date, active.duration_weeks, now);
+    const elapsed = win.elapsedWeeks;
+    const currentWeek = win.currentWeek;
     const week = data.weeks.find((w) => w.weekNumber === currentWeek) ?? data.weeks[0];
 
-    const [logRows, extraRows, adaptations, activities] = await Promise.all([
-      getProgramLogs(active.id),
-      getProgramExtras(active.id),
+    // Logs and extras for EVERY ready program: the active one's drive the plan
+    // cards; all of them together drive fitness, form and the load ratio.
+    const [perProgram, adaptations, activities] = await Promise.all([
+      Promise.all(
+        readyPrograms.map(async (p) => {
+          const [logRows, extraRows] = await Promise.all([
+            getProgramLogs(p.id),
+            getProgramExtras(p.id),
+          ]);
+          const programLogs: WorkoutLog[] = logRows.map((r) => ({
+            weekNumber: r.week_number,
+            day: r.day,
+            sessionIndex: r.session_index,
+            status: r.status,
+            rpe: r.rpe,
+            actuals: r.actuals,
+            note: r.note,
+          }));
+          return { program: p, logs: programLogs, extras: extrasFromRows(extraRows) };
+        }),
+      ),
       getProgramAdaptations(active.id).catch(() => []),
       getUserActivities(30).catch(() => []),
     ]);
-    const logs: WorkoutLog[] = logRows.map((r) => ({
-      weekNumber: r.week_number,
-      day: r.day,
-      sessionIndex: r.session_index,
-      status: r.status,
-      rpe: r.rpe,
-      actuals: r.actuals,
-      note: r.note,
-    }));
-    const extras = extrasFromRows(extraRows);
+    const mine = perProgram.find((x) => x.program.id === active.id);
+    const logs: WorkoutLog[] = mine?.logs ?? [];
+    const extras = mine?.extras ?? [];
 
     const hours = weeklyHours(data.weeks, logs, extras, elapsed);
     const thisWeek = hours.find((h) => h.weekNumber === currentWeek);
@@ -216,8 +295,19 @@ export default async function DashboardPage() {
     const toISO = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const weekStartISO = (n: number) => toISO(weekStartDate(active.start_date, n));
-    const load = dailyLoad(data.weeks, logs, extras, weekStartISO);
-    const series = fitnessSeries(load, weekStartISO(1), toISO(new Date(now)));
+    const historyLoad = mergeDailyLoads(
+      perProgram.map((x) =>
+        dailyLoad((x.program.program_data as ProgramData).weeks, x.logs, x.extras, (n: number) =>
+          toISO(weekStartDate(x.program.start_date, n)),
+        ),
+      ),
+    );
+    const todayISOForLoad = toISO(new Date(now));
+    const historyStart = [firstLoadDate(historyLoad), weekStartISO(1)]
+      .filter((d): d is string => !!d)
+      .sort()[0]!;
+    const seriesStart = historyStart < todayISOForLoad ? historyStart : weekStartISO(1);
+    const series = fitnessSeries(historyLoad, seriesStart, todayISOForLoad);
     const todayPoint = series[series.length - 1];
     const state = todayPoint ? formState(todayPoint) : null;
 
@@ -225,10 +315,10 @@ export default async function DashboardPage() {
     // numbers on this page cannot disagree with each other (Levi, 2026-09-20).
     // ⚠️ This is not the ACWR the adaptation engine acts on — that one is
     // session-RPE based and lives in `lib/engine/load.ts`. See `acwr.ts`.
-    const acwrDaily = acwrSeries(load, weekStartISO(1), toISO(new Date(now)));
+    const acwrDaily = acwrSeries(historyLoad, seriesStart, todayISOForLoad);
     const acwrToday = [...acwrDaily].reverse().find((p) => p.acwr !== null) ?? null;
     const acwrWeeks = weeklyAcwr(
-      load,
+      historyLoad,
       weekStartISO,
       data.weeks.map((w) => w.weekNumber),
       toISO(new Date(now)),
@@ -251,8 +341,30 @@ export default async function DashboardPage() {
     const greyZoneDrift = z3 ? z3.actual - z3.target : 0;
     const todayKey = DAY_KEYS[dayIndex] ?? "mon";
 
+    const statusLine =
+      win.state === "upcoming"
+        ? `Starts in ${win.daysToStart} day${win.daysToStart === 1 ? "" : "s"} · ${active.duration_weeks} weeks`
+        : win.state === "finished"
+          ? `Finished · ${active.duration_weeks} weeks`
+          : `Week ${currentWeek} of ${active.duration_weeks}`;
+    const howLine =
+      pick.how === "chosen"
+        ? null
+        : pick.how === "current"
+          ? "Picked automatically: it is the program running this week."
+          : pick.how === "upcoming"
+            ? "Picked automatically: it is your next program to start."
+            : "Picked automatically: it is your most recent program.";
+
     body = (
       <>
+        <ActiveProgramBar
+          programs={readyPrograms.map((p) => ({ id: p.id, title: p.name ?? "Untitled program" }))}
+          activeId={active.id}
+          activeName={active.name ?? "Your program"}
+          statusLine={statusLine}
+          howLine={howLine}
+        />
         <section className="bg-brand grid grid-cols-1 overflow-hidden rounded-xl text-zinc-200 lg:grid-cols-[1.15fr_1fr]">
           <div className="flex flex-col gap-3 px-5 py-5">
             <span className="text-accent-hi font-mono text-[10px] tracking-[0.14em] uppercase">
@@ -395,7 +507,7 @@ export default async function DashboardPage() {
         </div>
 
         {todayPoint && series.length > 7 && (
-          <Card title="Fitness, fatigue and form" meta={`${series.length} days`}>
+          <Card title="Fitness, fatigue and form" meta={`${series.length} days · all programs`}>
             <FitnessChart points={series} />
             {state && (
               <p className="bg-accent-wash mt-3 rounded-lg px-3 py-2.5 text-[13px] leading-relaxed text-zinc-700">
@@ -410,7 +522,7 @@ export default async function DashboardPage() {
         )}
 
         {acwrToday && acwrDaily.filter((p) => p.acwr !== null).length > 1 && (
-          <Card title="Training load ratio" meta="Acute 7 days ÷ chronic 28 days">
+          <Card title="Training load ratio" meta="Acute 7 days ÷ chronic 28 days · all programs">
             <AcwrChart points={acwrDaily} />
             <p className="bg-accent-wash mt-3 rounded-lg px-3 py-2.5 text-[13px] leading-relaxed text-zinc-700">
               <b>{ACWR_BAND_LABEL[acwrToday.band!]}.</b> {ACWR_BAND_BLURB[acwrToday.band!]}
@@ -422,9 +534,9 @@ export default async function DashboardPage() {
               </div>
             )}
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-              Built from the same logged load as the curves above. It answers one question — is this
-              week bigger than what you are used to — and it needs three weeks of history before it
-              means anything.
+              Built from the same logged load as the curves above, across all your programs. It
+              answers one question — is this week bigger than what you are used to — and it needs
+              three weeks of history before it means anything.
             </p>
           </Card>
         )}
@@ -544,6 +656,21 @@ export default async function DashboardPage() {
                         : "Failed"}
                   </span>
                 </Link>
+                {p.id === active?.id ? (
+                  <span className="bg-ink rounded-full px-2.5 py-1 text-xs font-medium text-white">
+                    Active
+                  </span>
+                ) : p.status === "ready" ? (
+                  <form action={setActiveProgram}>
+                    <input type="hidden" name="programId" value={p.id} />
+                    <button
+                      type="submit"
+                      className="text-xs text-zinc-500 underline hover:text-zinc-900"
+                    >
+                      Make active
+                    </button>
+                  </form>
+                ) : null}
                 <RenameProgram programId={p.id} currentName={programTitle(p)} />
                 <DeleteProgram programId={p.id} title={programTitle(p)} />
               </li>

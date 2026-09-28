@@ -68,7 +68,10 @@ export async function changePassword(
   } = await supabase.auth.getUser();
   if (!user) return { error: "You need to be signed in to change your password.", done: false };
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+    data: { password_set: true },
+  });
   if (error) return { error: error.message, done: false };
 
   return { error: null, done: true };

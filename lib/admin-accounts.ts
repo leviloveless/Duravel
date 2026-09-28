@@ -70,7 +70,7 @@ export type AccountRow = {
 const MAX_AUTH_PAGES = 10; // 10 x 1000 users. Past that, this screen needs server-side search.
 const IN_BATCH = 150;
 
-async function allAuthUsers(admin: SupabaseClient): Promise<User[]> {
+export async function allAuthUsers(admin: SupabaseClient): Promise<User[]> {
   const out: User[] = [];
   for (let page = 1; page <= MAX_AUTH_PAGES; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });

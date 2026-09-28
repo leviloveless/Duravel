@@ -6,20 +6,15 @@ import type { TrialEndingStage } from "./templates/types";
  */
 
 /** Every template the system can send this phase. */
-export type EmailTemplate = "welcome" | "onboarding_nudge" | "trial_ending" | "receipt";
+export type EmailTemplate =
+  "welcome" | "onboarding_nudge" | "trial_ending" | "trial_notice" | "broadcast" | "receipt";
 
 /** Consent tier. service = transactional (non-suppressible); lifecycle = suppressible. */
 export type Tier = "service" | "lifecycle";
 
 /** Per-category preference flags on email_preferences (suppressible categories only). */
 export type PrefCategory =
-  | "onboarding"
-  | "weekly_summary"
-  | "race"
-  | "milestone"
-  | "winback"
-  | "engagement"
-  | "product";
+  "onboarding" | "weekly_summary" | "race" | "milestone" | "winback" | "engagement" | "product";
 
 /** email_sends.status ledger values (must match the 0022 CHECK constraint). */
 export type EmailStatus =
@@ -43,7 +38,9 @@ export type GateSkipReason =
   | "unsubscribed_all"
   | "category_off"
   | "frequency_cap"
-  | "now_subscribed";
+  | "now_subscribed"
+  /** A trial notice whose charge is no longer coming (canceled, converted, or ended). */
+  | "no_pending_charge";
 
 /** Result of a gate evaluation. */
 export type GateDecision = { proceed: true } | { proceed: false; reason: GateSkipReason };

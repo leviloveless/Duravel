@@ -49,6 +49,32 @@ export interface TrialEndingProps extends BaseEmailProps {
   programName?: string;
 }
 
+/** Carded-trial notices (2026-09-28). See lib/email/trial-notice.ts. */
+export interface TrialNoticeProps extends BaseEmailProps {
+  kind: "started" | "ending";
+  /** e.g. "Duravel Monthly". */
+  planLabel: string;
+  /** e.g. "$19.99/month" — the amount Stripe will actually charge, discounts included. */
+  priceLine: string;
+  /** e.g. "Oct 5, 2026" — the day the trial ends and the card is charged. */
+  chargeDate: string;
+  trialDays: number;
+  /** Where to cancel — /settings (Manage billing). */
+  cancelUrl: string;
+  planUrl: string;
+}
+
+/** A group email written in /admin/broadcast (2026-09-28). */
+export interface BroadcastProps extends BaseEmailProps {
+  subject: string;
+  paragraphs: string[];
+  button: { label: string; url: string } | null;
+  /** Tokenized one-click unsubscribe (product-updates category). */
+  unsubscribeUrl: string;
+  /** Physical postal address for the footer — required for group mail. */
+  postalAddress: string;
+}
+
 export interface ReceiptProps extends BaseEmailProps {
   /** e.g. "Duravel Annual" or "Duravel Monthly". */
   planLabel: string;

@@ -25,6 +25,7 @@ describe("templateMeta", () => {
   it("billing templates are categorized billing", () => {
     expect(templateMeta("trial_ending").category).toBe("billing");
     expect(templateMeta("receipt").category).toBe("billing");
+    expect(templateMeta("trial_notice").category).toBe("billing");
   });
 });
 
@@ -34,6 +35,8 @@ describe("isServiceTier", () => {
       welcome: true,
       onboarding_nudge: false,
       trial_ending: true,
+      trial_notice: true,
+      broadcast: false,
       receipt: true,
     };
     (Object.keys(expected) as EmailTemplate[]).forEach((t) => {

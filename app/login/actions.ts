@@ -102,7 +102,12 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
     return { error: "Your reset link is invalid or has expired. Request a new one." };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  // `password_set` tells the first-login step (lib/account-completion.ts) that an
+  // account made by the admin now has a password of its own.
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+    data: { password_set: true },
+  });
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");

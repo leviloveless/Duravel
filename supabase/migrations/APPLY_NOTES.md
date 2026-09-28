@@ -49,3 +49,12 @@ Templates + the `sendEmail()` choke-point, cron, Svix webhook, HMAC unsubscribe,
 | `0049_site_announcements.sql` | `site_announcements` | SELECT for `anon` + `authenticated`, active rows only (the banner is fetched cookie-less and cached 60s). Unique partial index = at most one active. |
 
 Both `create … if not exists` / `drop policy if exists`, so safe to re-run. Apply **before** deploying the code: `getEntitlement` tolerates a missing `entitlement_overrides` (reads it as "no override"), and the banner tolerates a missing `site_announcements`, but the admin pages show a "run 0048" banner until it exists.
+
+
+# Migration 0050 — the athlete's active program (2026-09-28)
+
+| File | Adds | Notes |
+|---|---|---|
+| `0050_active_program.sql` | `profiles.active_program_id` → `programs(id)` `on delete set null` | Written by the athlete under the existing "profiles: own row" policy. `add column if not exists`, safe to re-run. |
+
+Order does not matter much: before it runs, the dashboard reads no choice and falls back to the automatic pick, the "Make active" button saves nothing, and push reminders ignore the missing column.

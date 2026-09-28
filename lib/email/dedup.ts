@@ -1,4 +1,5 @@
 import type { TrialEndingStage } from "./templates/types";
+import { trialNoticeKey, type TrialNoticeKind } from "./trial-notice";
 
 /**
  * Dedup-key builders. The returned string is the app-level idempotency key that the
@@ -9,7 +10,14 @@ export type DedupInput =
   | { template: "welcome"; userId: string }
   | { template: "onboarding_nudge"; userId: string }
   | { template: "trial_ending"; userId: string; stage: TrialEndingStage; trialStartedAt: string }
-  | { template: "receipt"; invoiceId: string };
+  | { template: "receipt"; invoiceId: string }
+  | {
+      template: "trial_notice";
+      kind: TrialNoticeKind;
+      subscriptionId: string;
+      trialEndUnix: number;
+    }
+  | { template: "broadcast"; broadcastId: string; userId: string };
 
 /**
  * Trial-cycle discriminator (07-spec §2.1): epoch-seconds of trial_started_at. If the
@@ -32,5 +40,9 @@ export function buildDedupKey(input: DedupInput): string {
       return `trial_ending:${input.stage}:${input.userId}:${trialCycle(input.trialStartedAt)}`;
     case "receipt":
       return `receipt:${input.invoiceId}`;
+    case "trial_notice":
+      return trialNoticeKey(input.kind, input.subscriptionId, input.trialEndUnix);
+    case "broadcast":
+      return `broadcast:${input.broadcastId}:${input.userId}`;
   }
 }

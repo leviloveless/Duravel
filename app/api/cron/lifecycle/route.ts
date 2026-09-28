@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { emailEnabled } from "@/lib/email/resend";
-import { runTrialEndingFlow } from "@/lib/email/flows/trial-ending";
+import { runTrialReminderFlow } from "@/lib/email/flows/trial-notice";
 import { runOnboardingNudgeFlow } from "@/lib/email/flows/onboarding-nudge";
 import { runPushRemindersFlow } from "@/lib/push/reminders";
 
@@ -36,14 +36,19 @@ export async function GET(request: Request) {
   const cutoff = new Date(nowMs - STALE_QUEUED_MS).toISOString();
   const { data: reapedRows } = await admin
     .from("email_sends")
-    .update({ status: "failed", error: "stale_queued_reaped", updated_at: new Date().toISOString() })
+    .update({
+      status: "failed",
+      error: "stale_queued_reaped",
+      updated_at: new Date().toISOString(),
+    })
     .eq("status", "queued")
     .lt("created_at", cutoff)
     .select("id");
   const reaped = reapedRows?.length ?? 0;
 
-  // Trial-ending runs first (revenue-critical, time-sensitive).
-  const trialEnding = await runTrialEndingFlow(admin, nowMs);
+  // Carded-trial "ends soon" notice, backstopping Stripe's trial_will_end event
+  // (2026-09-28). Runs first: it is time-sensitive.
+  const trialReminder = await runTrialReminderFlow(admin, nowMs);
 
   // Onboarding-nudge (suppressible; sendEmail applies preference + frequency gates).
   const onboardingNudge = await runOnboardingNudgeFlow(admin, nowMs);
@@ -55,7 +60,7 @@ export async function GET(request: Request) {
     ok: true,
     emailEnabled: emailEnabled(),
     reaped,
-    trialEnding,
+    trialReminder,
     onboardingNudge,
     pushReminders,
   });

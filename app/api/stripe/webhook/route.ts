@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { pricesFromEnv, resolvePrice, type PriceResolution } from "@/lib/stripe-prices";
 import { sendEmail } from "@/lib/email/send";
 import type { ReceiptProps } from "@/lib/email/templates/types";
+import { sendTrialNotice } from "@/lib/email/flows/trial-notice";
 
 /**
  * POST /api/stripe/webhook
@@ -25,6 +26,12 @@ import type { ReceiptProps } from "@/lib/email/templates/types";
  *   customer.subscription.updated
  *   customer.subscription.deleted
  *   invoice.payment_succeeded   (or invoice.paid)
+ *   customer.subscription.trial_will_end   (2026-09-28: the "trial ends in 3 days"
+ *                                           notice; the daily cron covers it too)
+ *
+ * The $0.00 invoice Stripe raises when a carded trial starts does not get a
+ * receipt: it gets the "your trial has started" notice instead, which says what
+ * will be charged and when (lib/email/trial-notice.ts).
  */
 
 // Always run server-side against the untouched request body; never cache.
@@ -171,6 +178,14 @@ async function handleInvoicePaid(stripe: Stripe, invoice: Stripe.Invoice): Promi
       return;
     }
 
+    // A carded trial starts with a $0.00 invoice. A "receipt — your subscription
+    // is active" for it would be wrong on both counts; the trial-started notice
+    // states the real charge and its date instead.
+    if (sub && sub.status === "trialing" && (invoice.amount_paid ?? 0) === 0) {
+      await sendTrialNotice(stripe, createAdminClient(), sub.id, "started");
+      return;
+    }
+
     const item = sub?.items.data[0];
     const priceId = item?.price.id ?? null;
     const { plan, tier } = resolveSubscriptionPrice(priceId, `invoice ${invoiceId}`);
@@ -276,6 +291,16 @@ export async function POST(request: Request) {
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         await upsertFromSubscription(event.data.object as Stripe.Subscription);
+        break;
+      }
+      case "customer.subscription.trial_will_end": {
+        // Failure-isolated inside: a mail problem never makes Stripe retry.
+        await sendTrialNotice(
+          stripe,
+          createAdminClient(),
+          (event.data.object as Stripe.Subscription).id,
+          "ending",
+        );
         break;
       }
       case "invoice.payment_succeeded":

@@ -88,9 +88,29 @@ export async function runPushRemindersFlow(
     .eq("status", "ready")
     .order("created_at", { ascending: false });
 
+  // The athlete's chosen active program (migration 0050) wins when it is running
+  // this week, so reminders follow the same program as their dashboard. Before
+  // 0050 the column is missing, the read errors, and the newest-running rule
+  // below decides exactly as it did before.
+  const { data: chosenRows, error: chosenError } = await admin
+    .from("profiles")
+    .select("id, active_program_id")
+    .in("id", subscriberIds);
+  const chosenByUser = new Map<string, string>();
+  if (!chosenError) {
+    for (const r of (chosenRows ?? []) as Array<{ id: string; active_program_id: string | null }>) {
+      if (r.active_program_id) chosenByUser.set(r.id, r.active_program_id);
+    }
+  }
+  const allRows = (progRows ?? []) as ProgramRow[];
+  const ordered = [
+    ...allRows.filter((p) => chosenByUser.get(p.user_id) === p.id),
+    ...allRows.filter((p) => chosenByUser.get(p.user_id) !== p.id),
+  ];
+
   const activeByUser = new Map<string, { program: ProgramRow; startMs: number; currentWeek: number }>();
-  for (const p of (progRows ?? []) as ProgramRow[]) {
-    if (activeByUser.has(p.user_id)) continue; // newest active wins
+  for (const p of ordered) {
+    if (activeByUser.has(p.user_id)) continue; // chosen first, then newest running
     if (!p.program_data) continue;
     const startMs = weekStartDate(p.start_date, 1).getTime();
     if (nowMs < startMs || nowMs >= startMs + p.duration_weeks * MS_PER_WEEK) continue;

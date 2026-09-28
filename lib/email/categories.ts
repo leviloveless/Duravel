@@ -22,6 +22,9 @@ const REGISTRY: Record<EmailTemplate, TemplateMeta> = {
   welcome: { category: "onboarding", tier: "service", prefCategory: null },
   onboarding_nudge: { category: "onboarding", tier: "lifecycle", prefCategory: "onboarding" },
   trial_ending: { category: "billing", tier: "service", prefCategory: null },
+  trial_notice: { category: "billing", tier: "service", prefCategory: null },
+  // Admin group email: marketing by nature, so suppressible under "product updates".
+  broadcast: { category: "product", tier: "lifecycle", prefCategory: "product" },
   receipt: { category: "billing", tier: "service", prefCategory: null },
 };
 

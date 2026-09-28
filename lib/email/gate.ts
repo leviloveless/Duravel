@@ -61,6 +61,8 @@ export function evaluatePreClaim(input: PreClaimInput): GateDecision {
 export interface PostClaimInput {
   template: EmailTemplate;
   subscriptionActive: boolean;
+  /** trial_notice only: is the charge the notice describes still coming? */
+  chargePending?: boolean;
 }
 
 /**
@@ -71,6 +73,9 @@ export interface PostClaimInput {
 export function evaluatePostClaim(input: PostClaimInput): GateDecision {
   if (input.template === "trial_ending" && input.subscriptionActive) {
     return { proceed: false, reason: "now_subscribed" };
+  }
+  if (input.template === "trial_notice" && input.chargePending !== true) {
+    return { proceed: false, reason: "no_pending_charge" };
   }
   return { proceed: true };
 }

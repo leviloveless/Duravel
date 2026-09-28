@@ -76,6 +76,9 @@ const EnvSchema = z.object({
   EMAIL_REPLY_TO: z.string().optional(),
   EMAIL_ENABLED: z.string().optional(),
   EMAIL_UNSUB_SECRET: z.string().optional(),
+  // Physical postal address for the footer of group emails from /admin/broadcast
+  // (CAN-SPAM). While unset, the admin can compose but not send (2026-09-28).
+  EMAIL_POSTAL_ADDRESS: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
@@ -128,6 +131,7 @@ const rawEnv = {
   EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
   EMAIL_ENABLED: process.env.EMAIL_ENABLED,
   EMAIL_UNSUB_SECRET: process.env.EMAIL_UNSUB_SECRET,
+  EMAIL_POSTAL_ADDRESS: process.env.EMAIL_POSTAL_ADDRESS,
   CRON_SECRET: process.env.CRON_SECRET,
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,

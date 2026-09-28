@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { completionNeeds, isGatedPath, needsCompletion } from "@/lib/account-completion";
 
 /**
  * Refreshes the Supabase auth session on every request and keeps the
@@ -29,7 +30,30 @@ export async function updateSession(request: NextRequest) {
 
   // Touch the session so expired tokens get refreshed before any
   // Server Component reads it. Do not remove — required by @supabase/ssr.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // First-login step (2026-09-28): an account missing Terms acceptance, date of
+  // birth or the other signup answers goes to /welcome before the app. Page
+  // navigations only (GET) — never a server action, an API call or a webhook.
+  // Decided from metadata `getUser()` already returned, so it costs no query.
+  // See lib/account-completion.ts.
+  const { pathname, search } = request.nextUrl;
+  if (
+    user &&
+    request.method === "GET" &&
+    isGatedPath(pathname) &&
+    needsCompletion(completionNeeds(user.user_metadata))
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/welcome";
+    url.search = `?next=${encodeURIComponent(`${pathname}${search}`)}`;
+    const redirect = NextResponse.redirect(url);
+    // Carry any refreshed session cookies across the redirect.
+    supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
+  }
 
   return supabaseResponse;
 }

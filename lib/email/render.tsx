@@ -4,10 +4,14 @@ import { Welcome } from "./templates/Welcome";
 import { OnboardingNudge } from "./templates/OnboardingNudge";
 import { TrialEnding } from "./templates/TrialEnding";
 import { Receipt } from "./templates/Receipt";
+import { TrialNotice } from "./templates/TrialNotice";
+import { Broadcast } from "./templates/Broadcast";
 import type {
   OnboardingNudgeProps,
   ReceiptProps,
   TrialEndingProps,
+  TrialNoticeProps,
+  BroadcastProps,
   WelcomeProps,
 } from "./templates/types";
 
@@ -20,6 +24,8 @@ export type RenderJob =
   | { template: "welcome"; props: WelcomeProps }
   | { template: "onboarding_nudge"; props: OnboardingNudgeProps }
   | { template: "trial_ending"; props: TrialEndingProps }
+  | { template: "trial_notice"; props: TrialNoticeProps }
+  | { template: "broadcast"; props: BroadcastProps }
   | { template: "receipt"; props: ReceiptProps };
 
 const SUBJECTS = {
@@ -48,12 +54,24 @@ export async function renderEmail(job: RenderJob): Promise<RenderedEmail> {
       <OnboardingNudge {...job.props} />
     ) : job.template === "trial_ending" ? (
       <TrialEnding {...job.props} />
+    ) : job.template === "trial_notice" ? (
+      <TrialNotice {...job.props} />
+    ) : job.template === "broadcast" ? (
+      <Broadcast {...job.props} />
     ) : (
       <Receipt {...job.props} />
     );
 
   const subject =
-    job.template === "trial_ending" ? TRIAL_SUBJECTS[job.props.stage] : SUBJECTS[job.template];
+    job.template === "trial_ending"
+      ? TRIAL_SUBJECTS[job.props.stage]
+      : job.template === "trial_notice"
+        ? job.props.kind === "ending"
+          ? `Your Duravel trial ends ${job.props.chargeDate}`
+          : `Your ${job.props.trialDays}-day Duravel trial has started`
+        : job.template === "broadcast"
+          ? job.props.subject
+          : SUBJECTS[job.template];
 
   const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return { subject, html, text };

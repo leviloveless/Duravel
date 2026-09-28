@@ -57,6 +57,8 @@ export type ProfileRow = {
    *  published version it was. The pair a billing dispute turns on. */
   terms_accepted_at: string | null;
   terms_version: string | null;
+  /** The athlete's chosen dashboard program (migration 0050). Absent before it runs. */
+  active_program_id?: string | null;
   /** Height in inches, from account setup (0046) — used by the height-dependent
    *  station standards. */
   height_in: number | null;

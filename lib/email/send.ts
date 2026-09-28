@@ -9,6 +9,7 @@ import { templateMeta } from "./categories";
 import { buildDedupKey, type DedupInput } from "./dedup";
 import { evaluatePostClaim, evaluatePreClaim, isSubscriptionActive } from "./gate";
 import { mintUnsubToken } from "./unsubscribe";
+import { chargeStillPending, type TrialState } from "./trial-notice";
 import type { EmailTemplate, EmailStatus, GateSkipReason, PrefCategory } from "./types";
 
 /**
@@ -31,6 +32,20 @@ export interface SendJob {
   render: RenderJob;
   scheduledFor?: string | null;
   meta?: Record<string, unknown>;
+  /**
+   * trial_notice only: the subscription's state as Stripe reports it right now.
+   * Preferred over the `subscriptions` mirror, which the webhook may not have
+   * written yet — Stripe does not promise to deliver `subscription.created`
+   * before the trial's $0 `invoice.paid`.
+   */
+  trialState?: TrialState;
+  /**
+   * An admin's test send to themself (2026-09-28): skips the preference and
+   * once-a-day gates so a second test the same day still arrives, and does not
+   * stamp their lifecycle clock. The flag, recipient and suppression checks
+   * still apply.
+   */
+  test?: boolean;
 }
 
 export type SendResult =
@@ -53,11 +68,11 @@ export async function sendEmail(job: SendJob): Promise<SendResult> {
 
   // Steps 4–5 (lifecycle only): preference + frequency cap inputs.
   const prefs =
-    meta.tier === "lifecycle"
+    meta.tier === "lifecycle" && !job.test
       ? await loadPrefs(admin, job.userId, meta.prefCategory)
       : { unsubscribedAll: false, categoryEnabled: true };
   const lastLifecycleEmailAt =
-    meta.tier === "lifecycle" ? await loadLastLifecycle(admin, job.userId) : null;
+    meta.tier === "lifecycle" && !job.test ? await loadLastLifecycle(admin, job.userId) : null;
 
   const pre = evaluatePreClaim({
     template: job.template,
@@ -79,6 +94,20 @@ export async function sendEmail(job: SendJob): Promise<SendResult> {
   const claim = await claimSend(admin, job, dedupKey);
   if (!claim.claimed) return { status: "skipped", reason: "duplicate" };
 
+  // Step 7b: a trial notice goes only while the charge it describes is still coming —
+  // someone who cancels an hour before the reminder must not be told they will be charged.
+  if (job.template === "trial_notice") {
+    const row = job.trialState ?? (await loadTrialState(admin, job.userId));
+    const post = evaluatePostClaim({
+      template: job.template,
+      subscriptionActive: false,
+      chargePending: row ? chargeStillPending(row, nowMs) : false,
+    });
+    if (!post.proceed) {
+      await markStatus(admin, claim.id, "skipped", { error: post.reason });
+      return { status: "skipped", reason: post.reason };
+    }
+  }
   // Step 7: late entitlement re-check (trial-ending only), as close to send as possible.
   if (job.template === "trial_ending") {
     const active = isSubscriptionActive(await loadSubscription(admin, job.userId), nowMs);
@@ -115,7 +144,7 @@ export async function sendEmail(job: SendJob): Promise<SendResult> {
       resend_id: res.data?.id ?? null,
       sent_at: new Date(nowMs).toISOString(),
     });
-    if (meta.tier === "lifecycle") await stampLifecycle(admin, job.userId, nowMs);
+    if (meta.tier === "lifecycle" && !job.test) await stampLifecycle(admin, job.userId, nowMs);
     return { status: "sent" };
   } catch (err) {
     await markStatus(admin, claim.id, "failed", {
@@ -172,10 +201,7 @@ async function loadPrefs(
   return { unsubscribedAll, categoryEnabled };
 }
 
-async function loadLastLifecycle(
-  admin: SupabaseClient,
-  userId: string,
-): Promise<string | null> {
+async function loadLastLifecycle(admin: SupabaseClient, userId: string): Promise<string | null> {
   const { data } = await admin
     .from("profiles")
     .select("last_lifecycle_email_at")
@@ -195,6 +221,26 @@ async function loadSubscription(
     .eq("user_id", userId)
     .maybeSingle();
   return (data as { status: string; current_period_end: string | null } | null) ?? null;
+}
+
+/** The athlete's subscription as the trial notices need it. */
+async function loadTrialState(admin: SupabaseClient, userId: string): Promise<TrialState | null> {
+  const { data } = await admin
+    .from("subscriptions")
+    .select("status, current_period_end, cancel_at_period_end")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const row = data as {
+    status: string;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean | null;
+  } | null;
+  if (!row) return null;
+  return {
+    status: row.status,
+    cancelAtPeriodEnd: row.cancel_at_period_end === true,
+    trialEndMs: row.current_period_end ? new Date(row.current_period_end).getTime() : null,
+  };
 }
 
 async function claimSend(
@@ -261,11 +307,7 @@ async function markStatus(
     .eq("id", id);
 }
 
-async function stampLifecycle(
-  admin: SupabaseClient,
-  userId: string,
-  nowMs: number,
-): Promise<void> {
+async function stampLifecycle(admin: SupabaseClient, userId: string, nowMs: number): Promise<void> {
   await admin
     .from("profiles")
     .update({ last_lifecycle_email_at: new Date(nowMs).toISOString() })
