@@ -169,7 +169,11 @@ describe("no long run outruns the athlete's own recent longest", () => {
     const weeks = longRunsOf(20, "h20_30", "advanced");
     const first = weeks[0]!.longMiles;
     const peak = Math.max(...weeks.map((w) => w.longMiles));
-    expect(peak).toBeGreaterThan(first * 1.2);
+    // `>=` since 2026-09-28: the hard-running cap turns a threshold run into easy
+    // miles, and in week one of this fixture some of them land on the long run
+    // (7.1 → 7.5 mi), so the first long run starts higher and the peak is exactly
+    // 1.2× it. The point — the ceiling does not freeze the long run — still holds.
+    expect(peak).toBeGreaterThanOrEqual(first * 1.2);
   });
 
   it("does not cost the week its mileage — miles move, they do not vanish", () => {

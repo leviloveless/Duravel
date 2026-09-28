@@ -40,6 +40,7 @@ import type { GenerationInput } from "@/lib/schemas";
 import { buildSkeleton, toEngineInput } from "@/lib/engine";
 import { assembleProgram } from "./assemble";
 import { sessionTiming, hybridRunMiles } from "@/lib/session-volume";
+import { HARD_RUNNING_SHARE_CAP, weekHardShare } from "./hard-share";
 import {
   RACE_STATION_ORDER,
   STATIONS,
@@ -86,6 +87,7 @@ function hybrids(exp: "beginner" | "intermediate" | "advanced" = "intermediate")
   const out: Array<{
     week: number;
     phase: string;
+    days: ReturnType<typeof program>["weeks"][number]["days"];
     session: Extract<
       ReturnType<typeof program>["weeks"][number]["days"][number]["sessions"][number],
       { kind: "hybrid" }
@@ -95,7 +97,7 @@ function hybrids(exp: "beginner" | "intermediate" | "advanced" = "intermediate")
     for (const d of w.days) {
       for (const s of d.sessions) {
         if (s.kind === "hybrid" && !s.simulation)
-          out.push({ week: w.weekNumber, phase: w.phase, session: s });
+          out.push({ week: w.weekNumber, phase: w.phase, days: w.days, session: s });
       }
     }
   }
@@ -137,16 +139,31 @@ describe("a hybrid is the race's own structure at a trainable dose", () => {
     expect(n).toBeLessThanOrEqual(RACE_STATION_ORDER.length);
   });
 
-  it("keeps every run leg at the race's FULL 1 km — the count flexes, not the distance", () => {
-    for (const { week, session } of hybrids()) {
+  it("keeps every run leg at the race's FULL 1 km — unless the week is over the hard-running cap", () => {
+    // Levi, 2026-08-12: full 1 km legs, the count flexes. Levi, 2026-09-28: hard
+    // running is capped at 25% of a hybrid week, and when easing the threshold run
+    // is not enough the legs shorten (never below 500 m). So a shorter leg is only
+    // ever legitimate in a week the cap had to trim — and that week must then sit
+    // at the cap, not above it (unless the legs are already at the floor).
+    let full = 0;
+    for (const { week, days, session } of hybrids()) {
       const runs = session.elements.filter(isRunElement);
-      for (const el of runs) {
-        expect(el.prescription, `wk${week}`).toContain("1000m");
-      }
-      // Mileage follows the leg count, and every one of those miles counts
-      // toward the week's total.
-      expect(hybridRunMiles(session), `wk${week} miles`).toBeCloseTo(runs.length * 0.621371, 1);
+      const metres = runs.map((el) => Number(/(\d+)m/.exec(el.prescription)?.[1]));
+      expect(new Set(metres).size, `wk${week} one leg length per session`).toBe(1);
+      const leg = metres[0]!;
+      expect(leg, `wk${week}`).toBeGreaterThanOrEqual(500);
+      expect(leg, `wk${week}`).toBeLessThanOrEqual(1000);
+      if (leg === 1000) full += 1;
+      else if (leg > 500)
+        expect(weekHardShare(days), `wk${week}`).toBeLessThanOrEqual(HARD_RUNNING_SHARE_CAP + 0.01);
+      // Mileage follows the legs, and every one of those miles counts toward the
+      // week's total.
+      expect(hybridRunMiles(session), `wk${week} miles`).toBeCloseTo(
+        (runs.length * leg) / 1609.344,
+        1,
+      );
     }
+    expect(full, "most hybrids still run the race's own 1 km").toBeGreaterThan(0);
   });
 
   it("halves the station volume and still ramps it by phase", () => {

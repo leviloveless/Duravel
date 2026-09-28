@@ -39,6 +39,13 @@ import {
 import { hrModelFromProfile } from "@/lib/zones";
 import { applyPowerStations } from "@/lib/engine/power-stations";
 import { reconcileWeekVolume } from "./reconcile";
+import {
+  currentLegMeters,
+  legMetersForCap,
+  overHardCap,
+  prunedToSurvivors,
+  withOneQualityRunEased,
+} from "./hard-share";
 import { longRunCapMiles } from "@/lib/engine/long-run-cap";
 import { repsForWorkMiles } from "@/lib/engine/interval-structure";
 import {
@@ -72,6 +79,7 @@ import {
   fitHybridToCap,
   hybridStationScale,
   hybridRunPlan,
+  hybridRunFloor,
   stationPrescription,
   HYROX_CATALOG,
   type Division,
@@ -467,6 +475,8 @@ function replaceHybrids(
   caps: TrainingCaps | undefined,
   emphasis: readonly string[],
   runningExp: ExperienceLevel,
+  /** Hard-running cap (lib/generation/hard-share.ts): the longest a run leg may be. */
+  legCapMeters?: number,
 ): void {
   const thresholdPace = paces?.threshold ?? null;
   const capWork = Math.max(
@@ -537,6 +547,13 @@ function replaceHybrids(
         skel.targetMileage,
         hybridsInWeek,
       );
+      const runMeters =
+        legCapMeters === undefined
+          ? plan.runMeters
+          : Math.max(
+              hybridRunFloor(catalog.interStationRunMeters),
+              Math.min(plan.runMeters, legCapMeters),
+            );
       const elements = buildHybridElements(
         skel.phase,
         division,
@@ -544,7 +561,7 @@ function replaceHybrids(
         catalog,
         emphasis,
         ids,
-        plan.runMeters,
+        runMeters,
       );
       const workMin = estimateHybridWorkMinutes(
         elements,
@@ -577,6 +594,8 @@ function buildWeek(
   longRunCap?: number,
   /** Resolved HR zone model, so quality runs can state bpm as well as pace. */
   hr?: HrPrescription,
+  /** Set only when re-building a week to bring it under the hard-running cap. */
+  legCapMeters?: number,
 ): ProgramWeek {
   const days: ProgramDay[] = skel.days.map((d) => ({
     day: d.day,
@@ -599,7 +618,18 @@ function buildWeek(
   // reconciliation, exactly like the simulation above, or the ~5 miles inside
   // each hybrid never reach the week's mileage total and the runs are sized as
   // if the session did not exist.
-  replaceHybrids(days, skel, division, sex, catalog, paces, caps, emphasis, runningExp);
+  replaceHybrids(
+    days,
+    skel,
+    division,
+    sex,
+    catalog,
+    paces,
+    caps,
+    emphasis,
+    runningExp,
+    legCapMeters,
+  );
 
   // Rewrite the AI-filled run volume so the week's running mileage and cardio
   // time equal the engine's prescribed targets exactly: running is sized to the
@@ -959,21 +989,54 @@ export function assembleProgram(
   const longRunHistory: number[] = [];
 
   const weeks = skeleton.weeks.map((skel) => {
-    const week = buildWeek(
-      skel,
-      aiByWeek.get(skel.weekNumber),
-      issues,
-      runningExp,
-      paces,
-      division,
-      sex,
-      catalog,
-      skeleton.restDays,
-      skeleton.caps,
-      emphasis,
-      longRunCapMiles(longRunHistory) ?? undefined,
-      hr,
-    );
+    const longRunCap = longRunCapMiles(longRunHistory) ?? undefined;
+    // `buildWeek` writes the reconciled mileage back onto the skeleton, so keep
+    // the week as it was PLANNED in case the hard-running cap has to rebuild it.
+    const planned = structuredClone(skel);
+    const build = (s: WeekSkeleton, legCapMeters?: number, sink: string[] = issues) =>
+      buildWeek(
+        s,
+        aiByWeek.get(s.weekNumber),
+        sink,
+        runningExp,
+        paces,
+        division,
+        sex,
+        catalog,
+        skeleton.restDays,
+        skeleton.caps,
+        emphasis,
+        longRunCap,
+        hr,
+        legCapMeters,
+      );
+    let week = build(skel);
+
+    // Hard running at most 25% of a hybrid week's miles (Levi, 2026-09-28):
+    // threshold/tempo runs give way first, then the hybrid legs shorten. Each
+    // step REBUILDS the week so the reconciler sizes it around the change and the
+    // week's totals stay exact. See lib/generation/hard-share.ts.
+    if (overHardCap(week.days)) {
+      let current = prunedToSurvivors(planned, week.days);
+      for (;;) {
+        const eased = withOneQualityRunEased(current);
+        if (!eased) break;
+        current = eased;
+        const candidate = structuredClone(current);
+        week = build(candidate, undefined, []);
+        skel.targetMileage = candidate.targetMileage;
+        if (!overHardCap(week.days)) break;
+      }
+      const floor = hybridRunFloor(catalog.interStationRunMeters);
+      for (let attempt = 0; attempt < 4 && overHardCap(week.days); attempt++) {
+        const legs = legMetersForCap(week.days, floor);
+        const now = currentLegMeters(week.days);
+        if (legs === null || now === null || legs >= now) break;
+        const candidate = structuredClone(current);
+        week = build(candidate, legs, []);
+        skel.targetMileage = candidate.targetMileage;
+      }
+    }
     const patched = patchMovementPatterns(week);
     if (patched.length)
       issues.push(`week ${week.weekNumber}: patched missing patterns ${patched.join(", ")}`);
