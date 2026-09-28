@@ -39,3 +39,13 @@ No row returned → another attempt owns the key → return early.
 
 ## Not in these migrations (by design)
 Templates + the `sendEmail()` choke-point, cron, Svix webhook, HMAC unsubscribe, preference center. Schema only here. `has_active_subscription(p_user)` already exists (0014) — reuse it for the late entitlement re-check.
+
+
+# Migrations 0048–0049 — account admin (2026-09-28)
+
+| File | Adds | Notes |
+|---|---|---|
+| `0048_admin.sql` | `entitlement_overrides`, `admin_audit_log` | overrides: SELECT own only (so `getEntitlement` sees a comp/revoke); audit log: no policies. Both service-role writes only. **No trial column** — trials are Stripe's since 2026-09-20. |
+| `0049_site_announcements.sql` | `site_announcements` | SELECT for `anon` + `authenticated`, active rows only (the banner is fetched cookie-less and cached 60s). Unique partial index = at most one active. |
+
+Both `create … if not exists` / `drop policy if exists`, so safe to re-run. Apply **before** deploying the code: `getEntitlement` tolerates a missing `entitlement_overrides` (reads it as "no override"), and the banner tolerates a missing `site_announcements`, but the admin pages show a "run 0048" banner until it exists.

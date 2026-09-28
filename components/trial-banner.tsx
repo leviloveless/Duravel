@@ -4,9 +4,13 @@ import { getEntitlement } from "@/lib/subscription";
 /**
  * Free-trial status banner (monetization). Async server component: it renders
  * nothing when billing is off, when the user is subscribed, or when there's no
- * trial to show — so it's safe to drop anywhere with no prop wiring. While the
- * 14-day no-card trial is active it shows a countdown + Subscribe link; once the
- * trial ends it prompts to subscribe.
+ * trial to show — so it's safe to drop anywhere with no prop wiring.
+ *
+ * The trial is CARDED (2026-09-20): whoever sees the countdown has already given
+ * a card and will be charged when it ends. So the banner says exactly that and
+ * links to where they can cancel. It used to tell a carded athlete they had
+ * given no card, beside a Subscribe link — false, and the link sent someone who
+ * already HAS a subscription back to checkout.
  */
 export default async function TrialBanner() {
   const { reason, trialDaysLeft, trialEndsAt } = await getEntitlement();
@@ -20,13 +24,14 @@ export default async function TrialBanner() {
       <div className="flex flex-col items-start gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-emerald-900">
           <span className="font-medium">Free trial:</span> {trialDaysLeft} day
-          {trialDaysLeft === 1 ? "" : "s"} left · no card required
+          {trialDaysLeft === 1 ? "" : "s"} left. Your plan starts automatically when it ends
+          {trialEndsAt ? ` (${formatTrialEnd(trialEndsAt)})` : ""} unless you cancel before then.
         </p>
         <Link
-          href="/pricing"
-          className="text-sm font-medium text-emerald-800 underline underline-offset-2 hover:text-emerald-950"
+          href="/settings"
+          className="shrink-0 text-sm font-medium text-emerald-800 underline underline-offset-2 hover:text-emerald-950"
         >
-          Subscribe
+          Manage or cancel
         </Link>
       </div>
     );
@@ -47,4 +52,12 @@ export default async function TrialBanner() {
       </Link>
     </div>
   );
+}
+
+/** "Oct 5" — the date the trial converts. UTC, matching how Stripe stamps the period end. */
+function formatTrialEnd(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }

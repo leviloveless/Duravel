@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { getGenerationCostRollup } from "@/lib/admin-metrics";
 import type { Bucket, CostStats } from "@/lib/generation-cost";
 
@@ -20,10 +19,18 @@ function StatRow({ label, stats }: { label: string; stats: CostStats }) {
     <tr className="border-b border-zinc-100 last:border-b-0">
       <td className="py-2 pr-3 text-sm text-zinc-700">{label}</td>
       <td className="py-2 pr-3 text-right text-sm tabular-nums text-zinc-600">{stats.count}</td>
-      <td className="py-2 pr-3 text-right text-sm tabular-nums font-medium text-zinc-900">{usd(stats.avgCostUsd)}</td>
-      <td className="py-2 pr-3 text-right text-sm tabular-nums text-zinc-600">{stats.avgInputTokens.toLocaleString()}</td>
-      <td className="py-2 pr-3 text-right text-sm tabular-nums text-zinc-600">{stats.avgOutputTokens.toLocaleString()}</td>
-      <td className="py-2 text-right text-sm tabular-nums text-zinc-600">{usd(stats.totalCostUsd)}</td>
+      <td className="py-2 pr-3 text-right text-sm tabular-nums font-medium text-zinc-900">
+        {usd(stats.avgCostUsd)}
+      </td>
+      <td className="py-2 pr-3 text-right text-sm tabular-nums text-zinc-600">
+        {stats.avgInputTokens.toLocaleString()}
+      </td>
+      <td className="py-2 pr-3 text-right text-sm tabular-nums text-zinc-600">
+        {stats.avgOutputTokens.toLocaleString()}
+      </td>
+      <td className="py-2 text-right text-sm tabular-nums text-zinc-600">
+        {usd(stats.totalCostUsd)}
+      </td>
     </tr>
   );
 }
@@ -56,7 +63,7 @@ function Table({ title, rows }: { title: string; rows: Bucket[] }) {
 
 export default async function AdminMetricsPage() {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const r = await getGenerationCostRollup();
 

@@ -1,32 +1,26 @@
-import { Button, Section, Text } from '@react-email/components';
-import { Layout } from './_Layout';
-import type { WelcomeProps } from './types';
-import {
-  button,
-  card,
-  cardText,
-  paragraph,
-  paragraphTight,
-  smallMuted,
-} from './styles';
+import { Button, Section, Text } from "@react-email/components";
+import { Layout } from "./_Layout";
+import type { WelcomeProps } from "./types";
+import { button, card, cardText, paragraph, paragraphTight, smallMuted } from "./styles";
 
 /**
  * Welcome — triggered on first authenticated session with a confirmed email.
  * Category: onboarding / service. Subject: "You're in — let's build your plan".
  */
-export function Welcome({ firstName, generateUrl, trialEndDate, manageUrl }: WelcomeProps) {
+export function Welcome({ firstName, generateUrl, manageUrl }: WelcomeProps) {
   return (
     <Layout
-      preview="Your 14-day trial is live. Here's your first move."
+      preview="Your account is ready. Here's your first move."
       footnote="You're getting this because you created a Duravel account."
-      footerLinks={[{ label: 'Manage email preferences', href: manageUrl }]}
+      footerLinks={[{ label: "Manage email preferences", href: manageUrl }]}
     >
       <Text style={paragraph}>
-        Welcome, {firstName}. You&rsquo;re in &mdash; and your <b>14-day free trial</b> is live
-        (no card, runs through {trialEndDate}).
+        Welcome, {firstName}. You&rsquo;re in. Building your program is <b>free</b> &mdash;
+        you&rsquo;ll see its first two weeks, and a 7-day free trial unlocks the rest whenever
+        you&rsquo;re ready.
       </Text>
       <Text style={paragraph}>
-        Here&rsquo;s how Duravel works: you give it your benchmarks and your race, it builds a{' '}
+        Here&rsquo;s how Duravel works: you give it your benchmarks and your race, it builds a{" "}
         <b>periodized plan around you</b>, and every week it adapts from what you actually log.
         It&rsquo;s the structure a coach gives you &mdash; for a small fraction of the price.
       </Text>

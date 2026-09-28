@@ -6,7 +6,8 @@ import SignUpForm from "./signup-form";
 
 export const metadata: Metadata = {
   title: "Create your athlete account — Duravel",
-  description: "14 days of Duravel, free. No card required.",
+  description:
+    "Build your program free — no card to sign up. Unlock it all with a 7-day free trial.",
 };
 
 const PROOF = [
@@ -76,7 +77,10 @@ export default async function SignUpPage({
           <h2 className="font-display text-3xl font-bold tracking-wide uppercase">
             Create your athlete account
           </h2>
-          <p className="text-sm text-zinc-500">14 days of everything, free. No card required.</p>
+          <p className="text-sm text-zinc-500">
+            Build your program free &mdash; no card to sign up. Unlock the full plan with a 7-day
+            free trial.
+          </p>
         </div>
 
         {providerError && (

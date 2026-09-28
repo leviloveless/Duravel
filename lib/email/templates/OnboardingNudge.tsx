@@ -1,7 +1,7 @@
-import { Button, Text } from '@react-email/components';
-import { Layout } from './_Layout';
-import type { OnboardingNudgeProps } from './types';
-import { button, paragraph, paragraphLast, smallMuted } from './styles';
+import { Button, Text } from "@react-email/components";
+import { Layout } from "./_Layout";
+import type { OnboardingNudgeProps } from "./types";
+import { button, paragraph, paragraphLast, smallMuted } from "./styles";
 
 /**
  * Onboarding nudge — signed up 2-3 days ago AND no program generated.
@@ -11,31 +11,30 @@ import { button, paragraph, paragraphLast, smallMuted } from './styles';
 export function OnboardingNudge({
   firstName,
   generateUrl,
-  daysLeft,
   manageUrl,
   unsubscribeUrl,
 }: OnboardingNudgeProps) {
   return (
     <Layout
-      preview="You've got trial days ticking — let's not waste them."
+      preview="Your program is about a minute away — and it's free to build."
       footnote="You're getting this because you created a Duravel account."
       footerLinks={[
-        { label: 'Manage preferences', href: manageUrl },
-        { label: 'Unsubscribe', href: unsubscribeUrl },
+        { label: "Manage preferences", href: manageUrl },
+        { label: "Unsubscribe", href: unsubscribeUrl },
       ]}
     >
       <Text style={paragraph}>
         {firstName} &mdash; you signed up but haven&rsquo;t generated a plan yet, and I didn&rsquo;t
-        want your trial to quietly tick down without you seeing what Duravel actually does.
+        want you to miss seeing what Duravel actually does.
       </Text>
       <Text style={paragraph}>
         It takes about a minute. You answer a few questions, and Duravel hands you a full periodized
-        block built around <i>your</i> numbers &mdash; not a generic template. That&rsquo;s the whole
-        thing you&rsquo;re here to try.
+        block built around <i>your</i> numbers &mdash; not a generic template. That&rsquo;s the
+        whole thing you&rsquo;re here to try.
       </Text>
       <Text style={paragraphLast}>
-        You&rsquo;ve got <b>{daysLeft} days left</b> in your free trial. Plenty of time to run a real
-        week and see how it feels.
+        Building it is <b>free</b>, and so are its first two weeks &mdash; enough to run a real week
+        and see how it feels.
       </Text>
 
       <Button href={generateUrl} style={button}>

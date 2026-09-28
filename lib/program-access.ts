@@ -41,3 +41,29 @@ export function gateProgramWeeks(
     previewing: true,
   };
 }
+
+/**
+ * Whether a program may be GENERATED for someone who is not entitled
+ * (2026-09-28).
+ *
+ * The card-on-file model works like this: an athlete builds a program for free,
+ * sees the first `FREE_PREVIEW_WEEKS`, and is asked for a card — starting the
+ * trial — to open the rest. That last step lives on a generated program's page.
+ * But `/api/generate` refused everyone without a live subscription, so a new
+ * athlete was turned away at generation and never saw the offer at all: no
+ * program, no preview, no trial.
+ *
+ * So the FIRST program is free: allowed when this is a first build (not a
+ * recalculate) and the athlete has no other program that ever reached `ready`.
+ * Anything beyond that — a second program, or recalculating the free one — is
+ * what the trial is for. The per-user generation rate limit still applies, so a
+ * free program costs at most what any other one does.
+ */
+export function mayGenerateWithoutEntitlement(args: {
+  /** An explicit recalculate of an existing program. */
+  force: boolean;
+  /** Programs this athlete owns, OTHER than this one, whose status is `ready`. */
+  otherReadyPrograms: number;
+}): boolean {
+  return !args.force && args.otherReadyPrograms === 0;
+}

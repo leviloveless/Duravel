@@ -21,7 +21,6 @@ export interface WelcomeProps extends BaseEmailProps {
   /** Program generator route. */
   generateUrl: string;
   /** Pre-formatted trial end date, e.g. "Jul 31". */
-  trialEndDate: string;
 }
 
 export interface OnboardingNudgeProps extends BaseEmailProps {
@@ -31,7 +30,7 @@ export interface OnboardingNudgeProps extends BaseEmailProps {
   unsubscribeUrl: string;
 }
 
-export type TrialEndingStage = 'T-3' | 'T-1' | 'T-0';
+export type TrialEndingStage = "T-3" | "T-1" | "T-0";
 
 export interface TrialEndingProps extends BaseEmailProps {
   stage: TrialEndingStage;

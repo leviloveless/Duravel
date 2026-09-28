@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { listProgramsForAdmin, listWaitlist } from "@/lib/admin-data";
 import WaitlistControls from "@/components/admin/waitlist-controls";
 import { formatInstant } from "@/lib/timezone";
@@ -26,7 +25,7 @@ function fmt(iso: string): string {
 
 export default async function AdminPage() {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const [programs, waitlist] = await Promise.all([listProgramsForAdmin(), listWaitlist()]);
   const pendingCount = waitlist.filter((w) => w.status === "applied").length;
@@ -36,6 +35,9 @@ export default async function AdminPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Admin console</h1>
         <div className="flex items-center gap-4">
+          <Link href="/admin/users" className="text-sm font-medium text-zinc-900 underline">
+            Accounts
+          </Link>
           <Link href="/admin/metrics" className="text-sm text-zinc-500 underline">
             Generation cost
           </Link>
@@ -114,12 +116,16 @@ export default async function AdminPage() {
                 className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 transition-colors hover:bg-zinc-50"
               >
                 <span className="flex flex-col">
-                  <span className="font-medium">{p.name ?? `${p.duration_weeks}-week program`}</span>
+                  <span className="font-medium">
+                    {p.name ?? `${p.duration_weeks}-week program`}
+                  </span>
                   <span className="text-xs text-zinc-500">
                     {p.ownerName ?? "—"} · {p.ownerEmail ?? "—"} · created {fmt(p.created_at)}
                   </span>
                 </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[p.status] ?? ""}`}>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[p.status] ?? ""}`}
+                >
                   {p.status}
                 </span>
               </Link>

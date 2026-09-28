@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 // confirmed it receives mail, and this is now the THIRD page pointing at it.
 const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
 const ENTITY = "Duravel LLC";
-const UPDATED = "September 13, 2026";
+const UPDATED = "September 28, 2026";
 /** Days after the initial annual charge (and after each renewal) that we refund in full. */
 const ANNUAL_WINDOW_DAYS = 14;
 
@@ -44,9 +44,12 @@ export default function RefundsPage() {
 
       <H>Free trial</H>
       <p>
-        Every new account includes a 14-day free trial of the full service. We do not collect
-        payment details to start the trial, and the trial does not convert to a paid subscription
-        automatically. You will only be charged if you choose a plan and complete checkout.
+        The free trial lasts 7 days and requires a payment card at checkout. You are not charged
+        during the trial, and you can cancel at any time before it ends from your billing portal, in
+        which case you will not be charged at all. If you do not cancel, the trial converts
+        automatically to the paid plan you selected and your card is charged when the trial ends.
+        The free trial is available once per person. You can build your first program and view its
+        first two weeks without starting a trial or providing a card.
       </p>
 
       <H>Subscriptions and billing</H>

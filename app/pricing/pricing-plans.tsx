@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TRIAL_DAYS } from "@/lib/billing-constants";
 
 // Mirrored rather than imported: this is a client component, and pulling the
 // types in from `lib/subscription` would drag its server-only Supabase client
@@ -61,6 +62,7 @@ export default function PricingPlans({
   plan,
   tier = "standard",
   customAvailable,
+  trialEligible,
 }: {
   hasSubscription: boolean;
   plan: Plan | null;
@@ -73,6 +75,13 @@ export default function PricingPlans({
    * caller hide a plan that IS on sale and never find out.
    */
   customAvailable: boolean;
+  /**
+   * Whether checkout will attach the free trial — decided on the server by the
+   * same `isTrialEligible` rule the checkout route uses, so the button can never
+   * promise a trial that checkout won't give. Required for the same reason
+   * `customAvailable` is.
+   */
+  trialEligible: boolean;
 }) {
   const [selected, setSelected] = useState<Selection>("annual");
   const [pending, setPending] = useState(false);
@@ -216,10 +225,21 @@ export default function PricingPlans({
             ? "Coming soon"
             : pending
               ? "Redirecting…"
-              : selected === "custom_monthly"
-                ? "Subscribe to Custom"
-                : `Subscribe ${selected === "annual" ? "annually" : "monthly"}`}
+              : trialEligible
+                ? `Start your ${TRIAL_DAYS}-day free trial`
+                : selected === "custom_monthly"
+                  ? "Subscribe to Custom"
+                  : `Subscribe ${selected === "annual" ? "annually" : "monthly"}`}
         </button>
+        {trialEligible && !customPending ? (
+          // The material terms, stated before the card is asked for — not only on
+          // Stripe's page after the click.
+          <p className="text-center text-xs leading-relaxed text-zinc-500">
+            Card required. Nothing is charged for {TRIAL_DAYS} days. Your{" "}
+            {selected === "annual" ? "annual" : "monthly"} plan starts automatically when the trial
+            ends unless you cancel before then.
+          </p>
+        ) : null}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
         <p className="text-center text-xs text-zinc-400">Secure checkout via Stripe</p>
       </div>

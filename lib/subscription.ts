@@ -181,8 +181,64 @@ export type Entitlement = {
  */
 export function entitlementFor(
   sub: SubscriptionRow | null,
-  opts: { billingEnabled: boolean; now?: number },
+  opts: { billingEnabled: boolean; now?: number; override?: AccessOverride | null },
 ): Entitlement {
+  // `source` is for the admin screens; strip it so this function's output stays
+  // exactly the shape every existing caller and test expects.
+  const { source: _source, ...entitlement } = resolveAccess(sub, opts);
+  void _source;
+  return entitlement;
+}
+
+/**
+ * An administrator's decision about ONE account — table `entitlement_overrides`,
+ * migration 0048, written only from /admin/users.
+ *
+ * `grant` is a comp: access at `grant_tier`, no card, until `grant_expires_at`
+ * (or indefinitely). `revoke` shuts access whatever the account pays. This is
+ * NOT the app-side grace window the note above warns about: that gave every new
+ * account free access and so silently disabled the paywall for everyone. A comp
+ * is one named account, set by hand, dated, and audited — the paywall still
+ * applies to everybody else.
+ */
+export type AccessOverride = {
+  access: "default" | "grant" | "revoke";
+  grant_tier: Tier | null;
+  grant_expires_at: string | null;
+};
+
+/**
+ * WHY access came out the way it did. Finer than `reason`, which keeps its four
+ * original values so nothing that already reads it changes behaviour: a comp
+ * reads to the rest of the app as `subscription`, a revoke as `none`.
+ */
+export type AccessSource =
+  | "billing_off"
+  | "override_revoke"
+  | "override_grant"
+  | "subscription"
+  | "trial"
+  | "lapsed"
+  | "none";
+
+export type ResolvedAccess = Entitlement & { source: AccessSource };
+
+/**
+ * The whole access rule, with its reason — PURE. `entitlementFor` is this minus
+ * `source`; the admin screens call it directly, so what an administrator sees
+ * for an account is by construction what that athlete experiences.
+ *
+ * Order: billing off → admin revoke → live admin comp → Stripe subscription
+ * (active or trialing) → nothing. A comp sits ABOVE a paid subscription so that
+ * comping someone who also pays never drops them to their paid tier; a revoke
+ * sits above both, and the admin screen warns when Stripe is still charging.
+ * An EXPIRED comp falls through to the normal rules rather than locking the
+ * athlete out: it was a gift with an end date, not a revoke.
+ */
+export function resolveAccess(
+  sub: SubscriptionRow | null,
+  opts: { billingEnabled: boolean; now?: number; override?: AccessOverride | null },
+): ResolvedAccess {
   const now = opts.now ?? Date.now();
   if (!opts.billingEnabled) {
     return {
@@ -191,7 +247,33 @@ export function entitlementFor(
       tier: "custom",
       trialEndsAt: null,
       trialDaysLeft: null,
+      source: "billing_off",
     };
+  }
+
+  const o = opts.override;
+  if (o?.access === "revoke") {
+    return {
+      entitled: false,
+      reason: "none",
+      tier: "standard",
+      trialEndsAt: null,
+      trialDaysLeft: null,
+      source: "override_revoke",
+    };
+  }
+  if (o?.access === "grant") {
+    const expires = o.grant_expires_at ? Date.parse(o.grant_expires_at) : null;
+    if (expires === null || (Number.isFinite(expires) && expires > now)) {
+      return {
+        entitled: true,
+        reason: "subscription",
+        tier: o.grant_tier ?? "standard",
+        trialEndsAt: null,
+        trialDaysLeft: null,
+        source: "override_grant",
+      };
+    }
   }
 
   // A carded trial IS a live subscription to Stripe and to this app — `trialing`
@@ -211,6 +293,7 @@ export function entitlementFor(
       trialDaysLeft: trialEndsAt
         ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - now) / DAY_MS))
         : null,
+      source: trialing ? "trial" : "subscription",
     };
   }
 
@@ -223,13 +306,40 @@ export function entitlementFor(
     tier: "standard",
     trialEndsAt,
     trialDaysLeft: trialEndsAt ? 0 : null,
+    source: sub ? "lapsed" : "none",
   };
+}
+
+/**
+ * The signed-in athlete's own admin override, or null.
+ *
+ * A read error counts as "no override", on purpose. Before migration 0048 the
+ * table does not exist, and that must not take entitlement down with it. The
+ * cost is that a revoke can fail open during a database fault — acceptable for
+ * a billing control; the hard block is suspending the account, which auth
+ * enforces and which never passes through here.
+ */
+async function getOwnOverride(): Promise<AccessOverride | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("entitlement_overrides")
+    .select("access, grant_tier, grant_expires_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) return null;
+  return (data as AccessOverride | null) ?? null;
 }
 
 export async function getEntitlement(): Promise<Entitlement> {
   // One round-trip, not two: this used to call `getSubscription()` and then
   // `hasActiveSubscription()`, which fetched the same row again.
-  return entitlementFor(billingEnabled ? await getSubscription() : null, { billingEnabled });
+  if (!billingEnabled) return entitlementFor(null, { billingEnabled });
+  const [sub, override] = await Promise.all([getSubscription(), getOwnOverride()]);
+  return entitlementFor(sub, { billingEnabled, override });
 }
 
 /**

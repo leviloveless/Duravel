@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateProgram } from "@/lib/generation/generate-program";
 import { getEntitlement, hasTier } from "@/lib/subscription";
+import { mayGenerateWithoutEntitlement } from "@/lib/program-access";
+import { TRIAL_DAYS } from "@/lib/billing-constants";
 
 /**
  * POST /api/generate  { programId: string }
@@ -38,19 +40,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Billing gate (monetization). No-op while BILLING_ENABLED !== "true". Once
-  // billing is on, access requires a live subscription OR an active 14-day free
-  // trial; otherwise 402 and the client sends the user to /pricing. The message
-  // distinguishes "trial ended" from "no subscription" so the copy fits.
-  const entitlement = await getEntitlement();
-  if (!entitlement.entitled) {
-    const message =
-      entitlement.reason === "none" && entitlement.trialEndsAt
-        ? "Your 14-day free trial has ended. Subscribe to keep generating and adapting your programs."
-        : "An active subscription is required to generate programs.";
-    return NextResponse.json({ error: "payment_required", message }, { status: 402 });
-  }
-
   let programId: string | undefined;
   let force = false;
   try {
@@ -72,6 +61,26 @@ export async function POST(request: Request) {
     .single();
   if (!program) {
     return NextResponse.json({ error: "Program not found" }, { status: 404 });
+  }
+
+  // Billing gate. No-op while BILLING_ENABLED !== "true". With billing on, a
+  // live subscription or carded trial may generate anything; everyone else gets
+  // their FIRST program free, because the offer to start the trial lives on that
+  // program's page — see `mayGenerateWithoutEntitlement`. It runs after the
+  // program lookup because it needs to know which program this is.
+  const entitlement = await getEntitlement();
+  if (!entitlement.entitled) {
+    const { count } = await supabase
+      .from("programs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "ready")
+      .neq("id", programId);
+    if (!mayGenerateWithoutEntitlement({ force, otherReadyPrograms: count ?? 0 })) {
+      const message = force
+        ? `Recalculating a program is part of the full plan. Start your ${TRIAL_DAYS}-day free trial to keep it adapting.`
+        : `Your first program is free. Start your ${TRIAL_DAYS}-day free trial to build more.`;
+      return NextResponse.json({ error: "payment_required", message }, { status: 402 });
+    }
   }
 
   // THE CUSTOM TIER'S GATE, and it has to be here rather than at the designer.

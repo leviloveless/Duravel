@@ -34,10 +34,31 @@ interface DueUser {
   stage: "T-3" | "T-1" | "T-0";
 }
 
+/**
+ * ⛔ DISABLED 2026-09-28 — returns an empty summary without sending anything.
+ *
+ * This flow finds its audience by `profiles.trial_started_at`, the start of the
+ * OLD app-side 14-day no-card trial. Since 2026-09-20 the trial is carded and
+ * lives in Stripe, but every signup still gets a `trial_started_at` — so this
+ * was emailing athletes who never started a trial that "your free trial ends in
+ * 3 days". And the athletes who DID start one (card on file, about to be
+ * charged) get nothing, because the late entitlement re-check in `sendEmail`
+ * skips anyone entitled, which a trialing subscriber is.
+ *
+ * The replacement is a reminder to TRIALING subscribers before their card is
+ * charged, keyed off `subscriptions.current_period_end` — a different audience,
+ * query and template, so it is its own change rather than a patch to this one.
+ * Remove the early return only when the query below targets carded trials.
+ */
+const TRIAL_ENDING_DISABLED = true;
+
 export async function runTrialEndingFlow(
   admin: SupabaseClient,
   nowMs: number,
 ): Promise<TrialEndingSummary> {
+  if (TRIAL_ENDING_DISABLED) {
+    return { candidates: 0, due: 0, skippedActiveSub: 0, sent: 0, skipped: 0, failed: 0 };
+  }
   const appUrl = env.NEXT_PUBLIC_SITE_URL ?? "https://duravel.app";
   const summary: TrialEndingSummary = {
     candidates: 0,
@@ -152,7 +173,9 @@ async function loadActiveSubscriberIds(
   }>;
   const active = new Set<string>();
   for (const r of rows) {
-    if (isSubscriptionActive({ status: r.status, current_period_end: r.current_period_end }, nowMs)) {
+    if (
+      isSubscriptionActive({ status: r.status, current_period_end: r.current_period_end }, nowMs)
+    ) {
       active.add(r.user_id);
     }
   }

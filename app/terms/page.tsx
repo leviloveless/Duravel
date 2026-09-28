@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const SUPPORT_EMAIL = "support@duravel.app"; // TODO(levi): confirm this is monitored
 const ENTITY = "Duravel LLC"; // Texas LLC, doing business as "Duravel"
 const GOVERNING_LAW = "the State of Texas";
-const UPDATED = "September 12, 2026";
+const UPDATED = "September 28, 2026";
 
 export default function TermsPage() {
   return (
@@ -30,9 +30,9 @@ export default function TermsPage() {
       </div>
 
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of the Duravel web app and related
-        applications (the &quot;Service&quot;), operated by {ENTITY}. By creating an account or using
-        the Service, you agree to these Terms.
+        These Terms of Service (&quot;Terms&quot;) govern your use of the Duravel web app and
+        related applications (the &quot;Service&quot;), operated by {ENTITY}. By creating an account
+        or using the Service, you agree to these Terms.
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">The Service</h2>
@@ -63,14 +63,21 @@ export default function TermsPage() {
         account at any time from your profile page.
       </p>
 
-      <h2 className="mt-2 text-base font-semibold text-zinc-900">Free trial, subscriptions, and billing</h2>
+      <h2 className="mt-2 text-base font-semibold text-zinc-900">
+        Free trial, subscriptions, and billing
+      </h2>
       <p>
-        New accounts include a 14-day free trial with no payment card required. After the trial, an
-        active paid subscription is required to continue generating and adapting programs.
-        Subscriptions are billed through Stripe on a recurring basis (monthly or annually) at the
-        prices shown on our pricing page, and renew automatically until cancelled. You can cancel at
-        any time from your billing portal; cancellation stops future renewals and takes effect at the
-        end of the current billing period. Refunds are governed by our{" "}
+        You can create an account and build your first program without a payment card, and view its
+        first two weeks. To unlock the full program, you may start a 7-day free trial, which
+        requires a payment card at checkout. You will not be charged during the trial. Unless you
+        cancel before the trial ends, your paid subscription begins automatically when it ends and
+        the payment card you provided is charged the price of the plan you selected. The free trial
+        is available once per person. After the trial, an active paid subscription is required to
+        continue generating and adapting programs. Subscriptions are billed through Stripe on a
+        recurring basis (monthly or annually) at the prices shown on our pricing page, and renew
+        automatically until cancelled. You can cancel at any time from your billing portal;
+        cancellation stops future renewals and takes effect at the end of the current billing
+        period. Refunds are governed by our{" "}
         <Link href="/refunds" className="underline">
           Refund Policy
         </Link>
@@ -90,7 +97,9 @@ export default function TermsPage() {
         non-commercial use.
       </p>
 
-      <h2 className="mt-2 text-base font-semibold text-zinc-900">Disclaimers and limitation of liability</h2>
+      <h2 className="mt-2 text-base font-semibold text-zinc-900">
+        Disclaimers and limitation of liability
+      </h2>
       <p>
         The Service is provided &quot;as is&quot; without warranties of any kind. To the maximum
         extent permitted by law, {ENTITY} is not liable for any indirect, incidental, or
@@ -111,17 +120,28 @@ export default function TermsPage() {
       </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Governing law</h2>
-      <p>These Terms are governed by the laws of {GOVERNING_LAW}, without regard to conflict-of-law rules.</p>
+      <p>
+        These Terms are governed by the laws of {GOVERNING_LAW}, without regard to conflict-of-law
+        rules.
+      </p>
 
       <h2 className="mt-2 text-base font-semibold text-zinc-900">Contact</h2>
       <p>
         Questions about these Terms? Contact us at{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">{SUPPORT_EMAIL}</a>.
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+          {SUPPORT_EMAIL}
+        </a>
+        .
       </p>
 
       <p className="mt-4 text-xs text-zinc-400">
-        <Link href="/privacy" className="underline">Privacy Policy</Link> ·{" "}
-        <Link href="/dashboard" className="underline">Back to dashboard</Link>
+        <Link href="/privacy" className="underline">
+          Privacy Policy
+        </Link>{" "}
+        ·{" "}
+        <Link href="/dashboard" className="underline">
+          Back to dashboard
+        </Link>
       </p>
     </main>
   );

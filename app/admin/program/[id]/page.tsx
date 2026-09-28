@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { getAdminProgram } from "@/lib/admin-data";
 import AdminProgramControls from "@/components/admin/admin-program-controls";
 import CoachingNotes from "@/components/admin/coaching-notes";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const { id } = await params;
   const detail = await getAdminProgram(id);
@@ -48,7 +48,10 @@ export default async function AdminProgramPage({ params }: { params: Promise<{ i
 
       <section className="rounded-2xl border border-zinc-200 p-5">
         <h2 className="mb-3 text-sm font-semibold">Coaching notes</h2>
-        <CoachingNotes programId={program.id} notes={notes.map((n) => ({ id: n.id, body: n.body, created_at: n.created_at }))} />
+        <CoachingNotes
+          programId={program.id}
+          notes={notes.map((n) => ({ id: n.id, body: n.body, created_at: n.created_at }))}
+        />
       </section>
 
       <section className="rounded-2xl border border-zinc-200 p-5">
@@ -57,9 +60,14 @@ export default async function AdminProgramPage({ params }: { params: Promise<{ i
           <>
             <ProgramFormEditor programId={program.id} initialData={program.program_data} />
             <details className="mt-4">
-              <summary className="cursor-pointer text-xs text-zinc-500">Advanced: edit raw JSON</summary>
+              <summary className="cursor-pointer text-xs text-zinc-500">
+                Advanced: edit raw JSON
+              </summary>
               <div className="mt-3">
-                <ProgramEditor programId={program.id} initialJson={JSON.stringify(program.program_data, null, 2)} />
+                <ProgramEditor
+                  programId={program.id}
+                  initialJson={JSON.stringify(program.program_data, null, 2)}
+                />
               </div>
             </details>
           </>
@@ -91,8 +99,8 @@ export default async function AdminProgramPage({ params }: { params: Promise<{ i
             <ul className="flex max-h-56 flex-col gap-1 overflow-auto text-xs text-zinc-600">
               {readiness.map((r) => (
                 <li key={r.week_number}>
-                  W{r.week_number} — sleep {r.sleep} · fatigue {r.fatigue} · stress {r.stress} · soreness{" "}
-                  {r.soreness}
+                  W{r.week_number} — sleep {r.sleep} · fatigue {r.fatigue} · stress {r.stress} ·
+                  soreness {r.soreness}
                   {r.resting_hr != null && ` · RHR ${r.resting_hr}`}
                 </li>
               ))}

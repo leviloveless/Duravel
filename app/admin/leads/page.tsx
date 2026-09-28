@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatInstant } from "@/lib/timezone";
 
@@ -15,7 +14,7 @@ type LeadRow = { email: string; source: string; sport: string | null; created_at
 
 export default async function AdminLeadsPage() {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const supabase = createAdminClient();
   const { data } = await supabase

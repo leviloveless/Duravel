@@ -24,3 +24,18 @@
  * charge and a Stripe dispute.
  */
 export const TRIAL_DAYS = 7;
+
+/**
+ * Whether this athlete gets the free trial at checkout: only if they have never
+ * had a subscription at all (2026-09-28).
+ *
+ * Checkout used to attach `trial_period_days` to EVERY session, so someone who
+ * subscribed, cancelled, and came back got another free week — as often as they
+ * liked. One trial per athlete is what the Terms and the Refund Policy promise,
+ * and this is the single rule both the checkout route and the pricing page's
+ * button label read, so the page can never offer a trial the checkout won't
+ * give. Any `subscriptions` row — trialing, active, canceled — counts as "had one".
+ */
+export function isTrialEligible(hasPriorSubscription: boolean): boolean {
+  return !hasPriorSubscription;
+}

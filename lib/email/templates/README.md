@@ -49,6 +49,6 @@ const text = await render(el, { plainText: true }); // deliverability
 2. **Graceful `sessionsLogged` degradation** is handled *inside* `TrialEnding` — pass `0`/omit and it drops the stat block and swaps copy. But prefer to pass the real count; only T-3 shows the full stat card.
 
 ## Notes
-- Dates and money are pre-formatted upstream (`trialEndDate`, `amount`, `renewalDate`) so templates stay pure.
+- Dates and money are pre-formatted upstream (`amount`, `renewalDate`) so templates stay pure.
 - `MAILING_ADDRESS` in `styles.ts` = `5900 Balcones Dr STE 100, Austin, TX 78731` (matches live /pace + /deka footers). Change in one place if the address updates.
 - Replaces the `_phase3_draft/lib/email/templates.ts` string scaffold (excluded from tsconfig; delete when this lands).

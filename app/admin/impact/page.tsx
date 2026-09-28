@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { getFundraiser } from "@/lib/fundraiser-data";
 import { centsToUsd } from "@/lib/fundraiser";
 import FundraiserEditor from "@/components/admin/fundraiser-editor";
@@ -10,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminImpactPage() {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const f = await getFundraiser();
 

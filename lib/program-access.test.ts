@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { gateProgramWeeks, FREE_PREVIEW_WEEKS } from "./program-access";
+import {
+  gateProgramWeeks,
+  FREE_PREVIEW_WEEKS,
+  mayGenerateWithoutEntitlement,
+} from "./program-access";
 import type { ProgramData } from "@/lib/schemas";
 
 function prog(nWeeks: number): ProgramData {
@@ -7,7 +11,11 @@ function prog(nWeeks: number): ProgramData {
     weekNumber: i + 1,
     phase: "base",
     microWeek: "increase",
-    summary: { totalCardioMinutes: 0, totalMileage: 0, zoneDistribution: { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 } },
+    summary: {
+      totalCardioMinutes: 0,
+      totalMileage: 0,
+      zoneDistribution: { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 },
+    },
     days: [],
   }));
   return { generatedAt: "2026-07-01", weeks } as unknown as ProgramData;
@@ -42,5 +50,17 @@ describe("gateProgramWeeks", () => {
     const g = gateProgramWeeks(prog(8), false, 4);
     expect(g.program.weeks).toHaveLength(4);
     expect(g.lockedWeeks).toBe(4);
+  });
+});
+
+describe("mayGenerateWithoutEntitlement — the free first program", () => {
+  it("lets a new athlete build their first program without a card", () => {
+    expect(mayGenerateWithoutEntitlement({ force: false, otherReadyPrograms: 0 })).toBe(true);
+  });
+  it("does not let them build a second one free", () => {
+    expect(mayGenerateWithoutEntitlement({ force: false, otherReadyPrograms: 1 })).toBe(false);
+  });
+  it("does not let them recalculate — adaptation is what the trial is for", () => {
+    expect(mayGenerateWithoutEntitlement({ force: true, otherReadyPrograms: 0 })).toBe(false);
   });
 });

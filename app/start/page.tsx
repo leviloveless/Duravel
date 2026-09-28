@@ -79,8 +79,8 @@ export default async function StartPage() {
           {profile?.first_name ? `You're in, ${profile.first_name}.` : "You're in."}
         </h1>
         <p className="mx-auto mt-3 max-w-[54ch] text-zinc-400">
-          Your 14-day trial is running. Pick how you want your training built — you can switch at
-          any time.
+          Build your program first &mdash; it&apos;s free, and so are its first two weeks. Pick how
+          you want your training built; you can switch at any time.
         </p>
       </header>
       <div className="tick-tape tick-tape-invert bg-brand" aria-hidden="true" />

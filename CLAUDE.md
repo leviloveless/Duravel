@@ -128,9 +128,14 @@ A comment that restates the code is worse than none.
 - App Store category **Health & Fitness** · brand background **#0B0B0F**
 - SQL migrations are numbered under `supabase/migrations/` (0001–0045 plus
   `APPLY_NOTES.md`); apply them **before** deploying code that depends on them. Every
-  user-owned table has RLS with `auth.uid()`-scoped policies and the app uses only the
-  anon key + user JWT, so Postgres RLS is the single tenancy boundary. The one
-  exception is the Stripe webhook, which uses `SUPABASE_SERVICE_ROLE_KEY`.
+  user-owned table has RLS with `auth.uid()`-scoped policies and the athlete-facing app
+  uses only the anon key + user JWT, so Postgres RLS is the single tenancy boundary.
+  Service-role (`SUPABASE_SERVICE_ROLE_KEY`, via `createAdminClient()`) is for
+  session-less or cross-account work only: the Stripe and Resend webhooks, the email
+  cron, wearable ingestion, and **/admin** — every admin page, action and route gates
+  on `lib/admin.ts` first (ADMIN_EMAILS + confirmed email + a verified second factor)
+  and writes an `admin_audit_log` row. `lib/wearables/service-role-write-guard.test.ts`
+  fails the build if a table with no write policy is written any other way.
 
 ## 🚨 MANDATORY: Handoff naming + location
 

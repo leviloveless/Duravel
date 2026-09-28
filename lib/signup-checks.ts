@@ -17,7 +17,7 @@
  */
 
 /** The published policy set a signup consents to. Bump when any page materially changes. */
-export const TERMS_VERSION = "2026-09-13";
+export const TERMS_VERSION = "2026-09-28";
 
 /** Minimum age, from the Terms of Use ("You must be at least 13 years old"). */
 export const MIN_AGE_YEARS = 13;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SiteAnnouncement from "@/components/site-announcement";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 
@@ -113,6 +114,7 @@ export default async function NavBar() {
           </div>
         </details>
       </nav>
+      {user ? <SiteAnnouncement /> : null}
     </header>
   );
 }

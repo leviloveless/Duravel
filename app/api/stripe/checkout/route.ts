@@ -4,7 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
 import type { Plan } from "@/lib/subscription";
-import { TRIAL_DAYS } from "@/lib/billing-constants";
+import { TRIAL_DAYS, isTrialEligible } from "@/lib/billing-constants";
 
 /**
  * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" }
@@ -111,10 +111,17 @@ export async function POST(request: Request) {
     // `trial_settings` tells Stripe what to do when the trial ends with no
     // usable payment method — cancel rather than leave a dangling unpaid
     // subscription that reads as entitled.
+    //
+    // ONE trial per athlete: a returning subscriber (any prior `subscriptions`
+    // row) checks out without one — see `isTrialEligible`.
     subscription_data: {
       metadata: { user_id: user.id },
-      trial_period_days: TRIAL_DAYS,
-      trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+      ...(isTrialEligible(!!existing)
+        ? {
+            trial_period_days: TRIAL_DAYS,
+            trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },
+          }
+        : {}),
     },
     metadata: { user_id: user.id, plan: selection },
     allow_promotion_codes: true,

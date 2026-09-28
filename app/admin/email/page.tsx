@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getAdmin } from "@/lib/admin";
+import { adminGateMiss, getAdmin } from "@/lib/admin";
 import { getEmailAdminView } from "@/lib/admin-email";
 import { isBenignSkip, skipReasonLabel, type EmailVerdict } from "@/lib/email/health";
 import { formatInstant } from "@/lib/timezone";
@@ -38,7 +37,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 export default async function AdminEmailPage() {
   const admin = await getAdmin();
-  if (!admin) notFound();
+  if (!admin) return adminGateMiss();
 
   const { health, suppressions, truncated } = await getEmailAdminView();
   const pct = (n: number | null) => (n === null ? "—" : `${Math.round(n * 100)}%`);

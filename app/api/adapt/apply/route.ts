@@ -55,10 +55,9 @@ export async function POST(request: Request) {
   if (decision === "apply") {
     const entitlement = await getEntitlement();
     if (!entitlement.entitled) {
-      const message =
-        entitlement.reason === "none" && entitlement.trialEndsAt
-          ? "Your 14-day free trial has ended. Subscribe to keep adapting your program."
-          : "An active subscription is required to adapt your program.";
+      const message = entitlement.trialEndsAt
+        ? "Your free trial has ended. Subscribe to keep adapting your program."
+        : "Adapting your program is part of the full plan. Start your free trial to turn it on.";
       return NextResponse.json({ error: "payment_required", message }, { status: 402 });
     }
   }

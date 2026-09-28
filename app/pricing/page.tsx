@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getSubscription, hasActiveSubscription } from "@/lib/subscription";
 import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
+import { isTrialEligible } from "@/lib/billing-constants";
 import PricingPlans from "./pricing-plans";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default async function PricingPage() {
         plan={sub?.plan ?? null}
         tier={sub?.tier ?? "standard"}
         customAvailable={customAvailable}
+        trialEligible={isTrialEligible(sub !== null)}
       />
 
       <p className="text-center text-xs text-zinc-500">
