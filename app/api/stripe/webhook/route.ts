@@ -47,7 +47,7 @@ export const dynamic = "force-dynamic";
  *
  * `resolvePrice` fails closed, which is the right direction and a completely
  * silent one. A custom subscriber whose price id does not match the configured
- * `STRIPE_PRICE_CUSTOM_MONTHLY` is written down as `standard` — downgraded to a
+ * custom price id is written down as `standard` — downgraded to a
  * product they did not buy, with no error raised, no failed webhook, and nothing
  * to notice until they open the app and find the feature they are paying for
  * missing. So an unrecognised price id is logged loudly here, with the id
@@ -61,7 +61,7 @@ function resolveSubscriptionPrice(priceId: string | null, context: string): Pric
       `[stripe] price ${priceId} (${context}) matches no configured price id; ` +
         `writing plan=null tier=standard. If this is a paying customer they are being ` +
         `UNDER-ENTITLED — check STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL / ` +
-        `STRIPE_PRICE_CUSTOM_MONTHLY against the live price ids in Stripe.`,
+        `STRIPE_PRICE_CUSTOM_MONTHLY / STRIPE_PRICE_CUSTOM_ANNUAL against the live price ids in Stripe.`,
     );
   }
   return resolution;

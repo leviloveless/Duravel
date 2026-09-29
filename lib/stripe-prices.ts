@@ -31,6 +31,8 @@ export type ConfiguredPrices = {
   monthly?: string;
   annual?: string;
   customMonthly?: string;
+  /** Custom tier billed yearly ($239.99, 2026-09-29). */
+  customAnnual?: string;
 };
 
 export type PriceResolution = {
@@ -93,18 +95,20 @@ export function resolvePrice(
 
   const annual = configured(prices.annual);
   const monthly = configured(prices.monthly);
-  const custom = configured(prices.customMonthly);
+  const customMonthly = configured(prices.customMonthly);
+  const customAnnual = configured(prices.customAnnual);
 
   let plan: Plan | null = null;
   if (priceId === annual) plan = "annual";
   else if (priceId === monthly) plan = "monthly";
-  else if (priceId === custom) plan = "monthly";
+  else if (priceId === customMonthly) plan = "monthly";
+  else if (priceId === customAnnual) plan = "annual";
 
-  // The custom tier is billed monthly, so it shares an interval with the standard
-  // monthly plan and is distinguished only here, by product level.
-  const tier: Tier = priceId === custom ? "custom" : "standard";
+  // Each custom price shares an interval with its standard twin and is
+  // distinguished only here, by product level.
+  const tier: Tier = priceId === customMonthly || priceId === customAnnual ? "custom" : "standard";
 
-  // `plan === null` is sufficient: matching the custom id above always sets a
+  // `plan === null` is sufficient: matching either custom id above always sets a
   // plan, so nothing can be recognised as a tier while being an unrecognised
   // interval.
   return { plan, tier, unrecognized: plan === null };
@@ -122,11 +126,13 @@ export function pricesFromEnv(): ConfiguredPrices {
     monthly: env.STRIPE_PRICE_MONTHLY,
     annual: env.STRIPE_PRICE_ANNUAL,
     customMonthly: env.STRIPE_PRICE_CUSTOM_MONTHLY,
+    customAnnual: env.STRIPE_PRICE_CUSTOM_ANNUAL,
   };
 }
 
 /**
- * Whether the custom tier can actually be bought right now.
+ * Whether the custom tier can actually be bought right now, for one billing
+ * interval (each has its own Stripe price).
  *
  * One predicate, deliberately, because it is consulted from two places that must
  * never disagree: the pricing page decides whether to offer the plan, and the
@@ -141,6 +147,6 @@ export function pricesFromEnv(): ConfiguredPrices {
  * because nobody remembered the flag. Deriving it means configuring the price IS
  * shipping the plan.
  */
-export function customTierIsPurchasable(prices: ConfiguredPrices): boolean {
-  return configured(prices.customMonthly) !== undefined;
+export function customTierIsPurchasable(prices: ConfiguredPrices, plan: Plan = "monthly"): boolean {
+  return configured(plan === "annual" ? prices.customAnnual : prices.customMonthly) !== undefined;
 }

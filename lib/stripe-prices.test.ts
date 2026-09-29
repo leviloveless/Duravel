@@ -38,6 +38,7 @@ const ALL_SET: ConfiguredPrices = {
   monthly: "price_1TtH5CEnQhxb3rRAKnX1JqWf",
   annual: "price_1TuBKrEnQhxb3rRAMKVzVpE3",
   customMonthly: "price_custom_not_yet_created",
+  customAnnual: "price_custom_annual_not_yet_created",
 };
 
 /** Production today: the custom price does not exist, so its var is unset. */
@@ -158,5 +159,32 @@ describe("whether the custom plan is on sale", () => {
     // set, and forgetting it would leave the plan hidden after it was ready —
     // a guard that keeps hiding a configured plan is its own bug.
     expect(customTierIsPurchasable(ALL_SET)).toBe(true);
+  });
+});
+
+describe("the custom tier billed yearly (2026-09-29)", () => {
+  it("reads the custom annual price as the annual interval at the CUSTOM tier", () => {
+    expect(resolvePrice(ALL_SET.customAnnual, ALL_SET)).toEqual({
+      plan: "annual",
+      tier: "custom",
+      unrecognized: false,
+    });
+  });
+
+  it("is on sale per interval: one custom price being set does not open the other", () => {
+    const monthlyOnly: ConfiguredPrices = { ...CUSTOM_UNSET, customMonthly: "price_cm" };
+    expect(customTierIsPurchasable(monthlyOnly, "monthly")).toBe(true);
+    expect(customTierIsPurchasable(monthlyOnly, "annual")).toBe(false);
+    const annualOnly: ConfiguredPrices = { ...CUSTOM_UNSET, customAnnual: "price_ca" };
+    expect(customTierIsPurchasable(annualOnly, "annual")).toBe(true);
+    expect(customTierIsPurchasable(annualOnly, "monthly")).toBe(false);
+  });
+
+  it("a custom annual price that is not configured fails closed to standard and says so", () => {
+    expect(resolvePrice("price_ca", CUSTOM_UNSET)).toEqual({
+      plan: null,
+      tier: "standard",
+      unrecognized: true,
+    });
   });
 });

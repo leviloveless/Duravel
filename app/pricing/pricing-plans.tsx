@@ -10,24 +10,31 @@ type Plan = "monthly" | "annual";
 type Tier = "standard" | "custom";
 
 /**
- * What the athlete can buy.
- *
- * `custom_monthly` is a TIER, not an interval — the other two are the same
- * product billed differently. They share this list because they share a button;
- * the split back into `plan` and `tier` happens server-side from the Stripe
- * price id, in the webhook, which is the only place allowed to decide what
- * someone is entitled to.
+ * What the athlete can buy: a TIER (standard or custom) billed at an INTERVAL
+ * (monthly or annual). Annual is 33% off twelve months on both tiers (Levi,
+ * 2026-09-27). The tier and interval are picked separately here and sent as one
+ * wire value naming the price; the split back into `plan` and `tier` happens
+ * server-side from the Stripe price id, in the webhook, which is the only place
+ * allowed to decide what someone is entitled to.
  */
-type Selection = Plan | "custom_monthly";
+type Selection = Plan | "custom_monthly" | "custom_annual";
 
-const PRICES: Record<Selection, { label: string; price: string; per: string; sub: string }> = {
-  monthly: { label: "Monthly", price: "$19.99", per: "/month", sub: "billed monthly" },
-  annual: { label: "Annual", price: "$119.99", per: "/year", sub: "about $10/mo — billed yearly" },
-  custom_monthly: {
-    label: "Custom",
-    price: "$39.99",
-    per: "/month",
-    sub: "design your own week — billed monthly",
+function selectionFor(tier: Tier, interval: Plan): Selection {
+  return tier === "custom"
+    ? interval === "annual"
+      ? "custom_annual"
+      : "custom_monthly"
+    : interval;
+}
+
+const PRICES: Record<Selection, { price: string; per: string; sub: string }> = {
+  monthly: { price: "$19.99", per: "/month", sub: "billed monthly" },
+  annual: { price: "$159.99", per: "/year", sub: "about $13.33/mo — billed yearly" },
+  custom_monthly: { price: "$29.99", per: "/month", sub: "design your own week — billed monthly" },
+  custom_annual: {
+    price: "$239.99",
+    per: "/year",
+    sub: "design your own week — about $20/mo, billed yearly",
   },
 };
 
@@ -68,13 +75,13 @@ export default function PricingPlans({
   plan: Plan | null;
   tier?: Tier;
   /**
-   * Whether the custom tier's Stripe price actually exists yet, decided on the
-   * server (the price ids are server-only). Required rather than defaulted,
-   * because either default is a lie waiting to happen: defaulting to `true`
-   * re-creates the bug this fixes, and defaulting to `false` would let a new
-   * caller hide a plan that IS on sale and never find out.
+   * Whether each custom price actually exists yet, decided on the server (the
+   * price ids are server-only). Required rather than defaulted, because either
+   * default is a lie waiting to happen: defaulting to `true` re-creates the bug
+   * this fixes, and defaulting to `false` would let a new caller hide a plan that
+   * IS on sale and never find out.
    */
-  customAvailable: boolean;
+  customAvailable: { monthly: boolean; annual: boolean };
   /**
    * Whether checkout will attach the free trial — decided on the server by the
    * same `isTrialEligible` rule the checkout route uses, so the button can never
@@ -83,7 +90,9 @@ export default function PricingPlans({
    */
   trialEligible: boolean;
 }) {
-  const [selected, setSelected] = useState<Selection>("annual");
+  const [tierPick, setTierPick] = useState<Tier>("standard");
+  const [interval, setBilling] = useState<Plan>("annual");
+  const selected = selectionFor(tierPick, interval);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,7 +112,7 @@ export default function PricingPlans({
    * behaviour — an enabled button that produced a 500 and "Billing is not
    * configured" — was the worst of both: it advertised the plan AND broke.
    */
-  const customPending = selected === "custom_monthly" && !customAvailable;
+  const customPending = tierPick === "custom" && !customAvailable[interval];
 
   async function post(url: string, body?: unknown) {
     setPending(true);
@@ -151,37 +160,61 @@ export default function PricingPlans({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="mx-auto inline-flex rounded-full border border-zinc-200 p-1">
-        {(["monthly", "annual", "custom_monthly"] as Selection[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setSelected(p)}
-            aria-pressed={selected === p}
-            className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-              selected === p ? "bg-black text-white" : "text-zinc-600 hover:text-black"
-            }`}
-          >
-            {PRICES[p].label}
-            {p === "custom_monthly" && (
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                  selected === p ? "bg-white/20 text-white" : "bg-sky-100 text-sky-800"
-                }`}
-              >
-                {customAvailable ? "New" : "Soon"}
-              </span>
-            )}
-            {p === "annual" && (
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                  selected === p ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                Save 50%
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex flex-col items-center gap-3">
+        <div
+          className="inline-flex rounded-full border border-zinc-200 p-1"
+          role="group"
+          aria-label="Plan"
+        >
+          {(["standard", "custom"] as Tier[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTierPick(t)}
+              aria-pressed={tierPick === t}
+              className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                tierPick === t ? "bg-black text-white" : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              {t === "standard" ? "Standard" : "Custom"}
+              {t === "custom" && (
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+                    tierPick === t ? "bg-white/20 text-white" : "bg-sky-100 text-sky-800"
+                  }`}
+                >
+                  {customAvailable.monthly || customAvailable.annual ? "New" : "Soon"}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div
+          className="inline-flex rounded-full border border-zinc-200 p-1"
+          role="group"
+          aria-label="Billing"
+        >
+          {(["monthly", "annual"] as Plan[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setBilling(p)}
+              aria-pressed={interval === p}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                interval === p ? "bg-black text-white" : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              {p === "monthly" ? "Monthly" : "Annual"}
+              {p === "annual" && (
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+                    interval === p ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
+                  Save 33%
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 rounded-2xl border border-zinc-200 p-8">
@@ -200,13 +233,13 @@ export default function PricingPlans({
         {customPending && (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <b>Coming soon.</b> The custom plan is built — we&apos;re finishing the billing setup
-            for it. Everything below is what it will include when it opens. The monthly and annual
-            plans are available now.
+            for it. Everything below is what it will include when it opens. The standard monthly and
+            annual plans are available now.
           </p>
         )}
 
         <ul className="flex flex-col gap-2 text-sm text-zinc-700">
-          {(selected === "custom_monthly" ? CUSTOM_FEATURES : STANDARD_FEATURES).map((f) => (
+          {(tierPick === "custom" ? CUSTOM_FEATURES : STANDARD_FEATURES).map((f) => (
             <li key={f} className="flex items-start gap-2">
               <span aria-hidden className="mt-0.5 text-emerald-600">
                 ✓
@@ -227,16 +260,16 @@ export default function PricingPlans({
               ? "Redirecting…"
               : trialEligible
                 ? `Start your ${TRIAL_DAYS}-day free trial`
-                : selected === "custom_monthly"
-                  ? "Subscribe to Custom"
-                  : `Subscribe ${selected === "annual" ? "annually" : "monthly"}`}
+                : `Subscribe${tierPick === "custom" ? " to Custom" : ""} ${
+                    interval === "annual" ? "annually" : "monthly"
+                  }`}
         </button>
         {trialEligible && !customPending ? (
           // The material terms, stated before the card is asked for — not only on
           // Stripe's page after the click.
           <p className="text-center text-xs leading-relaxed text-zinc-500">
             Card required. Nothing is charged for {TRIAL_DAYS} days. Your{" "}
-            {selected === "annual" ? "annual" : "monthly"} plan starts automatically when the trial
+            {interval === "annual" ? "annual" : "monthly"} plan starts automatically when the trial
             ends unless you cancel before then.
           </p>
         ) : null}

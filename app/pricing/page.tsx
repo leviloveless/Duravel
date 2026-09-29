@@ -20,9 +20,13 @@ export default async function PricingPage() {
   //
   // This reads the environment on every render rather than being baked in at
   // build time, which is the property that matters: setting
-  // `STRIPE_PRICE_CUSTOM_MONTHLY` puts the plan on sale, with no second flag to
+  // `STRIPE_PRICE_CUSTOM_MONTHLY` / `_ANNUAL` puts that price on sale, with no second flag to
   // remember and no code change to forget.
-  const customAvailable = customTierIsPurchasable(pricesFromEnv());
+  const prices = pricesFromEnv();
+  const customAvailable = {
+    monthly: customTierIsPurchasable(prices, "monthly"),
+    annual: customTierIsPurchasable(prices, "annual"),
+  };
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-16">

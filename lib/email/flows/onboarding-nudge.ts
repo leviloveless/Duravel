@@ -6,6 +6,7 @@ import { isSubscriptionActive } from "../gate";
 import { mintUnsubToken } from "../unsubscribe";
 import type { OnboardingNudgeProps } from "../templates/types";
 import { onboardingNudgeDue } from "./due";
+import { TRIAL_DAYS } from "@/lib/billing-constants";
 
 /**
  * Onboarding-nudge flow (07 §2.1 #2) — mirrors trial-ending. On each daily run it finds
@@ -17,7 +18,6 @@ import { onboardingNudgeDue } from "./due";
  * Idempotent on `onboarding_nudge:<userId>` (once-ever) + the pure due window, so a
  * re-run or resumed cron never double-sends. Service-role admin client (session-less).
  */
-const TRIAL_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface OnboardingNudgeSummary {

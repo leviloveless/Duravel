@@ -8,7 +8,7 @@ import type { Plan } from "@/lib/subscription";
 import { TRIAL_DAYS, isTrialEligible } from "@/lib/billing-constants";
 
 /**
- * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" }
+ * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" | "custom_annual" }
  *
  * Creates a Stripe Checkout Session (subscription mode) for the signed-in user
  * and returns its URL; the client redirects the browser to it. We stamp the
@@ -32,18 +32,18 @@ export async function POST(request: Request) {
   // maps to is decided server-side, and Stripe tells the webhook what was
   // actually paid for. That is the only ordering in which a client cannot grant
   // itself an entitlement.
-  type Selection = Plan | "custom_monthly";
+  type Selection = Plan | "custom_monthly" | "custom_annual";
+  const SELECTIONS: readonly Selection[] = ["monthly", "annual", "custom_monthly", "custom_annual"];
   let selection: Selection | undefined;
   try {
     const body = await request.json();
-    if (body?.plan === "monthly" || body?.plan === "annual" || body?.plan === "custom_monthly")
-      selection = body.plan;
+    if (SELECTIONS.includes(body?.plan)) selection = body.plan;
   } catch {
     /* fall through to 400 */
   }
   if (!selection) {
     return NextResponse.json(
-      { error: "plan must be 'monthly', 'annual' or 'custom_monthly'" },
+      { error: "plan must be 'monthly', 'annual', 'custom_monthly' or 'custom_annual'" },
       { status: 400 },
     );
   }
@@ -51,19 +51,19 @@ export async function POST(request: Request) {
   // "This plan is not on sale yet" and "billing is broken" are two different
   // things and used to answer with the same 500 and the same opaque sentence.
   //
-  // The custom tier's price genuinely does not exist yet, so a request for it is
-  // an ordinary, expected outcome rather than a server fault — the pricing page
-  // will not offer a checkout button for it while that is true, so anything
-  // reaching here is a stale tab or a direct caller. It gets a 409 and a sentence
-  // a person can act on, because a 5xx would put a real visitor in front of
-  // "something went wrong" for a state that is entirely under our control and
-  // completely normal.
+  // A custom price that does not exist yet is an ordinary, expected outcome
+  // rather than a server fault — the pricing page will not offer a checkout
+  // button for it while that is true, so anything reaching here is a stale tab or
+  // a direct caller. It gets a 409 and a sentence a person can act on.
   //
   // A missing monthly or annual price id stays a 500: those are LIVE and paid
   // for, so their absence is a genuine misconfiguration of a running product and
   // should read as an outage, not as a polite decline.
   const prices = pricesFromEnv();
-  if (selection === "custom_monthly" && !customTierIsPurchasable(prices)) {
+  const isCustom = selection === "custom_monthly" || selection === "custom_annual";
+  const interval: Plan =
+    selection === "annual" || selection === "custom_annual" ? "annual" : "monthly";
+  if (isCustom && !customTierIsPurchasable(prices, interval)) {
     return NextResponse.json(
       {
         error:
@@ -74,12 +74,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const priceId =
-    selection === "annual"
+  const priceId = isCustom
+    ? interval === "annual"
+      ? prices.customAnnual
+      : prices.customMonthly
+    : interval === "annual"
       ? prices.annual
-      : selection === "custom_monthly"
-        ? prices.customMonthly
-        : prices.monthly;
+      : prices.monthly;
   if (!priceId) {
     return NextResponse.json({ error: "Billing is not configured" }, { status: 500 });
   }
