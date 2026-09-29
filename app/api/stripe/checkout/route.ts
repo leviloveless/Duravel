@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { customTierIsPurchasable, pricesFromEnv } from "@/lib/stripe-prices";
 import type { Plan } from "@/lib/subscription";
 import { TRIAL_DAYS, isTrialEligible } from "@/lib/billing-constants";
+import { trialTerms } from "@/lib/billing-copy";
 
 /**
  * POST /api/stripe/checkout  { plan: "monthly" | "annual" | "custom_monthly" | "custom_annual" }
@@ -105,9 +106,18 @@ export async function POST(request: Request) {
     (await stripeCustomerExists(stripe, existing.stripe_customer_id))
       ? existing.stripe_customer_id
       : null;
+  const withTrial = isTrialEligible(!!existing);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
+    // Explicit, not left to Stripe's default: the card is ALWAYS collected, even
+    // though nothing is due today (2026-09-29).
+    payment_method_collection: "always",
+    // Stripe's page already shows "N days free, then $X"; this repeats the terms
+    // in our words right above the button, as the pricing page does.
+    ...(withTrial
+      ? { custom_text: { submit: { message: trialTerms(selection, TRIAL_DAYS) } } }
+      : {}),
     ...(reuseCustomer ? { customer: reuseCustomer } : { customer_email: user.email ?? undefined }),
     client_reference_id: user.id,
     // The trial lives in STRIPE, not in the app (see `lib/subscription.ts`).
@@ -124,7 +134,7 @@ export async function POST(request: Request) {
     // row) checks out without one — see `isTrialEligible`.
     subscription_data: {
       metadata: { user_id: user.id },
-      ...(isTrialEligible(!!existing)
+      ...(withTrial
         ? {
             trial_period_days: TRIAL_DAYS,
             trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },

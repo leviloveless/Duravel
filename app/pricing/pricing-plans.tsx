@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TRIAL_DAYS } from "@/lib/billing-constants";
+import { trialTerms } from "@/lib/billing-copy";
 
 // Mirrored rather than imported: this is a client component, and pulling the
 // types in from `lib/subscription` would drag its server-only Supabase client
@@ -91,7 +92,8 @@ export default function PricingPlans({
   trialEligible: boolean;
 }) {
   const [tierPick, setTierPick] = useState<Tier>("standard");
-  const [interval, setBilling] = useState<Plan>("annual");
+  // Opens on Standard monthly — the default plan a trial rolls into (Levi, 2026-09-29).
+  const [interval, setBilling] = useState<Plan>("monthly");
   const selected = selectionFor(tierPick, interval);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,11 +269,12 @@ export default function PricingPlans({
         {trialEligible && !customPending ? (
           // The material terms, stated before the card is asked for — not only on
           // Stripe's page after the click.
-          <p className="text-center text-xs leading-relaxed text-zinc-500">
-            Card required. Nothing is charged for {TRIAL_DAYS} days. Your{" "}
-            {interval === "annual" ? "annual" : "monthly"} plan starts automatically when the trial
-            ends unless you cancel before then.
-          </p>
+          <div className="rounded-xl bg-zinc-50 px-4 py-3 text-center text-sm leading-relaxed text-zinc-700">
+            <p className="font-semibold text-zinc-900">
+              Card required &middot; $0 today &middot; nothing charged for {TRIAL_DAYS} days
+            </p>
+            <p className="mt-1 text-xs text-zinc-600">{trialTerms(selected, TRIAL_DAYS)}</p>
+          </div>
         ) : null}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
         <p className="text-center text-xs text-zinc-400">Secure checkout via Stripe</p>

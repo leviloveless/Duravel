@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/billing-constants";
+import { DEFAULT_SELECTION, planName, planPrice } from "@/lib/billing-copy";
 import type { ExtraWorkout, ProgramData, WorkoutLog } from "@/lib/schemas";
 import type { ZoneBands } from "./format";
 import type { BrickTargets } from "@/lib/engine/brick-targets";
@@ -251,8 +252,9 @@ export default function ProgramView({
                 Start your {TRIAL_DAYS}-day free trial
               </Link>
               <p className="text-xs text-zinc-500">
-                Card required. Cancel any time in the first {TRIAL_DAYS} days and you won&rsquo;t be
-                charged.
+                Card required, but you won&rsquo;t be charged until your {TRIAL_DAYS}-day trial ends
+                &mdash; then {planPrice(DEFAULT_SELECTION)} on the {planName(DEFAULT_SELECTION)}{" "}
+                plan. Cancel before then and you pay nothing.
               </p>
             </section>
           ) : undefined
